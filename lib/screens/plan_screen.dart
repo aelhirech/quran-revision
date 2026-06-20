@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../core/hadith_data.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
-import '../core/prayer_l10n.dart';
-import '../models/prayer.dart';
-import '../widgets/verse_bottom_sheet.dart';
+import '../widgets/prayer_plan_card.dart';
+import '../widgets/preview_banner.dart';
 
 class PlanScreen extends StatefulWidget {
   final DailySession session;
@@ -52,8 +48,19 @@ class _PlanScreenState extends State<PlanScreen> {
     return count;
   }
 
-  int get _checkedCount {
-    return _checked.values.fold(0, (sum, s) => sum + s.length);
+  int get _checkedCount =>
+      _checked.values.fold(0, (sum, s) => sum + s.length);
+
+  void _toggle(int prayerIndex, int rakaaNumber) {
+    setState(() {
+      final set = _checked.putIfAbsent(prayerIndex, () => {});
+      set.contains(rakaaNumber) ? set.remove(rakaaNumber) : set.add(rakaaNumber);
+      if (_allDone && !_justCompleted) {
+        _justCompleted = true;
+      } else if (!_allDone) {
+        _justCompleted = false;
+      }
+    });
   }
 
   @override
@@ -81,20 +88,36 @@ class _PlanScreenState extends State<PlanScreen> {
                 : null,
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(4),
-              child: _progressBar(cs, progress),
+              child: ClipRRect(
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: cs.surfaceContainerHighest,
+                  color: cs.primary,
+                  minHeight: 4,
+                ),
+              ),
             ),
           ),
           if (widget.isPreview)
-            SliverToBoxAdapter(child: _previewBanner(cs)),
+            const SliverToBoxAdapter(child: PreviewBanner()),
           SliverToBoxAdapter(child: _summaryBar(cs)),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (_, i) => _prayerCard(context, i, widget.session.plan[i], cs)
-                    .animate()
-                    .fadeIn(delay: Duration(milliseconds: i * 80))
-                    .slideY(begin: 0.06),
+                (_, i) {
+                  final pp = widget.session.plan[i];
+                  return PrayerPlanCard(
+                    prayerIndex: i,
+                    pp: pp,
+                    checked: _checked[i] ?? {},
+                    isPreview: widget.isPreview,
+                    onToggle: (rakaa) => _toggle(i, rakaa),
+                  )
+                      .animate()
+                      .fadeIn(delay: Duration(milliseconds: i * 80))
+                      .slideY(begin: 0.06);
+                },
                 childCount: widget.session.plan.length,
               ),
             ),
@@ -106,26 +129,24 @@ class _PlanScreenState extends State<PlanScreen> {
           padding: const EdgeInsets.all(16),
           child: SizedBox(
             height: 56,
-            child: widget.isPreview
-                ? FilledButton.icon(
-                    onPressed: widget.onEngager,
-                    icon: const Icon(Icons.check_rounded),
-                    label: Text(S.sEngager,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                  )
-                : _completionButton(),
+            child: widget.isPreview ? _engageButton() : _completionButton(),
           ),
         ),
       ),
     );
   }
 
+  Widget _engageButton() => FilledButton.icon(
+        onPressed: widget.onEngager,
+        icon: const Icon(Icons.check_rounded),
+        label: Text(S.sEngager,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+      );
+
   Widget _completionButton() {
     final button = FilledButton.icon(
-      onPressed: _allDone
-          ? () => widget.onComplete!(widget.session.totalUnits)
-          : null,
+      onPressed:
+          _allDone ? () => widget.onComplete!(widget.session.totalUnits) : null,
       icon: Icon(_allDone ? Icons.check_circle : Icons.check_circle_outline),
       label: Text(
         _allDone
@@ -139,75 +160,15 @@ class _PlanScreenState extends State<PlanScreen> {
 
     return button
         .animate(key: const ValueKey('done'))
-        .scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1), duration: 350.ms, curve: Curves.elasticOut)
-        .shimmer(duration: 900.ms, color: Colors.white.withValues(alpha: 0.4), delay: 100.ms);
-  }
-
-  Widget _previewBanner(ColorScheme cs) {
-    final h = intentionHadith;
-    final text = S.locale == 'en' ? h.textEn : h.textFr;
-    final source = S.locale == 'en' ? h.sourceEn : h.sourceFr;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.primaryContainer,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.visibility_outlined, color: cs.primary, size: 16),
-              const SizedBox(width: 8),
-              Text(S.apercuBanniere,
-                  style: TextStyle(
-                      color: cs.onPrimaryContainer,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12)),
-            ],
-          ),
-          const Divider(height: 20),
-          Row(
-            children: [
-              Icon(Icons.format_quote_rounded, color: cs.primary, size: 16),
-              const SizedBox(width: 6),
-              Text(S.intentionLabel,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: cs.primary,
-                      letterSpacing: 0.5)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(text,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  color: cs.onPrimaryContainer,
-                  height: 1.5)),
-          const SizedBox(height: 6),
-          Text(source,
-              style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onPrimaryContainer.withValues(alpha: 0.7),
-                  fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-
-  Widget _progressBar(ColorScheme cs, double progress) {
-    return ClipRRect(
-      child: LinearProgressIndicator(
-        value: progress,
-        backgroundColor: cs.surfaceContainerHighest,
-        color: cs.primary,
-        minHeight: 4,
-      ),
-    );
+        .scale(
+            begin: const Offset(0.92, 0.92),
+            end: const Offset(1, 1),
+            duration: 350.ms,
+            curve: Curves.elasticOut)
+        .shimmer(
+            duration: 900.ms,
+            color: Colors.white.withValues(alpha: 0.4),
+            delay: 100.ms);
   }
 
   Widget _summaryBar(ColorScheme cs) {
@@ -216,7 +177,7 @@ class _PlanScreenState extends State<PlanScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: widget.session.isOnTrack
-            ? AppColors.greenContainer
+            ? const Color(0xFFE8F5E9)
             : Colors.orange.shade50,
         borderRadius: BorderRadius.circular(12),
       ),
@@ -224,15 +185,18 @@ class _PlanScreenState extends State<PlanScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            S.unitesRakaas(widget.session.totalUnits, widget.session.totalRakaas),
+            S.unitesRakaas(
+                widget.session.totalUnits, widget.session.totalRakaas),
             style: TextStyle(
-                color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 13),
+                color: cs.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 13),
           ),
           Text(
             widget.session.isOnTrack ? S.dansLesTemps : S.prendsAvance,
             style: TextStyle(
               color: widget.session.isOnTrack
-                  ? AppColors.green
+                  ? const Color(0xFF2E7D32)
                   : Colors.orange.shade800,
               fontWeight: FontWeight.w600,
               fontSize: 13,
@@ -242,137 +206,4 @@ class _PlanScreenState extends State<PlanScreen> {
       ),
     );
   }
-
-  Widget _prayerCard(
-      BuildContext context, int prayerIndex, PrayerPlan pp, ColorScheme cs) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // En-tête prière
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.greenContainer,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(pp.prayer.displayName,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.green,
-                        fontSize: 15)),
-                Text(pp.prayer.nameAr,
-                    style: const TextStyle(
-                        color: AppColors.green, fontSize: 17)),
-              ],
-            ),
-          ),
-          // Rakaas
-          ...pp.rakaas.map((r) => _rakaaRow(prayerIndex, r, cs)),
-        ],
-      ),
-    );
-  }
-
-  Widget _rakaaRow(int prayerIndex, RakaaAssignment r, ColorScheme cs) {
-    final hasUnit = r.unit != null;
-    final isChecked =
-        (_checked[prayerIndex] ?? {}).contains(r.rakaaNumber);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: hasUnit && !widget.isPreview
-          ? () {
-              HapticFeedback.selectionClick();
-              setState(() {
-                final set = _checked.putIfAbsent(prayerIndex, () => {});
-                isChecked ? set.remove(r.rakaaNumber) : set.add(r.rakaaNumber);
-                if (_allDone && !_justCompleted) {
-                  _justCompleted = true;
-                  HapticFeedback.heavyImpact();
-                } else if (!_allDone) {
-                  _justCompleted = false;
-                }
-              });
-            }
-          : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isChecked
-                  ? AppColors.green
-                  : hasUnit
-                      ? AppColors.greenContainer
-                      : cs.surfaceContainerHighest,
-              border: Border.all(
-                color: isChecked
-                    ? AppColors.green
-                    : hasUnit
-                        ? AppColors.green.withValues(alpha: 0.3)
-                        : Colors.transparent,
-              ),
-            ),
-            child: Center(
-              child: isChecked
-                  ? const Icon(Icons.check, color: Colors.white, size: 16)
-                  : Text('${r.rakaaNumber}',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: hasUnit
-                              ? AppColors.green
-                              : cs.onSurfaceVariant)),
-            ),
-          ),
-          title: hasUnit
-              ? Text(
-                  r.unit!.label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                    decoration:
-                        isChecked ? TextDecoration.lineThrough : null,
-                    color: isChecked ? cs.onSurfaceVariant : cs.onSurface,
-                  ),
-                )
-              : Text(S.alFatihaSeul,
-                  style: TextStyle(
-                      color: cs.onSurfaceVariant, fontSize: 13)),
-          subtitle: hasUnit && !r.unit!.isWhole
-              ? Text('${r.unit!.verseCount} ${S.versets}',
-                  style:
-                      TextStyle(color: cs.onSurfaceVariant, fontSize: 11))
-              : null,
-          trailing: hasUnit
-              ? IconButton(
-                  icon: Icon(Icons.menu_book_outlined,
-                      color: AppColors.green, size: 18),
-                  tooltip: S.versetsDeRakaa,
-                  onPressed: () => VerseBottomSheet.show(
-                      context, r.unit!, r.rakaaNumber),
-                )
-              : null,
-          dense: true,
-        ),
-      ),
-    );
-  }
 }
-
-

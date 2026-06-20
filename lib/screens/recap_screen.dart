@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
@@ -7,6 +6,9 @@ import '../core/strings.dart';
 import '../models/session_record.dart';
 import '../services/history_service.dart';
 import '../state/app_state.dart';
+import '../widgets/history_card.dart';
+import '../widgets/sourates_recap_card.dart';
+import '../widgets/streak_card.dart';
 
 class RecapScreen extends StatefulWidget {
   const RecapScreen({super.key});
@@ -30,7 +32,13 @@ class _RecapScreenState extends State<RecapScreen> {
     final streak = await HistoryService.currentStreak();
     final total = await HistoryService.totalSessionDays();
     final sessions = await HistoryService.recentSessions(limit: 14);
-    if (mounted) setState(() { _streak = streak; _totalDays = total; _sessions = sessions; });
+    if (mounted) {
+      setState(() {
+        _streak = streak;
+        _totalDays = total;
+        _sessions = sessions;
+      });
+    }
   }
 
   @override
@@ -46,7 +54,6 @@ class _RecapScreenState extends State<RecapScreen> {
     final total = units.length;
     final pos = state.cyclePosition % (total == 0 ? 1 : total);
     final progress = total == 0 ? 0.0 : pos / total;
-
     final daysElapsed =
         DateTime.now().difference(state.config!.startDate).inDays;
     final daysRemaining =
@@ -70,11 +77,11 @@ class _RecapScreenState extends State<RecapScreen> {
                 const SizedBox(height: 16),
                 _statsRow(cs, state, units.length),
                 const SizedBox(height: 16),
-                _streakCard(cs),
+                StreakCard(streak: _streak, totalDays: _totalDays),
                 const SizedBox(height: 16),
-                _historyCard(cs),
+                HistoryCard(sessions: _sessions),
                 const SizedBox(height: 16),
-                _souratesCard(cs, state),
+                SouratesRecapCard(selections: state.config!.selections),
               ]),
             ),
           ),
@@ -89,7 +96,7 @@ class _RecapScreenState extends State<RecapScreen> {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [cs.primary, AppColors.greenLight],
+          colors: [cs.primary, const Color(0xFF81C784)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -127,7 +134,8 @@ class _RecapScreenState extends State<RecapScreen> {
                 padding: const EdgeInsets.only(bottom: 7, left: 8),
                 child: Text('· $pos / $total ${S.unitesLabel}',
                     style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75), fontSize: 15)),
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontSize: 15)),
               ),
             ],
           ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
@@ -152,8 +160,8 @@ class _RecapScreenState extends State<RecapScreen> {
             daysRemaining > 0
                 ? S.joursRestantsMsg(daysRemaining)
                 : '🎉 ${S.objectifAtteint}',
-            style:
-                TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
           ),
         ],
       ),
@@ -166,9 +174,11 @@ class _RecapScreenState extends State<RecapScreen> {
 
     return Row(
       children: [
-        _statChip(cs, '${selections.length}', S.souratesLabel, Icons.menu_book_outlined, 0),
+        _statChip(cs, '${selections.length}', S.souratesLabel,
+            Icons.menu_book_outlined, 0),
         const SizedBox(width: 12),
-        _statChip(cs, '$totalVerses', S.versetsLabel, Icons.format_list_numbered, 100),
+        _statChip(cs, '$totalVerses', S.versetsLabel,
+            Icons.format_list_numbered, 100),
         const SizedBox(width: 12),
         _statChip(cs, '$unitTotal', S.unitesLabel, Icons.grid_view, 200),
       ],
@@ -213,222 +223,4 @@ class _RecapScreenState extends State<RecapScreen> {
           .slideY(begin: 0.12),
     );
   }
-
-  Widget _streakCard(ColorScheme cs) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.orange.withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          const Text('🔥', style: TextStyle(fontSize: 40)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(S.streakLabel.toUpperCase(),
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5)),
-                const SizedBox(height: 4),
-                Text(
-                  _streak > 0 ? S.streakJours(_streak) : S.aucuneSession,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('$_totalDays',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      height: 1)),
-              Text(S.totalJoursLabel,
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontSize: 11)),
-            ],
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.08);
-  }
-
-  Widget _historyCard(ColorScheme cs) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Text(S.historique,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: cs.onSurface,
-                    fontSize: 15)),
-          ),
-          if (_sessions.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Text(S.aucuneSession,
-                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
-            )
-          else
-            ..._sessions.take(7).map((s) => _historyRow(cs, s)),
-          const SizedBox(height: 8),
-        ],
-      ),
-    ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.08);
-  }
-
-  Widget _historyRow(ColorScheme cs, SessionRecord s) {
-    final dayStr = '${s.date.day.toString().padLeft(2, '0')}/${s.date.month.toString().padLeft(2, '0')}';
-    final pct = s.totalUnits == 0 ? 0.0 : s.unitsCompleted / s.totalUnits;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: pct >= 0.8 ? AppColors.greenContainer : cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(dayStr,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: pct >= 0.8 ? AppColors.green : cs.onSurfaceVariant)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${s.unitsCompleted} / ${s.totalUnits} ${S.unitesLabel}',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: cs.onSurface)),
-                const SizedBox(height: 3),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: pct,
-                    minHeight: 4,
-                    backgroundColor: cs.surfaceContainerHighest,
-                    color: pct >= 0.8 ? AppColors.green : cs.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text('${(pct * 100).round()}%',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: pct >= 0.8 ? AppColors.green : cs.onSurfaceVariant)),
-        ],
-      ),
-    );
-  }
-
-  Widget _souratesCard(ColorScheme cs, AppState state) {
-    final selections = state.config!.selections;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(S.mesSourates,
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: cs.onSurface,
-                      fontSize: 15)),
-            ),
-            ...selections.asMap().entries.map((e) {
-              final sel = e.value;
-              final s = sel.sourate;
-              return ListTile(
-                dense: true,
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: cs.primary,
-                  foregroundColor: cs.onPrimary,
-                  child: Text('${s.id}', style: const TextStyle(fontSize: 10)),
-                ),
-                title: Text(s.nameFr,
-                    style: const TextStyle(fontWeight: FontWeight.w500)),
-                subtitle: Text(s.nameAr),
-                trailing: Text(
-                  sel.isWhole
-                      ? '${s.verses} ${S.versetsLabel}'
-                      : '${sel.verseStart}–${sel.verseEnd} (${sel.verseCount} ${S.versetsLabel})',
-                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
-                ),
-              )
-                  .animate()
-                  .fadeIn(delay: Duration(milliseconds: 300 + e.key * 40))
-                  .slideX(begin: 0.05);
-            }),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1);
-  }
 }
-

@@ -8,6 +8,7 @@ import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/sourate.dart';
 import '../services/learning_service.dart';
+import '../widgets/verse_display_card.dart';
 
 class LearnSurahScreen extends StatefulWidget {
   final LearningProgress progress;
@@ -102,7 +103,12 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
               delegate: SliverChildListDelegate([
                 _progressHeader(cs, s),
                 const SizedBox(height: 24),
-                _verseCard(cs, verseText),
+                VerseDisplayCard(
+                  verseText: verseText,
+                  visible: _verseVisible,
+                  isComplete: _progress.isComplete,
+                  onToggle: () => setState(() => _verseVisible = !_verseVisible),
+                ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.06),
                 const SizedBox(height: 20),
                 if (!_progress.isComplete) _actionRow(cs),
                 const SizedBox(height: 32),
@@ -171,81 +177,6 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.06);
-  }
-
-  Widget _verseCard(ColorScheme cs, String verseText) {
-    if (_progress.isComplete) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppColors.greenContainer,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Center(
-          child: Text(S.sourateCompleted,
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.green)),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () => setState(() => _verseVisible = !_verseVisible),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: _verseVisible ? Colors.white : cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: _verseVisible ? AppColors.green.withValues(alpha: 0.3) : Colors.transparent,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: _verseVisible
-            ? Column(
-                children: [
-                  Text(
-                    verseText,
-                    textAlign: TextAlign.center,
-                    textDirection: TextDirection.rtl,
-                    style: GoogleFonts.scheherazadeNew(
-                        fontSize: 28, height: 2.0, color: cs.onSurface),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(S.masquerVerset,
-                      style: TextStyle(
-                          color: cs.onSurfaceVariant, fontSize: 12)),
-                ],
-              )
-            : Column(
-                children: [
-                  Icon(Icons.visibility_outlined,
-                      color: cs.onSurfaceVariant, size: 32),
-                  const SizedBox(height: 12),
-                  Text(S.afficherVerset,
-                      style: TextStyle(
-                          color: cs.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15)),
-                  const SizedBox(height: 4),
-                  Text('Appuie pour révéler le verset',
-                      style: TextStyle(
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                          fontSize: 12)),
-                ],
-              ),
-      ),
-    ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.06);
   }
 
   Widget _actionRow(ColorScheme cs) {
