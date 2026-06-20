@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../core/hadith_data.dart';
@@ -28,8 +29,8 @@ class PlanScreen extends StatefulWidget {
 }
 
 class _PlanScreenState extends State<PlanScreen> {
-  // Suivi des rakaas cochées : prayerIndex -> Set<rakaaNumber>
   final Map<int, Set<int>> _checked = {};
+  bool _justCompleted = false;
 
   bool get _allDone {
     for (int pi = 0; pi < widget.session.plan.length; pi++) {
@@ -112,23 +113,33 @@ class _PlanScreenState extends State<PlanScreen> {
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w600)),
                   )
-                : FilledButton.icon(
-                    onPressed: _allDone
-                        ? () => widget.onComplete!(widget.session.totalUnits)
-                        : null,
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: Text(
-                      _allDone
-                          ? S.revisionComplete
-                          : '$_checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
+                : _completionButton(),
           ),
         ),
       ),
     );
+  }
+
+  Widget _completionButton() {
+    final button = FilledButton.icon(
+      onPressed: _allDone
+          ? () => widget.onComplete!(widget.session.totalUnits)
+          : null,
+      icon: Icon(_allDone ? Icons.check_circle : Icons.check_circle_outline),
+      label: Text(
+        _allDone
+            ? S.revisionComplete
+            : '$_checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    );
+
+    if (!_allDone) return button;
+
+    return button
+        .animate(key: const ValueKey('done'))
+        .scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1), duration: 350.ms, curve: Curves.elasticOut)
+        .shimmer(duration: 900.ms, color: Colors.white.withValues(alpha: 0.4), delay: 100.ms);
   }
 
   Widget _previewBanner(ColorScheme cs) {
@@ -279,11 +290,19 @@ class _PlanScreenState extends State<PlanScreen> {
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: hasUnit && !widget.isPreview
-          ? () => setState(() {
-                final set =
-                    _checked.putIfAbsent(prayerIndex, () => {});
+          ? () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                final set = _checked.putIfAbsent(prayerIndex, () => {});
                 isChecked ? set.remove(r.rakaaNumber) : set.add(r.rakaaNumber);
-              })
+                if (_allDone && !_justCompleted) {
+                  _justCompleted = true;
+                  HapticFeedback.heavyImpact();
+                } else if (!_allDone) {
+                  _justCompleted = false;
+                }
+              });
+            }
           : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
