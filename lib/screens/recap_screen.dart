@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
@@ -60,7 +61,7 @@ class RecapScreen extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [cs.primary, const Color(0xFF2E7D52)],
+          colors: [cs.primary, AppColors.greenLight],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -241,3 +242,4 @@ class RecapScreen extends StatelessWidget {
     ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1);
   }
 }
+

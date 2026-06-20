@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/quran_data.dart';
@@ -184,7 +185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           // Langue
           ListTile(
-            leading: Icon(Icons.language, color: const Color(0xFF1A5C38)),
+            leading: Icon(Icons.language, color: AppColors.green),
             title: Text(S.langueLabel),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -204,11 +205,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final enabled = snap.data ?? true;
                 return SwitchListTile(
                   secondary: Icon(Icons.notifications_outlined,
-                      color: const Color(0xFF1A5C38)),
+                      color: AppColors.green),
                   title: Text(S.notificationsLabel),
                   subtitle: Text(S.notifSubtitle),
                   value: enabled,
-                  activeColor: const Color(0xFF1A5C38),
+                  activeColor: AppColors.green,
                   onChanged: (val) async {
                     await StorageService.saveNotifEnabled(val);
                     if (val) {
@@ -240,10 +241,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF1A5C38) : Colors.transparent,
+          color: selected ? AppColors.green : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected ? const Color(0xFF1A5C38) : const Color(0xFFE0E5E2),
+            color: selected ? AppColors.green : AppColors.cardBorder,
           ),
         ),
         child: Text(label,
@@ -374,4 +375,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
+
 

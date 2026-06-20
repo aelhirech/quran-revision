@@ -17,11 +17,17 @@ class UserConfig {
         'startDate': startDate.toIso8601String(),
       };
 
-  factory UserConfig.fromJson(Map<String, dynamic> j) => UserConfig(
-        learnedSourates: (j['learnedSourates'] as List)
-            .map((s) => Sourate.fromJson(s))
+  factory UserConfig.fromJson(Map<String, dynamic> j) {
+    try {
+      return UserConfig(
+        learnedSourates: (j['learnedSourates'] as List? ?? [])
+            .map((s) => Sourate.fromJson(s as Map<String, dynamic>))
             .toList(),
-        revisionDays: j['revisionDays'],
-        startDate: DateTime.parse(j['startDate']),
+        revisionDays: j['revisionDays'] as int? ?? 30,
+        startDate: DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
       );
+    } catch (_) {
+      return UserConfig(learnedSourates: const [], revisionDays: 30, startDate: DateTime.now());
+    }
+  }
 }

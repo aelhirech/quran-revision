@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/app_colors.dart';
 import 'package:provider/provider.dart';
 import 'core/strings.dart';
 import 'models/daily_session.dart';
@@ -9,9 +10,9 @@ import 'services/storage_service.dart';
 import 'models/user_config.dart';
 
 ThemeData _buildTheme() {
-  const green = Color(0xFF1A5C38);
-  const greenLight = Color(0xFF2E7D52);
-  const bg = Color(0xFFF7F8F5);
+  const green = AppColors.green;
+  const greenLight = AppColors.greenLight;
+  const bg = AppColors.bg;
 
   final base = ColorScheme.fromSeed(
     seedColor: green,
@@ -19,7 +20,7 @@ ThemeData _buildTheme() {
   ).copyWith(
     primary: green,
     onPrimary: Colors.white,
-    primaryContainer: const Color(0xFFE8F5EE),
+    primaryContainer: AppColors.greenContainer,
     onPrimaryContainer: green,
     secondary: greenLight,
     surface: Colors.white,
@@ -55,7 +56,7 @@ ThemeData _buildTheme() {
       backgroundColor: Colors.white,
       elevation: 0,
       shadowColor: Colors.black.withValues(alpha: 0.08),
-      indicatorColor: const Color(0xFFE8F5EE),
+      indicatorColor: AppColors.greenContainer,
       labelTextStyle: WidgetStateProperty.all(
         const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
@@ -71,7 +72,7 @@ ThemeData _buildTheme() {
     ),
     chipTheme: ChipThemeData(
       backgroundColor: bg,
-      selectedColor: const Color(0xFFE8F5EE),
+      selectedColor: AppColors.greenContainer,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       side: BorderSide.none,
     ),
@@ -83,19 +84,32 @@ void main() async {
   await NotificationService.initialize();
   final config = await StorageService.loadConfig();
   final locale = await StorageService.loadLocale();
+  final cyclePosition = await StorageService.loadCyclePosition();
   S.locale = locale;
-  runApp(QuranRevisionApp(initialConfig: config));
+  runApp(QuranRevisionApp(
+    initialConfig: config,
+    initialCyclePosition: cyclePosition,
+  ));
 }
 
 class QuranRevisionApp extends StatelessWidget {
   final UserConfig? initialConfig;
+  final int initialCyclePosition;
 
-  const QuranRevisionApp({super.key, this.initialConfig});
+  const QuranRevisionApp({
+    super.key,
+    this.initialConfig,
+    this.initialCyclePosition = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => AppState(initialConfig, locale: S.locale),
+      create: (_) => AppState(
+        initialConfig,
+        locale: S.locale,
+        initialCyclePosition: initialCyclePosition,
+      ),
       child: const _AppRoot(),
     );
   }
@@ -121,14 +135,17 @@ class _AppRoot extends StatelessWidget {
 
 class AppState extends ChangeNotifier {
   UserConfig? _config;
-  int _cyclePosition = 0;
+  int _cyclePosition;
   DailySession? _previewSession;
   DailySession? _todaySession;
-  String _locale = 'fr';
+  String _locale;
 
-  AppState(this._config, {String locale = 'fr'}) : _locale = locale {
-    _loadCyclePosition();
-  }
+  AppState(
+    this._config, {
+    String locale = 'fr',
+    int initialCyclePosition = 0,
+  })  : _locale = locale,
+        _cyclePosition = initialCyclePosition;
 
   UserConfig? get config => _config;
   int get cyclePosition => _cyclePosition;
@@ -142,11 +159,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _loadCyclePosition() async {
-    _cyclePosition = await StorageService.loadCyclePosition();
-    notifyListeners();
-  }
-
   Future<void> saveConfig(UserConfig config) async {
     _config = config;
     _cyclePosition = 0;
@@ -157,6 +169,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> advanceCycle(int unitsCompleted, int cycleTotal) async {
+    if (cycleTotal == 0) return;
     _cyclePosition = (_cyclePosition + unitsCompleted) % cycleTotal;
     await StorageService.saveCyclePosition(_cyclePosition);
     notifyListeners();
@@ -178,15 +191,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setTodaySession(DailySession session) {
-    _todaySession = session;
-    notifyListeners();
-  }
-
   void clearTodaySession() {
     _todaySession = null;
     _previewSession = null;
     notifyListeners();
   }
 }
+
 

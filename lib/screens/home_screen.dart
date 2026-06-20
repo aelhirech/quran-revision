@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
@@ -111,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [cs.primary, const Color(0xFF2E7D52)],
+          colors: [cs.primary, AppColors.greenLight],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -245,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: selected ? cs.primary : Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: selected ? cs.primary : const Color(0xFFE0E5E2),
+                    color: selected ? cs.primary : AppColors.cardBorder,
                     width: 1.5,
                   ),
                   boxShadow: selected
@@ -284,4 +285,5 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
 

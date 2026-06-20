@@ -16,13 +16,13 @@ class S {
   static String get priereSureratoires => _t('Prières surérogatoires', 'Supererogatory prayers');
   static String get priereMasjid => _t('En entrant à la mosquée', 'Entering the mosque');
   static String get sEngager => _t("S'engager", 'Commit');
+  static String get apercuBanniere => _t("Aperçu · Appuie sur S'engager pour commencer", "Preview · Tap Commit to start");
   static String get voirPlanDuJour => _t('Voir le plan du jour', 'See daily plan');
   static String get revisionEnCours => _t('Révision en cours', 'Revision in progress');
   static String get cycleEnCours => _t('Cycle en cours', 'Current cycle');
   static String get joursRestants => _t('jours restants', 'days remaining');
   static String get objectifAtteint => _t('Objectif atteint !', 'Goal reached!');
   static String get complete => _t('complété', 'complete');
-  static String get unites => _t('unités', 'units');
 
   // Plan screen
   static String get planDuJourTitle => _t('Plan du jour', 'Daily Plan');

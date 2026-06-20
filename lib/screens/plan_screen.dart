@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
@@ -142,9 +143,7 @@ class _PlanScreenState extends State<PlanScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              S.locale == 'fr'
-                  ? 'Aperçu · Appuie sur S\'engager pour commencer'
-                  : 'Preview · Tap Commit to start',
+              S.apercuBanniere,
               style: TextStyle(
                   color: cs.onPrimaryContainer,
                   fontWeight: FontWeight.w600,
@@ -173,7 +172,7 @@ class _PlanScreenState extends State<PlanScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: widget.session.isOnTrack
-            ? const Color(0xFFE8F5EE)
+            ? AppColors.greenContainer
             : Colors.orange.shade50,
         borderRadius: BorderRadius.circular(12),
       ),
@@ -189,7 +188,7 @@ class _PlanScreenState extends State<PlanScreen> {
             widget.session.isOnTrack ? S.dansLesTemps : S.prendsAvance,
             style: TextStyle(
               color: widget.session.isOnTrack
-                  ? const Color(0xFF1A5C38)
+                  ? AppColors.green
                   : Colors.orange.shade800,
               fontWeight: FontWeight.w600,
               fontSize: 13,
@@ -215,7 +214,7 @@ class _PlanScreenState extends State<PlanScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F5EE),
+              color: AppColors.greenContainer,
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(20)),
             ),
@@ -225,11 +224,11 @@ class _PlanScreenState extends State<PlanScreen> {
                 Text(pp.prayer.displayName,
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A5C38),
+                        color: AppColors.green,
                         fontSize: 15)),
                 Text(pp.prayer.nameAr,
                     style: const TextStyle(
-                        color: Color(0xFF1A5C38), fontSize: 17)),
+                        color: AppColors.green, fontSize: 17)),
               ],
             ),
           ),
@@ -265,15 +264,15 @@ class _PlanScreenState extends State<PlanScreen> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isChecked
-                  ? const Color(0xFF1A5C38)
+                  ? AppColors.green
                   : hasUnit
-                      ? const Color(0xFFE8F5EE)
+                      ? AppColors.greenContainer
                       : cs.surfaceContainerHighest,
               border: Border.all(
                 color: isChecked
-                    ? const Color(0xFF1A5C38)
+                    ? AppColors.green
                     : hasUnit
-                        ? const Color(0xFF1A5C38).withValues(alpha: 0.3)
+                        ? AppColors.green.withValues(alpha: 0.3)
                         : Colors.transparent,
               ),
             ),
@@ -285,7 +284,7 @@ class _PlanScreenState extends State<PlanScreen> {
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: hasUnit
-                              ? const Color(0xFF1A5C38)
+                              ? AppColors.green
                               : cs.onSurfaceVariant)),
             ),
           ),
@@ -314,4 +313,5 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 }
+
 
