@@ -9,7 +9,6 @@ import '../models/sourate.dart';
 import '../models/user_config.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
-import 'onboarding_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -197,6 +196,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const Divider(height: 1, indent: 56),
+          // Ordre aléatoire
+          SwitchListTile(
+            secondary: Icon(Icons.shuffle, color: AppColors.green),
+            title: Text(S.aleatoireLabel),
+            subtitle: Text(S.aleatoireSubtitle),
+            value: context.watch<AppState>().config?.shuffleEnabled ?? true,
+            activeThumbColor: AppColors.green,
+            onChanged: (val) => context.read<AppState>().setShuffleEnabled(val),
+          ),
+          const Divider(height: 1, indent: 56),
           // Notifications
           StatefulBuilder(builder: (ctx, setSt) {
             return FutureBuilder<bool>(
@@ -282,12 +291,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Text(S.annuler)),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: cs.error),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-                (_) => false,
-              );
+              await context.read<AppState>().clearConfig();
             },
             child: Text(S.reinitDialog),
           ),
@@ -318,10 +324,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(color: cs.onPrimaryContainer),
                 ),
                 const Spacer(),
-                Text('${_selectedIds.length} ${S.selectionnerLabel}',
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    if (_selectedIds.length == allSourates.length) {
+                      _selectedIds.clear();
+                    } else {
+                      _selectedIds.addAll(allSourates.map((s) => s.id));
+                    }
+                  }),
+                  icon: Icon(
+                    _selectedIds.length == allSourates.length
+                        ? Icons.deselect
+                        : Icons.select_all,
+                    color: cs.onPrimaryContainer,
+                    size: 16,
+                  ),
+                  label: Text(
+                    _selectedIds.length == allSourates.length
+                        ? S.toutDeselectionner
+                        : S.toutSelectionner,
                     style: TextStyle(
                         color: cs.onPrimaryContainer,
-                        fontWeight: FontWeight.bold)),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12),
+                  ),
+                ),
               ],
             ),
           ),

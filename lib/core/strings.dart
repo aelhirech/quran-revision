@@ -66,6 +66,10 @@ class S {
   static String get rechercherSourate => _t('Rechercher une sourate...', 'Search a surah...');
   static String get commencer => _t('Commencer la révision', 'Start revision');
   static String get selectSourates => _t('Sélectionne tes sourates', 'Select your surahs');
+  static String get toutSelectionner => _t('Tout sélectionner', 'Select all');
+  static String get toutDeselectionner => _t('Tout désélectionner', 'Deselect all');
+  static String get aleatoireLabel => _t('Ordre aléatoire', 'Random order');
+  static String get aleatoireSubtitle => _t('Mélange les unités à chaque nouveau cycle', 'Shuffles units each new cycle');
 
   // Notifications
   static String get notifMatinTitle => _t('Révision du Coran 🕌', 'Quran Revision 🕌');

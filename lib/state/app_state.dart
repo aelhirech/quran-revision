@@ -70,4 +70,20 @@ class AppState extends ChangeNotifier {
     _previewSession = null;
     notifyListeners();
   }
+
+  Future<void> setShuffleEnabled(bool enabled) async {
+    if (_config == null) return;
+    _config = _config!.copyWith(shuffleEnabled: enabled);
+    await StorageService.saveConfig(_config!);
+    notifyListeners();
+  }
+
+  Future<void> clearConfig() async {
+    _config = null;
+    _cyclePosition = 0;
+    _todaySession = null;
+    _previewSession = null;
+    await StorageService.clear();
+    notifyListeners();
+  }
 }

@@ -62,9 +62,9 @@ class RevisionEngine {
     required DateTime today,
   }) {
     final rawUnits = buildUnits(config.learnedSourates);
-    // Shuffle stable basé sur startDate : ordre aléatoire mais constant pour ce cycle
-    final units = [...rawUnits]
-      ..shuffle(Random(config.startDate.millisecondsSinceEpoch));
+    final units = config.shuffleEnabled
+        ? ([...rawUnits]..shuffle(Random(config.startDate.millisecondsSinceEpoch)))
+        : rawUnits;
     final cycleTotal = units.length;
 
     final daysElapsed = today.difference(config.startDate).inDays;

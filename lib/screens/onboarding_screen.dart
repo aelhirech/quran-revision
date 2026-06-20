@@ -117,9 +117,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   fontWeight: FontWeight.w800,
                   color: cs.onPrimaryContainer)),
           const SizedBox(height: 8),
-          Text(S.souratesCount(_selectedIds.length, totalVerses),
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, color: cs.onPrimaryContainer)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(S.souratesCount(_selectedIds.length, totalVerses),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: cs.onPrimaryContainer)),
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  if (_selectedIds.length == allSourates.length) {
+                    _selectedIds.clear();
+                  } else {
+                    _selectedIds.addAll(allSourates.map((s) => s.id));
+                  }
+                }),
+                icon: Icon(
+                  _selectedIds.length == allSourates.length
+                      ? Icons.deselect
+                      : Icons.select_all,
+                  color: cs.onPrimaryContainer,
+                  size: 18,
+                ),
+                label: Text(
+                  _selectedIds.length == allSourates.length
+                      ? S.toutDeselectionner
+                      : S.toutSelectionner,
+                  style: TextStyle(
+                      color: cs.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
