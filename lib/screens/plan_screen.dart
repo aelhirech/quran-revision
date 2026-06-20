@@ -3,6 +3,7 @@ import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
+import '../core/prayer_l10n.dart';
 import '../models/prayer.dart';
 
 class PlanScreen extends StatefulWidget {

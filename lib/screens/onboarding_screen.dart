@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/quran_data.dart';
 import '../core/strings.dart';
-import '../main.dart';
+import '../state/app_state.dart';
 import '../models/sourate.dart';
 import '../models/user_config.dart';
 import 'shell_screen.dart';

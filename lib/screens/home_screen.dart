@@ -4,8 +4,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
-import '../main.dart';
+import '../state/app_state.dart';
 import '../models/daily_session.dart';
+import '../core/prayer_l10n.dart';
 import '../models/prayer.dart';
 
 class HomeScreen extends StatefulWidget {

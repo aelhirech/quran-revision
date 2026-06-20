@@ -1,5 +1,3 @@
-import '../core/strings.dart';
-
 enum Prayer {
   // Prières obligatoires (fard)
   fajr,
@@ -114,8 +112,6 @@ extension PrayerExtension on Prayer {
       case Prayer.tahiyyatMasjid: return 2;
     }
   }
-
-  String get displayName => S.locale == 'en' ? nameEn : nameFr;
 
   bool get isTahiyyat => this == Prayer.tahiyyatMasjid;
 

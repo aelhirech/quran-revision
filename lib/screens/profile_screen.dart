@@ -4,7 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/quran_data.dart';
 import '../core/strings.dart';
-import '../main.dart';
+import '../state/app_state.dart';
 import '../models/sourate.dart';
 import '../models/user_config.dart';
 import '../services/notification_service.dart';

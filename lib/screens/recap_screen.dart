@@ -4,7 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
-import '../main.dart';
+import '../state/app_state.dart';
 
 class RecapScreen extends StatelessWidget {
   const RecapScreen({super.key});
