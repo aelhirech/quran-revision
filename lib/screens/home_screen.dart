@@ -146,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text('$pos / $total unités',
+                child: Text('$pos / $total ${S.unitesLabel}',
                     style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,

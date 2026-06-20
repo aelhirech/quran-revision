@@ -115,6 +115,14 @@ extension PrayerExtension on Prayer {
 
   bool get isTahiyyat => this == Prayer.tahiyyatMasjid;
 
+  /// Poids de contenu par suratRakaa.
+  /// Les prières surérogatoires courtes reçoivent moins de contenu.
+  double get wordWeight {
+    if (isFard) return 1.0;
+    if (this == Prayer.witr) return 1.0;
+    return 0.5; // sunna rawatib + tahiyyat
+  }
+
   bool get isFard {
     return this == Prayer.fajr ||
         this == Prayer.dhuhr ||

@@ -119,7 +119,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _infoCard(
-      ColorScheme cs, dynamic config, int elapsed, int remaining) {
+      ColorScheme cs, UserConfig config, int elapsed, int remaining) {
     return Card(
       elevation: 0,
       color: cs.surfaceContainerHighest,
@@ -209,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: Text(S.notificationsLabel),
                   subtitle: Text(S.notifSubtitle),
                   value: enabled,
-                  activeColor: AppColors.green,
+                  activeThumbColor: AppColors.green,
                   onChanged: (val) async {
                     await StorageService.saveNotifEnabled(val);
                     if (val) {
@@ -233,10 +233,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _langChip(String label, String locale, ColorScheme cs) {
     final selected = context.watch<AppState>().locale == locale;
     return GestureDetector(
-      onTap: () async {
-        context.read<AppState>().setLocale(locale);
-        await StorageService.saveLocale(locale);
-      },
+      onTap: () => context.read<AppState>().setLocale(locale),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -321,7 +318,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(color: cs.onPrimaryContainer),
                 ),
                 const Spacer(),
-                Text('${_selectedIds.length} sélectionnées',
+                Text('${_selectedIds.length} ${S.selectionnerLabel}',
                     style: TextStyle(
                         color: cs.onPrimaryContainer,
                         fontWeight: FontWeight.bold)),
@@ -332,7 +329,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Rechercher...',
+                hintText: S.rechercher,
                 prefixIcon: const Icon(Icons.search),
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

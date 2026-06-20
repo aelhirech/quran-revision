@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/app_theme.dart';
 import 'core/strings.dart';
+import 'models/user_config.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/shell_screen.dart';
 import 'services/notification_service.dart';
@@ -22,7 +23,7 @@ void main() async {
 }
 
 class QuranRevisionApp extends StatelessWidget {
-  final dynamic initialConfig;
+  final UserConfig? initialConfig;
   final int initialCyclePosition;
 
   const QuranRevisionApp({

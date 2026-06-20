@@ -119,7 +119,7 @@ class _PlanScreenState extends State<PlanScreen> {
                     label: Text(
                       _allDone
                           ? S.revisionComplete
-                          : '$_checkedCount / $_totalRakaasWithUnit rakaas',
+                          : '$_checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w600),
                     ),

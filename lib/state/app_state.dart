@@ -16,7 +16,9 @@ class AppState extends ChangeNotifier {
     String locale = 'fr',
     int initialCyclePosition = 0,
   })  : _locale = locale,
-        _cyclePosition = initialCyclePosition;
+        _cyclePosition = initialCyclePosition {
+    S.locale = locale;
+  }
 
   UserConfig? get config => _config;
   int get cyclePosition => _cyclePosition;
@@ -24,9 +26,10 @@ class AppState extends ChangeNotifier {
   DailySession? get todaySession => _todaySession;
   String get locale => _locale;
 
-  void setLocale(String locale) {
+  Future<void> setLocale(String locale) async {
     _locale = locale;
     S.locale = locale;
+    await StorageService.saveLocale(locale);
     notifyListeners();
   }
 
