@@ -4,14 +4,16 @@ import '../models/revision_unit.dart';
 import '../models/sourate.dart';
 import '../models/user_config.dart';
 
-const int _pageLimitVerses = 20;
+/// Limite de mots par unité de révision (~1 page de Mushaf standard)
+const int _wordLimit = 150;
 
 class RevisionEngine {
-  /// Découpe les sourates en unités de révision (1 unité = 1 rakaa max)
+  /// Découpe les sourates en unités de révision basées sur le nombre de mots.
+  /// Une unité = ce qu'on peut réciter confortablement dans une rakaa.
   static List<RevisionUnit> buildUnits(List<Sourate> sourates) {
     final units = <RevisionUnit>[];
     for (final s in sourates) {
-      if (s.verses <= _pageLimitVerses) {
+      if (s.words <= _wordLimit) {
         units.add(RevisionUnit(
           sourate: s,
           verseStart: 1,
@@ -19,11 +21,13 @@ class RevisionEngine {
           isWhole: true,
         ));
       } else {
-        final chunks = (s.verses / _pageLimitVerses).ceil();
-        final chunkSize = (s.verses / chunks).ceil();
+        final chunks = (s.words / _wordLimit).ceil();
+        // Divise les versets en chunks proportionnels
+        final versesPerChunk = (s.verses / chunks).ceil();
         for (int i = 0; i < chunks; i++) {
-          final start = i * chunkSize + 1;
-          final end = (start + chunkSize - 1).clamp(1, s.verses);
+          final start = i * versesPerChunk + 1;
+          final end = ((i + 1) * versesPerChunk).clamp(1, s.verses);
+          if (start > s.verses) break;
           units.add(RevisionUnit(
             sourate: s,
             verseStart: start,
@@ -47,7 +51,8 @@ class RevisionEngine {
     return (unitsLeft / daysRemaining).ceil();
   }
 
-  /// Génère le plan du jour : distribue les unités dans les rakaas
+  /// Génère le plan du jour : distribue les unités dans les rakaas où
+  /// une sourate est récitée (suratRakaas), pas tous les rakaas.
   static DailySession buildDayPlan({
     required UserConfig config,
     required List<Prayer> prayersAlone,
@@ -58,9 +63,12 @@ class RevisionEngine {
     final cycleTotal = units.length;
 
     final daysElapsed = today.difference(config.startDate).inDays;
-    final daysRemaining = (config.revisionDays - daysElapsed).clamp(1, config.revisionDays);
+    final daysRemaining =
+        (config.revisionDays - daysElapsed).clamp(1, config.revisionDays);
 
-    final totalRakaas = prayersAlone.fold(0, (sum, p) => sum + p.rakaas);
+    // Nombre de rakaas disponibles pour la révision (seulement les rakaas avec sourate)
+    final totalSuratRakaas =
+        prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
 
     final target = dailyTarget(
       cyclePosition: cyclePosition % cycleTotal,
@@ -69,19 +77,20 @@ class RevisionEngine {
     );
 
     final pos = cyclePosition % cycleTotal;
-    final unitsToAssign = target.clamp(0, totalRakaas);
+    final unitsToAssign = target.clamp(0, totalSuratRakaas);
     final todayUnits = <RevisionUnit>[];
     for (int i = 0; i < unitsToAssign; i++) {
       todayUnits.add(units[(pos + i) % cycleTotal]);
     }
 
-    // Distribue dans les prières
+    // Distribue dans les prières — les unités vont dans les suratRakaas premiers rakaas
     final plan = <PrayerPlan>[];
     int unitIndex = 0;
     for (final prayer in prayersAlone) {
       final rakaas = <RakaaAssignment>[];
       for (int r = 1; r <= prayer.rakaas; r++) {
-        if (unitIndex < todayUnits.length) {
+        final canHaveSurat = r <= prayer.suratRakaas;
+        if (canHaveSurat && unitIndex < todayUnits.length) {
           rakaas.add(RakaaAssignment(rakaaNumber: r, unit: todayUnits[unitIndex]));
           unitIndex++;
         } else {
@@ -102,7 +111,6 @@ class RevisionEngine {
     );
   }
 
-  /// Avance le pointeur de cycle après une session complétée
   static int advanceCycle({
     required int currentPosition,
     required int unitsCompleted,

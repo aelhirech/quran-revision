@@ -3,12 +3,14 @@ class Sourate {
   final String nameAr;
   final String nameFr;
   final int verses;
+  final int words;
 
   const Sourate({
     required this.id,
     required this.nameAr,
     required this.nameFr,
     required this.verses,
+    required this.words,
   });
 
   Map<String, dynamic> toJson() => {
@@ -16,6 +18,7 @@ class Sourate {
         'nameAr': nameAr,
         'nameFr': nameFr,
         'verses': verses,
+        'words': words,
       };
 
   factory Sourate.fromJson(Map<String, dynamic> j) => Sourate(
@@ -23,5 +26,6 @@ class Sourate {
         nameAr: j['nameAr'],
         nameFr: j['nameFr'],
         verses: j['verses'],
+        words: j['words'] ?? j['verses'] * 12,
       );
 }

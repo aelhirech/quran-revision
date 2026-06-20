@@ -112,7 +112,7 @@ class PlanScreen extends StatelessWidget {
       title: hasUnit
           ? Text(r.unit!.label,
               style: const TextStyle(fontWeight: FontWeight.w500))
-          : Text('Al-Fatiha uniquement',
+          : Text('Al-Fatiha (pas de sourate)',
               style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
       subtitle: hasUnit && !r.unit!.isWhole
           ? Text('${r.unit!.verseCount} versets',

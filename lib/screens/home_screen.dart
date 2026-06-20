@@ -152,21 +152,45 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _prayerSelector(ColorScheme cs) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: Prayer.values.map((p) {
-        final selected = _prayersAlone.contains(p);
-        return FilterChip(
-          label: Text('${p.nameFr} (${p.rakaas}r)'),
-          selected: selected,
-          onSelected: (_) => setState(() {
-            selected ? _prayersAlone.remove(p) : _prayersAlone.add(p);
-          }),
-          selectedColor: cs.primaryContainer,
-          checkmarkColor: cs.primary,
-        );
-      }).toList(),
+    final fard = Prayer.values.where((p) => p.isFard).toList();
+    final sunna = Prayer.values.where((p) => !p.isFard).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _chipGroup('Prières obligatoires', fard, cs),
+        const SizedBox(height: 12),
+        _chipGroup('Prières surérogatoires', sunna, cs),
+      ],
+    );
+  }
+
+  Widget _chipGroup(String label, List<Prayer> prayers, ColorScheme cs) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: cs.onSurfaceVariant)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: prayers.map((p) {
+            final selected = _prayersAlone.contains(p);
+            return FilterChip(
+              label: Text('${p.nameFr} (${p.rakaas}r)'),
+              selected: selected,
+              onSelected: (_) => setState(() {
+                selected ? _prayersAlone.remove(p) : _prayersAlone.add(p);
+              }),
+              selectedColor: cs.primaryContainer,
+              checkmarkColor: cs.primary,
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }
