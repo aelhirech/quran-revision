@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/strings.dart';
 import '../state/app_state.dart';
 import '../widgets/day_plan_tab.dart';
+import 'learn_screen.dart';
 import 'recap_screen.dart';
 import 'profile_screen.dart';
 
@@ -31,6 +32,11 @@ class _ShellScreenState extends State<ShellScreen> {
         label: S.recap,
       ),
       NavigationDestination(
+        icon: const Icon(Icons.auto_stories_outlined),
+        selectedIcon: const Icon(Icons.auto_stories),
+        label: S.apprendre,
+      ),
+      NavigationDestination(
         icon: const Icon(Icons.person_outline),
         selectedIcon: const Icon(Icons.person),
         label: S.profil,
@@ -47,6 +53,7 @@ class _ShellScreenState extends State<ShellScreen> {
         children: const [
           DayPlanTab(),
           RecapScreen(),
+          LearnScreen(),
           ProfileScreen(),
         ],
       ),

@@ -107,6 +107,26 @@ class S {
   static String joursDuration(int n) =>
       locale == 'fr' ? '$n jours' : '$n days';
 
+  // Apprentissage
+  static String get apprendre => _t('Apprendre', 'Learn');
+  static String get apprentissage => _t('Apprentissage', 'Learning');
+  static String get enCoursDApprentissage => _t("En cours d'apprentissage", 'In progress');
+  static String get commencerSourate => _t('Commencer une sourate', 'Start a surah');
+  static String get aucuneSourateEnCours => _t('Aucune sourate en cours', 'No surah in progress');
+  static String get aucuneSourateDesc => _t('Choisis une sourate à mémoriser', 'Choose a surah to memorize');
+  static String get versetSuivant => _t('Verset suivant', 'Next verse');
+  static String get versetPrecedent => _t('Verset précédent', 'Previous verse');
+  static String get marquerAppris => _t('Marquer comme appris', 'Mark as learned');
+  static String get versetAppris => _t('Appris ✓', 'Learned ✓');
+  static String get afficherVerset => _t('Afficher le verset', 'Show verse');
+  static String get masquerVerset => _t('Masquer', 'Hide');
+  static String get ajouterAlaRevision => _t('Ajouter à la révision', 'Add to revision');
+  static String get sourateCompleted => _t('Sourate complétée ! 🎉', 'Surah completed! 🎉');
+  static String get ajouterDesc => _t('Tu peux maintenant ajouter cette sourate à ta liste de révision.', 'You can now add this surah to your revision list.');
+  static String get supprimerApprentissage => _t("Supprimer l'apprentissage", 'Remove learning');
+  static String versetN(int n, int total) => _t('Verset $n / $total', 'Verse $n / $total');
+  static String versetsAppris(int n, int total) => _t('$n / $total versets appris', '$n / $total verses learned');
+
   // Streak / gamification
   static String streakJours(int n) =>
       locale == 'fr' ? '$n jour${n > 1 ? 's' : ''} de suite' : '$n day${n > 1 ? 's' : ''} in a row';
