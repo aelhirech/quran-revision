@@ -7,6 +7,7 @@ import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../core/prayer_l10n.dart';
 import '../models/prayer.dart';
+import '../widgets/verse_bottom_sheet.dart';
 
 class PlanScreen extends StatefulWidget {
   final DailySession session;
@@ -357,6 +358,15 @@ class _PlanScreenState extends State<PlanScreen> {
               ? Text('${r.unit!.verseCount} ${S.versets}',
                   style:
                       TextStyle(color: cs.onSurfaceVariant, fontSize: 11))
+              : null,
+          trailing: hasUnit
+              ? IconButton(
+                  icon: Icon(Icons.menu_book_outlined,
+                      color: AppColors.green, size: 18),
+                  tooltip: S.versetsDeRakaa,
+                  onPressed: () => VerseBottomSheet.show(
+                      context, r.unit!, r.rakaaNumber),
+                )
               : null,
           dense: true,
         ),

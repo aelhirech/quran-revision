@@ -73,6 +73,10 @@ class S {
   static String get notifSoirTitle => _t('Bilan du jour 📖', 'Daily recap 📖');
   static String get notifSoirBody => _t('As-tu complété ta révision ?', 'Did you complete your revision?');
 
+  // Versets
+  static String get versetsDeRakaa => _t('Versets de la rakaa', 'Verses for this rakaa');
+  static String verset(int n) => _t('Verset $n', 'Verse $n');
+
   // Hadiths
   static String get hadithDuJourLabel => _t('Hadith du jour', 'Hadith of the day');
   static String get intentionLabel => _t('Rappel avant de commencer', 'Reminder before you start');
