@@ -73,6 +73,10 @@ class S {
   static String get notifSoirTitle => _t('Bilan du jour 📖', 'Daily recap 📖');
   static String get notifSoirBody => _t('As-tu complété ta révision ?', 'Did you complete your revision?');
 
+  // Hadiths
+  static String get hadithDuJourLabel => _t('Hadith du jour', 'Hadith of the day');
+  static String get intentionLabel => _t('Rappel avant de commencer', 'Reminder before you start');
+
   static String _t(String fr, String en) => locale == 'fr' ? fr : en;
 
   static String joursRestantsMsg(int n) =>

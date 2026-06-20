@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import '../core/hadith_data.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../state/app_state.dart';
@@ -67,6 +68,8 @@ class _HomeScreenState extends State<HomeScreen> {
               delegate: SliverChildListDelegate([
                 _progressCard(cs, progress, state.cyclePosition % cycleTotal,
                     cycleTotal, state),
+                const SizedBox(height: 16),
+                _hadithCard(cs),
                 const SizedBox(height: 24),
                 Text(S.priereImam,
                     style: Theme.of(context)
@@ -101,6 +104,50 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Widget _hadithCard(ColorScheme cs) {
+    final h = hadithDuJour(DateTime.now());
+    final text = S.locale == 'en' ? h.textEn : h.textFr;
+    final source = S.locale == 'en' ? h.sourceEn : h.sourceFr;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.format_quote_rounded, color: AppColors.green, size: 18),
+              const SizedBox(width: 6),
+              Text(S.hadithDuJourLabel,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.green,
+                      letterSpacing: 0.8)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  height: 1.5)),
+          const SizedBox(height: 8),
+          Text(source,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w500)),
+        ],
+      ),
+    ).animate().fadeIn(delay: 120.ms).slideY(begin: 0.06);
   }
 
   Widget _progressCard(ColorScheme cs, double progress, int pos, int total,

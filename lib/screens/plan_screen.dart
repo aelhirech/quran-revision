@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../core/hadith_data.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../core/prayer_l10n.dart';
@@ -131,26 +132,56 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   Widget _previewBanner(ColorScheme cs) {
+    final h = intentionHadith;
+    final text = S.locale == 'en' ? h.textEn : h.textFr;
+    final source = S.locale == 'en' ? h.sourceEn : h.sourceFr;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: cs.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.visibility_outlined, color: cs.primary, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              S.apercuBanniere,
-              style: TextStyle(
-                  color: cs.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13),
-            ),
+          Row(
+            children: [
+              Icon(Icons.visibility_outlined, color: cs.primary, size: 16),
+              const SizedBox(width: 8),
+              Text(S.apercuBanniere,
+                  style: TextStyle(
+                      color: cs.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12)),
+            ],
           ),
+          const Divider(height: 20),
+          Row(
+            children: [
+              Icon(Icons.format_quote_rounded, color: cs.primary, size: 16),
+              const SizedBox(width: 6),
+              Text(S.intentionLabel,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: cs.primary,
+                      letterSpacing: 0.5)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(text,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: cs.onPrimaryContainer,
+                  height: 1.5)),
+          const SizedBox(height: 6),
+          Text(source,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onPrimaryContainer.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );
