@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:quran/quran.dart' as quran;
+import '../core/app_colors.dart';
 import '../core/quran_data.dart';
 import '../core/strings.dart';
 import '../state/app_state.dart';
 import '../models/sourate.dart';
 import '../models/user_config.dart';
-import 'shell_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -17,6 +18,9 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final Set<int> _selectedIds = {};
   int _revisionDays = 30;
+  int _versesPerDay = 20;
+  bool _useVersesPerDay = false;
+  bool _groupByJuz = false;
   String _search = '';
 
   List<Sourate> get _filtered => allSourates
@@ -26,21 +30,43 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           s.id.toString() == _search)
       .toList();
 
+  int get _totalVerses => allSourates
+      .where((s) => _selectedIds.contains(s.id))
+      .fold(0, (sum, s) => sum + s.verses);
+
+  int get _estimatedDays => _useVersesPerDay && _versesPerDay > 0
+      ? (_totalVerses / _versesPerDay).ceil().clamp(1, 9999)
+      : _revisionDays;
+
+  /// Construit la liste plate : soit sourates seules, soit [juzHeader, ...sourates]
+  List<Object> get _listItems {
+    final sourates = _filtered;
+    if (!_groupByJuz || _search.isNotEmpty) return sourates;
+
+    final result = <Object>[];
+    int? currentJuz;
+    for (final s in sourates) {
+      final juz = quran.getJuzNumber(s.id, 1);
+      if (juz != currentJuz) {
+        currentJuz = juz;
+        result.add(juz); // int = header
+      }
+      result.add(s);
+    }
+    return result;
+  }
+
   Future<void> _confirm() async {
     if (_selectedIds.isEmpty) return;
     final sourates =
         allSourates.where((s) => _selectedIds.contains(s.id)).toList();
     final config = UserConfig(
       learnedSourates: sourates,
-      revisionDays: _revisionDays,
+      revisionDays: _useVersesPerDay ? _estimatedDays : _revisionDays,
       startDate: DateTime.now(),
+      versesPerDay: _useVersesPerDay ? _versesPerDay : null,
     );
     await context.read<AppState>().saveConfig(config);
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const ShellScreen()),
-      );
-    }
   }
 
   @override
@@ -52,47 +78,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: Column(
           children: [
             _header(cs),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: S.rechercherSourate,
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                onChanged: (v) => setState(() => _search = v),
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _filtered.length,
-                itemBuilder: (_, i) {
-                  final s = _filtered[i];
-                  final selected = _selectedIds.contains(s.id);
-                  return CheckboxListTile(
-                    value: selected,
-                    onChanged: (_) => setState(() {
-                      selected
-                          ? _selectedIds.remove(s.id)
-                          : _selectedIds.add(s.id);
-                    }),
-                    title: Text(s.nameFr),
-                    subtitle: Text('${s.nameAr}  ·  ${s.verses} ${S.versetsLabel}'),
-                    secondary: CircleAvatar(
-                      backgroundColor:
-                          selected ? cs.primary : cs.surfaceContainerHighest,
-                      foregroundColor:
-                          selected ? cs.onPrimary : cs.onSurfaceVariant,
-                      radius: 18,
-                      child: Text('${s.id}',
-                          style: const TextStyle(fontSize: 11)),
-                    ),
-                  );
-                },
-              ),
-            ),
+            _searchBar(cs),
+            Expanded(child: _list(cs)),
             _footer(cs),
           ],
         ),
@@ -101,13 +88,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _header(ColorScheme cs) {
-    final totalVerses = allSourates
-        .where((s) => _selectedIds.contains(s.id))
-        .fold(0, (sum, s) => sum + s.verses);
     return Container(
       width: double.infinity,
       color: cs.primaryContainer,
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -117,14 +101,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   fontWeight: FontWeight.w800,
                   color: cs.onPrimaryContainer)),
           const SizedBox(height: 8),
+          // Compteur + Tout sélectionner
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(S.souratesCount(_selectedIds.length, totalVerses),
+              Text(S.souratesCount(_selectedIds.length, _totalVerses),
                   style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: cs.onPrimaryContainer)),
+                      color: cs.onPrimaryContainer,
+                      fontSize: 13)),
               TextButton.icon(
+                style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                 onPressed: () => setState(() {
                   if (_selectedIds.length == allSourates.length) {
                     _selectedIds.clear();
@@ -137,7 +125,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ? Icons.deselect
                       : Icons.select_all,
                   color: cs.onPrimaryContainer,
-                  size: 18,
+                  size: 16,
                 ),
                 label: Text(
                   _selectedIds.length == allSourates.length
@@ -151,11 +139,56 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          // Durée : par jours ou par versets/jour
+          _durationRow(cs),
+          const SizedBox(height: 8),
+          // Grouper par Juz
+          Row(
+            children: [
+              Icon(Icons.menu_book_outlined,
+                  size: 16, color: cs.onPrimaryContainer.withValues(alpha: 0.8)),
+              const SizedBox(width: 6),
+              Text(S.regrouperParJuz,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onPrimaryContainer,
+                      fontWeight: FontWeight.w500)),
+              const Spacer(),
+              Switch.adaptive(
+                value: _groupByJuz,
+                onChanged: (v) => setState(() => _groupByJuz = v),
+                activeThumbColor: cs.primary,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _durationRow(ColorScheme cs) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Toggle Par durée / Par versets/jour
+        Row(
+          children: [
+            _modeChip(cs, label: S.parDuree, active: !_useVersesPerDay,
+                onTap: () => setState(() => _useVersesPerDay = false)),
+            const SizedBox(width: 8),
+            _modeChip(cs, label: S.parVersetsJour, active: _useVersesPerDay,
+                onTap: () => setState(() => _useVersesPerDay = true)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (!_useVersesPerDay)
+          // Sélecteur de jours
           Row(
             children: [
               Text(S.reviserEn,
-                  style: TextStyle(color: cs.onPrimaryContainer)),
+                  style: TextStyle(
+                      color: cs.onPrimaryContainer, fontSize: 13)),
               const SizedBox(width: 8),
               DropdownButton<int>(
                 value: _revisionDays,
@@ -166,12 +199,133 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onChanged: (v) => setState(() => _revisionDays = v!),
                 dropdownColor: cs.primaryContainer,
                 style: TextStyle(
-                    color: cs.onPrimaryContainer,
-                    fontWeight: FontWeight.w600),
+                    color: cs.onPrimaryContainer, fontWeight: FontWeight.w600),
               ),
             ],
+          )
+        else
+          // Stepper versets/jour + jours estimés
+          Row(
+            children: [
+              _stepperButton(cs, Icons.remove,
+                  () => setState(() => _versesPerDay = (_versesPerDay - 5).clamp(5, 500))),
+              const SizedBox(width: 8),
+              Text(S.versetsParJour(_versesPerDay),
+                  style: TextStyle(
+                      color: cs.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14)),
+              const SizedBox(width: 8),
+              _stepperButton(cs, Icons.add,
+                  () => setState(() => _versesPerDay = (_versesPerDay + 5).clamp(5, 500))),
+              const Spacer(),
+              if (_totalVerses > 0)
+                Text('→ ${S.joursDuration(_estimatedDays)} ${S.joursEstimes}',
+                    style: TextStyle(
+                        color: cs.onPrimaryContainer.withValues(alpha: 0.75),
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic)),
+            ],
           ),
-        ],
+      ],
+    );
+  }
+
+  Widget _modeChip(ColorScheme cs,
+      {required String label, required bool active, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? cs.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: active ? cs.primary : cs.onPrimaryContainer.withValues(alpha: 0.4)),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: active ? cs.onPrimary : cs.onPrimaryContainer)),
+      ),
+    );
+  }
+
+  Widget _stepperButton(ColorScheme cs, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: cs.primary,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: cs.onPrimary, size: 16),
+      ),
+    );
+  }
+
+  Widget _searchBar(ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: S.rechercherSourate,
+          prefixIcon: const Icon(Icons.search),
+          border:
+              OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        ),
+        onChanged: (v) => setState(() => _search = v),
+      ),
+    );
+  }
+
+  Widget _list(ColorScheme cs) {
+    final items = _listItems;
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (_, i) {
+        final item = items[i];
+        if (item is int) return _juzHeader(cs, item);
+        final s = item as Sourate;
+        final selected = _selectedIds.contains(s.id);
+        return CheckboxListTile(
+          value: selected,
+          onChanged: (_) => setState(() {
+            selected ? _selectedIds.remove(s.id) : _selectedIds.add(s.id);
+          }),
+          title: Text(s.nameFr),
+          subtitle:
+              Text('${s.nameAr}  ·  ${s.verses} ${S.versetsLabel}'),
+          secondary: CircleAvatar(
+            backgroundColor:
+                selected ? cs.primary : cs.surfaceContainerHighest,
+            foregroundColor:
+                selected ? cs.onPrimary : cs.onSurfaceVariant,
+            radius: 18,
+            child:
+                Text('${s.id}', style: const TextStyle(fontSize: 11)),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _juzHeader(ColorScheme cs, int juz) {
+    return Container(
+      color: AppColors.greenContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Text(
+        S.juz(juz),
+        style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.green,
+            letterSpacing: 0.8),
       ),
     );
   }

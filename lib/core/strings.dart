@@ -70,6 +70,12 @@ class S {
   static String get toutDeselectionner => _t('Tout désélectionner', 'Deselect all');
   static String get aleatoireLabel => _t('Ordre aléatoire', 'Random order');
   static String get aleatoireSubtitle => _t('Mélange les unités à chaque nouveau cycle', 'Shuffles units each new cycle');
+  static String get parDuree => _t('Par durée', 'By duration');
+  static String get parVersetsJour => _t('Versets/jour', 'Verses/day');
+  static String get joursEstimes => _t('jours estimés', 'estimated days');
+  static String get regrouperParJuz => _t('Grouper par Juz', 'Group by Juz');
+  static String juz(int n) => 'Juz $n';
+  static String versetsParJour(int n) => _t('$n versets/jour', '$n verses/day');
 
   // Notifications
   static String get notifMatinTitle => _t('Révision du Coran 🕌', 'Quran Revision 🕌');

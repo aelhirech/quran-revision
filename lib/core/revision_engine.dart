@@ -67,9 +67,10 @@ class RevisionEngine {
         : rawUnits;
     final cycleTotal = units.length;
 
+    final totalVerses = config.learnedSourates.fold(0, (s, v) => s + v.verses);
     final daysElapsed = today.difference(config.startDate).inDays;
-    final daysRemaining =
-        (config.revisionDays - daysElapsed).clamp(1, config.revisionDays);
+    final effectiveDays = config.effectiveDays(totalVerses);
+    final daysRemaining = (effectiveDays - daysElapsed).clamp(1, effectiveDays);
 
     // Slots pondérés : les sunna/tahiyyat (hors witr) comptent pour 0.5 slot
     final totalSuratRakaas = prayersAlone
