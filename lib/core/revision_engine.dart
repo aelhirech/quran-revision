@@ -77,11 +77,14 @@ class RevisionEngine {
     );
 
     final pos = cyclePosition % cycleTotal;
-    final unitsToAssign = target.clamp(0, totalSuratRakaas);
-    final todayUnits = <RevisionUnit>[];
+    final unitsToAssign = target.clamp(0, cycleTotal);
+    final baseUnits = <RevisionUnit>[];
     for (int i = 0; i < unitsToAssign; i++) {
-      todayUnits.add(units[(pos + i) % cycleTotal]);
+      baseUnits.add(units[(pos + i) % cycleTotal]);
     }
+
+    // Subdivise les unités pour remplir tous les suratRakaas disponibles
+    final todayUnits = _expandToRakaas(baseUnits, totalSuratRakaas);
 
     // Distribue dans les prières — les unités vont dans les suratRakaas premiers rakaas
     final plan = <PrayerPlan>[];
@@ -104,11 +107,48 @@ class RevisionEngine {
       date: today,
       prayersAlone: prayersAlone,
       plan: plan,
-      totalUnits: unitsToAssign,
+      totalUnits: baseUnits.length,
       cyclePosition: pos,
       cycleTotal: cycleTotal,
       daysRemaining: daysRemaining,
     );
+  }
+
+  /// Subdivise les unités pour remplir exactement [targetCount] rakaas.
+  /// Si on a moins d'unités que de rakaas, chaque unité est re-découpée proportionnellement.
+  static List<RevisionUnit> _expandToRakaas(
+      List<RevisionUnit> units, int targetCount) {
+    if (units.isEmpty || units.length >= targetCount) return units;
+
+    final result = <RevisionUnit>[];
+    int slotsLeft = targetCount;
+    int unitsLeft = units.length;
+
+    for (final unit in units) {
+      // Nombre de rakaas allouées à cette unité (distribution équitable)
+      final slots = (slotsLeft / unitsLeft).round().clamp(1, slotsLeft);
+      slotsLeft -= slots;
+      unitsLeft--;
+
+      if (slots == 1 || unit.verseCount <= 1) {
+        result.add(unit);
+      } else {
+        final versesPerSlot = (unit.verseCount / slots).ceil();
+        for (int i = 0; i < slots; i++) {
+          final start = unit.verseStart + i * versesPerSlot;
+          if (start > unit.verseEnd) break;
+          final end = (start + versesPerSlot - 1).clamp(unit.verseStart, unit.verseEnd);
+          result.add(RevisionUnit(
+            sourate: unit.sourate,
+            verseStart: start,
+            verseEnd: end,
+            isWhole: false,
+          ));
+        }
+      }
+    }
+
+    return result;
   }
 
   static int advanceCycle({

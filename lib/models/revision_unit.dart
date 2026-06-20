@@ -16,8 +16,9 @@ class RevisionUnit {
   int get verseCount => verseEnd - verseStart + 1;
 
   String get label {
-    if (isWhole) return sourate.nameAr;
-    return '${sourate.nameAr} (v.$verseStart–$verseEnd)';
+    final name = '${sourate.nameAr} · ${sourate.nameFr}';
+    if (isWhole) return name;
+    return '$name (v.$verseStart–$verseEnd)';
   }
 
   Map<String, dynamic> toJson() => {

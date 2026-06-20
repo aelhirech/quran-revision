@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
 import '../main.dart';
@@ -47,60 +48,62 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: cs.surface,
-      appBar: AppBar(
-        title: const Text('Révision du Coran'),
-        backgroundColor: cs.primary,
-        foregroundColor: cs.onPrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Réinitialiser',
-            onPressed: () => state.advanceCycle(0, cycleTotal),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: const Text('Révision du Coran'),
+            backgroundColor: cs.surface,
+            foregroundColor: cs.onSurface,
+            centerTitle: false,
+            floating: true,
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _progressCard(cs, progress, state.cyclePosition % cycleTotal,
+                    cycleTotal, state),
+                const SizedBox(height: 24),
+                Text('Prières seules aujourd\'hui',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold))
+                    .animate()
+                    .fadeIn(delay: 150.ms),
+                const SizedBox(height: 10),
+                _prayerSelector(cs),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: FilledButton.icon(
+                    onPressed: _prayersAlone.isEmpty
+                        ? null
+                        : () {
+                            _buildPlan(state);
+                            if (_session != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PlanScreen(
+                                    session: _session!,
+                                    onComplete: (units) =>
+                                        state.advanceCycle(units, cycleTotal),
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Voir mon plan du jour',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
+                ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
+              ]),
+            ),
           ),
         ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _progressCard(cs, progress, state.cyclePosition % cycleTotal,
-                cycleTotal, state),
-            const SizedBox(height: 20),
-            Text('Prières seules aujourd\'hui',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            _prayerSelector(cs),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton.icon(
-                onPressed: _prayersAlone.isEmpty
-                    ? null
-                    : () {
-                        _buildPlan(state);
-                        if (_session != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PlanScreen(
-                                session: _session!,
-                                onComplete: (units) =>
-                                    state.advanceCycle(units, cycleTotal),
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Voir mon plan du jour',
-                    style: TextStyle(fontSize: 16)),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -111,44 +114,97 @@ class _HomeScreenState extends State<HomeScreen> {
         DateTime.now().difference(state.config!.startDate).inDays;
     final daysRemaining =
         (state.config!.revisionDays - daysElapsed).clamp(0, 9999);
-    return Card(
-      color: cs.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Cycle en cours',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: cs.onPrimaryContainer)),
-                Text('$pos / $total unités',
-                    style: TextStyle(color: cs.onPrimaryContainer)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: progress,
-              backgroundColor: cs.onPrimaryContainer.withOpacity(0.2),
-              color: cs.primary,
-              minHeight: 10,
-              borderRadius: BorderRadius.circular(5),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              daysRemaining > 0
-                  ? 'Il te reste $daysRemaining jours pour finir ce cycle'
-                  : 'Objectif atteint ! Lance un nouveau cycle',
-              style:
-                  TextStyle(color: cs.onPrimaryContainer, fontSize: 12),
-            ),
-          ],
+    final percent = (progress * 100).round();
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [cs.primary, const Color(0xFF2E7D52)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: cs.primary.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-    );
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Cycle en cours',
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3)),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('$pos / $total unités',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('$percent%',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 44,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                      letterSpacing: -1)),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text('complété',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.7), fontSize: 14)),
+              ),
+            ],
+          ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.white.withOpacity(0.2),
+              color: Colors.white,
+              minHeight: 6,
+            ),
+          ).animate().scaleX(
+                begin: 0,
+                alignment: Alignment.centerLeft,
+                duration: 800.ms,
+                curve: Curves.easeOut,
+              ),
+          const SizedBox(height: 10),
+          Text(
+            daysRemaining > 0
+                ? '$daysRemaining jours restants'
+                : 'Objectif atteint !',
+            style: TextStyle(
+                color: Colors.white.withOpacity(0.7), fontSize: 12),
+          ),
+        ],
+      ),
+    ).animate().fadeIn().slideY(begin: 0.06);
   }
 
   Widget _prayerSelector(ColorScheme cs) {
@@ -168,25 +224,61 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
+        Text(label.toUpperCase(),
             style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: cs.onSurfaceVariant)),
-        const SizedBox(height: 6),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: cs.onSurfaceVariant,
+                letterSpacing: 1.2)),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: prayers.map((p) {
             final selected = _prayersAlone.contains(p);
-            return FilterChip(
-              label: Text('${p.nameFr} (${p.rakaas}r)'),
-              selected: selected,
-              onSelected: (_) => setState(() {
+            return GestureDetector(
+              onTap: () => setState(() {
                 selected ? _prayersAlone.remove(p) : _prayersAlone.add(p);
               }),
-              selectedColor: cs.primaryContainer,
-              checkmarkColor: cs.primary,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected ? cs.primary : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: selected ? cs.primary : const Color(0xFFE0E5E2),
+                    width: 1.5,
+                  ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: cs.primary.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          )
+                        ]
+                      : [],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (selected)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 6),
+                        child: Icon(Icons.check, color: Colors.white, size: 14),
+                      ),
+                    Text(
+                      '${p.nameFr}  ${p.rakaas}r',
+                      style: TextStyle(
+                        color: selected ? Colors.white : cs.onSurface,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
           }).toList(),
         ),

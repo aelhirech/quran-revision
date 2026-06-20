@@ -4,7 +4,7 @@ import '../core/quran_data.dart';
 import '../main.dart';
 import '../models/sourate.dart';
 import '../models/user_config.dart';
-import 'home_screen.dart';
+import 'shell_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -37,7 +37,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await context.read<AppState>().saveConfig(config);
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const ShellScreen()),
       );
     }
   }
