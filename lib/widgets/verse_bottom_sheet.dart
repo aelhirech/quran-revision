@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quran/quran.dart' as quran;
 import '../core/app_colors.dart';
 import '../core/strings.dart';
@@ -82,11 +83,7 @@ class VerseBottomSheet extends StatelessWidget {
         children: [
           Text(
             surahNameAr,
-            style: const TextStyle(
-              fontSize: 28,
-              fontFamily: 'Scheherazade',
-              height: 1.8,
-            ),
+            style: GoogleFonts.scheherazadeNew(fontSize: 28, height: 1.8),
             textDirection: TextDirection.rtl,
           ),
           const SizedBox(height: 4),
@@ -134,11 +131,7 @@ class VerseBottomSheet extends StatelessWidget {
             text,
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontSize: 22,
-              height: 2.0,
-              fontFamily: 'Scheherazade',
-            ),
+            style: GoogleFonts.scheherazadeNew(fontSize: 22, height: 2.0),
           ),
         ),
       ],

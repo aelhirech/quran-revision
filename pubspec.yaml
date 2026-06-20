@@ -38,6 +38,7 @@ dependencies:
   go_router: ^14.6.2
   flutter_animate: ^4.5.0
   quran: ^1.4.1
+  google_fonts: ^8.1.0
 
 dev_dependencies:
   flutter_test:
