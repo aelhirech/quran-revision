@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import '../core/app_colors.dart';
 import '../core/quran_data.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
@@ -9,6 +8,8 @@ import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../services/learning_service.dart';
 import '../state/app_state.dart';
+import '../widgets/daily_verse_info_card.dart';
+import '../widgets/learning_progress_card.dart';
 import '../widgets/sourate_picker_sheet.dart';
 import 'learn_surah_screen.dart';
 
@@ -38,15 +39,10 @@ class _LearnScreenState extends State<LearnScreen> {
     final result = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-        builder: (_) => LearnSurahScreen(
-          progress: p,
-          onChanged: _load,
-        ),
+        builder: (_) => LearnSurahScreen(progress: p, onChanged: _load),
       ),
     );
-    if (result == 'add_to_revision' && mounted) {
-      _addToRevision(p.sourate);
-    }
+    if (result == 'add_to_revision' && mounted) _addToRevision(p.sourate);
     _load();
   }
 
@@ -54,15 +50,14 @@ class _LearnScreenState extends State<LearnScreen> {
     final state = context.read<AppState>();
     final config = state.config;
     if (config == null) return;
-    final alreadyIn = config.selections.any((sel) => sel.sourate.id == s.id);
-    if (alreadyIn) {
+    if (config.selections.any((sel) => sel.sourate.id == s.id)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${s.nameFr} est déjà dans ta révision')),
       );
       return;
     }
-    final newSelections = [...config.selections, SourateSelection.whole(s)];
-    await state.saveConfig(config.copyWith(selections: newSelections));
+    await state.saveConfig(
+        config.copyWith(selections: [...config.selections, SourateSelection.whole(s)]));
     await LearningService.remove(s.id);
     await _load();
     if (mounted) {
@@ -75,11 +70,10 @@ class _LearnScreenState extends State<LearnScreen> {
   Future<void> _startNewSourate() async {
     final inProgressIds = _inProgress.map((p) => p.sourate.id).toSet();
     final learnedIds = context.read<AppState>().config?.selections
-        .map((s) => s.sourate.id).toSet() ?? {};
+            .map((s) => s.sourate.id).toSet() ?? {};
     final available = allSourates
         .where((s) => !inProgressIds.contains(s.id) && !learnedIds.contains(s.id))
         .toList();
-
     if (available.isEmpty) return;
 
     final picked = await showModalBottomSheet<Sourate>(
@@ -101,9 +95,11 @@ class _LearnScreenState extends State<LearnScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: Text(S.supprimerApprentissage),
-        content: Text('Supprimer l\'apprentissage de ${p.sourate.nameFr} ?'),
+        content: Text("Supprimer l'apprentissage de ${p.sourate.nameFr} ?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.annuler)),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(S.annuler)),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -134,14 +130,13 @@ class _LearnScreenState extends State<LearnScreen> {
           ),
           if (_loading)
             const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else ...[
+                child: Center(child: CircularProgressIndicator()))
+          else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  _dailyVerseInfo(cs),
+                  const DailyVerseInfoCard(),
                   const SizedBox(height: 20),
                   if (_inProgress.isEmpty)
                     _emptyState(cs)
@@ -154,57 +149,30 @@ class _LearnScreenState extends State<LearnScreen> {
                         .animate().fadeIn(),
                     const SizedBox(height: 12),
                     ..._inProgress.asMap().entries.map((e) =>
-                        _progressCard(cs, e.value, e.key)),
+                        LearningProgressCard(
+                          progress: e.value,
+                          index: e.key,
+                          onTap: () => _openSourate(e.value),
+                          onDismiss: () => _deleteLearning(e.value),
+                        )),
                   ],
                   const SizedBox(height: 16),
-                  _addButton(cs),
+                  OutlinedButton.icon(
+                    onPressed: _startNewSourate,
+                    icon: const Icon(Icons.add),
+                    label: Text(S.commencerSourate),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ).animate().fadeIn(delay: 200.ms),
                 ]),
               ),
             ),
-          ],
         ],
       ),
     );
-  }
-
-  Widget _dailyVerseInfo(ColorScheme cs) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.primaryContainer,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: cs.primary,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.auto_stories, color: cs.onPrimary, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('1 verset par jour',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        color: cs.onPrimaryContainer)),
-                const SizedBox(height: 2),
-                Text('Mémorise un verset chaque jour et l\'app suit ta progression',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onPrimaryContainer.withValues(alpha: 0.75))),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn().slideY(begin: 0.06);
   }
 
   Widget _emptyState(ColorScheme cs) {
@@ -227,130 +195,4 @@ class _LearnScreenState extends State<LearnScreen> {
       ).animate().fadeIn(delay: 100.ms),
     );
   }
-
-  Widget _progressCard(ColorScheme cs, LearningProgress p, int idx) {
-    final s = p.sourate;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Dismissible(
-        key: ValueKey(s.id),
-        direction: DismissDirection.endToStart,
-        background: Container(
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 20),
-          decoration: BoxDecoration(
-            color: Colors.red.shade100,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Icon(Icons.delete_outline, color: Colors.red),
-        ),
-        confirmDismiss: (_) async {
-          await _deleteLearning(p);
-          return false; // géré manuellement dans _deleteLearning
-        },
-        child: GestureDetector(
-          onTap: () => _openSourate(p),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColors.greenContainer,
-                      child: Text('${s.id}',
-                          style: const TextStyle(
-                              color: AppColors.green,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(s.nameFr,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15)),
-                          Text(s.nameAr,
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  color: cs.onSurfaceVariant)),
-                        ],
-                      ),
-                    ),
-                    if (p.isComplete)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.greenContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text('✓ Complet',
-                            style: const TextStyle(
-                                color: AppColors.green,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12)),
-                      )
-                    else
-                      Text(
-                        S.versetN(p.nextVerse, s.verses),
-                        style: TextStyle(
-                            color: cs.onSurfaceVariant,
-                            fontSize: 12),
-                      ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: p.progress,
-                    minHeight: 6,
-                    backgroundColor: cs.surfaceContainerHighest,
-                    color: AppColors.green,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(S.versetsAppris(p.learnedCount, s.verses),
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurfaceVariant)),
-              ],
-            ),
-          ).animate().fadeIn(delay: Duration(milliseconds: 80 * idx)).slideY(begin: 0.06),
-        ),
-      ),
-    );
-  }
-
-  Widget _addButton(ColorScheme cs) {
-    return OutlinedButton.icon(
-      onPressed: _startNewSourate,
-      icon: const Icon(Icons.add),
-      label: Text(S.commencerSourate),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-    ).animate().fadeIn(delay: 200.ms);
-  }
 }
-
