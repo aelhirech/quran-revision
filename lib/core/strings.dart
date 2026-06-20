@@ -106,4 +106,12 @@ class S {
 
   static String joursDuration(int n) =>
       locale == 'fr' ? '$n jours' : '$n days';
+
+  // Streak / gamification
+  static String streakJours(int n) =>
+      locale == 'fr' ? '$n jour${n > 1 ? 's' : ''} de suite' : '$n day${n > 1 ? 's' : ''} in a row';
+  static String get totalJoursLabel => _t('jours de révision', 'revision days');
+  static String get streakLabel => _t('Série', 'Streak');
+  static String get historique => _t('Historique', 'History');
+  static String get aucuneSession => _t('Aucune session enregistrée', 'No sessions recorded yet');
 }

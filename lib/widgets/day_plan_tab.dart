@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
+import '../models/session_record.dart';
 import '../screens/home_screen.dart';
 import '../screens/plan_screen.dart';
+import '../services/history_service.dart';
 import '../state/app_state.dart';
 
 /// Gère la logique de routing du tab "Plan du jour" :
@@ -24,6 +26,14 @@ class DayPlanTab extends StatelessWidget {
           final allUnits =
               RevisionEngine.buildUnits(state.config!.selections);
           state.advanceCycle(unitsCompleted, allUnits.length);
+          HistoryService.recordSession(SessionRecord(
+            date: DateTime.now(),
+            unitsCompleted: unitsCompleted,
+            totalUnits: allUnits.length,
+            prayers: state.todaySession!.prayersAlone
+                .map((p) => p.name)
+                .toList(),
+          ));
           state.clearTodaySession();
         },
         onChangePlan: () => state.clearTodaySession(),

@@ -4,10 +4,34 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
+import '../models/session_record.dart';
+import '../services/history_service.dart';
 import '../state/app_state.dart';
 
-class RecapScreen extends StatelessWidget {
+class RecapScreen extends StatefulWidget {
   const RecapScreen({super.key});
+
+  @override
+  State<RecapScreen> createState() => _RecapScreenState();
+}
+
+class _RecapScreenState extends State<RecapScreen> {
+  int _streak = 0;
+  int _totalDays = 0;
+  List<SessionRecord> _sessions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final streak = await HistoryService.currentStreak();
+    final total = await HistoryService.totalSessionDays();
+    final sessions = await HistoryService.recentSessions(limit: 14);
+    if (mounted) setState(() { _streak = streak; _totalDays = total; _sessions = sessions; });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +69,10 @@ class RecapScreen extends StatelessWidget {
                 _cycleCard(cs, progress, pos, total, daysRemaining),
                 const SizedBox(height: 16),
                 _statsRow(cs, state, units.length),
+                const SizedBox(height: 16),
+                _streakCard(cs),
+                const SizedBox(height: 16),
+                _historyCard(cs),
                 const SizedBox(height: 16),
                 _souratesCard(cs, state),
               ]),
@@ -183,6 +211,163 @@ class RecapScreen extends StatelessWidget {
           .animate()
           .fadeIn(delay: Duration(milliseconds: delayMs))
           .slideY(begin: 0.12),
+    );
+  }
+
+  Widget _streakCard(ColorScheme cs) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 40)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(S.streakLabel.toUpperCase(),
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5)),
+                const SizedBox(height: 4),
+                Text(
+                  _streak > 0 ? S.streakJours(_streak) : S.aucuneSession,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('$_totalDays',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      height: 1)),
+              Text(S.totalJoursLabel,
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.75),
+                      fontSize: 11)),
+            ],
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.08);
+  }
+
+  Widget _historyCard(ColorScheme cs) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Text(S.historique,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
+                    fontSize: 15)),
+          ),
+          if (_sessions.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Text(S.aucuneSession,
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
+            )
+          else
+            ..._sessions.take(7).map((s) => _historyRow(cs, s)),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.08);
+  }
+
+  Widget _historyRow(ColorScheme cs, SessionRecord s) {
+    final dayStr = '${s.date.day.toString().padLeft(2, '0')}/${s.date.month.toString().padLeft(2, '0')}';
+    final pct = s.totalUnits == 0 ? 0.0 : s.unitsCompleted / s.totalUnits;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: pct >= 0.8 ? AppColors.greenContainer : cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(dayStr,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: pct >= 0.8 ? AppColors.green : cs.onSurfaceVariant)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${s.unitsCompleted} / ${s.totalUnits} ${S.unitesLabel}',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: cs.onSurface)),
+                const SizedBox(height: 3),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: pct,
+                    minHeight: 4,
+                    backgroundColor: cs.surfaceContainerHighest,
+                    color: pct >= 0.8 ? AppColors.green : cs.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text('${(pct * 100).round()}%',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: pct >= 0.8 ? AppColors.green : cs.onSurfaceVariant)),
+        ],
+      ),
     );
   }
 

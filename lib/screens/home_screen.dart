@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../core/hadith_data.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
+import '../services/history_service.dart';
 import '../state/app_state.dart';
 import '../models/daily_session.dart';
 import '../core/prayer_l10n.dart';
@@ -22,6 +23,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final Set<Prayer> _prayersAlone = {};
   DailySession? _session;
+  int _streak = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    HistoryService.currentStreak().then((v) {
+      if (mounted) setState(() => _streak = v);
+    });
+  }
 
   void _buildPlan(AppState state) {
     if (state.config == null || _prayersAlone.isEmpty) return;
@@ -100,6 +110,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
               ]),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _streakBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade400,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 13)),
+          const SizedBox(width: 4),
+          Text(
+            S.streakJours(_streak),
+            style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 12),
           ),
         ],
       ),
@@ -237,12 +271,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 curve: Curves.easeOut,
               ),
           const SizedBox(height: 10),
-          Text(
-            daysRemaining > 0
-                ? '$daysRemaining ${S.joursRestants}'
-                : S.objectifAtteint,
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                daysRemaining > 0
+                    ? '$daysRemaining ${S.joursRestants}'
+                    : S.objectifAtteint,
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+              ),
+              if (_streak > 0)
+                _streakBadge(),
+            ],
           ),
         ],
       ),
