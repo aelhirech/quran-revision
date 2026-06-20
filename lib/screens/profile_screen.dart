@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/quran_data.dart';
-import '../main.dart';
+import '../core/strings.dart';
+import '../state/app_state.dart';
 import '../models/sourate.dart';
 import '../models/user_config.dart';
+import '../services/notification_service.dart';
+import '../services/storage_service.dart';
 import 'onboarding_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -63,7 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: const Text('Mon profil'),
+            title: Text(S.monProfil),
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             centerTitle: false,
@@ -71,17 +75,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (!_editing)
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Modifier',
+                  tooltip: S.modifier,
                   onPressed: () => setState(() => _editing = true),
                 )
               else ...[
                 TextButton(
                   onPressed: () => setState(() => _editing = false),
-                  child: const Text('Annuler'),
+                  child: Text(S.annuler),
                 ),
                 FilledButton(
                   onPressed: _selectedIds.isEmpty ? null : _save,
-                  child: const Text('Sauver'),
+                  child: Text(S.sauver),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -106,6 +110,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         delegate: SliverChildListDelegate([
           _infoCard(cs, config, daysElapsed, daysRemaining),
           const SizedBox(height: 16),
+          _settingsCard(cs),
+          const SizedBox(height: 16),
           _resetSection(cs, state),
         ]),
       ),
@@ -123,16 +129,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             _row(cs, Icons.calendar_today_outlined,
-                'Durée objectif', '${config.revisionDays} jours', 0),
+                S.dureeObjectif, S.joursDuration(config.revisionDays), 0),
             const Divider(height: 24),
             _row(cs, Icons.today_outlined,
-                'Jours écoulés', '$elapsed jours', 80),
+                S.joursEcoules, S.joursDuration(elapsed), 80),
             const Divider(height: 24),
             _row(cs, Icons.timer_outlined,
-                'Jours restants', '$remaining jours', 160),
+                S.joursRestantsLabel, S.joursDuration(remaining), 160),
             const Divider(height: 24),
-            _row(cs, Icons.menu_book_outlined, 'Sourates mémorisées',
-                '${config.learnedSourates.length}', 240),
+            _row(cs, Icons.menu_book_outlined,
+                S.souratesMemoriees, '${config.learnedSourates.length}', 240),
           ],
         ),
       ),
@@ -161,16 +167,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .slideX(begin: 0.05);
   }
 
+  Widget _settingsCard(ColorScheme cs) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 4))
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+        children: [
+          // Langue
+          ListTile(
+            leading: Icon(Icons.language, color: AppColors.green),
+            title: Text(S.langueLabel),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _langChip('FR', 'fr', cs),
+                const SizedBox(width: 8),
+                _langChip('EN', 'en', cs),
+              ],
+            ),
+          ),
+          const Divider(height: 1, indent: 56),
+          // Notifications
+          StatefulBuilder(builder: (ctx, setSt) {
+            return FutureBuilder<bool>(
+              future: StorageService.loadNotifEnabled(),
+              builder: (_, snap) {
+                final enabled = snap.data ?? true;
+                return SwitchListTile(
+                  secondary: Icon(Icons.notifications_outlined,
+                      color: AppColors.green),
+                  title: Text(S.notificationsLabel),
+                  subtitle: Text(S.notifSubtitle),
+                  value: enabled,
+                  activeColor: AppColors.green,
+                  onChanged: (val) async {
+                    await StorageService.saveNotifEnabled(val);
+                    if (val) {
+                      await NotificationService.requestPermission();
+                      await NotificationService.scheduleMorning();
+                      await NotificationService.scheduleEvening();
+                    } else {
+                      await NotificationService.cancelAll();
+                    }
+                    setSt(() {});
+                  },
+                );
+              },
+            );
+          }),
+        ],
+      )),
+    ).animate().fadeIn(delay: 150.ms);
+  }
+
+  Widget _langChip(String label, String locale, ColorScheme cs) {
+    final selected = context.watch<AppState>().locale == locale;
+    return GestureDetector(
+      onTap: () async {
+        context.read<AppState>().setLocale(locale);
+        await StorageService.saveLocale(locale);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.green : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? AppColors.green : AppColors.cardBorder,
+          ),
+        ),
+        child: Text(label,
+            style: TextStyle(
+              color: selected ? Colors.white : cs.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            )),
+      ),
+    );
+  }
+
   Widget _resetSection(ColorScheme cs, AppState state) {
     return Card(
       elevation: 0,
-      color: cs.errorContainer.withOpacity(0.3),
+      color: cs.errorContainer.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ListTile(
         leading: Icon(Icons.refresh, color: cs.error),
-        title: Text('Réinitialiser la configuration',
+        title: Text(S.reinitialiser,
             style: TextStyle(color: cs.error, fontWeight: FontWeight.w600)),
-        subtitle: const Text('Repart de zéro avec une nouvelle sélection'),
+        subtitle: Text(S.reinitDesc),
         onTap: () => _showResetDialog(context, state),
       ),
     ).animate().fadeIn(delay: 200.ms);
@@ -181,13 +277,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Réinitialiser ?'),
-        content: const Text(
-            'La progression du cycle sera perdue. Continue ?'),
+        title: Text(S.reinitDialog),
+        content: Text(S.reinitConfirm),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler')),
+              child: Text(S.annuler)),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: cs.error),
             onPressed: () {
@@ -197,7 +292,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 (_) => false,
               );
             },
-            child: const Text('Réinitialiser'),
+            child: Text(S.reinitDialog),
           ),
         ],
       ),
@@ -213,13 +308,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Text('Réviser en ', style: TextStyle(color: cs.onPrimaryContainer)),
+                Text(S.reviserEn, style: TextStyle(color: cs.onPrimaryContainer)),
                 const SizedBox(width: 8),
                 DropdownButton<int>(
                   value: _revisionDays,
                   items: [7, 14, 21, 30, 60, 90]
                       .map((d) => DropdownMenuItem(
-                          value: d, child: Text('$d jours')))
+                          value: d, child: Text(S.joursDuration(d))))
                       .toList(),
                   onChanged: (v) => setState(() => _revisionDays = v!),
                   dropdownColor: cs.primaryContainer,
@@ -261,7 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : _selectedIds.add(s.id);
                   }),
                   title: Text(s.nameFr),
-                  subtitle: Text('${s.nameAr}  ·  ${s.verses} versets'),
+                  subtitle: Text('${s.nameAr}  ·  ${s.verses} ${S.versetsLabel}'),
                   secondary: CircleAvatar(
                     backgroundColor:
                         selected ? cs.primary : cs.surfaceContainerHighest,
@@ -280,3 +375,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
+
+

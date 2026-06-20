@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'home_screen.dart';
+import '../widgets/day_plan_tab.dart';
 import 'recap_screen.dart';
 import 'profile_screen.dart';
 
@@ -32,32 +32,17 @@ class _ShellScreenState extends State<ShellScreen> {
     ),
   ];
 
-  static const _screens = [
-    HomeScreen(),
-    RecapScreen(),
-    ProfileScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (child, anim) => FadeTransition(
-          opacity: anim,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.04),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
-            child: child,
-          ),
-        ),
-        child: KeyedSubtree(
-          key: ValueKey(_index),
-          child: _screens[_index],
-        ),
+      body: IndexedStack(
+        index: _index,
+        children: const [
+          DayPlanTab(),
+          RecapScreen(),
+          ProfileScreen(),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
