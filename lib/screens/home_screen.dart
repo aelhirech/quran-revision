@@ -45,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final units = RevisionEngine.buildUnits(state.config!.learnedSourates);
+    final units = RevisionEngine.buildUnits(state.config!.selections);
     final cycleTotal = units.length;
     final progress = cycleTotal == 0
         ? 0.0

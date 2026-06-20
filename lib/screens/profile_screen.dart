@@ -6,6 +6,7 @@ import '../core/quran_data.dart';
 import '../core/strings.dart';
 import '../state/app_state.dart';
 import '../models/sourate.dart';
+import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
@@ -28,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.didChangeDependencies();
     final config = context.read<AppState>().config;
     if (config != null && !_editing) {
-      _selectedIds = config.learnedSourates.map((s) => s.id).toSet();
+      _selectedIds = config.selections.map((s) => s.sourate.id).toSet();
       _revisionDays = config.revisionDays;
     }
   }
@@ -42,12 +43,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _save() async {
     final state = context.read<AppState>();
-    final sourates =
-        allSourates.where((s) => _selectedIds.contains(s.id)).toList();
+    // Conserve les plages personnalisées existantes, whole pour les nouvelles
+    final existingSelections = {
+      for (final s in state.config?.selections ?? []) s.sourate.id: s
+    };
+    final selections = allSourates
+        .where((s) => _selectedIds.contains(s.id))
+        .map<SourateSelection>((s) => existingSelections[s.id] ?? SourateSelection.whole(s))
+        .toList();
     await state.saveConfig(UserConfig(
-      learnedSourates: sourates,
+      selections: selections,
       revisionDays: _revisionDays,
       startDate: DateTime.now(),
+      shuffleEnabled: state.config?.shuffleEnabled ?? true,
+      versesPerDay: state.config?.versesPerDay,
     ));
     if (mounted) setState(() => _editing = false);
   }
@@ -137,7 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 S.joursRestantsLabel, S.joursDuration(remaining), 160),
             const Divider(height: 24),
             _row(cs, Icons.menu_book_outlined,
-                S.souratesMemoriees, '${config.learnedSourates.length}', 240),
+                S.souratesMemoriees, '${config.selections.length}', 240),
           ],
         ),
       ),

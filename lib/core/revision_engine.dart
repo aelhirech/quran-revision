@@ -3,35 +3,35 @@ import 'dart:math';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
-import '../models/sourate.dart';
+import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 
 /// Limite de mots par unité de révision (~1 page de Mushaf standard)
 const int _wordLimit = 150;
 
 class RevisionEngine {
-  /// Découpe les sourates en unités de révision basées sur le nombre de mots.
+  /// Découpe les sélections en unités de révision basées sur le nombre de mots.
   /// Une unité = ce qu'on peut réciter confortablement dans une rakaa.
-  static List<RevisionUnit> buildUnits(List<Sourate> sourates) {
+  static List<RevisionUnit> buildUnits(List<SourateSelection> selections) {
     final units = <RevisionUnit>[];
-    for (final s in sourates) {
-      if (s.words <= _wordLimit) {
+    for (final sel in selections) {
+      final rangeWords = sel.estimatedWords;
+      if (rangeWords <= _wordLimit) {
         units.add(RevisionUnit(
-          sourate: s,
-          verseStart: 1,
-          verseEnd: s.verses,
-          isWhole: true,
+          sourate: sel.sourate,
+          verseStart: sel.verseStart,
+          verseEnd: sel.verseEnd,
+          isWhole: sel.isWhole,
         ));
       } else {
-        final chunks = (s.words / _wordLimit).ceil();
-        // Divise les versets en chunks proportionnels
-        final versesPerChunk = (s.verses / chunks).ceil();
+        final chunks = (rangeWords / _wordLimit).ceil();
+        final versesPerChunk = (sel.verseCount / chunks).ceil();
         for (int i = 0; i < chunks; i++) {
-          final start = i * versesPerChunk + 1;
-          final end = ((i + 1) * versesPerChunk).clamp(1, s.verses);
-          if (start > s.verses) break;
+          final start = sel.verseStart + i * versesPerChunk;
+          final end = (start + versesPerChunk - 1).clamp(sel.verseStart, sel.verseEnd);
+          if (start > sel.verseEnd) break;
           units.add(RevisionUnit(
-            sourate: s,
+            sourate: sel.sourate,
             verseStart: start,
             verseEnd: end,
             isWhole: false,
@@ -61,13 +61,13 @@ class RevisionEngine {
     required int cyclePosition,
     required DateTime today,
   }) {
-    final rawUnits = buildUnits(config.learnedSourates);
+    final rawUnits = buildUnits(config.selections);
     final units = config.shuffleEnabled
         ? ([...rawUnits]..shuffle(Random(config.startDate.millisecondsSinceEpoch)))
         : rawUnits;
     final cycleTotal = units.length;
 
-    final totalVerses = config.learnedSourates.fold(0, (s, v) => s + v.verses);
+    final totalVerses = config.totalSelectedVerses;
     final daysElapsed = today.difference(config.startDate).inDays;
     final effectiveDays = config.effectiveDays(totalVerses);
     final daysRemaining = (effectiveDays - daysElapsed).clamp(1, effectiveDays);

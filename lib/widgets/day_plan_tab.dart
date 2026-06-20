@@ -22,7 +22,7 @@ class DayPlanTab extends StatelessWidget {
         session: state.todaySession!,
         onComplete: (unitsCompleted) {
           final allUnits =
-              RevisionEngine.buildUnits(state.config!.learnedSourates);
+              RevisionEngine.buildUnits(state.config!.selections);
           state.advanceCycle(unitsCompleted, allUnits.length);
           state.clearTodaySession();
         },

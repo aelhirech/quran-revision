@@ -18,7 +18,7 @@ class RecapScreen extends StatelessWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final units = RevisionEngine.buildUnits(state.config!.learnedSourates);
+    final units = RevisionEngine.buildUnits(state.config!.selections);
     final total = units.length;
     final pos = state.cyclePosition % (total == 0 ? 1 : total);
     final progress = total == 0 ? 0.0 : pos / total;
@@ -133,12 +133,12 @@ class RecapScreen extends StatelessWidget {
   }
 
   Widget _statsRow(ColorScheme cs, AppState state, int unitTotal) {
-    final sourates = state.config!.learnedSourates;
-    final totalVerses = sourates.fold(0, (sum, s) => sum + s.verses);
+    final selections = state.config!.selections;
+    final totalVerses = selections.fold(0, (sum, s) => sum + s.verseCount);
 
     return Row(
       children: [
-        _statChip(cs, '${sourates.length}', S.souratesLabel, Icons.menu_book_outlined, 0),
+        _statChip(cs, '${selections.length}', S.souratesLabel, Icons.menu_book_outlined, 0),
         const SizedBox(width: 12),
         _statChip(cs, '$totalVerses', S.versetsLabel, Icons.format_list_numbered, 100),
         const SizedBox(width: 12),
@@ -187,7 +187,7 @@ class RecapScreen extends StatelessWidget {
   }
 
   Widget _souratesCard(ColorScheme cs, AppState state) {
-    final sourates = state.config!.learnedSourates;
+    final selections = state.config!.selections;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -214,8 +214,9 @@ class RecapScreen extends StatelessWidget {
                       color: cs.onSurface,
                       fontSize: 15)),
             ),
-            ...sourates.asMap().entries.map((e) {
-              final s = e.value;
+            ...selections.asMap().entries.map((e) {
+              final sel = e.value;
+              final s = sel.sourate;
               return ListTile(
                 dense: true,
                 leading: CircleAvatar(
@@ -227,9 +228,12 @@ class RecapScreen extends StatelessWidget {
                 title: Text(s.nameFr,
                     style: const TextStyle(fontWeight: FontWeight.w500)),
                 subtitle: Text(s.nameAr),
-                trailing: Text('${s.verses} ${S.versetsLabel}',
-                    style: TextStyle(
-                        color: cs.onSurfaceVariant, fontSize: 12)),
+                trailing: Text(
+                  sel.isWhole
+                      ? '${s.verses} ${S.versetsLabel}'
+                      : '${sel.verseStart}–${sel.verseEnd} (${sel.verseCount} ${S.versetsLabel})',
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                ),
               )
                   .animate()
                   .fadeIn(delay: Duration(milliseconds: 300 + e.key * 40))
