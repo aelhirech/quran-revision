@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
+import '../core/strings.dart';
 import '../main.dart';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
-import 'plan_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final void Function(DailySession) onVoirPlan;
+
+  const HomeScreen({super.key, required this.onVoirPlan});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -51,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: const Text('Révision du Coran'),
+            title: Text(S.appTitle),
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             centerTitle: false,
@@ -64,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _progressCard(cs, progress, state.cyclePosition % cycleTotal,
                     cycleTotal, state),
                 const SizedBox(height: 24),
-                Text('Prières seules aujourd\'hui',
+                Text(S.priereImam,
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium
@@ -83,21 +85,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         : () {
                             _buildPlan(state);
                             if (_session != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => PlanScreen(
-                                    session: _session!,
-                                    onComplete: (units) =>
-                                        state.advanceCycle(units, cycleTotal),
-                                  ),
-                                ),
-                              );
+                              widget.onVoirPlan(_session!);
                             }
                           },
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Voir mon plan du jour',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    icon: const Icon(Icons.calendar_today_outlined),
+                    label: Text(S.voirPlanDuJour,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
               ]),
@@ -125,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: cs.primary.withOpacity(0.3),
+            color: cs.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -138,9 +131,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Cycle en cours',
+              Text(S.cycleEnCours,
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 0.3)),
@@ -148,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text('$pos / $total unités',
@@ -173,9 +166,9 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 8),
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: Text('complété',
+                child: Text(S.complete,
                     style: TextStyle(
-                        color: Colors.white.withOpacity(0.7), fontSize: 14)),
+                        color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),
               ),
             ],
           ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
@@ -184,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: progress,
-              backgroundColor: Colors.white.withOpacity(0.2),
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
               color: Colors.white,
               minHeight: 6,
             ),
@@ -197,10 +190,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 10),
           Text(
             daysRemaining > 0
-                ? '$daysRemaining jours restants'
-                : 'Objectif atteint !',
+                ? '$daysRemaining ${S.joursRestants}'
+                : S.objectifAtteint,
             style: TextStyle(
-                color: Colors.white.withOpacity(0.7), fontSize: 12),
+                color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
           ),
         ],
       ),
@@ -209,13 +202,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _prayerSelector(ColorScheme cs) {
     final fard = Prayer.values.where((p) => p.isFard).toList();
-    final sunna = Prayer.values.where((p) => !p.isFard).toList();
+    final sunna = Prayer.values
+        .where((p) => !p.isFard && !p.isTahiyyat)
+        .toList();
+    final tahiyyat = Prayer.values.where((p) => p.isTahiyyat).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _chipGroup('Prières obligatoires', fard, cs),
+        _chipGroup(S.priereObligatoires, fard, cs),
         const SizedBox(height: 12),
-        _chipGroup('Prières surérogatoires', sunna, cs),
+        _chipGroup(S.priereSureratoires, sunna, cs),
+        const SizedBox(height: 12),
+        _chipGroup(S.priereMasjid, tahiyyat, cs),
       ],
     );
   }
@@ -253,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   boxShadow: selected
                       ? [
                           BoxShadow(
-                            color: cs.primary.withOpacity(0.2),
+                            color: cs.primary.withValues(alpha: 0.2),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           )
@@ -269,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Icon(Icons.check, color: Colors.white, size: 14),
                       ),
                     Text(
-                      '${p.nameFr}  ${p.rakaas}r',
+                      '${p.displayName}  ${p.rakaas}r',
                       style: TextStyle(
                         color: selected ? Colors.white : cs.onSurface,
                         fontWeight: FontWeight.w600,
@@ -286,3 +284,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+

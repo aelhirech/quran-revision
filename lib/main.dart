@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/strings.dart';
+import 'models/daily_session.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/shell_screen.dart';
+import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'models/user_config.dart';
 
@@ -33,7 +36,7 @@ ThemeData _buildTheme() {
       elevation: 0,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      shadowColor: Colors.black.withOpacity(0.06),
+      shadowColor: Colors.black.withValues(alpha: 0.06),
       surfaceTintColor: Colors.transparent,
     ),
     appBarTheme: const AppBarTheme(
@@ -51,7 +54,7 @@ ThemeData _buildTheme() {
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Colors.white,
       elevation: 0,
-      shadowColor: Colors.black.withOpacity(0.08),
+      shadowColor: Colors.black.withValues(alpha: 0.08),
       indicatorColor: const Color(0xFFE8F5EE),
       labelTextStyle: WidgetStateProperty.all(
         const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
@@ -77,7 +80,10 @@ ThemeData _buildTheme() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.initialize();
   final config = await StorageService.loadConfig();
+  final locale = await StorageService.loadLocale();
+  S.locale = locale;
   runApp(QuranRevisionApp(initialConfig: config));
 }
 
@@ -89,15 +95,26 @@ class QuranRevisionApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => AppState(initialConfig),
-      child: MaterialApp(
-        title: 'Révision Coran',
-        debugShowCheckedModeBanner: false,
-        theme: _buildTheme(),
-        home: initialConfig == null
-            ? const OnboardingScreen()
-            : const ShellScreen(),
-      ),
+      create: (_) => AppState(initialConfig, locale: S.locale),
+      child: const _AppRoot(),
+    );
+  }
+}
+
+class _AppRoot extends StatelessWidget {
+  const _AppRoot();
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch AppState so all descendants rebuild when locale changes
+    final state = context.watch<AppState>();
+    return MaterialApp(
+      title: S.appTitle,
+      debugShowCheckedModeBanner: false,
+      theme: _buildTheme(),
+      home: state.config == null
+          ? const OnboardingScreen()
+          : const ShellScreen(),
     );
   }
 }
@@ -105,13 +122,25 @@ class QuranRevisionApp extends StatelessWidget {
 class AppState extends ChangeNotifier {
   UserConfig? _config;
   int _cyclePosition = 0;
+  DailySession? _previewSession;
+  DailySession? _todaySession;
+  String _locale = 'fr';
 
-  AppState(this._config) {
+  AppState(this._config, {String locale = 'fr'}) : _locale = locale {
     _loadCyclePosition();
   }
 
   UserConfig? get config => _config;
   int get cyclePosition => _cyclePosition;
+  DailySession? get previewSession => _previewSession;
+  DailySession? get todaySession => _todaySession;
+  String get locale => _locale;
+
+  void setLocale(String locale) {
+    _locale = locale;
+    S.locale = locale;
+    notifyListeners();
+  }
 
   Future<void> _loadCyclePosition() async {
     _cyclePosition = await StorageService.loadCyclePosition();
@@ -121,6 +150,7 @@ class AppState extends ChangeNotifier {
   Future<void> saveConfig(UserConfig config) async {
     _config = config;
     _cyclePosition = 0;
+    _todaySession = null;
     await StorageService.saveConfig(config);
     await StorageService.saveCyclePosition(0);
     notifyListeners();
@@ -131,4 +161,32 @@ class AppState extends ChangeNotifier {
     await StorageService.saveCyclePosition(_cyclePosition);
     notifyListeners();
   }
+
+  void setPreviewSession(DailySession session) {
+    _previewSession = session;
+    notifyListeners();
+  }
+
+  void engager() {
+    _todaySession = _previewSession;
+    _previewSession = null;
+    notifyListeners();
+  }
+
+  void clearPreview() {
+    _previewSession = null;
+    notifyListeners();
+  }
+
+  void setTodaySession(DailySession session) {
+    _todaySession = session;
+    notifyListeners();
+  }
+
+  void clearTodaySession() {
+    _todaySession = null;
+    _previewSession = null;
+    notifyListeners();
+  }
 }
+

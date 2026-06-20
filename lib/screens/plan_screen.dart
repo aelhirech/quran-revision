@@ -1,145 +1,317 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
 
-class PlanScreen extends StatelessWidget {
+class PlanScreen extends StatefulWidget {
   final DailySession session;
-  final void Function(int unitsCompleted) onComplete;
+  final void Function(int unitsCompleted)? onComplete;
+  final VoidCallback? onEngager;
+  final VoidCallback? onChangePlan;
+  final bool isPreview;
 
   const PlanScreen({
     super.key,
     required this.session,
-    required this.onComplete,
+    this.onComplete,
+    this.onEngager,
+    this.onChangePlan,
+    this.isPreview = false,
   });
+
+  @override
+  State<PlanScreen> createState() => _PlanScreenState();
+}
+
+class _PlanScreenState extends State<PlanScreen> {
+  // Suivi des rakaas cochées : prayerIndex -> Set<rakaaNumber>
+  final Map<int, Set<int>> _checked = {};
+
+  bool get _allDone {
+    for (int pi = 0; pi < widget.session.plan.length; pi++) {
+      final pp = widget.session.plan[pi];
+      final checked = _checked[pi] ?? {};
+      for (final r in pp.rakaas) {
+        if (r.unit != null && !checked.contains(r.rakaaNumber)) return false;
+      }
+    }
+    return true;
+  }
+
+  int get _totalRakaasWithUnit {
+    int count = 0;
+    for (final pp in widget.session.plan) {
+      count += pp.rakaas.where((r) => r.unit != null).length;
+    }
+    return count;
+  }
+
+  int get _checkedCount {
+    return _checked.values.fold(0, (sum, s) => sum + s.length);
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final progress = _totalRakaasWithUnit == 0
+        ? 1.0
+        : _checkedCount / _totalRakaasWithUnit;
+
     return Scaffold(
       backgroundColor: cs.surface,
-      appBar: AppBar(
-        title: const Text('Plan du jour'),
-        backgroundColor: cs.primary,
-        foregroundColor: cs.onPrimary,
-      ),
-      body: Column(
-        children: [
-          _summaryBar(cs),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: session.plan
-                  .map((pp) => _prayerCard(context, pp, cs))
-                  .toList(),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            title: Text(widget.isPreview ? S.planDuJourTitle : S.revisionEnCours),
+            backgroundColor: cs.surface,
+            foregroundColor: cs.onSurface,
+            pinned: true,
+            leading: widget.onChangePlan != null
+                ? IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    tooltip: 'Modifier le plan',
+                    onPressed: widget.onChangePlan,
+                  )
+                : null,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(4),
+              child: _progressBar(cs, progress),
             ),
           ),
-          _doneButton(context, cs),
+          if (widget.isPreview)
+            SliverToBoxAdapter(child: _previewBanner(cs)),
+          SliverToBoxAdapter(child: _summaryBar(cs)),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (_, i) => _prayerCard(context, i, widget.session.plan[i], cs)
+                    .animate()
+                    .fadeIn(delay: Duration(milliseconds: i * 80))
+                    .slideY(begin: 0.06),
+                childCount: widget.session.plan.length,
+              ),
+            ),
+          ),
         ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SizedBox(
+            height: 56,
+            child: widget.isPreview
+                ? FilledButton.icon(
+                    onPressed: widget.onEngager,
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text(S.sEngager,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                  )
+                : FilledButton.icon(
+                    onPressed: _allDone
+                        ? () => widget.onComplete!(widget.session.totalUnits)
+                        : null,
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: Text(
+                      _allDone
+                          ? S.revisionComplete
+                          : '$_checkedCount / $_totalRakaasWithUnit rakaas',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _previewBanner(ColorScheme cs) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.visibility_outlined, color: cs.primary, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              S.locale == 'fr'
+                  ? 'Aperçu · Appuie sur S\'engager pour commencer'
+                  : 'Preview · Tap Commit to start',
+              style: TextStyle(
+                  color: cs.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _progressBar(ColorScheme cs, double progress) {
+    return ClipRRect(
+      child: LinearProgressIndicator(
+        value: progress,
+        backgroundColor: cs.surfaceContainerHighest,
+        color: cs.primary,
+        minHeight: 4,
       ),
     );
   }
 
   Widget _summaryBar(ColorScheme cs) {
     return Container(
-      color: cs.primaryContainer,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: widget.session.isOnTrack
+            ? const Color(0xFFE8F5EE)
+            : Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '${session.totalUnits} unités · ${session.totalRakaas} rakaas',
+            S.unitesRakaas(widget.session.totalUnits, widget.session.totalRakaas),
             style: TextStyle(
-                color: cs.onPrimaryContainer, fontWeight: FontWeight.bold),
+                color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 13),
           ),
           Text(
-            session.isOnTrack ? '✓ Dans les temps' : '⚠ Prends de l\'avance',
+            widget.session.isOnTrack ? S.dansLesTemps : S.prendsAvance,
             style: TextStyle(
-                color: session.isOnTrack ? Colors.green.shade700 : Colors.orange.shade800,
-                fontWeight: FontWeight.w600),
+              color: widget.session.isOnTrack
+                  ? const Color(0xFF1A5C38)
+                  : Colors.orange.shade800,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _prayerCard(BuildContext context, PrayerPlan pp, ColorScheme cs) {
+  Widget _prayerCard(
+      BuildContext context, int prayerIndex, PrayerPlan pp, ColorScheme cs) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // En-tête prière
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: cs.secondaryContainer,
+              color: const Color(0xFFE8F5EE),
               borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
+                  const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(pp.prayer.nameFr,
+                Text(pp.prayer.displayName,
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: cs.onSecondaryContainer,
-                        fontSize: 16)),
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1A5C38),
+                        fontSize: 15)),
                 Text(pp.prayer.nameAr,
-                    style: TextStyle(
-                        color: cs.onSecondaryContainer,
-                        fontSize: 18,
-                        fontFamily: 'serif')),
+                    style: const TextStyle(
+                        color: Color(0xFF1A5C38), fontSize: 17)),
               ],
             ),
           ),
-          ...pp.rakaas.map((r) => _rakaaRow(r, cs)),
+          // Rakaas
+          ...pp.rakaas.map((r) => _rakaaRow(prayerIndex, r, cs)),
         ],
       ),
     );
   }
 
-  Widget _rakaaRow(RakaaAssignment r, ColorScheme cs) {
+  Widget _rakaaRow(int prayerIndex, RakaaAssignment r, ColorScheme cs) {
     final hasUnit = r.unit != null;
-    return ListTile(
-      leading: CircleAvatar(
-        radius: 16,
-        backgroundColor:
-            hasUnit ? cs.primary : cs.surfaceContainerHighest,
-        foregroundColor: hasUnit ? cs.onPrimary : cs.onSurfaceVariant,
-        child: Text('${r.rakaaNumber}',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-      ),
-      title: hasUnit
-          ? Text(r.unit!.label,
-              style: const TextStyle(fontWeight: FontWeight.w500))
-          : Text('Al-Fatiha (pas de sourate)',
-              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
-      subtitle: hasUnit && !r.unit!.isWhole
-          ? Text('${r.unit!.verseCount} versets',
-              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12))
-          : null,
-      dense: true,
-    );
-  }
+    final isChecked =
+        (_checked[prayerIndex] ?? {}).contains(r.rakaaNumber);
 
-  Widget _doneButton(BuildContext context, ColorScheme cs) {
-    return SafeArea(
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: hasUnit && !widget.isPreview
+          ? () => setState(() {
+                final set =
+                    _checked.putIfAbsent(prayerIndex, () => {});
+                isChecked ? set.remove(r.rakaaNumber) : set.add(r.rakaaNumber);
+              })
+          : null,
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: FilledButton.icon(
-            onPressed: () {
-              onComplete(session.totalUnits);
-              Navigator.pop(context);
-            },
-            icon: const Icon(Icons.check_circle_outline),
-            label: const Text('Révision complétée',
-                style: TextStyle(fontSize: 16)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isChecked
+                  ? const Color(0xFF1A5C38)
+                  : hasUnit
+                      ? const Color(0xFFE8F5EE)
+                      : cs.surfaceContainerHighest,
+              border: Border.all(
+                color: isChecked
+                    ? const Color(0xFF1A5C38)
+                    : hasUnit
+                        ? const Color(0xFF1A5C38).withValues(alpha: 0.3)
+                        : Colors.transparent,
+              ),
+            ),
+            child: Center(
+              child: isChecked
+                  ? const Icon(Icons.check, color: Colors.white, size: 16)
+                  : Text('${r.rakaaNumber}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: hasUnit
+                              ? const Color(0xFF1A5C38)
+                              : cs.onSurfaceVariant)),
+            ),
           ),
+          title: hasUnit
+              ? Text(
+                  r.unit!.label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    decoration:
+                        isChecked ? TextDecoration.lineThrough : null,
+                    color: isChecked ? cs.onSurfaceVariant : cs.onSurface,
+                  ),
+                )
+              : Text(S.alFatihaSeul,
+                  style: TextStyle(
+                      color: cs.onSurfaceVariant, fontSize: 13)),
+          subtitle: hasUnit && !r.unit!.isWhole
+              ? Text('${r.unit!.verseCount} ${S.versets}',
+                  style:
+                      TextStyle(color: cs.onSurfaceVariant, fontSize: 11))
+              : null,
+          dense: true,
         ),
       ),
     );
   }
 }
+

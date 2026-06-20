@@ -1,3 +1,5 @@
+import '../core/strings.dart';
+
 enum Prayer {
   // Prières obligatoires (fard)
   fajr,
@@ -11,7 +13,8 @@ enum Prayer {
   sunnaDhuhrAp,  // 2r après Dhouhr
   sunnaMaghrib,  // 2r après Maghrib
   sunnaIsha,     // 2r après Isha
-  witr,          // 1 ou 3r après Isha
+  witr,              // 1 ou 3r après Isha
+  tahiyyatMasjid,   // 2r en entrant à la mosquée
 }
 
 extension PrayerExtension on Prayer {
@@ -28,6 +31,31 @@ extension PrayerExtension on Prayer {
       case Prayer.sunnaMaghrib: return 'Sunna Maghrib';
       case Prayer.sunnaIsha:    return "Sunna Isha";
       case Prayer.witr:         return 'Witr';
+      case Prayer.tahiyyatMasjid: return 'Tahiyyat al-Masjid';
+    }
+  }
+
+  String get nameFrShort {
+    if (this == Prayer.tahiyyatMasjid) return 'Tahiyyat';
+    if (this == Prayer.sunnaDhuhrAv) return 'Sunna Dhouhr (av.)';
+    if (this == Prayer.sunnaDhuhrAp) return 'Sunna Dhouhr (ap.)';
+    return nameFr;
+  }
+
+  String get nameEn {
+    switch (this) {
+      case Prayer.fajr:           return 'Fajr';
+      case Prayer.dhuhr:          return 'Dhuhr';
+      case Prayer.asr:            return 'Asr';
+      case Prayer.maghrib:        return 'Maghrib';
+      case Prayer.isha:           return 'Isha';
+      case Prayer.sunnaFajr:      return 'Sunnah Fajr';
+      case Prayer.sunnaDhuhrAv:   return 'Sunnah Dhuhr (before)';
+      case Prayer.sunnaDhuhrAp:   return 'Sunnah Dhuhr (after)';
+      case Prayer.sunnaMaghrib:   return 'Sunnah Maghrib';
+      case Prayer.sunnaIsha:      return 'Sunnah Isha';
+      case Prayer.witr:           return 'Witr';
+      case Prayer.tahiyyatMasjid: return 'Tahiyyat al-Masjid';
     }
   }
 
@@ -43,7 +71,8 @@ extension PrayerExtension on Prayer {
       case Prayer.sunnaDhuhrAp: return 'سنة الظهر البعدية';
       case Prayer.sunnaMaghrib: return 'سنة المغرب';
       case Prayer.sunnaIsha:    return 'سنة العشاء';
-      case Prayer.witr:         return 'الوتر';
+      case Prayer.witr:           return 'الوتر';
+      case Prayer.tahiyyatMasjid: return 'تحية المسجد';
     }
   }
 
@@ -60,7 +89,8 @@ extension PrayerExtension on Prayer {
       case Prayer.sunnaDhuhrAp: return 2;
       case Prayer.sunnaMaghrib: return 2;
       case Prayer.sunnaIsha:    return 2;
-      case Prayer.witr:         return 3;
+      case Prayer.witr:           return 3;
+      case Prayer.tahiyyatMasjid: return 2;
     }
   }
 
@@ -80,9 +110,14 @@ extension PrayerExtension on Prayer {
       case Prayer.sunnaDhuhrAp: return 2;
       case Prayer.sunnaMaghrib: return 2;
       case Prayer.sunnaIsha:    return 2;
-      case Prayer.witr:         return 3;
+      case Prayer.witr:           return 3;
+      case Prayer.tahiyyatMasjid: return 2;
     }
   }
+
+  String get displayName => S.locale == 'en' ? nameEn : nameFr;
+
+  bool get isTahiyyat => this == Prayer.tahiyyatMasjid;
 
   bool get isFard {
     return this == Prayer.fajr ||
