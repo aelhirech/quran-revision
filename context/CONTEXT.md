@@ -66,14 +66,19 @@ lib/
 - **Commitment modal** : non-dismissable (isDismissible: false, enableDrag: false), 3 options (tout/partie/rien)
 - **Mode focus mosquée** : plein écran texte arabe RTL via rootNavigator (masque la NavigationBar)
 
+### Phase 4 — Sprint 6 (commit `528bc23`)
+- **[S6-A] Fix edit surah** : `startDate` préservé lors de l'édition des sourates — évitait de réinitialiser silencieusement toute la progression du cycle
+- **[S6-B] No-repeat sourate par prière** : `RevisionEngine.buildDayPlan` interdit maintenant qu'une sourate apparaisse deux fois dans la même prière (swap + `usedInPrayer` set) — règle liturgique
+- **[S6-C] Cycle progress bar** : `_summaryBar` du `PlanScreen` affiche `Cycle en cours : X / Y` avec une mini barre de progression linéaire
+
 ---
 
 ## Backlog
 
 | Priorité | Feature | Notes |
 |----------|---------|-------|
-| P2 | **Fix edit Surah** | bug signalé, à reproduire |
 | P3 | **Gamification narrative [H]** | vision long terme, direction artistique à valider |
+| P3 | **Cycle wrap affiché** | si cyclePosition + totalUnits > cycleTotal, afficher "(cycle bouclé)" dans le summary bar |
 
 ---
 
