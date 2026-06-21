@@ -8,6 +8,7 @@ import '../screens/home_screen.dart';
 import '../screens/plan_screen.dart';
 import '../services/history_service.dart';
 import '../state/app_state.dart';
+import '../widgets/manual_session_sheet.dart';
 
 /// Gère la logique de routing du tab "Plan du jour" :
 ///   - Aucune session    → HomeScreen (sélection des prières)
@@ -58,6 +59,46 @@ class DayPlanTab extends StatelessWidget {
     await state.clearTodaySession();
   }
 
+  Future<void> _showManualSheet(BuildContext context, AppState state) async {
+    if (state.config == null) return;
+    final maxUnits =
+        RevisionEngine.buildUnits(state.config!.selections).length.clamp(1, 999);
+    final units = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ManualSessionSheet(maxUnits: maxUnits),
+    );
+    if (units != null && context.mounted) {
+      await _onManualSession(context, state, units);
+    }
+  }
+
+  Future<void> _onManualSession(
+      BuildContext context, AppState state, int units) async {
+    if (units <= 0 || state.config == null) return;
+    final now = DateTime.now();
+    final cycleTotal =
+        RevisionEngine.buildUnits(state.config!.selections).length;
+    await HistoryService.recordSession(SessionRecord(
+      date: now,
+      unitsCompleted: units,
+      totalUnits: cycleTotal,
+      prayers: const [],
+    ));
+    await state.advanceCycle(units, cycleTotal);
+    await state.refreshAdaptiveCycle(cycleTotal, notify: false);
+    await state.refreshFreshness(notify: true);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(S.sessionLoggee),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -86,6 +127,7 @@ class DayPlanTab extends StatelessWidget {
 
     return HomeScreen(
       onVoirPlan: (session) => state.setPreviewSession(session),
+      onSaisirManuel: () => _showManualSheet(context, state),
     );
   }
 }

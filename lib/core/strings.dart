@@ -202,6 +202,25 @@ class S {
   static String get fraicheurFroide => _t('Froide', 'Cold');
   static String get fraicheurGelee => _t('Très froide', 'Fading');
 
+  // Apprentissage multi-versets
+  static String get versetsParBloc => _t('Versets par bloc', 'Verses per block');
+  static String appuyerPourReveler(int n) => n == 1
+      ? _t('Appuie pour révéler le verset', 'Tap to reveal the verse')
+      : _t('Appuie pour révéler le bloc', 'Tap to reveal the block');
+  static String marquerBlocAppris(int n) => n == 1
+      ? _t('Marquer comme appris', 'Mark as learned')
+      : _t('Marquer $n versets comme appris', 'Mark $n verses as learned');
+  static String blocRange(int from, int to) => 'v.$from–$to';
+
+  // Saisie manuelle [E]
+  static String get saisirManuellement => _t('Saisir manuellement', 'Log manually');
+  static String get saisieManuelle => _t('Saisie manuelle', 'Manual entry');
+  static String get saisieManuelleDesc =>
+      _t('Logger une révision sans plan automatique', 'Log a revision without an automatic plan');
+  static String get unitesRevisees => _t('Unités révisées', 'Units revised');
+  static String get loggerSession => _t('Logger la session', 'Log session');
+  static String get sessionLoggee => _t('Session enregistrée ✓', 'Session logged ✓');
+
   // Mode pause
   static String get pauseLabel => _t('Pause aujourd\'hui', 'Pause today');
   static String get pauseDesc => _t('Ne compte pas comme un jour manqué dans la série', 'Won\'t count as a missed day in your streak');

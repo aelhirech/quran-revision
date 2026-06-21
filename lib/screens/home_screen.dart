@@ -14,8 +14,9 @@ import '../widgets/prayer_selector.dart';
 
 class HomeScreen extends StatefulWidget {
   final void Function(DailySession) onVoirPlan;
+  final VoidCallback? onSaisirManuel;
 
-  const HomeScreen({super.key, required this.onVoirPlan});
+  const HomeScreen({super.key, required this.onVoirPlan, this.onSaisirManuel});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -207,6 +208,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
+                if (widget.onSaisirManuel != null)
+                  TextButton(
+                    onPressed: widget.onSaisirManuel,
+                    child: Text(S.saisirManuellement),
+                  ).animate().fadeIn(delay: 300.ms),
               ]),
             ),
           ),

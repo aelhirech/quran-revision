@@ -31,6 +31,7 @@ class LearnSurahScreen extends StatefulWidget {
 class _LearnSurahScreenState extends State<LearnSurahScreen> {
   late LearningProgress _progress;
   bool _verseVisible = false;
+  int _selectedBlockSize = 1;
 
   @override
   void initState() {
@@ -40,16 +41,29 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
 
   int get _currentVerse => _progress.nextVerse;
 
-  Future<void> _markLearned() async {
+  // N prochains versets non appris, capés à _selectedBlockSize.
+  List<int> get _currentBlock {
+    final result = <int>[];
+    for (int v = 1;
+        v <= _progress.sourate.verses && result.length < _selectedBlockSize;
+        v++) {
+      if (!_progress.learnedVerses.contains(v)) result.add(v);
+    }
+    return result;
+  }
+
+  Future<void> _markBlockLearned() async {
     HapticFeedback.mediumImpact();
-    final updated = _progress.withVerseLearned(_currentVerse);
+    var updated = _progress;
+    for (final v in _currentBlock) {
+      updated = updated.withVerseLearned(v);
+    }
     await _save(updated);
     setState(() {
       _progress = updated;
       _verseVisible = false;
     });
     widget.onChanged();
-
     if (updated.isComplete && mounted) {
       _showCompletedDialog();
     }
@@ -97,7 +111,10 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final s = _progress.sourate;
-    final verseText = quran.getVerse(s.id, _currentVerse, verseEndSymbol: true);
+    final block = _currentBlock;
+    final blockVerseText = block
+        .map((v) => quran.getVerse(s.id, v, verseEndSymbol: true))
+        .join('\n\n');
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -113,16 +130,19 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                _progressHeader(cs, s),
-                const SizedBox(height: 24),
+                _progressHeader(cs, s, block),
+                const SizedBox(height: 16),
+                if (!_progress.isComplete) _blockSizeSelector(cs),
+                const SizedBox(height: 16),
                 VerseDisplayCard(
-                  verseText: verseText,
+                  verseText: blockVerseText,
                   visible: _verseVisible,
                   isComplete: _progress.isComplete,
                   onToggle: () => setState(() => _verseVisible = !_verseVisible),
+                  blockSize: block.length,
                 ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.06),
                 const SizedBox(height: 20),
-                if (_progress.isComplete) _addToRevisionButton(cs) else _actionRow(cs),
+                if (_progress.isComplete) _addToRevisionButton(cs) else _actionRow(cs, block.length),
                 const SizedBox(height: 32),
                 if (_progress.learnedCount > 0) _learnedList(cs, s),
               ]),
@@ -133,7 +153,40 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
     );
   }
 
-  Widget _progressHeader(ColorScheme cs, Sourate s) {
+  Widget _blockSizeSelector(ColorScheme cs) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(S.versetsParBloc,
+            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+        const SizedBox(height: 8),
+        SegmentedButton<int>(
+          segments: const [
+            ButtonSegment(value: 1, label: Text('1')),
+            ButtonSegment(value: 3, label: Text('3')),
+            ButtonSegment(value: 5, label: Text('5')),
+          ],
+          selected: {_selectedBlockSize},
+          onSelectionChanged: (s) => setState(() {
+            _selectedBlockSize = s.first;
+            _verseVisible = false;
+          }),
+          showSelectedIcon: false,
+          style: const ButtonStyle(
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: 50.ms);
+  }
+
+  Widget _progressHeader(ColorScheme cs, Sourate s, List<int> block) {
+    final posLabel = _progress.isComplete
+        ? '✓'
+        : block.length > 1
+            ? '${S.blocRange(block.first, block.last)} / ${s.verses}'
+            : S.versetN(_currentVerse, s.verses);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -161,7 +214,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
                   style: GoogleFonts.scheherazadeNew(
                       fontSize: 22, color: Colors.white)),
               Text(
-                _progress.isComplete ? '✓' : S.versetN(_currentVerse, s.verses),
+                posLabel,
                 style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -203,7 +256,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
     ).animate().fadeIn(delay: 150.ms);
   }
 
-  Widget _actionRow(ColorScheme cs) {
+  Widget _actionRow(ColorScheme cs, int blockLength) {
     return Row(
       children: [
         Expanded(
@@ -218,9 +271,9 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: FilledButton.icon(
-            onPressed: _markLearned,
+            onPressed: _markBlockLearned,
             icon: const Icon(Icons.check),
-            label: Text(S.marquerAppris),
+            label: Text(S.marquerBlocAppris(blockLength)),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.green,
             ),

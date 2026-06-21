@@ -8,6 +8,8 @@ class VerseDisplayCard extends StatelessWidget {
   final bool visible;
   final bool isComplete;
   final VoidCallback onToggle;
+  // Nombre de versets affichés — ajuste le texte d'invite.
+  final int blockSize;
 
   const VerseDisplayCard({
     super.key,
@@ -15,6 +17,7 @@ class VerseDisplayCard extends StatelessWidget {
     required this.visible,
     required this.isComplete,
     required this.onToggle,
+    this.blockSize = 1,
   });
 
   @override
@@ -86,7 +89,7 @@ class VerseDisplayCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           fontSize: 15)),
                   const SizedBox(height: 4),
-                  Text('Appuie pour révéler le verset',
+                  Text(S.appuyerPourReveler(blockSize),
                       style: TextStyle(
                           color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                           fontSize: 12)),
