@@ -62,6 +62,8 @@ class RevisionEngine {
     required DateTime today,
   }) {
     final rawUnits = buildUnits(config.selections);
+    // Seed fixe (startDate) : l'ordre reste identique entre redémarrages.
+    // Un seed aléatoire changerait les assignations à chaque ouverture — déroutant.
     final units = config.shuffleEnabled
         ? ([...rawUnits]..shuffle(Random(config.startDate.millisecondsSinceEpoch)))
         : rawUnits;
@@ -72,10 +74,10 @@ class RevisionEngine {
     final effectiveDays = config.effectiveDays(totalVerses);
     final daysRemaining = (effectiveDays - daysElapsed).clamp(1, effectiveDays);
 
-    // Slots pondérés : les sunna/tahiyyat (hors witr) comptent pour 0.5 slot
-    final totalSuratRakaas = prayersAlone
-        .fold(0.0, (sum, p) => sum + p.suratRakaas * p.wordWeight)
-        .round();
+    // Chaque suratRakaa reçoit une unité — pas de slot pondéré.
+    // L'ajustement de volume se fait via la subdivision dans _expandToRakaas.
+    final totalSuratRakaas =
+        prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
 
     final target = dailyTarget(
       cyclePosition: cyclePosition % cycleTotal,
@@ -93,31 +95,20 @@ class RevisionEngine {
     // Subdivise les unités pour remplir tous les suratRakaas disponibles
     final todayUnits = _expandToRakaas(baseUnits, totalSuratRakaas);
 
-    // Distribue dans les prières.
-    // Les sunna/tahiyyat (wordWeight < 1) n'obtiennent qu'un slot sur 2.
+    // Distribue les unités : chaque suratRakaa reçoit la sienne.
+    // Les rakaas au-delà de suratRakaas (ex. 3e et 4e rakaa des fard) n'ont pas de sourate — normal.
     final plan = <PrayerPlan>[];
     int unitIndex = 0;
     for (final prayer in prayersAlone) {
       final rakaas = <RakaaAssignment>[];
-      int weightedSlot = 0; // compteur fractionnaire pour les prières légères
       for (int r = 1; r <= prayer.rakaas; r++) {
         final canHaveSurat = r <= prayer.suratRakaas;
         if (canHaveSurat && unitIndex < todayUnits.length) {
-          if (prayer.wordWeight < 1.0) {
-            // N'assigner une unité qu'une fois sur deux pour les prières légères
-            weightedSlot++;
-            if (weightedSlot.isOdd) {
-              rakaas.add(RakaaAssignment(rakaaNumber: r, unit: todayUnits[unitIndex]));
-              unitIndex++;
-              continue;
-            }
-          } else {
-            rakaas.add(RakaaAssignment(rakaaNumber: r, unit: todayUnits[unitIndex]));
-            unitIndex++;
-            continue;
-          }
+          rakaas.add(RakaaAssignment(rakaaNumber: r, unit: todayUnits[unitIndex]));
+          unitIndex++;
+        } else {
+          rakaas.add(RakaaAssignment(rakaaNumber: r));
         }
-        rakaas.add(RakaaAssignment(rakaaNumber: r));
       }
       plan.add(PrayerPlan(prayer: prayer, rakaas: rakaas));
     }

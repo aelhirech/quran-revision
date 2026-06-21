@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'sourate.dart';
 import 'sourate_selection.dart';
 
@@ -76,7 +77,10 @@ class UserConfig {
         shuffleEnabled: j['shuffleEnabled'] as bool? ?? true,
         versesPerDay: j['versesPerDay'] as int?,
       );
-    } catch (_) {
+    } catch (e) {
+      // Retour à une config vide plutôt qu'un crash. Le log permet de détecter
+      // un bug de parsing sans impacter l'utilisateur.
+      assert(() { debugPrint('[UserConfig] fromJson error: $e'); return true; }());
       return UserConfig(
           selections: const [], revisionDays: 30, startDate: DateTime.now());
     }

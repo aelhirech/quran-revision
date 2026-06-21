@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/user_config.dart';
@@ -9,14 +10,21 @@ class AppState extends ChangeNotifier {
   int _cyclePosition;
   DailySession? _previewSession;
   DailySession? _todaySession;
+  Set<String> _pauseDates;
   String _locale;
 
   AppState(
     this._config, {
     String locale = 'fr',
     int initialCyclePosition = 0,
+    DailySession? initialPreviewSession,
+    DailySession? initialTodaySession,
+    Set<String> initialPauseDates = const {},
   })  : _locale = locale,
-        _cyclePosition = initialCyclePosition {
+        _cyclePosition = initialCyclePosition,
+        _previewSession = initialPreviewSession,
+        _todaySession = initialTodaySession,
+        _pauseDates = Set.from(initialPauseDates) {
     S.locale = locale;
   }
 
@@ -24,7 +32,24 @@ class AppState extends ChangeNotifier {
   int get cyclePosition => _cyclePosition;
   DailySession? get previewSession => _previewSession;
   DailySession? get todaySession => _todaySession;
+  Set<String> get pauseDates => Set.unmodifiable(_pauseDates);
   String get locale => _locale;
+
+  String get _todayStr =>
+      DateTime.now().toIso8601String().substring(0, 10);
+
+  bool get isPausedToday => _pauseDates.contains(_todayStr);
+
+  Future<void> togglePauseToday() async {
+    final today = _todayStr;
+    if (_pauseDates.contains(today)) {
+      _pauseDates.remove(today);
+    } else {
+      _pauseDates.add(today);
+    }
+    await StorageService.savePauseDates(_pauseDates);
+    notifyListeners();
+  }
 
   Future<void> setLocale(String locale) async {
     _locale = locale;
@@ -39,35 +64,50 @@ class AppState extends ChangeNotifier {
     _todaySession = null;
     await StorageService.saveConfig(config);
     await StorageService.saveCyclePosition(0);
+    await StorageService.clearTodaySession();
+    await StorageService.clearPreviewSession();
     notifyListeners();
   }
 
   Future<void> advanceCycle(int unitsCompleted, int cycleTotal) async {
     if (cycleTotal == 0) return;
-    _cyclePosition = (_cyclePosition + unitsCompleted) % cycleTotal;
+    // Délègue le calcul à RevisionEngine — source unique de vérité pour la progression
+    _cyclePosition = RevisionEngine.advanceCycle(
+      currentPosition: _cyclePosition,
+      unitsCompleted: unitsCompleted,
+      cycleTotal: cycleTotal,
+    );
     await StorageService.saveCyclePosition(_cyclePosition);
     notifyListeners();
   }
 
-  void setPreviewSession(DailySession session) {
+  Future<void> setPreviewSession(DailySession session) async {
     _previewSession = session;
+    await StorageService.savePreviewSession(session);
     notifyListeners();
   }
 
-  void engager() {
+  Future<void> engager() async {
     _todaySession = _previewSession;
     _previewSession = null;
+    if (_todaySession != null) {
+      await StorageService.saveTodaySession(_todaySession!);
+    }
+    await StorageService.clearPreviewSession();
     notifyListeners();
   }
 
-  void clearPreview() {
+  Future<void> clearPreview() async {
     _previewSession = null;
+    await StorageService.clearPreviewSession();
     notifyListeners();
   }
 
-  void clearTodaySession() {
+  Future<void> clearTodaySession() async {
     _todaySession = null;
     _previewSession = null;
+    await StorageService.clearTodaySession();
+    await StorageService.clearPreviewSession();
     notifyListeners();
   }
 
@@ -83,6 +123,7 @@ class AppState extends ChangeNotifier {
     _cyclePosition = 0;
     _todaySession = null;
     _previewSession = null;
+    _pauseDates = {};
     await StorageService.clear();
     notifyListeners();
   }

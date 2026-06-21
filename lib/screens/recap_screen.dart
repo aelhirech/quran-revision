@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -21,15 +22,26 @@ class _RecapScreenState extends State<RecapScreen> {
   int _streak = 0;
   int _totalDays = 0;
   List<SessionRecord> _sessions = [];
+  Set<String> _lastPauseDates = {};
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _load(const {});
   }
 
-  Future<void> _load() async {
-    final streak = await HistoryService.currentStreak();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final pauseDates = context.read<AppState>().pauseDates;
+    if (!setEquals(pauseDates, _lastPauseDates)) {
+      _lastPauseDates = Set.from(pauseDates);
+      _load(pauseDates);
+    }
+  }
+
+  Future<void> _load(Set<String> pauseDates) async {
+    final streak = await HistoryService.currentStreak(pauseDates: pauseDates);
     final total = await HistoryService.totalSessionDays();
     final sessions = await HistoryService.recentSessions(limit: 14);
     if (mounted) {
@@ -73,11 +85,11 @@ class _RecapScreenState extends State<RecapScreen> {
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                StreakCard(streak: _streak, totalDays: _totalDays),
+                const SizedBox(height: 16),
                 _cycleCard(cs, progress, pos, total, daysRemaining),
                 const SizedBox(height: 16),
                 _statsRow(cs, state, units.length),
-                const SizedBox(height: 16),
-                StreakCard(streak: _streak, totalDays: _totalDays),
                 const SizedBox(height: 16),
                 HistoryCard(sessions: _sessions),
                 const SizedBox(height: 16),
@@ -190,7 +202,7 @@ class _RecapScreenState extends State<RecapScreen> {
     return Expanded(
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(

@@ -60,6 +60,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) setState(() => _editing = false);
   }
 
+  Future<void> _showDurationDialog() async {
+    int tempDays = _revisionDays;
+    final confirmed = await showDialog<int>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Text(S.modifierDuree),
+          content: DropdownButton<int>(
+            value: tempDays,
+            isExpanded: true,
+            items: [7, 14, 21, 30, 60, 90]
+                .map((d) => DropdownMenuItem(
+                    value: d, child: Text(S.joursDuration(d))))
+                .toList(),
+            onChanged: (v) => setS(() => tempDays = v!),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(S.annuler)),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, tempDays),
+                child: Text(S.sauver)),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == null || !mounted) return;
+    final state = context.read<AppState>();
+    await state.saveConfig(state.config!.copyWith(revisionDays: confirmed));
+    setState(() => _revisionDays = confirmed);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -79,13 +112,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             foregroundColor: cs.onSurface,
             centerTitle: false,
             actions: [
-              if (!_editing)
+              if (!_editing) ...[
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  tooltip: S.modifier,
+                  icon: const Icon(Icons.timer_outlined),
+                  tooltip: S.modifierDuree,
+                  onPressed: _showDurationDialog,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.playlist_add_check_outlined),
+                  tooltip: S.modifierSourates,
                   onPressed: () => setState(() => _editing = true),
-                )
-              else ...[
+                ),
+              ] else ...[
                 TextButton(
                   onPressed: () => setState(() => _editing = false),
                   child: Text(S.annuler),
@@ -118,10 +156,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           const SettingsCard(),
           const SizedBox(height: 16),
+          _pauseCard(cs, state),
+          const SizedBox(height: 16),
           _resetSection(cs, state),
         ]),
       ),
     );
+  }
+
+  Widget _pauseCard(ColorScheme cs, AppState state) {
+    final paused = state.isPausedToday;
+    return Card(
+      elevation: 0,
+      color: paused
+          ? cs.tertiaryContainer.withValues(alpha: 0.5)
+          : cs.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: SwitchListTile.adaptive(
+        value: paused,
+        onChanged: (_) => state.togglePauseToday(),
+        secondary: Icon(
+          Icons.pause_circle_outline,
+          color: paused ? cs.tertiary : cs.onSurfaceVariant,
+        ),
+        title: Text(S.pauseLabel,
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: paused ? cs.onTertiaryContainer : cs.onSurface)),
+        subtitle: Text(
+          paused ? S.pauseActive : S.pauseDesc,
+          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+        ),
+      ),
+    ).animate().fadeIn(delay: 150.ms);
   }
 
   Widget _resetSection(ColorScheme cs, AppState state) {
