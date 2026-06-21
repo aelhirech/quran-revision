@@ -6,12 +6,13 @@ import '../models/revision_unit.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 
-/// Limite de mots par unité de révision (~1 page de Mushaf standard)
+/// ~1 page Mushaf Madinah (128 mots/page × ~1,17 pages par unité)
 const int _wordLimit = 150;
 
+/// Minimum de lignes Mushaf Madinah par rakaa pour qu'une subdivision ait du sens.
+const double _minLinesPerSlot = 3.0;
+
 class RevisionEngine {
-  /// Découpe les sélections en unités de révision basées sur le nombre de mots.
-  /// Une unité = ce qu'on peut réciter confortablement dans une rakaa.
   static List<RevisionUnit> buildUnits(List<SourateSelection> selections) {
     final units = <RevisionUnit>[];
     for (final sel in selections) {
@@ -42,7 +43,6 @@ class RevisionEngine {
     return units;
   }
 
-  /// Calcule le nombre d'unités à couvrir aujourd'hui
   static int dailyTarget({
     required int cyclePosition,
     required int cycleTotal,
@@ -53,11 +53,6 @@ class RevisionEngine {
     return (unitsLeft / daysRemaining).ceil();
   }
 
-  /// Génère le plan du jour : distribue les unités dans les rakaas où
-  /// une sourate est récitée (suratRakaas), pas tous les rakaas.
-  ///
-  /// [effectiveDaysOverride] remplace le calcul de durée de config — utilisé
-  /// par le mode cycle adaptatif (durée calculée depuis l'historique).
   static DailySession buildDayPlan({
     required UserConfig config,
     required List<Prayer> prayersAlone,
@@ -66,8 +61,6 @@ class RevisionEngine {
     int? effectiveDaysOverride,
   }) {
     final rawUnits = buildUnits(config.selections);
-    // Seed fixe (startDate) : l'ordre reste identique entre redémarrages.
-    // Un seed aléatoire changerait les assignations à chaque ouverture — déroutant.
     final units = config.shuffleEnabled
         ? ([...rawUnits]..shuffle(Random(config.startDate.millisecondsSinceEpoch)))
         : rawUnits;
@@ -78,8 +71,6 @@ class RevisionEngine {
     final effectiveDays = effectiveDaysOverride ?? config.effectiveDays(totalVerses);
     final daysRemaining = (effectiveDays - daysElapsed).clamp(1, effectiveDays);
 
-    // Chaque suratRakaa reçoit une unité — pas de slot pondéré.
-    // L'ajustement de volume se fait via la subdivision dans _expandToRakaas.
     final totalSuratRakaas =
         prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
 
@@ -96,11 +87,8 @@ class RevisionEngine {
       baseUnits.add(units[(pos + i) % cycleTotal]);
     }
 
-    // Subdivise les unités pour remplir tous les suratRakaas disponibles
     final todayUnits = _expandToRakaas(baseUnits, totalSuratRakaas);
 
-    // Distribue les unités : chaque suratRakaa reçoit la sienne.
-    // Les rakaas au-delà de suratRakaas (ex. 3e et 4e rakaa des fard) n'ont pas de sourate — normal.
     final plan = <PrayerPlan>[];
     int unitIndex = 0;
     for (final prayer in prayersAlone) {
@@ -128,8 +116,12 @@ class RevisionEngine {
     );
   }
 
-  /// Subdivise les unités pour remplir exactement [targetCount] rakaas.
-  /// Si on a moins d'unités que de rakaas, chaque unité est re-découpée proportionnellement.
+  /// Subdivise les unités pour remplir [targetCount] rakaas.
+  ///
+  /// Règles :
+  /// 1. Un verset seul ou une sous-unité < 3 lignes n'est pas subdivisé davantage.
+  /// 2. Si après expansion on a encore moins d'unités que de rakaas,
+  ///    les unités sont répétées cycliquement (plutôt que laisser des rakaas vides).
   static List<RevisionUnit> _expandToRakaas(
       List<RevisionUnit> units, int targetCount) {
     if (units.isEmpty || units.length >= targetCount) return units;
@@ -139,12 +131,15 @@ class RevisionEngine {
     int unitsLeft = units.length;
 
     for (final unit in units) {
-      // Nombre de rakaas allouées à cette unité (distribution équitable)
       final slots = (slotsLeft / unitsLeft).round().clamp(1, slotsLeft);
       slotsLeft -= slots;
       unitsLeft--;
 
-      if (slots == 1 || unit.verseCount <= 1) {
+      final canSplit = slots > 1 &&
+          unit.verseCount > 1 &&
+          unit.estimatedLines / slots >= _minLinesPerSlot;
+
+      if (!canSplit) {
         result.add(unit);
       } else {
         final versesPerSlot = (unit.verseCount / slots).ceil();
@@ -159,6 +154,14 @@ class RevisionEngine {
             isWhole: false,
           ));
         }
+      }
+    }
+
+    // Répétition cyclique si le nombre de rakaas dépasse les unités disponibles.
+    if (result.isNotEmpty && result.length < targetCount) {
+      final base = [...result];
+      while (result.length < targetCount) {
+        result.add(base[result.length % base.length]);
       }
     }
 

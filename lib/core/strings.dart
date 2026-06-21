@@ -88,14 +88,35 @@ class S {
   static String get toutDeselectionner => _t('Tout désélectionner', 'Deselect all');
   static String get aleatoireLabel => _t('Ordre aléatoire', 'Random order');
   static String get aleatoireSubtitle => _t('Mélange les unités à chaque nouveau cycle', 'Shuffles units each new cycle');
-  static String get parDuree => _t('Par durée', 'By duration');
-  static String get parVersetsJour => _t('Versets/jour', 'Verses/day');
-  static String get joursEstimes => _t('jours estimés', 'estimated days');
   static String get regrouperParJuz => _t('Grouper par Juz', 'Group by Juz');
   static String juz(int n) => 'Juz $n';
   static String get regrouperParHizb => _t('Grouper par Hizb', 'Group by Hizb');
   static String hizb(int n) => 'Hizb $n';
-  static String versetsParJour(int n) => _t('$n versets/jour', '$n verses/day');
+  // Onboarding wizard
+  static String get selectionRapide => _t('Sélection rapide', 'Quick select');
+  static String get toutLeCoran => _t('Tout le Coran', 'Full Quran');
+  static String get etapeSelection => _t('Mes sourates', 'My surahs');
+  static String get etapeRecap => _t('Récapitulatif', 'Summary');
+  static String get cycleObjectif => _t('Objectif de cycle', 'Cycle goal');
+  static String etapeN(int n, int total) => '$n / $total';
+
+  // Gamification — écran waouh
+  static String get waouhIslamic => _t('ما شاء الله', 'ما شاء الله');
+  static String get waouhSubtitle => _t("Qu'Allah vous bénisse dans votre révision", "May Allah bless your revision");
+  static String get premierJour => _t("Premier jour — c'est parti !", "First day — let's go!");
+  static String get nouveauPalier => _t('Nouveau palier atteint ! 🏅', 'New milestone reached! 🏅');
+
+  // Commitment modal
+  static String get engagementTitre => _t('Qu\'as-tu accompli ?', 'What did you accomplish?');
+  static String get toutFait => _t('J\'ai tout fait', 'I did everything');
+  static String get unePart => _t('J\'ai fait une partie', 'I did part of it');
+  static String get rienFait => _t('Je n\'ai rien fait', 'I did nothing');
+  static String get combienRakaas => _t('Combien de rakaas ?', 'How many rakaas?');
+  static String get valider => _t('Valider', 'Confirm');
+
+  // Mode focus mosquée
+  static String get focusMosquee => _t('Mode mosquée', 'Mosque mode');
+  static String get quitterFocus => _t('Quitter', 'Exit');
 
   // Notifications
   static String get notifMatinTitle => _t('Révision du Coran 🕌', 'Quran Revision 🕌');

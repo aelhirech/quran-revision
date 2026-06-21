@@ -7,7 +7,6 @@ class UserConfig {
   final int revisionDays;
   final DateTime startDate;
   final bool shuffleEnabled;
-  final int? versesPerDay;
   final bool adaptiveCycle;
 
   const UserConfig({
@@ -15,30 +14,22 @@ class UserConfig {
     required this.revisionDays,
     required this.startDate,
     this.shuffleEnabled = true,
-    this.versesPerDay,
     this.adaptiveCycle = false,
   });
 
-  /// Compatibilité : liste des sourates entières sélectionnées.
   List<Sourate> get learnedSourates => selections.map((s) => s.sourate).toList();
 
   int get totalSelectedVerses =>
       selections.fold(0, (sum, s) => sum + s.verseCount);
 
-  int effectiveDays(int totalVerses) {
-    if (versesPerDay != null && versesPerDay! > 0) {
-      return (totalVerses / versesPerDay!).ceil().clamp(1, 9999);
-    }
-    return revisionDays;
-  }
+  // Révision intelligente uniquement — le cycle est toujours basé sur revisionDays.
+  int effectiveDays(int totalVerses) => revisionDays;
 
   UserConfig copyWith({
     List<SourateSelection>? selections,
     int? revisionDays,
     DateTime? startDate,
     bool? shuffleEnabled,
-    int? versesPerDay,
-    bool clearVersesPerDay = false,
     bool? adaptiveCycle,
   }) =>
       UserConfig(
@@ -46,8 +37,6 @@ class UserConfig {
         revisionDays: revisionDays ?? this.revisionDays,
         startDate: startDate ?? this.startDate,
         shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
-        versesPerDay:
-            clearVersesPerDay ? null : (versesPerDay ?? this.versesPerDay),
         adaptiveCycle: adaptiveCycle ?? this.adaptiveCycle,
       );
 
@@ -56,13 +45,11 @@ class UserConfig {
         'revisionDays': revisionDays,
         'startDate': startDate.toIso8601String(),
         'shuffleEnabled': shuffleEnabled,
-        'versesPerDay': versesPerDay,
         'adaptiveCycle': adaptiveCycle,
       };
 
   factory UserConfig.fromJson(Map<String, dynamic> j) {
     try {
-      // Rétrocompatibilité : ancien format avec learnedSourates
       List<SourateSelection> selections;
       if (j.containsKey('selections')) {
         selections = (j['selections'] as List)
@@ -80,13 +67,13 @@ class UserConfig {
         startDate:
             DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
         shuffleEnabled: j['shuffleEnabled'] as bool? ?? true,
-        versesPerDay: j['versesPerDay'] as int?,
         adaptiveCycle: j['adaptiveCycle'] as bool? ?? false,
       );
     } catch (e) {
-      // Retour à une config vide plutôt qu'un crash. Le log permet de détecter
-      // un bug de parsing sans impacter l'utilisateur.
-      assert(() { debugPrint('[UserConfig] fromJson error: $e'); return true; }());
+      assert(() {
+        debugPrint('[UserConfig] fromJson error: $e');
+        return true;
+      }());
       return UserConfig(
           selections: const [], revisionDays: 30, startDate: DateTime.now());
     }

@@ -56,7 +56,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       revisionDays: _revisionDays,
       startDate: DateTime.now(),
       shuffleEnabled: state.config?.shuffleEnabled ?? true,
-      versesPerDay: state.config?.versesPerDay,
       adaptiveCycle: state.config?.adaptiveCycle ?? false,
     ));
     if (mounted) setState(() => _editing = false);
