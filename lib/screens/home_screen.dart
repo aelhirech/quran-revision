@@ -131,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Pas de floating : SliverAppBar.large afficherait le titre deux fois
           // pendant l'animation de repli si floating était activé.
           SliverAppBar.large(
-            title: Text(S.appTitle),
+            title: Text(S.reviserAujourdhui),
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             centerTitle: false,

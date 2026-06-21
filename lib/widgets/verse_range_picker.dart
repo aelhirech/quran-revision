@@ -26,6 +26,49 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
     );
   }
 
+  /// Taille des blocs de division rapide.
+  /// Les longues sourates (>100v) se découpent par 100 pour éviter
+  /// des blocs trop nombreux ; les moyennes (50-100v) par 50.
+  int get _chunkSize => widget.sourate.verses > 100 ? 100 : 50;
+
+  List<({int start, int end})> get _chunks {
+    final size = _chunkSize;
+    final total = widget.sourate.verses;
+    return [
+      for (int s = 1; s <= total; s += size)
+        (start: s, end: (s + size - 1).clamp(s, total)),
+    ];
+  }
+
+  Widget _chunkRow() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _chunks.map((c) {
+          final isActive = _range.start.round() == c.start && _range.end.round() == c.end;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ActionChip(
+              label: Text('v.${c.start}–${c.end}',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isActive ? AppColors.green : null)),
+              backgroundColor: isActive ? AppColors.greenContainer : null,
+              side: isActive
+                  ? const BorderSide(color: AppColors.green, width: 1.5)
+                  : null,
+              onPressed: () => setState(() => _range = RangeValues(
+                    c.start.toDouble(),
+                    c.end.toDouble(),
+                  )),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -75,6 +118,10 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
             activeColor: AppColors.green,
             onChanged: (v) => setState(() => _range = v),
           ),
+          if (widget.sourate.verses > 50) ...[
+            const SizedBox(height: 12),
+            _chunkRow(),
+          ],
           const SizedBox(height: 8),
           Row(
             children: [

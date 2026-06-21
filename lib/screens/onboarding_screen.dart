@@ -26,6 +26,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _versesPerDay = 20;
   bool _useVersesPerDay = false;
   bool _groupByJuz = false;
+  bool _groupByHizb = false;
   String _search = '';
 
   List<Sourate> get _filtered => allSourates
@@ -44,14 +45,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   List<Object> get _listItems {
     final sourates = _filtered;
-    if (!_groupByJuz || _search.isNotEmpty) return sourates;
+    if (_search.isNotEmpty) return sourates;
+    if (_groupByJuz) return _groupedBy(sourates, (s) => quran.getJuzNumber(s.id, 1));
+    if (_groupByHizb) return _groupedBy(sourates, _hizbOf);
+    return sourates;
+  }
+
+  // Cache calculé une seule fois : surah id → numéro de Hizb (1-60).
+  // Basé sur la position cumulative des versets dans le Coran (6236 versets total).
+  static Map<int, int>? _hizbCache;
+
+  int _hizbOf(Sourate s) {
+    if (_hizbCache == null) {
+      int cumulative = 7; // Al-Fatiha (id 1, 7 versets, exclue de allSourates)
+      final cache = <int, int>{};
+      for (final r in allSourates) {
+        cache[r.id] = (cumulative / 6236 * 60).floor().clamp(0, 59) + 1;
+        cumulative += r.verses;
+      }
+      _hizbCache = cache;
+    }
+    return _hizbCache![s.id] ?? 1;
+  }
+
+  /// Groupe les sourates par la valeur retournée par [key], en insérant des
+  /// entêtes (int) à chaque changement de groupe.
+  List<Object> _groupedBy(List<Sourate> sourates, int Function(Sourate) key) {
     final result = <Object>[];
-    int? currentJuz;
+    int? currentGroup;
     for (final s in sourates) {
-      final juz = quran.getJuzNumber(s.id, 1);
-      if (juz != currentJuz) {
-        currentJuz = juz;
-        result.add(juz);
+      final group = key(s);
+      if (group != currentGroup) {
+        currentGroup = group;
+        result.add(group);
       }
       result.add(s);
     }
@@ -119,12 +145,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               totalVerses: _totalVerses,
               allSouratesCount: allSourates.length,
               groupByJuz: _groupByJuz,
+              groupByHizb: _groupByHizb,
               useVersesPerDay: _useVersesPerDay,
               revisionDays: _revisionDays,
               versesPerDay: _versesPerDay,
               estimatedDays: _estimatedDays,
               onToggleAll: _toggleAll,
-              onGroupByJuzChanged: (v) => setState(() => _groupByJuz = v),
+              // Juz et Hizb sont mutuellement exclusifs
+              onGroupByJuzChanged: (v) => setState(() {
+                _groupByJuz = v;
+                if (v) _groupByHizb = false;
+              }),
+              onGroupByHizbChanged: (v) => setState(() {
+                _groupByHizb = v;
+                if (v) _groupByJuz = false;
+              }),
               onModeChanged: (v) => setState(() => _useVersesPerDay = v),
               onRevisionDaysChanged: (v) => setState(() => _revisionDays = v),
               onVersesPerDayChanged: (v) => setState(() => _versesPerDay = v),
@@ -169,7 +204,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       itemCount: items.length,
       itemBuilder: (_, i) {
         final item = items[i];
-        if (item is int) return _juzHeader(cs, item);
+        if (item is int) {
+          final label = _groupByHizb ? S.hizb(item) : S.juz(item);
+          return _groupHeader(cs, label);
+        }
         final s = item as Sourate;
         final sel = _selections[s.id];
         final selected = sel != null;
@@ -215,11 +253,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _juzHeader(ColorScheme cs, int juz) {
+  Widget _groupHeader(ColorScheme cs, String label) {
     return Container(
       color: AppColors.greenContainer,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Text(S.juz(juz),
+      child: Text(label,
           style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,

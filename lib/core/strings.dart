@@ -5,6 +5,8 @@ class S {
 
   static String get appTitle => _t('Révision du Coran', 'Quran Revision');
   static String get planDuJour => _t('Plan du jour', 'Daily Plan');
+  static String get reviser => _t('Réviser', 'Revise');
+  static String get reviserAujourdhui => _t("Réviser aujourd'hui", "Today's revision");
   static String get recap => _t('Récap', 'Recap');
   static String get profil => _t('Profil', 'Profile');
   static String get recapitulatif => _t('Récapitulatif', 'Summary');
@@ -91,6 +93,8 @@ class S {
   static String get joursEstimes => _t('jours estimés', 'estimated days');
   static String get regrouperParJuz => _t('Grouper par Juz', 'Group by Juz');
   static String juz(int n) => 'Juz $n';
+  static String get regrouperParHizb => _t('Grouper par Hizb', 'Group by Hizb');
+  static String hizb(int n) => 'Hizb $n';
   static String versetsParJour(int n) => _t('$n versets/jour', '$n verses/day');
 
   // Notifications

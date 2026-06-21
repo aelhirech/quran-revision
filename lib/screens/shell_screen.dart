@@ -24,7 +24,7 @@ class _ShellScreenState extends State<ShellScreen> {
       NavigationDestination(
         icon: const Icon(Icons.mosque_outlined),
         selectedIcon: const Icon(Icons.mosque),
-        label: S.planDuJour,
+        label: S.reviser,
       ),
       NavigationDestination(
         icon: const Icon(Icons.bar_chart_outlined),
