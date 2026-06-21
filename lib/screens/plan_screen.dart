@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../core/app_colors.dart';
+import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
@@ -14,6 +15,8 @@ class PlanScreen extends StatefulWidget {
   final VoidCallback? onEngager;
   final VoidCallback? onChangePlan;
   final bool isPreview;
+  /// Retourne le niveau de fraîcheur d'une sourate. Null si pas encore chargé.
+  final FreshnessLevel? Function(int sourateId)? freshnessOf;
 
   const PlanScreen({
     super.key,
@@ -22,6 +25,7 @@ class PlanScreen extends StatefulWidget {
     this.onEngager,
     this.onChangePlan,
     this.isPreview = false,
+    this.freshnessOf,
   });
 
   @override
@@ -141,6 +145,7 @@ class _PlanScreenState extends State<PlanScreen> {
                     checked: _checked[i] ?? {},
                     isPreview: widget.isPreview,
                     onToggle: (rakaa) => _toggle(i, rakaa),
+                    freshnessOf: widget.freshnessOf,
                   )
                       .animate()
                       .fadeIn(delay: Duration(milliseconds: i * 80))

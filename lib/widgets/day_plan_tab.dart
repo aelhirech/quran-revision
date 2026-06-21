@@ -23,8 +23,17 @@ class DayPlanTab extends StatelessWidget {
     final cycleWraps =
         cycleTotal > 0 && (state.cyclePosition + unitsCompleted) >= cycleTotal;
 
+    // Sourates couvertes dans cette session — pour le SRS
+    final sessionSourateIds = state.todaySession!.plan
+        .expand((pp) => pp.rakaas)
+        .where((r) => r.unit != null)
+        .map((r) => r.unit!.sourate.id)
+        .toSet()
+        .toList();
+    final sessionDate = DateTime.now().toIso8601String().substring(0, 10);
+
     await state.advanceCycle(unitsCompleted, cycleTotal);
-    await state.refreshAdaptiveCycle(cycleTotal);
+    await state.refreshAdaptiveCycle(cycleTotal, notify: false);
     await HistoryService.recordSession(SessionRecord(
       date: DateTime.now(),
       unitsCompleted: unitsCompleted,
@@ -32,6 +41,8 @@ class DayPlanTab extends StatelessWidget {
       prayers:
           state.todaySession!.prayersAlone.map((p) => p.name).toList(),
     ));
+    await HistoryService.recordSourateHistory(sessionDate, sessionSourateIds);
+    await state.refreshFreshness(notify: false);
 
     if (cycleWraps && context.mounted) {
       await showDialog<void>(
@@ -52,6 +63,7 @@ class DayPlanTab extends StatelessWidget {
       return PlanScreen(
         key: ValueKey(state.todaySession),
         session: state.todaySession!,
+        freshnessOf: state.freshnessFor,
         onComplete: (unitsCompleted) =>
             _onComplete(context, state, unitsCompleted),
         onChangePlan: () => state.clearTodaySession(),
@@ -62,6 +74,7 @@ class DayPlanTab extends StatelessWidget {
       return PlanScreen(
         key: ValueKey(state.previewSession),
         session: state.previewSession!,
+        freshnessOf: state.freshnessFor,
         isPreview: true,
         onEngager: () => state.engager(),
         onChangePlan: () => state.clearPreview(),

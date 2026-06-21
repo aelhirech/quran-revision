@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
+import '../core/freshness_engine.dart';
 import '../core/prayer_l10n.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
+import '../models/revision_unit.dart';
 import '../widgets/verse_bottom_sheet.dart';
 
 class PrayerPlanCard extends StatelessWidget {
@@ -13,6 +15,7 @@ class PrayerPlanCard extends StatelessWidget {
   final Set<int> checked;
   final bool isPreview;
   final void Function(int rakaaNumber) onToggle;
+  final FreshnessLevel? Function(int sourateId)? freshnessOf;
 
   const PrayerPlanCard({
     super.key,
@@ -21,6 +24,7 @@ class PrayerPlanCard extends StatelessWidget {
     required this.checked,
     required this.isPreview,
     required this.onToggle,
+    this.freshnessOf,
   });
 
   @override
@@ -115,9 +119,8 @@ class PrayerPlanCard extends StatelessWidget {
                   ))
               : Text(S.alFatihaSeul,
                   style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
-          subtitle: hasUnit && !r.unit!.isWhole
-              ? Text('${r.unit!.verseCount} ${S.versets}',
-                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11))
+          subtitle: hasUnit
+              ? _subtitle(cs, r.unit!, freshnessOf?.call(r.unit!.sourate.id))
               : null,
           trailing: hasUnit
               ? IconButton(
@@ -129,6 +132,49 @@ class PrayerPlanCard extends StatelessWidget {
                 )
               : null,
           dense: true,
+        ),
+      ),
+    );
+  }
+
+  /// Sous-titre d'une rakaa : compte de versets et/ou badge de fraîcheur.
+  Widget? _subtitle(ColorScheme cs, RevisionUnit unit, FreshnessLevel? freshness) {
+    final showCount = !unit.isWhole;
+    final showBadge = freshness == FreshnessLevel.cold ||
+        freshness == FreshnessLevel.frozen;
+
+    if (!showCount && !showBadge) return null;
+
+    return Row(
+      children: [
+        if (showCount)
+          Text(
+            '${unit.verseCount} ${S.versets}',
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
+          ),
+        if (showCount && showBadge) const SizedBox(width: 8),
+        if (showBadge) _freshnessBadge(freshness!, cs),
+      ],
+    );
+  }
+
+  Widget _freshnessBadge(FreshnessLevel level, ColorScheme cs) {
+    final isFrozen = level == FreshnessLevel.frozen;
+    final color = isFrozen ? cs.error : cs.tertiary;
+    final label = isFrozen ? S.fraicheurGelee : S.fraicheurFroide;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
       ),
     );

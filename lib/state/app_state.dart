@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/freshness_engine.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
@@ -15,6 +16,8 @@ class AppState extends ChangeNotifier {
   String _locale;
   // Durée de cycle calculée depuis l'historique (mode adaptatif uniquement)
   int? _adaptiveCycleDays;
+  // Fraîcheur par sourate (sourateId → niveau)
+  Map<int, FreshnessLevel> _freshness = {};
 
   AppState(
     this._config, {
@@ -40,6 +43,9 @@ class AppState extends ChangeNotifier {
   /// Retourne la durée adaptive uniquement si le mode est activé.
   int? get adaptiveCycleDays =>
       _config?.adaptiveCycle == true ? _adaptiveCycleDays : null;
+
+  /// Retourne le niveau de fraîcheur d'une sourate. Null = jamais calculé.
+  FreshnessLevel? freshnessFor(int sourateId) => _freshness[sourateId];
 
   String get _todayStr =>
       DateTime.now().toIso8601String().substring(0, 10);
@@ -91,6 +97,16 @@ class AppState extends ChangeNotifier {
     _previewSession = session;
     await StorageService.savePreviewSession(session);
     notifyListeners();
+    // Charger la fraîcheur en arrière-plan — les badges apparaissent dès que c'est prêt
+    refreshFreshness();
+  }
+
+  /// Recalcule la fraîcheur depuis l'historique des révisions par sourate.
+  /// Appelé quand une session démarre et après chaque session complétée.
+  Future<void> refreshFreshness({bool notify = true}) async {
+    final dates = await HistoryService.lastRevisionDates();
+    _freshness = FreshnessEngine.computeAll(dates, DateTime.now());
+    if (notify) notifyListeners();
   }
 
   Future<void> engager() async {

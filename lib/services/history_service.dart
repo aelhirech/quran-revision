@@ -8,16 +8,36 @@ class HistoryService {
   static Future<Database> _open() async {
     _db ??= await openDatabase(
       p.join(await getDatabasesPath(), 'history.db'),
-      version: 1,
-      onCreate: (db, _) => db.execute('''
-        CREATE TABLE sessions (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          date TEXT NOT NULL,
-          units_completed INTEGER NOT NULL,
-          total_units INTEGER NOT NULL,
-          prayers TEXT NOT NULL
-        )
-      '''),
+      version: 2,
+      onCreate: (db, _) async {
+        await db.execute('''
+          CREATE TABLE sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            units_completed INTEGER NOT NULL,
+            total_units INTEGER NOT NULL,
+            prayers TEXT NOT NULL
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE sourate_sessions (
+            date TEXT NOT NULL,
+            sourate_id INTEGER NOT NULL,
+            PRIMARY KEY (date, sourate_id)
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS sourate_sessions (
+              date TEXT NOT NULL,
+              sourate_id INTEGER NOT NULL,
+              PRIMARY KEY (date, sourate_id)
+            )
+          ''');
+        }
+      },
     );
     return _db!;
   }
@@ -82,6 +102,36 @@ class HistoryService {
     final db = await _open();
     final result = await db.rawQuery('SELECT COUNT(DISTINCT date) as c FROM sessions');
     return result.first['c'] as int? ?? 0;
+  }
+
+  /// Enregistre quelles sourates ont été révisées lors d'une session.
+  /// Une seule entrée par (date, sourate_id) — idempotent grâce à PRIMARY KEY.
+  static Future<void> recordSourateHistory(
+      String date, List<int> sourateIds) async {
+    if (sourateIds.isEmpty) return;
+    final db = await _open();
+    final batch = db.batch();
+    for (final id in sourateIds) {
+      batch.insert(
+        'sourate_sessions',
+        {'date': date, 'sourate_id': id},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  /// Retourne la dernière date de révision par sourate.
+  /// Sourates jamais révisées sont absentes du résultat.
+  static Future<Map<int, DateTime>> lastRevisionDates() async {
+    final db = await _open();
+    final rows = await db.rawQuery(
+      'SELECT sourate_id, MAX(date) as last_date FROM sourate_sessions GROUP BY sourate_id',
+    );
+    return {
+      for (final row in rows)
+        row['sourate_id'] as int: DateTime.parse(row['last_date'] as String),
+    };
   }
 
   /// Moyenne des unités complétées par session sur les [lastN] dernières sessions.

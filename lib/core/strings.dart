@@ -198,6 +198,10 @@ class S {
   static String get memorisees => _t('Mémorisées', 'Memorized');
   static String get repartitionSourates => _t('Répartition', 'Breakdown');
 
+  // Fraîcheur sourate (SRS léger)
+  static String get fraicheurFroide => _t('Froide', 'Cold');
+  static String get fraicheurGelee => _t('Très froide', 'Fading');
+
   // Mode pause
   static String get pauseLabel => _t('Pause aujourd\'hui', 'Pause today');
   static String get pauseDesc => _t('Ne compte pas comme un jour manqué dans la série', 'Won\'t count as a missed day in your streak');
