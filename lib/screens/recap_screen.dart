@@ -4,8 +4,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
+import '../models/learning_progress.dart';
 import '../models/session_record.dart';
 import '../services/history_service.dart';
+import '../services/learning_service.dart';
 import '../state/app_state.dart';
 import '../widgets/history_card.dart';
 import '../widgets/sourates_recap_card.dart';
@@ -22,6 +24,7 @@ class _RecapScreenState extends State<RecapScreen> {
   int _streak = 0;
   int _totalDays = 0;
   List<SessionRecord> _sessions = [];
+  List<LearningProgress> _learningProgress = [];
   Set<String> _lastPauseDates = {};
 
   @override
@@ -41,14 +44,18 @@ class _RecapScreenState extends State<RecapScreen> {
   }
 
   Future<void> _load(Set<String> pauseDates) async {
-    final streak = await HistoryService.currentStreak(pauseDates: pauseDates);
-    final total = await HistoryService.totalSessionDays();
-    final sessions = await HistoryService.recentSessions(limit: 14);
+    final results = await Future.wait([
+      HistoryService.currentStreak(pauseDates: pauseDates),
+      HistoryService.totalSessionDays(),
+      HistoryService.recentSessions(limit: 14),
+      LearningService.loadAll(),
+    ]);
     if (mounted) {
       setState(() {
-        _streak = streak;
-        _totalDays = total;
-        _sessions = sessions;
+        _streak = results[0] as int;
+        _totalDays = results[1] as int;
+        _sessions = results[2] as List<SessionRecord>;
+        _learningProgress = results[3] as List<LearningProgress>;
       });
     }
   }
@@ -88,6 +95,8 @@ class _RecapScreenState extends State<RecapScreen> {
                 StreakCard(streak: _streak, totalDays: _totalDays),
                 const SizedBox(height: 16),
                 _cycleCard(cs, progress, pos, total, daysRemaining),
+                const SizedBox(height: 16),
+                _repartitionCard(cs, state),
                 const SizedBox(height: 16),
                 _statsRow(cs, state, units.length),
                 const SizedBox(height: 16),
@@ -178,6 +187,82 @@ class _RecapScreenState extends State<RecapScreen> {
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.08);
+  }
+
+  Widget _repartitionCard(ColorScheme cs, AppState state) {
+    final enRevision = state.config!.selections.length;
+    final memorisees = _learningProgress.where((p) => p.isComplete).length;
+    final enCours = _learningProgress.where((p) => !p.isComplete).length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(S.repartitionSourates,
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: cs.onSurface)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _repartitionChip(cs, enRevision, S.enRevision,
+                  Icons.loop_outlined, cs.primary),
+              const SizedBox(width: 8),
+              _repartitionChip(cs, enCours, S.enCoursDApprentissage,
+                  Icons.edit_note_outlined, cs.tertiary),
+              const SizedBox(width: 8),
+              _repartitionChip(cs, memorisees, S.memorisees,
+                  Icons.check_circle_outline, Colors.green.shade600),
+            ],
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.08);
+  }
+
+  Widget _repartitionChip(ColorScheme cs, int count, String label,
+      IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 6),
+            Text('$count',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: color)),
+            const SizedBox(height: 2),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _statsRow(ColorScheme cs, AppState state, int unitTotal) {

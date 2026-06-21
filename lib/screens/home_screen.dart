@@ -100,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
       prayersAlone: prayers,
       cyclePosition: state.cyclePosition,
       today: DateTime.now(),
+      effectiveDaysOverride: state.adaptiveCycleDays,
     );
     setState(() => _session = session);
   }

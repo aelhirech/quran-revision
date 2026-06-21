@@ -55,11 +55,15 @@ class RevisionEngine {
 
   /// Génère le plan du jour : distribue les unités dans les rakaas où
   /// une sourate est récitée (suratRakaas), pas tous les rakaas.
+  ///
+  /// [effectiveDaysOverride] remplace le calcul de durée de config — utilisé
+  /// par le mode cycle adaptatif (durée calculée depuis l'historique).
   static DailySession buildDayPlan({
     required UserConfig config,
     required List<Prayer> prayersAlone,
     required int cyclePosition,
     required DateTime today,
+    int? effectiveDaysOverride,
   }) {
     final rawUnits = buildUnits(config.selections);
     // Seed fixe (startDate) : l'ordre reste identique entre redémarrages.
@@ -71,7 +75,7 @@ class RevisionEngine {
 
     final totalVerses = config.totalSelectedVerses;
     final daysElapsed = today.difference(config.startDate).inDays;
-    final effectiveDays = config.effectiveDays(totalVerses);
+    final effectiveDays = effectiveDaysOverride ?? config.effectiveDays(totalVerses);
     final daysRemaining = (effectiveDays - daysElapsed).clamp(1, effectiveDays);
 
     // Chaque suratRakaa reçoit une unité — pas de slot pondéré.

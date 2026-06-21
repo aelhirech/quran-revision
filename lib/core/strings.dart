@@ -184,6 +184,20 @@ class S {
   static String get terminer => _t('Terminer', 'Done');
   static String get ok => _t('OK', 'OK');
 
+  // Cycle adaptatif
+  static String get cycleAdaptatif => _t('Cycle adaptatif', 'Adaptive cycle');
+  static String get cycleAdaptatifDesc => _t(
+    "La durée s'ajuste selon tes sessions récentes",
+    'Duration adjusts based on your recent sessions',
+  );
+  static String cycleEstime(int n) => _t('~$n jours estimés', '~$n days estimated');
+  static String get cycleAdaptatifBase => _t('Basé sur les 14 dernières sessions', 'Based on the last 14 sessions');
+
+  // Récap différencié
+  static String get enRevision => _t('En révision', 'In revision');
+  static String get memorisees => _t('Mémorisées', 'Memorized');
+  static String get repartitionSourates => _t('Répartition', 'Breakdown');
+
   // Mode pause
   static String get pauseLabel => _t('Pause aujourd\'hui', 'Pause today');
   static String get pauseDesc => _t('Ne compte pas comme un jour manqué dans la série', 'Won\'t count as a missed day in your streak');

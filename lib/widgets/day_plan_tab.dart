@@ -24,6 +24,7 @@ class DayPlanTab extends StatelessWidget {
         cycleTotal > 0 && (state.cyclePosition + unitsCompleted) >= cycleTotal;
 
     await state.advanceCycle(unitsCompleted, cycleTotal);
+    await state.refreshAdaptiveCycle(cycleTotal);
     await HistoryService.recordSession(SessionRecord(
       date: DateTime.now(),
       unitsCompleted: unitsCompleted,

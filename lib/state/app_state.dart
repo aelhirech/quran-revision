@@ -3,6 +3,7 @@ import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/user_config.dart';
+import '../services/history_service.dart';
 import '../services/storage_service.dart';
 
 class AppState extends ChangeNotifier {
@@ -12,6 +13,8 @@ class AppState extends ChangeNotifier {
   DailySession? _todaySession;
   Set<String> _pauseDates;
   String _locale;
+  // Durée de cycle calculée depuis l'historique (mode adaptatif uniquement)
+  int? _adaptiveCycleDays;
 
   AppState(
     this._config, {
@@ -34,6 +37,9 @@ class AppState extends ChangeNotifier {
   DailySession? get todaySession => _todaySession;
   Set<String> get pauseDates => Set.unmodifiable(_pauseDates);
   String get locale => _locale;
+  /// Retourne la durée adaptive uniquement si le mode est activé.
+  int? get adaptiveCycleDays =>
+      _config?.adaptiveCycle == true ? _adaptiveCycleDays : null;
 
   String get _todayStr =>
       DateTime.now().toIso8601String().substring(0, 10);
@@ -108,6 +114,25 @@ class AppState extends ChangeNotifier {
     _previewSession = null;
     await StorageService.clearTodaySession();
     await StorageService.clearPreviewSession();
+    notifyListeners();
+  }
+
+  /// Recalcule la durée adaptive depuis l'historique.
+  /// Appelé après chaque session et quand le toggle adaptatif est activé.
+  Future<void> refreshAdaptiveCycle(int totalUnits) async {
+    if (_config?.adaptiveCycle != true || totalUnits <= 0) return;
+    final avg = await HistoryService.avgUnitsPerDay();
+    if (avg > 0) {
+      _adaptiveCycleDays = (totalUnits / avg).ceil();
+      notifyListeners();
+    }
+  }
+
+  Future<void> setAdaptiveCycle(bool enabled, {int totalUnits = 0}) async {
+    if (_config == null) return;
+    _config = _config!.copyWith(adaptiveCycle: enabled);
+    await StorageService.saveConfig(_config!);
+    if (enabled) await refreshAdaptiveCycle(totalUnits);
     notifyListeners();
   }
 

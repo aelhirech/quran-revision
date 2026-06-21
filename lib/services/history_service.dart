@@ -83,4 +83,13 @@ class HistoryService {
     final result = await db.rawQuery('SELECT COUNT(DISTINCT date) as c FROM sessions');
     return result.first['c'] as int? ?? 0;
   }
+
+  /// Moyenne des unités complétées par session sur les [lastN] dernières sessions.
+  /// Retourne 0.0 si aucune session disponible.
+  static Future<double> avgUnitsPerDay({int lastN = 14}) async {
+    final sessions = await recentSessions(limit: lastN);
+    if (sessions.isEmpty) return 0.0;
+    final total = sessions.fold(0, (sum, s) => sum + s.unitsCompleted);
+    return total / sessions.length;
+  }
 }

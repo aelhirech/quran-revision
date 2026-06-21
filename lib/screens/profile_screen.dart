@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/quran_data.dart';
+import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
@@ -156,12 +157,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           const SettingsCard(),
           const SizedBox(height: 16),
+          _adaptiveCycleCard(cs, state),
+          const SizedBox(height: 16),
           _pauseCard(cs, state),
           const SizedBox(height: 16),
           _resetSection(cs, state),
         ]),
       ),
     );
+  }
+
+  Widget _adaptiveCycleCard(ColorScheme cs, AppState state) {
+    final config = state.config!;
+    final isAdaptive = config.adaptiveCycle;
+    final totalUnits = RevisionEngine.buildUnits(config.selections).length;
+    final estimatedDays = state.adaptiveCycleDays;
+
+    return Card(
+      elevation: 0,
+      color: isAdaptive
+          ? cs.primaryContainer.withValues(alpha: 0.6)
+          : cs.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: SwitchListTile.adaptive(
+        value: isAdaptive,
+        onChanged: (v) => state.setAdaptiveCycle(v, totalUnits: totalUnits),
+        secondary: Icon(
+          Icons.auto_awesome_outlined,
+          color: isAdaptive ? cs.primary : cs.onSurfaceVariant,
+        ),
+        title: Text(S.cycleAdaptatif,
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: isAdaptive ? cs.onPrimaryContainer : cs.onSurface)),
+        subtitle: Text(
+          isAdaptive && estimatedDays != null
+              ? '${S.cycleEstime(estimatedDays)} · ${S.cycleAdaptatifBase}'
+              : S.cycleAdaptatifDesc,
+          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+        ),
+      ),
+    ).animate().fadeIn(delay: 100.ms);
   }
 
   Widget _pauseCard(ColorScheme cs, AppState state) {

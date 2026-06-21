@@ -8,6 +8,7 @@ class UserConfig {
   final DateTime startDate;
   final bool shuffleEnabled;
   final int? versesPerDay;
+  final bool adaptiveCycle;
 
   const UserConfig({
     required this.selections,
@@ -15,6 +16,7 @@ class UserConfig {
     required this.startDate,
     this.shuffleEnabled = true,
     this.versesPerDay,
+    this.adaptiveCycle = false,
   });
 
   /// Compatibilité : liste des sourates entières sélectionnées.
@@ -37,6 +39,7 @@ class UserConfig {
     bool? shuffleEnabled,
     int? versesPerDay,
     bool clearVersesPerDay = false,
+    bool? adaptiveCycle,
   }) =>
       UserConfig(
         selections: selections ?? this.selections,
@@ -45,6 +48,7 @@ class UserConfig {
         shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
         versesPerDay:
             clearVersesPerDay ? null : (versesPerDay ?? this.versesPerDay),
+        adaptiveCycle: adaptiveCycle ?? this.adaptiveCycle,
       );
 
   Map<String, dynamic> toJson() => {
@@ -53,6 +57,7 @@ class UserConfig {
         'startDate': startDate.toIso8601String(),
         'shuffleEnabled': shuffleEnabled,
         'versesPerDay': versesPerDay,
+        'adaptiveCycle': adaptiveCycle,
       };
 
   factory UserConfig.fromJson(Map<String, dynamic> j) {
@@ -76,6 +81,7 @@ class UserConfig {
             DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
         shuffleEnabled: j['shuffleEnabled'] as bool? ?? true,
         versesPerDay: j['versesPerDay'] as int?,
+        adaptiveCycle: j['adaptiveCycle'] as bool? ?? false,
       );
     } catch (e) {
       // Retour à une config vide plutôt qu'un crash. Le log permet de détecter
