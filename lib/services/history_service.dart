@@ -36,29 +36,43 @@ class HistoryService {
     return rows.map(SessionRecord.fromMap).toList();
   }
 
-  /// Nombre de jours consécutifs avec au moins une session (streak)
-  static Future<int> currentStreak() async {
+  /// Nombre de jours consécutifs avec au moins une session (streak).
+  /// Les [pauseDates] (YYYY-MM-DD) sont ignorées sans casser la série.
+  static Future<int> currentStreak({Set<String> pauseDates = const {}}) async {
     final sessions = await recentSessions(limit: 365);
     if (sessions.isEmpty) return 0;
 
     final today = DateTime.now();
     final todayStr = today.toIso8601String().substring(0, 10);
-    final yesterdayStr = today.subtract(const Duration(days: 1))
-        .toIso8601String().substring(0, 10);
+    final yesterdayStr = today
+        .subtract(const Duration(days: 1))
+        .toIso8601String()
+        .substring(0, 10);
+    final dates =
+        sessions.map((s) => s.date.toIso8601String().substring(0, 10)).toSet();
 
-    // Le streak ne compte que si on a une session aujourd'hui ou hier
-    final dates = sessions.map((s) => s.date.toIso8601String().substring(0, 10)).toSet();
-    if (!dates.contains(todayStr) && !dates.contains(yesterdayStr)) return 0;
+    // Le streak est vivant si aujourd'hui a une session, est en pause,
+    // ou si hier a une session.
+    final canStart = dates.contains(todayStr) ||
+        pauseDates.contains(todayStr) ||
+        dates.contains(yesterdayStr);
+    if (!canStart) return 0;
 
     int streak = 0;
-    DateTime cursor = dates.contains(todayStr)
-        ? today
-        : today.subtract(const Duration(days: 1));
+    int skippedInARow = 0;
+    DateTime cursor = today;
 
-    while (true) {
+    // On remonte jour par jour : les jours de pause sont sautés (cap à 30 d'affilée)
+    while (skippedInARow < 30) {
       final key = cursor.toIso8601String().substring(0, 10);
-      if (!dates.contains(key)) break;
-      streak++;
+      if (dates.contains(key)) {
+        streak++;
+        skippedInARow = 0;
+      } else if (pauseDates.contains(key)) {
+        skippedInARow++;
+      } else {
+        break;
+      }
       cursor = cursor.subtract(const Duration(days: 1));
     }
     return streak;

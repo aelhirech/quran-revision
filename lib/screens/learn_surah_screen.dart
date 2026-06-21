@@ -8,16 +8,20 @@ import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/sourate.dart';
 import '../services/learning_service.dart';
+import '../services/student_service.dart';
 import '../widgets/verse_display_card.dart';
 
 class LearnSurahScreen extends StatefulWidget {
   final LearningProgress progress;
   final VoidCallback onChanged;
+  /// null = profil principal, sinon id du profil élève
+  final String? studentId;
 
   const LearnSurahScreen({
     super.key,
     required this.progress,
     required this.onChanged,
+    this.studentId,
   });
 
   @override
@@ -39,7 +43,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
   Future<void> _markLearned() async {
     HapticFeedback.mediumImpact();
     final updated = _progress.withVerseLearned(_currentVerse);
-    await LearningService.upsert(updated);
+    await _save(updated);
     setState(() {
       _progress = updated;
       _verseVisible = false;
@@ -51,9 +55,17 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
     }
   }
 
+  Future<void> _save(LearningProgress updated) async {
+    if (widget.studentId == null) {
+      await LearningService.upsert(updated);
+    } else {
+      await StudentService.upsertProgress(widget.studentId!, updated);
+    }
+  }
+
   Future<void> _unmarkVerse(int verse) async {
     final updated = _progress.withVerseUnlearned(verse);
-    await LearningService.upsert(updated);
+    await _save(updated);
     setState(() => _progress = updated);
     widget.onChanged();
   }
@@ -110,7 +122,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
                   onToggle: () => setState(() => _verseVisible = !_verseVisible),
                 ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.06),
                 const SizedBox(height: 20),
-                if (!_progress.isComplete) _actionRow(cs),
+                if (_progress.isComplete) _addToRevisionButton(cs) else _actionRow(cs),
                 const SizedBox(height: 32),
                 if (_progress.learnedCount > 0) _learnedList(cs, s),
               ]),
@@ -179,6 +191,18 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
     ).animate().fadeIn().slideY(begin: 0.06);
   }
 
+  Widget _addToRevisionButton(ColorScheme cs) {
+    return FilledButton.icon(
+      onPressed: () => Navigator.pop(context, 'add_to_revision'),
+      icon: const Icon(Icons.add),
+      label: Text(S.ajouterAlaRevision),
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.green,
+        minimumSize: const Size(double.infinity, 52),
+      ),
+    ).animate().fadeIn(delay: 150.ms);
+  }
+
   Widget _actionRow(ColorScheme cs) {
     return Row(
       children: [
@@ -211,7 +235,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Versets appris',
+        Text(S.versetsApprisLabel,
             style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
@@ -237,7 +261,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
           }).toList(),
         ),
         const SizedBox(height: 8),
-        Text('Maintiens un verset pour le désapprendre',
+        Text(S.longPressDesapprendre,
             style: TextStyle(
                 fontSize: 11,
                 color: cs.onSurfaceVariant.withValues(alpha: 0.6))),

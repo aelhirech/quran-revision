@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/daily_session.dart';
 import '../models/user_config.dart';
 
 class StorageService {
@@ -7,6 +8,9 @@ class StorageService {
   static const _keyCyclePosition = 'cycle_position';
   static const _keyLocale = 'locale';
   static const _keyNotifEnabled = 'notif_enabled';
+  static const _keyPreviewSession = 'preview_session';
+  static const _keyTodaySession = 'today_session';
+  static const _keyPauseDates = 'pause_dates';
 
   static Future<void> saveConfig(UserConfig config) async {
     final prefs = await SharedPreferences.getInstance();
@@ -48,6 +52,60 @@ class StorageService {
   static Future<bool> loadNotifEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyNotifEnabled) ?? true;
+  }
+
+  static Future<void> savePreviewSession(DailySession session) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyPreviewSession, jsonEncode(session.toJson()));
+  }
+
+  static Future<DailySession?> loadPreviewSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _sessionOrNullIfStale(prefs.getString(_keyPreviewSession));
+  }
+
+  static Future<void> clearPreviewSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyPreviewSession);
+  }
+
+  static Future<void> saveTodaySession(DailySession session) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyTodaySession, jsonEncode(session.toJson()));
+  }
+
+  static Future<DailySession?> loadTodaySession() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _sessionOrNullIfStale(prefs.getString(_keyTodaySession));
+  }
+
+  static DailySession? _sessionOrNullIfStale(String? raw) {
+    if (raw == null) return null;
+    try {
+      final session = DailySession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      final today = DateTime.now();
+      final sameDay = session.date.year == today.year &&
+          session.date.month == today.month &&
+          session.date.day == today.day;
+      return sameDay ? session : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> clearTodaySession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyTodaySession);
+  }
+
+  static Future<void> savePauseDates(Set<String> dates) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_keyPauseDates, dates.toList());
+  }
+
+  static Future<Set<String>> loadPauseDates() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getStringList(_keyPauseDates) ?? []).toSet();
   }
 
   static Future<void> clear() async {

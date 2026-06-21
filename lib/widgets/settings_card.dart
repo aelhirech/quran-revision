@@ -7,15 +7,42 @@ import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../state/app_state.dart';
 
-class SettingsCard extends StatelessWidget {
+class SettingsCard extends StatefulWidget {
   const SettingsCard({super.key});
+
+  @override
+  State<SettingsCard> createState() => _SettingsCardState();
+}
+
+class _SettingsCardState extends State<SettingsCard> {
+  bool _notifEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    StorageService.loadNotifEnabled().then((v) {
+      if (mounted) setState(() => _notifEnabled = v);
+    });
+  }
+
+  Future<void> _toggleNotif(bool val) async {
+    setState(() => _notifEnabled = val);
+    await StorageService.saveNotifEnabled(val);
+    if (val) {
+      await NotificationService.requestPermission();
+      await NotificationService.scheduleMorning();
+      await NotificationService.scheduleEvening();
+    } else {
+      await NotificationService.cancelAll();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -50,33 +77,14 @@ class SettingsCard extends StatelessWidget {
               onChanged: (val) => context.read<AppState>().setShuffleEnabled(val),
             ),
             const Divider(height: 1, indent: 56),
-            StatefulBuilder(builder: (ctx, setSt) {
-              return FutureBuilder<bool>(
-                future: StorageService.loadNotifEnabled(),
-                builder: (_, snap) {
-                  final enabled = snap.data ?? true;
-                  return SwitchListTile(
-                    secondary: Icon(Icons.notifications_outlined,
-                        color: AppColors.green),
-                    title: Text(S.notificationsLabel),
-                    subtitle: Text(S.notifSubtitle),
-                    value: enabled,
-                    activeThumbColor: AppColors.green,
-                    onChanged: (val) async {
-                      await StorageService.saveNotifEnabled(val);
-                      if (val) {
-                        await NotificationService.requestPermission();
-                        await NotificationService.scheduleMorning();
-                        await NotificationService.scheduleEvening();
-                      } else {
-                        await NotificationService.cancelAll();
-                      }
-                      setSt(() {});
-                    },
-                  );
-                },
-              );
-            }),
+            SwitchListTile(
+              secondary: Icon(Icons.notifications_outlined, color: AppColors.green),
+              title: Text(S.notificationsLabel),
+              subtitle: Text(S.notifSubtitle),
+              value: _notifEnabled,
+              activeThumbColor: AppColors.green,
+              onChanged: _toggleNotif,
+            ),
           ],
         ),
       ),

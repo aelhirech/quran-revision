@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:quran/quran.dart' as quran;
 import '../core/app_colors.dart';
@@ -19,6 +20,7 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
+  bool _introSeen = false;
   final Map<int, SourateSelection> _selections = {};
   int _revisionDays = 30;
   int _versesPerDay = 20;
@@ -105,6 +107,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_introSeen) return _IntroScreen(onNext: () => setState(() => _introSeen = true));
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: cs.surface,
@@ -222,6 +225,75 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               fontWeight: FontWeight.w700,
               color: AppColors.green,
               letterSpacing: 0.8)),
+    );
+  }
+}
+
+class _IntroScreen extends StatelessWidget {
+  final VoidCallback onNext;
+  const _IntroScreen({required this.onNext});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: cs.surface,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Spacer(flex: 3),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.greenContainer,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(Icons.menu_book, size: 36, color: AppColors.green),
+              ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1),
+              const SizedBox(height: 24),
+              Text(
+                S.introTitle,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface,
+                  height: 1.2,
+                ),
+              ).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(begin: 0.08),
+              const SizedBox(height: 20),
+              Text(
+                S.introLine1,
+                style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant, height: 1.55),
+              ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
+              const SizedBox(height: 14),
+              Text(
+                S.introLine2,
+                style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant, height: 1.55),
+              ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
+              const Spacer(flex: 4),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: onNext,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.green,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: Text(S.introAction,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                ),
+              ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

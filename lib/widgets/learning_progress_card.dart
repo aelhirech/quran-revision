@@ -45,7 +45,7 @@ class LearningProgressCard extends StatelessWidget {
           onTap: onTap,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(

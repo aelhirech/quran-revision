@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../core/strings.dart';
 
 class DailyVerseInfoCard extends StatelessWidget {
   const DailyVerseInfoCard({super.key});
@@ -25,13 +26,13 @@ class DailyVerseInfoCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('1 verset par jour',
+                Text(S.versetParJourTitle,
                     style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
                         color: cs.onPrimaryContainer)),
                 const SizedBox(height: 2),
-                Text('Mémorise un verset chaque jour et l\'app suit ta progression',
+                Text(S.versetParJourDesc,
                     style: TextStyle(
                         fontSize: 12,
                         color: cs.onPrimaryContainer.withValues(alpha: 0.75))),
