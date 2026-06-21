@@ -14,7 +14,10 @@
       "PowerShell(cd D:\\\\Prog\\\\Quran_revision; \\(Get-Content lib\\\\main.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\main.dart; \\(Get-Content lib\\\\screens\\\\home_screen.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\screens\\\\home_screen.dart; \\(Get-Content lib\\\\screens\\\\recap_screen.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\screens\\\\recap_screen.dart; \\(Get-Content lib\\\\screens\\\\profile_screen.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\screens\\\\profile_screen.dart; \\(Get-Content lib\\\\screens\\\\plan_screen.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\screens\\\\plan_screen.dart; echo \"Done\")",
       "PowerShell(Get-Process | Where-Object { $_.Name -match \"flutter|dart\" } | Select-Object Id, Name, CPU, StartTime)",
       "Bash(gh pr *)",
-      "PowerShell(cd \"D:\\\\Prog\\\\Quran_revision\"; $env:PATH = \"D:\\\\tools\\\\gh\\\\bin;$env:PATH\"; gh pr list --head feature/phase-2 --repo aelhirech/quran-revision 2>&1)"
+      "PowerShell(cd \"D:\\\\Prog\\\\Quran_revision\"; $env:PATH = \"D:\\\\tools\\\\gh\\\\bin;$env:PATH\"; gh pr list --head feature/phase-2 --repo aelhirech/quran-revision 2>&1)",
+      "Bash(sed -i 's/  final previewSession = await StorageService.loadPreviewSession\\(\\);/  final previewSession = await StorageService.loadPreviewSession\\(\\);\\\\n  final pauseDates = await StorageService.loadPauseDates\\(\\);/' \"D:/Prog/Quran_revision/lib/main.dart\")",
+      "Bash(sed -i 's/    initialTodaySession: todaySession,/    initialTodaySession: todaySession,\\\\n    initialPauseDates: pauseDates,/' \"D:/Prog/Quran_revision/lib/main.dart\")",
+      "WebSearch"
     ]
   }
 }
