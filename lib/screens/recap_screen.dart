@@ -1,13 +1,67 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
+import '../models/learning_progress.dart';
+import '../models/session_record.dart';
+import '../services/history_service.dart';
+import '../services/learning_service.dart';
 import '../state/app_state.dart';
+import '../widgets/history_card.dart';
+import '../widgets/sourates_recap_card.dart';
+import '../widgets/streak_card.dart';
 
-class RecapScreen extends StatelessWidget {
+class RecapScreen extends StatefulWidget {
   const RecapScreen({super.key});
+
+  @override
+  State<RecapScreen> createState() => _RecapScreenState();
+}
+
+class _RecapScreenState extends State<RecapScreen> {
+  int _streak = 0;
+  int _totalDays = 0;
+  List<SessionRecord> _sessions = [];
+  List<LearningProgress> _learningProgress = [];
+  Set<String> _lastPauseDates = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load(const {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final pauseDates = context.read<AppState>().pauseDates;
+    if (!setEquals(pauseDates, _lastPauseDates)) {
+      _lastPauseDates = Set.from(pauseDates);
+      _load(pauseDates);
+    }
+  }
+
+  Future<void> _load(Set<String> pauseDates) async {
+    // Démarrage en parallèle, await typé sur chacun — évite les casts dynamiques
+    final streakF  = HistoryService.currentStreak(pauseDates: pauseDates);
+    final totalF   = HistoryService.totalSessionDays();
+    final sessF    = HistoryService.recentSessions(limit: 14);
+    final progressF = LearningService.loadAll();
+    final streak   = await streakF;
+    final total    = await totalF;
+    final sessions = await sessF;
+    final progress = await progressF;
+    if (mounted) {
+      setState(() {
+        _streak = streak;
+        _totalDays = total;
+        _sessions = sessions;
+        _learningProgress = progress;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,15 +72,15 @@ class RecapScreen extends StatelessWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final units = RevisionEngine.buildUnits(state.config!.learnedSourates);
+    final units = RevisionEngine.buildUnits(state.config!.selections);
     final total = units.length;
     final pos = state.cyclePosition % (total == 0 ? 1 : total);
     final progress = total == 0 ? 0.0 : pos / total;
-
     final daysElapsed =
         DateTime.now().difference(state.config!.startDate).inDays;
-    final daysRemaining =
-        (state.config!.revisionDays - daysElapsed).clamp(0, 9999);
+    final effectiveDays = state.adaptiveCycleDays ??
+        state.config!.effectiveDays(state.config!.totalSelectedVerses);
+    final daysRemaining = (effectiveDays - daysElapsed).clamp(0, 9999);
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -42,11 +96,17 @@ class RecapScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                StreakCard(streak: _streak, totalDays: _totalDays),
+                const SizedBox(height: 16),
                 _cycleCard(cs, progress, pos, total, daysRemaining),
+                const SizedBox(height: 16),
+                _repartitionCard(cs, state),
                 const SizedBox(height: 16),
                 _statsRow(cs, state, units.length),
                 const SizedBox(height: 16),
-                _souratesCard(cs, state),
+                HistoryCard(sessions: _sessions),
+                const SizedBox(height: 16),
+                SouratesRecapCard(selections: state.config!.selections),
               ]),
             ),
           ),
@@ -61,7 +121,7 @@ class RecapScreen extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [cs.primary, AppColors.greenLight],
+          colors: [cs.primary, const Color(0xFF81C784)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -99,7 +159,8 @@ class RecapScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 7, left: 8),
                 child: Text('· $pos / $total ${S.unitesLabel}',
                     style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75), fontSize: 15)),
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontSize: 15)),
               ),
             ],
           ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
@@ -124,23 +185,94 @@ class RecapScreen extends StatelessWidget {
             daysRemaining > 0
                 ? S.joursRestantsMsg(daysRemaining)
                 : '🎉 ${S.objectifAtteint}',
-            style:
-                TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
           ),
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.08);
   }
 
+  Widget _repartitionCard(ColorScheme cs, AppState state) {
+    final enRevision = state.config!.selections.length;
+    final memorisees = _learningProgress.where((p) => p.isComplete).length;
+    final enCours = _learningProgress.where((p) => !p.isComplete).length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(S.repartitionSourates,
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: cs.onSurface)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _repartitionChip(cs, enRevision, S.enRevision,
+                  Icons.loop_outlined, cs.primary),
+              const SizedBox(width: 8),
+              _repartitionChip(cs, enCours, S.enCoursDApprentissage,
+                  Icons.edit_note_outlined, cs.tertiary),
+              const SizedBox(width: 8),
+              _repartitionChip(cs, memorisees, S.memorisees,
+                  Icons.check_circle_outline, cs.primary),
+            ],
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.08);
+  }
+
+  Widget _repartitionChip(ColorScheme cs, int count, String label,
+      IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 6),
+            Text('$count',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: color)),
+            const SizedBox(height: 2),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _statsRow(ColorScheme cs, AppState state, int unitTotal) {
-    final sourates = state.config!.learnedSourates;
-    final totalVerses = sourates.fold(0, (sum, s) => sum + s.verses);
+    final selections = state.config!.selections;
+    final totalVerses = selections.fold(0, (sum, s) => sum + s.verseCount);
 
     return Row(
       children: [
-        _statChip(cs, '${sourates.length}', S.souratesLabel, Icons.menu_book_outlined, 0),
+        _statChip(cs, '${selections.length}', S.souratesLabel,
+            Icons.menu_book_outlined, 0),
         const SizedBox(width: 12),
-        _statChip(cs, '$totalVerses', S.versetsLabel, Icons.format_list_numbered, 100),
+        _statChip(cs, '$totalVerses', S.versetsLabel,
+            Icons.format_list_numbered, 100),
         const SizedBox(width: 12),
         _statChip(cs, '$unitTotal', S.unitesLabel, Icons.grid_view, 200),
       ],
@@ -152,7 +284,7 @@ class RecapScreen extends StatelessWidget {
     return Expanded(
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -185,61 +317,4 @@ class RecapScreen extends StatelessWidget {
           .slideY(begin: 0.12),
     );
   }
-
-  Widget _souratesCard(ColorScheme cs, AppState state) {
-    final sourates = state.config!.learnedSourates;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(S.mesSourates,
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: cs.onSurface,
-                      fontSize: 15)),
-            ),
-            ...sourates.asMap().entries.map((e) {
-              final s = e.value;
-              return ListTile(
-                dense: true,
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: cs.primary,
-                  foregroundColor: cs.onPrimary,
-                  child: Text('${s.id}', style: const TextStyle(fontSize: 10)),
-                ),
-                title: Text(s.nameFr,
-                    style: const TextStyle(fontWeight: FontWeight.w500)),
-                subtitle: Text(s.nameAr),
-                trailing: Text('${s.verses} ${S.versetsLabel}',
-                    style: TextStyle(
-                        color: cs.onSurfaceVariant, fontSize: 12)),
-              )
-                  .animate()
-                  .fadeIn(delay: Duration(milliseconds: 300 + e.key * 40))
-                  .slideX(begin: 0.05);
-            }),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1);
-  }
 }
-

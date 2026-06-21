@@ -117,3 +117,18 @@ const List<Sourate> allSourates = [
   Sourate(id: 113, nameAr: 'الفلق',         nameFr: 'Al-Falaq',      verses: 5,   words: 23),
   Sourate(id: 114, nameAr: 'الناس',         nameFr: 'An-Nas',        verses: 6,   words: 20),
 ];
+
+/// Numéro de Hizb (1–60) pour chaque sourate, basé sur la position
+/// cumulative des versets dans le Coran (6236 versets, Al-Fatiha incluse).
+/// Calculé une fois à l'initialisation — donnée de domaine, pas de l'UI.
+final Map<int, int> sourateHizbMap = _buildHizbMap();
+
+Map<int, int> _buildHizbMap() {
+  int cumulative = 7; // Al-Fatiha (7 versets, exclue de allSourates)
+  final map = <int, int>{};
+  for (final s in allSourates) {
+    map[s.id] = (cumulative / 6236 * 60).floor().clamp(0, 59) + 1;
+    cumulative += s.verses;
+  }
+  return map;
+}

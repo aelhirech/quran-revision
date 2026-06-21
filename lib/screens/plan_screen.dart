@@ -1,17 +1,25 @@
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
+import 'package:quran/quran.dart' as quran;
+import '../core/app_colors.dart';
+import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
-import '../core/prayer_l10n.dart';
 import '../models/prayer.dart';
+import '../models/revision_unit.dart';
+import '../services/history_service.dart';
+import '../state/app_state.dart';
+import '../widgets/prayer_plan_card.dart';
+import '../widgets/preview_banner.dart';
 
 class PlanScreen extends StatefulWidget {
   final DailySession session;
-  final void Function(int unitsCompleted)? onComplete;
+  final Future<void> Function(int unitsCompleted)? onComplete;
   final VoidCallback? onEngager;
   final VoidCallback? onChangePlan;
   final bool isPreview;
+  final FreshnessLevel? Function(int sourateId)? freshnessOf;
 
   const PlanScreen({
     super.key,
@@ -20,6 +28,7 @@ class PlanScreen extends StatefulWidget {
     this.onEngager,
     this.onChangePlan,
     this.isPreview = false,
+    this.freshnessOf,
   });
 
   @override
@@ -27,8 +36,8 @@ class PlanScreen extends StatefulWidget {
 }
 
 class _PlanScreenState extends State<PlanScreen> {
-  // Suivi des rakaas cochées : prayerIndex -> Set<rakaaNumber>
   final Map<int, Set<int>> _checked = {};
+  bool _justCompleted = false;
 
   bool get _allDone {
     for (int pi = 0; pi < widget.session.plan.length; pi++) {
@@ -49,8 +58,49 @@ class _PlanScreenState extends State<PlanScreen> {
     return count;
   }
 
-  int get _checkedCount {
-    return _checked.values.fold(0, (sum, s) => sum + s.length);
+  int get _checkedCount =>
+      _checked.values.fold(0, (sum, s) => sum + s.length);
+
+  Future<void> _confirmChangePlan(BuildContext context) async {
+    if (widget.isPreview) {
+      widget.onChangePlan?.call();
+      return;
+    }
+    // Commitment modal — l'utilisateur doit déclarer ce qu'il a fait.
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CommitmentSheet(
+        totalRakaas: _totalRakaasWithUnit,
+        onToutFait: () async {
+          Navigator.pop(context);
+          if (mounted) await widget.onComplete!(widget.session.totalUnits);
+        },
+        onPartFait: (n) async {
+          Navigator.pop(context);
+          if (mounted) await widget.onComplete!(n);
+        },
+        onRienFait: () {
+          Navigator.pop(context);
+          widget.onChangePlan?.call();
+        },
+      ),
+    );
+  }
+
+  void _toggle(int prayerIndex, int rakaaNumber) {
+    setState(() {
+      final set = _checked.putIfAbsent(prayerIndex, () => {});
+      set.contains(rakaaNumber) ? set.remove(rakaaNumber) : set.add(rakaaNumber);
+      if (_allDone && !_justCompleted) {
+        _justCompleted = true;
+      } else if (!_allDone) {
+        _justCompleted = false;
+      }
+    });
   }
 
   @override
@@ -72,26 +122,55 @@ class _PlanScreenState extends State<PlanScreen> {
             leading: widget.onChangePlan != null
                 ? IconButton(
                     icon: const Icon(Icons.edit_outlined),
-                    tooltip: 'Modifier le plan',
-                    onPressed: widget.onChangePlan,
+                    tooltip: S.modifierPlan,
+                    onPressed: () => _confirmChangePlan(context),
                   )
                 : null,
+            actions: [
+              if (!widget.isPreview)
+                IconButton(
+                  icon: const Icon(Icons.mosque_outlined),
+                  tooltip: S.focusMosquee,
+                  onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                      builder: (_) => _FocusMosqueeScreen(session: widget.session),
+                    ),
+                  ),
+                ),
+            ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(4),
-              child: _progressBar(cs, progress),
+              child: ClipRRect(
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: cs.surfaceContainerHighest,
+                  color: cs.primary,
+                  minHeight: 4,
+                ),
+              ),
             ),
           ),
           if (widget.isPreview)
-            SliverToBoxAdapter(child: _previewBanner(cs)),
+            const SliverToBoxAdapter(child: PreviewBanner()),
           SliverToBoxAdapter(child: _summaryBar(cs)),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (_, i) => _prayerCard(context, i, widget.session.plan[i], cs)
-                    .animate()
-                    .fadeIn(delay: Duration(milliseconds: i * 80))
-                    .slideY(begin: 0.06),
+                (_, i) {
+                  final pp = widget.session.plan[i];
+                  return PrayerPlanCard(
+                    prayerIndex: i,
+                    pp: pp,
+                    checked: _checked[i] ?? {},
+                    isPreview: widget.isPreview,
+                    onToggle: (rakaa) => _toggle(i, rakaa),
+                    freshnessOf: widget.freshnessOf,
+                  )
+                      .animate()
+                      .fadeIn(delay: Duration(milliseconds: i * 80))
+                      .slideY(begin: 0.06);
+                },
                 childCount: widget.session.plan.length,
               ),
             ),
@@ -103,68 +182,62 @@ class _PlanScreenState extends State<PlanScreen> {
           padding: const EdgeInsets.all(16),
           child: SizedBox(
             height: 56,
-            child: widget.isPreview
-                ? FilledButton.icon(
-                    onPressed: widget.onEngager,
-                    icon: const Icon(Icons.check_rounded),
-                    label: Text(S.sEngager,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                  )
-                : FilledButton.icon(
-                    onPressed: _allDone
-                        ? () => widget.onComplete!(widget.session.totalUnits)
-                        : null,
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: Text(
-                      _allDone
-                          ? S.revisionComplete
-                          : '$_checkedCount / $_totalRakaasWithUnit rakaas',
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
+            child: widget.isPreview ? _engageButton() : _completionButton(),
           ),
         ),
       ),
     );
   }
 
-  Widget _previewBanner(ColorScheme cs) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: cs.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.visibility_outlined, color: cs.primary, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              S.apercuBanniere,
-              style: TextStyle(
-                  color: cs.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13),
-            ),
-          ),
-        ],
+  Widget _engageButton() => FilledButton.icon(
+        onPressed: widget.onEngager,
+        icon: const Icon(Icons.check_rounded),
+        label: Text(S.sEngager,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+      );
+
+  Future<void> _showCompletionSummary() async {
+    final pauseDates = context.read<AppState>().pauseDates;
+    // +1 anticipe la session d'aujourd'hui, pas encore enregistrée à ce stade.
+    final streakFuture = HistoryService.currentStreak(pauseDates: pauseDates)
+        .then((s) => s + 1);
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CompletionCelebrationSheet(
+        session: widget.session,
+        streakFuture: streakFuture,
       ),
     );
+    if (mounted) await widget.onComplete!(widget.session.totalUnits);
   }
 
-  Widget _progressBar(ColorScheme cs, double progress) {
-    return ClipRRect(
-      child: LinearProgressIndicator(
-        value: progress,
-        backgroundColor: cs.surfaceContainerHighest,
-        color: cs.primary,
-        minHeight: 4,
+  Widget _completionButton() {
+    final button = FilledButton.icon(
+      onPressed: _allDone ? _showCompletionSummary : null,
+      icon: Icon(_allDone ? Icons.check_circle : Icons.check_circle_outline),
+      label: Text(
+        _allDone
+            ? S.revisionComplete
+            : '$_checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     );
+
+    if (!_allDone) return button;
+
+    return button
+        .animate(key: const ValueKey('done'))
+        .scale(
+            begin: const Offset(0.92, 0.92),
+            end: const Offset(1, 1),
+            duration: 350.ms,
+            curve: Curves.elasticOut)
+        .shimmer(
+            duration: 900.ms,
+            color: Colors.white.withValues(alpha: 0.4),
+            delay: 100.ms);
   }
 
   Widget _summaryBar(ColorScheme cs) {
@@ -173,24 +246,27 @@ class _PlanScreenState extends State<PlanScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: widget.session.isOnTrack
-            ? AppColors.greenContainer
-            : Colors.orange.shade50,
+            ? cs.primaryContainer
+            : cs.tertiaryContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            S.unitesRakaas(widget.session.totalUnits, widget.session.totalRakaas),
+            S.unitesRakaas(
+                widget.session.totalUnits, widget.session.totalRakaas),
             style: TextStyle(
-                color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 13),
+                color: cs.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 13),
           ),
           Text(
             widget.session.isOnTrack ? S.dansLesTemps : S.prendsAvance,
             style: TextStyle(
               color: widget.session.isOnTrack
-                  ? AppColors.green
-                  : Colors.orange.shade800,
+                  ? cs.onPrimaryContainer
+                  : cs.onTertiaryContainer,
               fontWeight: FontWeight.w600,
               fontSize: 13,
             ),
@@ -199,120 +275,412 @@ class _PlanScreenState extends State<PlanScreen> {
       ),
     );
   }
+}
 
-  Widget _prayerCard(
-      BuildContext context, int prayerIndex, PrayerPlan pp, ColorScheme cs) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+// ─── Écran waouh (gamification) ───────────────────────────────────────────────
+
+class _CompletionCelebrationSheet extends StatelessWidget {
+  final DailySession session;
+  final Future<int> streakFuture;
+
+  const _CompletionCelebrationSheet({
+    required this.session,
+    required this.streakFuture,
+  });
+
+  List<RevisionUnit> _unitsForPrayer(PrayerPlan pp) {
+    final seen = <String>{};
+    final result = <RevisionUnit>[];
+    for (final r in pp.rakaas) {
+      if (r.unit != null && seen.add(r.unit!.label)) {
+        result.add(r.unit!);
+      }
+    }
+    return result;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Animation célébration
+          const Text('✨', style: TextStyle(fontSize: 52))
+              .animate()
+              .scale(
+                  begin: const Offset(0.3, 0.3),
+                  duration: 600.ms,
+                  curve: Curves.elasticOut)
+              .then()
+              .shimmer(duration: 800.ms),
+          const SizedBox(height: 12),
+          Text(S.waouhIslamic,
+              style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.green)),
+          const SizedBox(height: 4),
+          Text(S.waouhSubtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant)),
+          const SizedBox(height: 16),
+          // Streak
+          FutureBuilder<int>(
+            future: streakFuture,
+            builder: (_, snap) {
+              if (!snap.hasData) return const SizedBox(height: 40);
+              final streak = snap.data!;
+              return _StreakBadge(streak: streak)
+                  .animate()
+                  .fadeIn(delay: 300.ms)
+                  .slideY(begin: 0.2);
+            },
+          ),
+          const SizedBox(height: 20),
+          const Divider(),
+          const SizedBox(height: 8),
+          // Résumé session
+          ...session.plan.map((pp) => _prayerRow(cs, pp)),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.green,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+              child: Text(S.terminer,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    ).animate().slideY(begin: 0.15, duration: 350.ms, curve: Curves.easeOut);
+  }
+
+  Widget _prayerRow(ColorScheme cs, PrayerPlan pp) {
+    final units = _unitsForPrayer(pp);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // En-tête prière
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               color: AppColors.greenContainer,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: const Icon(Icons.mosque_outlined,
+                size: 16, color: AppColors.green),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(pp.prayer.displayName,
+                Text(pp.prayer.nameFr,
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.green,
-                        fontSize: 15)),
-                Text(pp.prayer.nameAr,
-                    style: const TextStyle(
-                        color: AppColors.green, fontSize: 17)),
+                        fontSize: 13,
+                        color: cs.onSurface)),
+                Text(
+                  units.isEmpty
+                      ? S.alFatihaSeul
+                      : units.map((u) => u.label).join(' · '),
+                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                ),
               ],
             ),
           ),
-          // Rakaas
-          ...pp.rakaas.map((r) => _rakaaRow(prayerIndex, r, cs)),
         ],
-      ),
-    );
-  }
-
-  Widget _rakaaRow(int prayerIndex, RakaaAssignment r, ColorScheme cs) {
-    final hasUnit = r.unit != null;
-    final isChecked =
-        (_checked[prayerIndex] ?? {}).contains(r.rakaaNumber);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: hasUnit && !widget.isPreview
-          ? () => setState(() {
-                final set =
-                    _checked.putIfAbsent(prayerIndex, () => {});
-                isChecked ? set.remove(r.rakaaNumber) : set.add(r.rakaaNumber);
-              })
-          : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isChecked
-                  ? AppColors.green
-                  : hasUnit
-                      ? AppColors.greenContainer
-                      : cs.surfaceContainerHighest,
-              border: Border.all(
-                color: isChecked
-                    ? AppColors.green
-                    : hasUnit
-                        ? AppColors.green.withValues(alpha: 0.3)
-                        : Colors.transparent,
-              ),
-            ),
-            child: Center(
-              child: isChecked
-                  ? const Icon(Icons.check, color: Colors.white, size: 16)
-                  : Text('${r.rakaaNumber}',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: hasUnit
-                              ? AppColors.green
-                              : cs.onSurfaceVariant)),
-            ),
-          ),
-          title: hasUnit
-              ? Text(
-                  r.unit!.label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                    decoration:
-                        isChecked ? TextDecoration.lineThrough : null,
-                    color: isChecked ? cs.onSurfaceVariant : cs.onSurface,
-                  ),
-                )
-              : Text(S.alFatihaSeul,
-                  style: TextStyle(
-                      color: cs.onSurfaceVariant, fontSize: 13)),
-          subtitle: hasUnit && !r.unit!.isWhole
-              ? Text('${r.unit!.verseCount} ${S.versets}',
-                  style:
-                      TextStyle(color: cs.onSurfaceVariant, fontSize: 11))
-              : null,
-          dense: true,
-        ),
       ),
     );
   }
 }
 
+class _StreakBadge extends StatelessWidget {
+  final int streak;
+  const _StreakBadge({required this.streak});
 
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    String message;
+    if (streak == 1) {
+      message = S.premierJour;
+    } else if (streak == 7 || streak == 30 || streak == 100) {
+      message = S.nouveauPalier;
+    } else {
+      message = S.streakJours(streak);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.greenContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(message,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface)),
+              Text(S.streakLabel,
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.green)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Commitment modal ─────────────────────────────────────────────────────────
+
+class _CommitmentSheet extends StatefulWidget {
+  final int totalRakaas;
+  final Future<void> Function() onToutFait;
+  final Future<void> Function(int n) onPartFait;
+  final VoidCallback onRienFait;
+
+  const _CommitmentSheet({
+    required this.totalRakaas,
+    required this.onToutFait,
+    required this.onPartFait,
+    required this.onRienFait,
+  });
+
+  @override
+  State<_CommitmentSheet> createState() => _CommitmentSheetState();
+}
+
+class _CommitmentSheetState extends State<_CommitmentSheet> {
+  int _partialN = 1;
+  bool _showPartial = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(S.engagementTitre,
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface)),
+          const SizedBox(height: 20),
+          if (!_showPartial) ...[
+            FilledButton.icon(
+              onPressed: widget.onToutFait,
+              icon: const Icon(Icons.check_circle_outline),
+              label: Text(S.toutFait,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.green,
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => setState(() {
+                _showPartial = true;
+                _partialN = (widget.totalRakaas / 2).round().clamp(1, widget.totalRakaas);
+              }),
+              icon: const Icon(Icons.remove_circle_outline),
+              label: Text(S.unePart,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
+            ),
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: widget.onRienFait,
+              icon: Icon(Icons.cancel_outlined, color: cs.error),
+              label: Text(S.rienFait,
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: cs.error)),
+              style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
+            ),
+          ] else ...[
+            Text(S.combienRakaas,
+                style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant)),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton.filled(
+                  onPressed: _partialN > 1
+                      ? () => setState(() => _partialN--)
+                      : null,
+                  icon: const Icon(Icons.remove),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text('$_partialN',
+                      style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: cs.onSurface)),
+                ),
+                IconButton.filled(
+                  onPressed: _partialN < widget.totalRakaas
+                      ? () => setState(() => _partialN++)
+                      : null,
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => widget.onPartFait(_partialN),
+              child: Text(S.valider,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => setState(() => _showPartial = false),
+              child: Text(S.annuler),
+            ),
+          ],
+        ],
+      ),
+    ).animate().slideY(begin: 0.2, duration: 300.ms, curve: Curves.easeOut);
+  }
+}
+
+// ─── Mode focus mosquée ───────────────────────────────────────────────────────
+
+class _FocusMosqueeScreen extends StatelessWidget {
+  final DailySession session;
+  const _FocusMosqueeScreen({required this.session});
+
+  List<RevisionUnit> get _uniqueUnits {
+    final seen = <String>{};
+    final result = <RevisionUnit>[];
+    for (final pp in session.plan) {
+      for (final r in pp.rakaas) {
+        if (r.unit != null && seen.add(r.unit!.label)) {
+          result.add(r.unit!);
+        }
+      }
+    }
+    return result;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final units = _uniqueUnits;
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D1117),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            ListView.separated(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+              itemCount: units.length,
+              separatorBuilder: (_, _) => Divider(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  height: 32),
+              itemBuilder: (_, i) {
+                final unit = units[i];
+                final verses = List.generate(
+                  unit.verseCount,
+                  (j) => quran.getVerse(
+                      unit.sourate.id, unit.verseStart + j,
+                      verseEndSymbol: true),
+                );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      unit.sourate.nameAr,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.45),
+                          fontSize: 13,
+                          letterSpacing: 0.5),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      verses.join('  '),
+                      textAlign: TextAlign.right,
+                      textDirection: TextDirection.rtl,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        height: 2.2,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, size: 18),
+                  label: Text(S.quitterFocus),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.15),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

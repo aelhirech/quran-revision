@@ -3,7 +3,21 @@
     "allow": [
       "Bash(flutter --version)",
       "Bash(gh auth *)",
-      "PowerShell(flutter --version 2>&1)"
+      "PowerShell(flutter --version 2>&1)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "PowerShell($env:PUB_CACHE = \"D:\\\\pub-cache\\\\Cache\"; cd D:\\\\Prog\\\\Quran_revision; D:\\\\develop\\\\flutter\\\\bin\\\\flutter.bat run -d windows 2>&1 | Select-Object -First 40)",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\azert\\\\.claude\\\\projects\\\\D--Prog-Quran-revision\\\\b72c0e3b-49cb-4acb-b085-dffb5ff394df.jsonl\" | ConvertFrom-Json | Where-Object { $_.type -in @\\(\"user\",\"assistant\"\\) } | ForEach-Object { $role = $_.type; $content = if \\($_.message.content -is [string]\\) { $_.message.content } elseif \\($_.message.content -is [array]\\) { \\($_.message.content | Where-Object { $_.type -eq \"text\" } | Select-Object -First 1\\).text } else { \"\" }; if \\($content -and $content.Length -gt 0\\) { \"$role`: $\\($content.Substring\\(0, [Math]::Min\\(500, $content.Length\\)\\)\\)\" } })",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\azert\\\\.claude\\\\projects\\\\D--Prog-memory\\\\6cc96887-62b3-42cd-b673-64354a2a7aae.jsonl\" | ConvertFrom-Json | Where-Object { $_.type -in @\\(\"user\",\"assistant\"\\) } | ForEach-Object { $role = $_.type; $content = if \\($_.message.content -is [string]\\) { $_.message.content } elseif \\($_.message.content -is [array]\\) { \\($_.message.content | Where-Object { $_.type -eq \"text\" } | Select-Object -First 1\\).text } else { \"\" }; if \\($content -and $content.Length -gt 0\\) { \"$role`: $\\($content.Substring\\(0, [Math]::Min\\(500, $content.Length\\)\\)\\)\" } })",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\azert\\\\.claude\\\\projects\\\\D--Prog-Quran-revision\\\\88cebeb4-96ab-4164-bcb4-666611bb2292.jsonl\" | ConvertFrom-Json | Where-Object { $_.type -in @\\(\"user\",\"assistant\"\\) } | ForEach-Object { $role = $_.type; $content = if \\($_.message.content -is [string]\\) { $_.message.content } elseif \\($_.message.content -is [array]\\) { \\($_.message.content | Where-Object { $_.type -eq \"text\" } | Select-Object -First 1\\).text } else { \"\" }; if \\($content -and $content.Length -gt 0\\) { \"$role`: $\\($content.Substring\\(0, [Math]::Min\\(500, $content.Length\\)\\)\\)\" } })",
+      "PowerShell(cd D:\\\\Prog\\\\Quran_revision; \\(Get-Content lib\\\\main.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\main.dart; \\(Get-Content lib\\\\screens\\\\home_screen.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\screens\\\\home_screen.dart; \\(Get-Content lib\\\\screens\\\\recap_screen.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\screens\\\\recap_screen.dart; \\(Get-Content lib\\\\screens\\\\profile_screen.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\screens\\\\profile_screen.dart; \\(Get-Content lib\\\\screens\\\\plan_screen.dart -Raw\\) -replace '\\\\.withOpacity\\\\\\(\\([^\\)]+\\)\\\\\\)', '.withValues\\(alpha: $1\\)' | Set-Content lib\\\\screens\\\\plan_screen.dart; echo \"Done\")",
+      "PowerShell(Get-Process | Where-Object { $_.Name -match \"flutter|dart\" } | Select-Object Id, Name, CPU, StartTime)",
+      "Bash(gh pr *)",
+      "PowerShell(cd \"D:\\\\Prog\\\\Quran_revision\"; $env:PATH = \"D:\\\\tools\\\\gh\\\\bin;$env:PATH\"; gh pr list --head feature/phase-2 --repo aelhirech/quran-revision 2>&1)",
+      "Bash(sed -i 's/  final previewSession = await StorageService.loadPreviewSession\\(\\);/  final previewSession = await StorageService.loadPreviewSession\\(\\);\\\\n  final pauseDates = await StorageService.loadPauseDates\\(\\);/' \"D:/Prog/Quran_revision/lib/main.dart\")",
+      "Bash(sed -i 's/    initialTodaySession: todaySession,/    initialTodaySession: todaySession,\\\\n    initialPauseDates: pauseDates,/' \"D:/Prog/Quran_revision/lib/main.dart\")",
+      "WebSearch"
     ]
   }
 }

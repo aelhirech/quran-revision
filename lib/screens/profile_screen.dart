@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/quran_data.dart';
+import '../core/revision_engine.dart';
 import '../core/strings.dart';
-import '../state/app_state.dart';
 import '../models/sourate.dart';
+import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
-import '../services/notification_service.dart';
-import '../services/storage_service.dart';
-import 'onboarding_screen.dart';
+import '../state/app_state.dart';
+import '../widgets/profile_info_card.dart';
+import '../widgets/settings_card.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -29,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.didChangeDependencies();
     final config = context.read<AppState>().config;
     if (config != null && !_editing) {
-      _selectedIds = config.learnedSourates.map((s) => s.id).toSet();
+      _selectedIds = config.selections.map((s) => s.sourate.id).toSet();
       _revisionDays = config.revisionDays;
     }
   }
@@ -43,14 +43,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _save() async {
     final state = context.read<AppState>();
-    final sourates =
-        allSourates.where((s) => _selectedIds.contains(s.id)).toList();
+    final existingSelections = {
+      for (final s in state.config?.selections ?? []) s.sourate.id: s
+    };
+    final selections = allSourates
+        .where((s) => _selectedIds.contains(s.id))
+        .map<SourateSelection>(
+            (s) => existingSelections[s.id] ?? SourateSelection.whole(s))
+        .toList();
     await state.saveConfig(UserConfig(
-      learnedSourates: sourates,
+      selections: selections,
       revisionDays: _revisionDays,
       startDate: DateTime.now(),
+      shuffleEnabled: state.config?.shuffleEnabled ?? true,
+      adaptiveCycle: state.config?.adaptiveCycle ?? false,
     ));
     if (mounted) setState(() => _editing = false);
+  }
+
+  Future<void> _showDurationDialog() async {
+    int tempDays = _revisionDays;
+    final confirmed = await showDialog<int>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Text(S.modifierDuree),
+          content: DropdownButton<int>(
+            value: tempDays,
+            isExpanded: true,
+            items: [7, 14, 21, 30, 60, 90]
+                .map((d) => DropdownMenuItem(
+                    value: d, child: Text(S.joursDuration(d))))
+                .toList(),
+            onChanged: (v) => setS(() => tempDays = v!),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(S.annuler)),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, tempDays),
+                child: Text(S.sauver)),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == null || !mounted) return;
+    final state = context.read<AppState>();
+    await state.saveConfig(state.config!.copyWith(revisionDays: confirmed));
+    setState(() => _revisionDays = confirmed);
   }
 
   @override
@@ -72,13 +113,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             foregroundColor: cs.onSurface,
             centerTitle: false,
             actions: [
-              if (!_editing)
+              if (!_editing) ...[
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  tooltip: S.modifier,
+                  icon: const Icon(Icons.timer_outlined),
+                  tooltip: S.modifierDuree,
+                  onPressed: _showDurationDialog,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.playlist_add_check_outlined),
+                  tooltip: S.modifierSourates,
                   onPressed: () => setState(() => _editing = true),
-                )
-              else ...[
+                ),
+              ] else ...[
                 TextButton(
                   onPressed: () => setState(() => _editing = false),
                   child: Text(S.annuler),
@@ -99,18 +145,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _viewBody(ColorScheme cs, AppState state) {
     final config = state.config!;
-    final daysElapsed =
-        DateTime.now().difference(config.startDate).inDays;
-    final daysRemaining =
-        (config.revisionDays - daysElapsed).clamp(0, 9999);
+    final daysElapsed = DateTime.now().difference(config.startDate).inDays;
+    final daysRemaining = (config.revisionDays - daysElapsed).clamp(0, 9999);
 
     return SliverPadding(
       padding: const EdgeInsets.all(16),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
-          _infoCard(cs, config, daysElapsed, daysRemaining),
+          ProfileInfoCard(
+              config: config, elapsed: daysElapsed, remaining: daysRemaining),
           const SizedBox(height: 16),
-          _settingsCard(cs),
+          const SettingsCard(),
+          const SizedBox(height: 16),
+          _adaptiveCycleCard(cs, state),
+          const SizedBox(height: 16),
+          _pauseCard(cs, state),
           const SizedBox(height: 16),
           _resetSection(cs, state),
         ]),
@@ -118,143 +167,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _infoCard(
-      ColorScheme cs, dynamic config, int elapsed, int remaining) {
+  Widget _adaptiveCycleCard(ColorScheme cs, AppState state) {
+    final config = state.config!;
+    final isAdaptive = config.adaptiveCycle;
+    final estimatedDays = state.adaptiveCycleDays;
+
     return Card(
       elevation: 0,
-      color: cs.surfaceContainerHighest,
+      color: isAdaptive
+          ? cs.primaryContainer.withValues(alpha: 0.6)
+          : cs.surfaceContainerHighest,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _row(cs, Icons.calendar_today_outlined,
-                S.dureeObjectif, S.joursDuration(config.revisionDays), 0),
-            const Divider(height: 24),
-            _row(cs, Icons.today_outlined,
-                S.joursEcoules, S.joursDuration(elapsed), 80),
-            const Divider(height: 24),
-            _row(cs, Icons.timer_outlined,
-                S.joursRestantsLabel, S.joursDuration(remaining), 160),
-            const Divider(height: 24),
-            _row(cs, Icons.menu_book_outlined,
-                S.souratesMemoriees, '${config.learnedSourates.length}', 240),
-          ],
+      child: SwitchListTile.adaptive(
+        value: isAdaptive,
+        onChanged: (v) => state.setAdaptiveCycle(
+          v,
+          totalUnits: RevisionEngine.buildUnits(config.selections).length,
         ),
-      ),
-    ).animate().fadeIn().slideY(begin: 0.08);
-  }
-
-  Widget _row(
-      ColorScheme cs, IconData icon, String label, String value, int delayMs) {
-    return Row(
-      children: [
-        Icon(icon, color: cs.primary, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(label,
-              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 14)),
+        secondary: Icon(
+          Icons.auto_awesome_outlined,
+          color: isAdaptive ? cs.primary : cs.onSurfaceVariant,
         ),
-        Text(value,
+        title: Text(S.cycleAdaptatif,
             style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: cs.onSurface,
-                fontSize: 15)),
-      ],
-    )
-        .animate()
-        .fadeIn(delay: Duration(milliseconds: delayMs))
-        .slideX(begin: 0.05);
+                fontWeight: FontWeight.w600,
+                color: isAdaptive ? cs.onPrimaryContainer : cs.onSurface)),
+        subtitle: Text(
+          isAdaptive && estimatedDays != null
+              ? '${S.cycleEstime(estimatedDays)} · ${S.cycleAdaptatifBase}'
+              : S.cycleAdaptatifDesc,
+          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+        ),
+      ),
+    ).animate().fadeIn(delay: 100.ms);
   }
 
-  Widget _settingsCard(ColorScheme cs) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4))
-        ],
+  Widget _pauseCard(ColorScheme cs, AppState state) {
+    final paused = state.isPausedToday;
+    return Card(
+      elevation: 0,
+      color: paused
+          ? cs.tertiaryContainer.withValues(alpha: 0.5)
+          : cs.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: SwitchListTile.adaptive(
+        value: paused,
+        onChanged: (_) => state.togglePauseToday(),
+        secondary: Icon(
+          Icons.pause_circle_outline,
+          color: paused ? cs.tertiary : cs.onSurfaceVariant,
+        ),
+        title: Text(S.pauseLabel,
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: paused ? cs.onTertiaryContainer : cs.onSurface)),
+        subtitle: Text(
+          paused ? S.pauseActive : S.pauseDesc,
+          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+        ),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: Column(
-        children: [
-          // Langue
-          ListTile(
-            leading: Icon(Icons.language, color: AppColors.green),
-            title: Text(S.langueLabel),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _langChip('FR', 'fr', cs),
-                const SizedBox(width: 8),
-                _langChip('EN', 'en', cs),
-              ],
-            ),
-          ),
-          const Divider(height: 1, indent: 56),
-          // Notifications
-          StatefulBuilder(builder: (ctx, setSt) {
-            return FutureBuilder<bool>(
-              future: StorageService.loadNotifEnabled(),
-              builder: (_, snap) {
-                final enabled = snap.data ?? true;
-                return SwitchListTile(
-                  secondary: Icon(Icons.notifications_outlined,
-                      color: AppColors.green),
-                  title: Text(S.notificationsLabel),
-                  subtitle: Text(S.notifSubtitle),
-                  value: enabled,
-                  activeColor: AppColors.green,
-                  onChanged: (val) async {
-                    await StorageService.saveNotifEnabled(val);
-                    if (val) {
-                      await NotificationService.requestPermission();
-                      await NotificationService.scheduleMorning();
-                      await NotificationService.scheduleEvening();
-                    } else {
-                      await NotificationService.cancelAll();
-                    }
-                    setSt(() {});
-                  },
-                );
-              },
-            );
-          }),
-        ],
-      )),
     ).animate().fadeIn(delay: 150.ms);
-  }
-
-  Widget _langChip(String label, String locale, ColorScheme cs) {
-    final selected = context.watch<AppState>().locale == locale;
-    return GestureDetector(
-      onTap: () async {
-        context.read<AppState>().setLocale(locale);
-        await StorageService.saveLocale(locale);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.green : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected ? AppColors.green : AppColors.cardBorder,
-          ),
-        ),
-        child: Text(label,
-            style: TextStyle(
-              color: selected ? Colors.white : cs.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            )),
-      ),
-    );
   }
 
   Widget _resetSection(ColorScheme cs, AppState state) {
@@ -267,12 +239,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Text(S.reinitialiser,
             style: TextStyle(color: cs.error, fontWeight: FontWeight.w600)),
         subtitle: Text(S.reinitDesc),
-        onTap: () => _showResetDialog(context, state),
+        onTap: () => _showResetDialog(state),
       ),
     ).animate().fadeIn(delay: 200.ms);
   }
 
-  void _showResetDialog(BuildContext context, AppState state) {
+  void _showResetDialog(AppState state) {
     final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
@@ -281,16 +253,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: Text(S.reinitConfirm),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(S.annuler)),
+              onPressed: () => Navigator.pop(context), child: Text(S.annuler)),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: cs.error),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-                (_) => false,
-              );
+              await context.read<AppState>().clearConfig();
             },
             child: Text(S.reinitDialog),
           ),
@@ -308,7 +276,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Text(S.reviserEn, style: TextStyle(color: cs.onPrimaryContainer)),
+                Text(S.reviserEn,
+                    style: TextStyle(color: cs.onPrimaryContainer)),
                 const SizedBox(width: 8),
                 DropdownButton<int>(
                   value: _revisionDays,
@@ -321,10 +290,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(color: cs.onPrimaryContainer),
                 ),
                 const Spacer(),
-                Text('${_selectedIds.length} sélectionnées',
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    if (_selectedIds.length == allSourates.length) {
+                      _selectedIds.clear();
+                    } else {
+                      _selectedIds.addAll(allSourates.map((s) => s.id));
+                    }
+                  }),
+                  icon: Icon(
+                    _selectedIds.length == allSourates.length
+                        ? Icons.deselect
+                        : Icons.select_all,
+                    color: cs.onPrimaryContainer,
+                    size: 16,
+                  ),
+                  label: Text(
+                    _selectedIds.length == allSourates.length
+                        ? S.toutDeselectionner
+                        : S.toutSelectionner,
                     style: TextStyle(
                         color: cs.onPrimaryContainer,
-                        fontWeight: FontWeight.bold)),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12),
+                  ),
+                ),
               ],
             ),
           ),
@@ -332,12 +322,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Rechercher...',
+                hintText: S.rechercher,
                 prefixIcon: const Icon(Icons.search),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               ),
               onChanged: (v) => setState(() => _search = v),
             ),
@@ -351,12 +340,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 return CheckboxListTile(
                   value: selected,
                   onChanged: (_) => setState(() {
-                    selected
-                        ? _selectedIds.remove(s.id)
-                        : _selectedIds.add(s.id);
+                    selected ? _selectedIds.remove(s.id) : _selectedIds.add(s.id);
                   }),
                   title: Text(s.nameFr),
-                  subtitle: Text('${s.nameAr}  ·  ${s.verses} ${S.versetsLabel}'),
+                  subtitle: Text(
+                      '${s.nameAr}  ·  ${s.verses} ${S.versetsLabel}'),
                   secondary: CircleAvatar(
                     backgroundColor:
                         selected ? cs.primary : cs.surfaceContainerHighest,
@@ -375,5 +363,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
-
