@@ -54,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await state.saveConfig(UserConfig(
       selections: selections,
       revisionDays: _revisionDays,
-      startDate: DateTime.now(),
+      startDate: state.config?.startDate ?? DateTime.now(),
       shuffleEnabled: state.config?.shuffleEnabled ?? true,
       adaptiveCycle: state.config?.adaptiveCycle ?? false,
     ));
