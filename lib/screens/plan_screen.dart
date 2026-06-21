@@ -241,35 +241,67 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   Widget _summaryBar(ColorScheme cs) {
+    final session = widget.session;
+    final isOnTrack = session.isOnTrack;
+    final bgColor = isOnTrack ? cs.primaryContainer : cs.tertiaryContainer;
+    final cycleEnd =
+        (session.cyclePosition + session.totalUnits).clamp(0, session.cycleTotal);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: widget.session.isOnTrack
-            ? cs.primaryContainer
-            : cs.tertiaryContainer,
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            S.unitesRakaas(
-                widget.session.totalUnits, widget.session.totalRakaas),
-            style: TextStyle(
-                color: cs.onSurface,
-                fontWeight: FontWeight.w600,
-                fontSize: 13),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                S.unitesRakaas(session.totalUnits, session.totalRakaas),
+                style: TextStyle(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13),
+              ),
+              Text(
+                isOnTrack ? S.dansLesTemps : S.prendsAvance,
+                style: TextStyle(
+                  color: isOnTrack
+                      ? cs.onPrimaryContainer
+                      : cs.onTertiaryContainer,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ),
-          Text(
-            widget.session.isOnTrack ? S.dansLesTemps : S.prendsAvance,
-            style: TextStyle(
-              color: widget.session.isOnTrack
-                  ? cs.onPrimaryContainer
-                  : cs.onTertiaryContainer,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text(
+                '${S.cycleEnCours} : $cycleEnd / ${session.cycleTotal}',
+                style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.7), fontSize: 11),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: session.cycleTotal == 0
+                        ? 0
+                        : cycleEnd / session.cycleTotal,
+                    minHeight: 4,
+                    backgroundColor: cs.onSurface.withValues(alpha: 0.12),
+                    color: cs.onSurface.withValues(alpha: 0.45),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

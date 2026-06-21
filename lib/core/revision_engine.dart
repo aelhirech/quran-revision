@@ -87,19 +87,44 @@ class RevisionEngine {
       baseUnits.add(units[(pos + i) % cycleTotal]);
     }
 
-    final todayUnits = _expandToRakaas(baseUnits, totalSuratRakaas);
+    final expandedUnits = _expandToRakaas(baseUnits, totalSuratRakaas);
+    // Mutable copy for no-repeat swap.
+    final todayUnits = expandedUnits.toList();
 
     final plan = <PrayerPlan>[];
     int unitIndex = 0;
     for (final prayer in prayersAlone) {
       final rakaas = <RakaaAssignment>[];
+      final usedInPrayer = <int>{};
       for (int r = 1; r <= prayer.rakaas; r++) {
         final canHaveSurat = r <= prayer.suratRakaas;
-        if (canHaveSurat && unitIndex < todayUnits.length) {
-          rakaas.add(RakaaAssignment(rakaaNumber: r, unit: todayUnits[unitIndex]));
-          unitIndex++;
-        } else {
+        if (!canHaveSurat || unitIndex >= todayUnits.length) {
           rakaas.add(RakaaAssignment(rakaaNumber: r));
+          continue;
+        }
+        // Find the earliest remaining unit whose sourate isn't already in this prayer.
+        int found = -1;
+        for (int k = unitIndex; k < todayUnits.length; k++) {
+          if (!usedInPrayer.contains(todayUnits[k].sourate.id)) {
+            found = k;
+            break;
+          }
+        }
+        if (found == -1) {
+          // All remaining units duplicate a sourate already used — leave empty.
+          rakaas.add(RakaaAssignment(rakaaNumber: r));
+        } else {
+          // Swap to bring the non-duplicate forward. This may reorder units
+          // across prayers; within-prayer uniqueness takes priority over cycle order.
+          if (found != unitIndex) {
+            final tmp = todayUnits[unitIndex];
+            todayUnits[unitIndex] = todayUnits[found];
+            todayUnits[found] = tmp;
+          }
+          final unit = todayUnits[unitIndex];
+          rakaas.add(RakaaAssignment(rakaaNumber: r, unit: unit));
+          usedInPrayer.add(unit.sourate.id);
+          unitIndex++;
         }
       }
       plan.add(PrayerPlan(prayer: prayer, rakaas: rakaas));
