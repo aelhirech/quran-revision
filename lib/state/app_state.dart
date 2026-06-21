@@ -97,8 +97,9 @@ class AppState extends ChangeNotifier {
     _previewSession = session;
     await StorageService.savePreviewSession(session);
     notifyListeners();
-    // Charger la fraîcheur en arrière-plan — les badges apparaissent dès que c'est prêt
-    refreshFreshness();
+    // Charger la fraîcheur en arrière-plan — badges apparaissent dès que la DB répond
+    // catchError : si la DB échoue, badges absents mais pas de crash
+    refreshFreshness().catchError((_) {});
   }
 
   /// Recalcule la fraîcheur depuis l'historique des révisions par sourate.

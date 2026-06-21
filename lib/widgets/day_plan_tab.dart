@@ -23,6 +23,10 @@ class DayPlanTab extends StatelessWidget {
     final cycleWraps =
         cycleTotal > 0 && (state.cyclePosition + unitsCompleted) >= cycleTotal;
 
+    // Capturer l'instant une seule fois — évite un décalage de date si minuit passe
+    final now = DateTime.now();
+    final sessionDate = now.toIso8601String().substring(0, 10);
+
     // Sourates couvertes dans cette session — pour le SRS
     final sessionSourateIds = state.todaySession!.plan
         .expand((pp) => pp.rakaas)
@@ -30,12 +34,11 @@ class DayPlanTab extends StatelessWidget {
         .map((r) => r.unit!.sourate.id)
         .toSet()
         .toList();
-    final sessionDate = DateTime.now().toIso8601String().substring(0, 10);
 
     await state.advanceCycle(unitsCompleted, cycleTotal);
     await state.refreshAdaptiveCycle(cycleTotal, notify: false);
     await HistoryService.recordSession(SessionRecord(
-      date: DateTime.now(),
+      date: now,
       unitsCompleted: unitsCompleted,
       totalUnits: cycleTotal,
       prayers:
