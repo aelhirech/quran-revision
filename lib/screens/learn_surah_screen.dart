@@ -59,6 +59,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
       updated = updated.withVerseLearned(v);
     }
     await _save(updated);
+    if (!mounted) return;
     setState(() {
       _progress = updated;
       _verseVisible = false;
@@ -80,6 +81,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
   Future<void> _unmarkVerse(int verse) async {
     final updated = _progress.withVerseUnlearned(verse);
     await _save(updated);
+    if (!mounted) return;
     setState(() => _progress = updated);
     widget.onChanged();
   }
@@ -167,8 +169,8 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
             ButtonSegment(value: 5, label: Text('5')),
           ],
           selected: {_selectedBlockSize},
-          onSelectionChanged: (s) => setState(() {
-            _selectedBlockSize = s.first;
+          onSelectionChanged: (sel) => setState(() {
+            _selectedBlockSize = sel.first;
             _verseVisible = false;
           }),
           showSelectedIcon: false,

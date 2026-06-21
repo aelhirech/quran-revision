@@ -61,25 +61,22 @@ class DayPlanTab extends StatelessWidget {
 
   Future<void> _showManualSheet(BuildContext context, AppState state) async {
     if (state.config == null) return;
-    final maxUnits =
-        RevisionEngine.buildUnits(state.config!.selections).length.clamp(1, 999);
+    final cycleTotal = RevisionEngine.buildUnits(state.config!.selections).length;
     final units = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ManualSessionSheet(maxUnits: maxUnits),
+      builder: (_) => ManualSessionSheet(maxUnits: cycleTotal.clamp(1, 999)),
     );
     if (units != null && context.mounted) {
-      await _onManualSession(context, state, units);
+      await _onManualSession(context, state, units, cycleTotal);
     }
   }
 
   Future<void> _onManualSession(
-      BuildContext context, AppState state, int units) async {
+      BuildContext context, AppState state, int units, int cycleTotal) async {
     if (units <= 0 || state.config == null) return;
     final now = DateTime.now();
-    final cycleTotal =
-        RevisionEngine.buildUnits(state.config!.selections).length;
     await HistoryService.recordSession(SessionRecord(
       date: now,
       unitsCompleted: units,
