@@ -57,6 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       startDate: DateTime.now(),
       shuffleEnabled: state.config?.shuffleEnabled ?? true,
       versesPerDay: state.config?.versesPerDay,
+      adaptiveCycle: state.config?.adaptiveCycle ?? false,
     ));
     if (mounted) setState(() => _editing = false);
   }
@@ -170,7 +171,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _adaptiveCycleCard(ColorScheme cs, AppState state) {
     final config = state.config!;
     final isAdaptive = config.adaptiveCycle;
-    final totalUnits = RevisionEngine.buildUnits(config.selections).length;
     final estimatedDays = state.adaptiveCycleDays;
 
     return Card(
@@ -181,7 +181,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: SwitchListTile.adaptive(
         value: isAdaptive,
-        onChanged: (v) => state.setAdaptiveCycle(v, totalUnits: totalUnits),
+        onChanged: (v) => state.setAdaptiveCycle(
+          v,
+          totalUnits: RevisionEngine.buildUnits(config.selections).length,
+        ),
         secondary: Icon(
           Icons.auto_awesome_outlined,
           color: isAdaptive ? cs.primary : cs.onSurfaceVariant,

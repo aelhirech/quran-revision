@@ -119,12 +119,12 @@ class AppState extends ChangeNotifier {
 
   /// Recalcule la durée adaptive depuis l'historique.
   /// Appelé après chaque session et quand le toggle adaptatif est activé.
-  Future<void> refreshAdaptiveCycle(int totalUnits) async {
+  Future<void> refreshAdaptiveCycle(int totalUnits, {bool notify = true}) async {
     if (_config?.adaptiveCycle != true || totalUnits <= 0) return;
     final avg = await HistoryService.avgUnitsPerDay();
     if (avg > 0) {
       _adaptiveCycleDays = (totalUnits / avg).ceil();
-      notifyListeners();
+      if (notify) notifyListeners();
     }
   }
 
@@ -132,7 +132,7 @@ class AppState extends ChangeNotifier {
     if (_config == null) return;
     _config = _config!.copyWith(adaptiveCycle: enabled);
     await StorageService.saveConfig(_config!);
-    if (enabled) await refreshAdaptiveCycle(totalUnits);
+    if (enabled) await refreshAdaptiveCycle(totalUnits, notify: false);
     notifyListeners();
   }
 

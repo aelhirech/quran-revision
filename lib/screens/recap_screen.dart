@@ -44,18 +44,21 @@ class _RecapScreenState extends State<RecapScreen> {
   }
 
   Future<void> _load(Set<String> pauseDates) async {
-    final results = await Future.wait([
-      HistoryService.currentStreak(pauseDates: pauseDates),
-      HistoryService.totalSessionDays(),
-      HistoryService.recentSessions(limit: 14),
-      LearningService.loadAll(),
-    ]);
+    // Démarrage en parallèle, await typé sur chacun — évite les casts dynamiques
+    final streakF  = HistoryService.currentStreak(pauseDates: pauseDates);
+    final totalF   = HistoryService.totalSessionDays();
+    final sessF    = HistoryService.recentSessions(limit: 14);
+    final progressF = LearningService.loadAll();
+    final streak   = await streakF;
+    final total    = await totalF;
+    final sessions = await sessF;
+    final progress = await progressF;
     if (mounted) {
       setState(() {
-        _streak = results[0] as int;
-        _totalDays = results[1] as int;
-        _sessions = results[2] as List<SessionRecord>;
-        _learningProgress = results[3] as List<LearningProgress>;
+        _streak = streak;
+        _totalDays = total;
+        _sessions = sessions;
+        _learningProgress = progress;
       });
     }
   }
@@ -75,8 +78,9 @@ class _RecapScreenState extends State<RecapScreen> {
     final progress = total == 0 ? 0.0 : pos / total;
     final daysElapsed =
         DateTime.now().difference(state.config!.startDate).inDays;
-    final daysRemaining =
-        (state.config!.revisionDays - daysElapsed).clamp(0, 9999);
+    final effectiveDays = state.adaptiveCycleDays ??
+        state.config!.effectiveDays(state.config!.totalSelectedVerses);
+    final daysRemaining = (effectiveDays - daysElapsed).clamp(0, 9999);
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -196,15 +200,8 @@ class _RecapScreenState extends State<RecapScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -225,7 +222,7 @@ class _RecapScreenState extends State<RecapScreen> {
                   Icons.edit_note_outlined, cs.tertiary),
               const SizedBox(width: 8),
               _repartitionChip(cs, memorisees, S.memorisees,
-                  Icons.check_circle_outline, Colors.green.shade600),
+                  Icons.check_circle_outline, cs.primary),
             ],
           ),
         ],
