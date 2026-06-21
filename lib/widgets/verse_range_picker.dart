@@ -142,7 +142,7 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
                         verseStart: start,
                         verseEnd: end),
                   ),
-                  child: const Text('Confirmer'),
+                  child: Text(S.confirmer),
                 ),
               ),
             ],

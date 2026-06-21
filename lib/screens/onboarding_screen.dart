@@ -47,25 +47,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final sourates = _filtered;
     if (_search.isNotEmpty) return sourates;
     if (_groupByJuz) return _groupedBy(sourates, (s) => quran.getJuzNumber(s.id, 1));
-    if (_groupByHizb) return _groupedBy(sourates, _hizbOf);
+    if (_groupByHizb) return _groupedBy(sourates, (s) => sourateHizbMap[s.id] ?? 1);
     return sourates;
-  }
-
-  // Cache calculé une seule fois : surah id → numéro de Hizb (1-60).
-  // Basé sur la position cumulative des versets dans le Coran (6236 versets total).
-  static Map<int, int>? _hizbCache;
-
-  int _hizbOf(Sourate s) {
-    if (_hizbCache == null) {
-      int cumulative = 7; // Al-Fatiha (id 1, 7 versets, exclue de allSourates)
-      final cache = <int, int>{};
-      for (final r in allSourates) {
-        cache[r.id] = (cumulative / 6236 * 60).floor().clamp(0, 59) + 1;
-        cumulative += r.verses;
-      }
-      _hizbCache = cache;
-    }
-    return _hizbCache![s.id] ?? 1;
   }
 
   /// Groupe les sourates par la valeur retournée par [key], en insérant des

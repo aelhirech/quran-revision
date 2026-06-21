@@ -4,7 +4,6 @@ class S {
   static String locale = 'fr'; // 'fr' ou 'en'
 
   static String get appTitle => _t('Révision du Coran', 'Quran Revision');
-  static String get planDuJour => _t('Plan du jour', 'Daily Plan');
   static String get reviser => _t('Réviser', 'Revise');
   static String get reviserAujourdhui => _t("Réviser aujourd'hui", "Today's revision");
   static String get recap => _t('Récap', 'Recap');
@@ -56,6 +55,7 @@ class S {
   static String get modifierSourates => _t('Modifier les sourates', 'Edit surahs');
   static String get modifierPlanConfirm => _t('La progression de cette session sera perdue. Continuer ?', 'Your progress for this session will be lost. Continue?');
   static String get annuler => _t('Annuler', 'Cancel');
+  static String get confirmer => _t('Confirmer', 'Confirm');
   static String get sauver => _t('Sauver', 'Save');
   static String get langueLabel => _t('Langue', 'Language');
   static String get notificationsLabel => _t('Notifications', 'Notifications');
