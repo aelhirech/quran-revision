@@ -1,3 +1,4 @@
+import '../core/quran_data.dart';
 import 'sourate.dart';
 
 class RevisionUnit {
@@ -27,4 +28,15 @@ class RevisionUnit {
         'verseEnd': verseEnd,
         'isWhole': isWhole,
       };
+
+  factory RevisionUnit.fromJson(Map<String, dynamic> j) {
+    final id = j['sourateId'] as int;
+    final sourate = allSourates.firstWhere((s) => s.id == id);
+    return RevisionUnit(
+      sourate: sourate,
+      verseStart: j['verseStart'] as int,
+      verseEnd: j['verseEnd'] as int,
+      isWhole: j['isWhole'] as bool,
+    );
+  }
 }

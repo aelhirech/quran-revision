@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/app_theme.dart';
 import 'core/strings.dart';
+import 'models/daily_session.dart';
+import 'models/user_config.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/shell_screen.dart';
 import 'services/notification_service.dart';
@@ -14,21 +16,33 @@ void main() async {
   final config = await StorageService.loadConfig();
   final locale = await StorageService.loadLocale();
   final cyclePosition = await StorageService.loadCyclePosition();
+  final previewSession = await StorageService.loadPreviewSession();
+  final todaySession = await StorageService.loadTodaySession();
+  final pauseDates = await StorageService.loadPauseDates();
   S.locale = locale;
   runApp(QuranRevisionApp(
     initialConfig: config,
     initialCyclePosition: cyclePosition,
+    initialPreviewSession: previewSession,
+    initialTodaySession: todaySession,
+    initialPauseDates: pauseDates,
   ));
 }
 
 class QuranRevisionApp extends StatelessWidget {
-  final dynamic initialConfig;
+  final UserConfig? initialConfig;
   final int initialCyclePosition;
+  final DailySession? initialPreviewSession;
+  final DailySession? initialTodaySession;
+  final Set<String> initialPauseDates;
 
   const QuranRevisionApp({
     super.key,
     this.initialConfig,
     this.initialCyclePosition = 0,
+    this.initialPreviewSession,
+    this.initialTodaySession,
+    this.initialPauseDates = const {},
   });
 
   @override
@@ -38,6 +52,9 @@ class QuranRevisionApp extends StatelessWidget {
         initialConfig,
         locale: S.locale,
         initialCyclePosition: initialCyclePosition,
+        initialPreviewSession: initialPreviewSession,
+        initialTodaySession: initialTodaySession,
+        initialPauseDates: initialPauseDates,
       ),
       child: const _AppRoot(),
     );

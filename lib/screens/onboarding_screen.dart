@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:quran/quran.dart' as quran;
+import '../core/app_colors.dart';
 import '../core/quran_data.dart';
 import '../core/strings.dart';
-import '../state/app_state.dart';
 import '../models/sourate.dart';
+import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
-import 'shell_screen.dart';
+import '../state/app_state.dart';
+import '../widgets/onboarding_header.dart';
+import '../widgets/verse_range_picker.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -15,8 +20,12 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  final Set<int> _selectedIds = {};
+  bool _introSeen = false;
+  final Map<int, SourateSelection> _selections = {};
   int _revisionDays = 30;
+  int _versesPerDay = 20;
+  bool _useVersesPerDay = false;
+  bool _groupByJuz = false;
   String _search = '';
 
   List<Sourate> get _filtered => allSourates
@@ -26,32 +35,100 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           s.id.toString() == _search)
       .toList();
 
+  int get _totalVerses =>
+      _selections.values.fold(0, (sum, s) => sum + s.verseCount);
+
+  int get _estimatedDays => _useVersesPerDay && _versesPerDay > 0
+      ? (_totalVerses / _versesPerDay).ceil().clamp(1, 9999)
+      : _revisionDays;
+
+  List<Object> get _listItems {
+    final sourates = _filtered;
+    if (!_groupByJuz || _search.isNotEmpty) return sourates;
+    final result = <Object>[];
+    int? currentJuz;
+    for (final s in sourates) {
+      final juz = quran.getJuzNumber(s.id, 1);
+      if (juz != currentJuz) {
+        currentJuz = juz;
+        result.add(juz);
+      }
+      result.add(s);
+    }
+    return result;
+  }
+
+  void _toggleSourate(Sourate s) {
+    setState(() {
+      if (_selections.containsKey(s.id)) {
+        _selections.remove(s.id);
+      } else {
+        _selections[s.id] = SourateSelection.whole(s);
+      }
+    });
+  }
+
+  void _toggleAll() {
+    setState(() {
+      if (_selections.length == allSourates.length) {
+        _selections.clear();
+      } else {
+        for (final s in allSourates) {
+          _selections.putIfAbsent(s.id, () => SourateSelection.whole(s));
+        }
+      }
+    });
+  }
+
+  Future<void> _longPressSourate(Sourate s) async {
+    if (!_selections.containsKey(s.id)) {
+      setState(() => _selections[s.id] = SourateSelection.whole(s));
+    }
+    final result = await showModalBottomSheet<SourateSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) =>
+          VerseRangePicker(sourate: s, current: _selections[s.id]!),
+    );
+    if (result != null) setState(() => _selections[s.id] = result);
+  }
+
   Future<void> _confirm() async {
-    if (_selectedIds.isEmpty) return;
-    final sourates =
-        allSourates.where((s) => _selectedIds.contains(s.id)).toList();
+    if (_selections.isEmpty) return;
     final config = UserConfig(
-      learnedSourates: sourates,
-      revisionDays: _revisionDays,
+      selections: _selections.values.toList(),
+      revisionDays: _useVersesPerDay ? _estimatedDays : _revisionDays,
       startDate: DateTime.now(),
+      versesPerDay: _useVersesPerDay ? _versesPerDay : null,
     );
     await context.read<AppState>().saveConfig(config);
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const ShellScreen()),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_introSeen) return _IntroScreen(onNext: () => setState(() => _introSeen = true));
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: cs.surface,
       body: SafeArea(
         child: Column(
           children: [
-            _header(cs),
+            OnboardingHeader(
+              selectionsLength: _selections.length,
+              totalVerses: _totalVerses,
+              allSouratesCount: allSourates.length,
+              groupByJuz: _groupByJuz,
+              useVersesPerDay: _useVersesPerDay,
+              revisionDays: _revisionDays,
+              versesPerDay: _versesPerDay,
+              estimatedDays: _estimatedDays,
+              onToggleAll: _toggleAll,
+              onGroupByJuzChanged: (v) => setState(() => _groupByJuz = v),
+              onModeChanged: (v) => setState(() => _useVersesPerDay = v),
+              onRevisionDaysChanged: (v) => setState(() => _revisionDays = v),
+              onVersesPerDayChanged: (v) => setState(() => _versesPerDay = v),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: TextField(
@@ -65,97 +142,155 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onChanged: (v) => setState(() => _search = v),
               ),
             ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _filtered.length,
-                itemBuilder: (_, i) {
-                  final s = _filtered[i];
-                  final selected = _selectedIds.contains(s.id);
-                  return CheckboxListTile(
-                    value: selected,
-                    onChanged: (_) => setState(() {
-                      selected
-                          ? _selectedIds.remove(s.id)
-                          : _selectedIds.add(s.id);
-                    }),
-                    title: Text(s.nameFr),
-                    subtitle: Text('${s.nameAr}  ·  ${s.verses} ${S.versetsLabel}'),
-                    secondary: CircleAvatar(
-                      backgroundColor:
-                          selected ? cs.primary : cs.surfaceContainerHighest,
-                      foregroundColor:
-                          selected ? cs.onPrimary : cs.onSurfaceVariant,
-                      radius: 18,
-                      child: Text('${s.id}',
-                          style: const TextStyle(fontSize: 11)),
-                    ),
-                  );
-                },
+            Expanded(child: _list(cs)),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: _selections.isEmpty ? null : _confirm,
+                  child: Text(
+                    _selections.isEmpty ? S.selectSourates : S.commencer,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
               ),
             ),
-            _footer(cs),
           ],
         ),
       ),
     );
   }
 
-  Widget _header(ColorScheme cs) {
-    final totalVerses = allSourates
-        .where((s) => _selectedIds.contains(s.id))
-        .fold(0, (sum, s) => sum + s.verses);
-    return Container(
-      width: double.infinity,
-      color: cs.primaryContainer,
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(S.configInitiale,
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: cs.onPrimaryContainer)),
-          const SizedBox(height: 8),
-          Text(S.souratesCount(_selectedIds.length, totalVerses),
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, color: cs.onPrimaryContainer)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Text(S.reviserEn,
-                  style: TextStyle(color: cs.onPrimaryContainer)),
-              const SizedBox(width: 8),
-              DropdownButton<int>(
-                value: _revisionDays,
-                items: [7, 14, 21, 30, 60, 90]
-                    .map((d) => DropdownMenuItem(
-                        value: d, child: Text(S.joursDuration(d))))
-                    .toList(),
-                onChanged: (v) => setState(() => _revisionDays = v!),
-                dropdownColor: cs.primaryContainer,
-                style: TextStyle(
-                    color: cs.onPrimaryContainer,
-                    fontWeight: FontWeight.w600),
-              ),
-            ],
+  Widget _list(ColorScheme cs) {
+    final items = _listItems;
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (_, i) {
+        final item = items[i];
+        if (item is int) return _juzHeader(cs, item);
+        final s = item as Sourate;
+        final sel = _selections[s.id];
+        final selected = sel != null;
+        return GestureDetector(
+          onLongPress: () => _longPressSourate(s),
+          child: CheckboxListTile(
+            value: selected,
+            onChanged: (_) => _toggleSourate(s),
+            title: Row(
+              children: [
+                Text(s.nameFr),
+                if (sel != null && !sel.isWhole) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.greenContainer,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('v.${sel.verseStart}–${sel.verseEnd}',
+                        style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.green,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ],
+            ),
+            subtitle: Text(
+                '${s.nameAr}  ·  ${sel != null && !sel.isWhole ? '${sel.verseCount}/${s.verses}' : s.verses} ${S.versetsLabel}'),
+            secondary: CircleAvatar(
+              backgroundColor:
+                  selected ? cs.primary : cs.surfaceContainerHighest,
+              foregroundColor:
+                  selected ? cs.onPrimary : cs.onSurfaceVariant,
+              radius: 18,
+              child: Text('${s.id}', style: const TextStyle(fontSize: 11)),
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _footer(ColorScheme cs) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: FilledButton(
-          onPressed: _selectedIds.isEmpty ? null : _confirm,
-          child: Text(
-            _selectedIds.isEmpty ? S.selectSourates : S.commencer,
-            style: const TextStyle(fontSize: 16),
+  Widget _juzHeader(ColorScheme cs, int juz) {
+    return Container(
+      color: AppColors.greenContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Text(S.juz(juz),
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.green,
+              letterSpacing: 0.8)),
+    );
+  }
+}
+
+class _IntroScreen extends StatelessWidget {
+  final VoidCallback onNext;
+  const _IntroScreen({required this.onNext});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: cs.surface,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Spacer(flex: 3),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.greenContainer,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(Icons.menu_book, size: 36, color: AppColors.green),
+              ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1),
+              const SizedBox(height: 24),
+              Text(
+                S.introTitle,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface,
+                  height: 1.2,
+                ),
+              ).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(begin: 0.08),
+              const SizedBox(height: 20),
+              Text(
+                S.introLine1,
+                style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant, height: 1.55),
+              ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
+              const SizedBox(height: 14),
+              Text(
+                S.introLine2,
+                style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant, height: 1.55),
+              ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
+              const Spacer(flex: 4),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: onNext,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.green,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: Text(S.introAction,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                ),
+              ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),
