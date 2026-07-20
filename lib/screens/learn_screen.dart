@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import '../core/app_colors.dart';
 import '../core/quran_data.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
@@ -193,7 +194,7 @@ class _LearnScreenState extends State<LearnScreen> {
               child: Text(S.annuler)),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: context.palette.danger),
             child: Text(S.supprimer),
           ),
         ],

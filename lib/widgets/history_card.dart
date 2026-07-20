@@ -19,15 +19,9 @@ class HistoryCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: context.palette.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.palette.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,8 +96,8 @@ class HistoryCard extends StatelessWidget {
           : cs.surface;
       textColor = isToday ? cs.primary : cs.onSurfaceVariant.withValues(alpha: 0.4);
     } else if (pct >= 0.8) {
-      circleColor = AppColors.greenContainer;
-      textColor = AppColors.green;
+      circleColor = cs.primaryContainer;
+      textColor = cs.primary;
     } else {
       circleColor = cs.primaryContainer.withValues(alpha: 0.6);
       textColor = cs.onPrimaryContainer;
@@ -152,7 +146,7 @@ class HistoryCard extends StatelessWidget {
             height: 38,
             decoration: BoxDecoration(
               color: pct >= 0.8
-                  ? AppColors.greenContainer
+                  ? cs.primaryContainer
                   : cs.surface,
               borderRadius: BorderRadius.circular(10),
             ),
@@ -161,7 +155,7 @@ class HistoryCard extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: pct >= 0.8 ? AppColors.green : cs.onSurfaceVariant)),
+                      color: pct >= 0.8 ? cs.primary : cs.onSurfaceVariant)),
             ),
           ),
           const SizedBox(width: 12),
@@ -181,7 +175,7 @@ class HistoryCard extends StatelessWidget {
                     value: pct,
                     minHeight: 4,
                     backgroundColor: cs.surface,
-                    color: pct >= 0.8 ? AppColors.green : cs.primary,
+                    color: pct >= 0.8 ? cs.primary : cs.primary,
                   ),
                 ),
               ],
@@ -192,7 +186,7 @@ class HistoryCard extends StatelessWidget {
               style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: pct >= 0.8 ? AppColors.green : cs.onSurfaceVariant)),
+                  color: pct >= 0.8 ? cs.primary : cs.onSurfaceVariant)),
         ],
       ),
     );

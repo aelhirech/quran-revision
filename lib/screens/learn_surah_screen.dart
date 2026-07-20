@@ -9,6 +9,9 @@ import '../models/learning_progress.dart';
 import '../models/sourate.dart';
 import '../services/learning_service.dart';
 import '../services/student_service.dart';
+import '../widgets/dome_progress_card.dart';
+import '../widgets/index_badge.dart';
+import '../widgets/primary_cta_button.dart';
 import '../widgets/verse_display_card.dart';
 
 class LearnSurahScreen extends StatefulWidget {
@@ -189,57 +192,37 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
         : block.length > 1
             ? '${S.blocRange(block.first, block.last)} / ${s.verses}'
             : S.versetN(_currentVerse, s.verses);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.green, AppColors.greenLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.green.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    final palette = context.palette;
+    final onPrimary = palette.onPrimary;
+    return DomeProgressCard(
+      topRadius: 120,
+      bottomRadius: 12,
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(s.nameAr,
-                  style: GoogleFonts.scheherazadeNew(
-                      fontSize: 22, color: Colors.white)),
-              Text(
-                posLabel,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14),
-              ),
-            ],
+          Text(s.nameAr,
+              style: GoogleFonts.amiri(fontSize: 22, color: onPrimary)),
+          const SizedBox(height: 6),
+          Text(
+            posLabel,
+            style: TextStyle(
+                color: onPrimary.withValues(alpha: 0.8),
+                fontStyle: FontStyle.italic,
+                fontSize: 12),
           ),
           const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: _progress.progress,
-              minHeight: 6,
-              backgroundColor: Colors.white.withValues(alpha: 0.25),
-              color: Colors.white,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 200),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: _progress.progress,
+                minHeight: 3,
+                backgroundColor: onPrimary.withValues(alpha: 0.18),
+                color: palette.gold,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            S.versetsAppris(_progress.learnedCount, s.verses),
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 12),
           ),
         ],
       ),
@@ -247,14 +230,10 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
   }
 
   Widget _addToRevisionButton(ColorScheme cs) {
-    return FilledButton.icon(
+    return PrimaryCtaButton(
+      label: S.ajouterAlaRevision,
+      icon: Icons.add,
       onPressed: () => Navigator.pop(context, 'add_to_revision'),
-      icon: const Icon(Icons.add),
-      label: Text(S.ajouterAlaRevision),
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColors.green,
-        minimumSize: const Size(double.infinity, 52),
-      ),
     ).animate().fadeIn(delay: 150.ms);
   }
 
@@ -272,13 +251,12 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: FilledButton.icon(
+          flex: 2,
+          child: PrimaryCtaButton(
+            height: 48,
+            label: S.marquerBlocAppris(blockLength),
+            icon: Icons.check,
             onPressed: _markBlockLearned,
-            icon: const Icon(Icons.check),
-            label: Text(S.marquerBlocAppris(blockLength)),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.green,
-            ),
           ),
         ),
       ],
@@ -290,11 +268,12 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(S.versetsApprisLabel,
+        Text(S.versetsApprisLabel.toUpperCase(),
             style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: cs.onSurface)),
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+                letterSpacing: 2,
+                color: context.palette.textMuted)),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
@@ -302,16 +281,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
           children: learned.map((v) {
             return GestureDetector(
               onLongPress: () => _unmarkVerse(v),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.greenContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text('$v',
-                    style: const TextStyle(
-                        color: AppColors.green, fontWeight: FontWeight.w700)),
-              ),
+              child: IndexBadge(text: '$v', state: IndexBadgeState.done),
             );
           }).toList(),
         ),
@@ -319,7 +289,8 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
         Text(S.longPressDesapprendre,
             style: TextStyle(
                 fontSize: 11,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.6))),
+                fontStyle: FontStyle.italic,
+                color: context.palette.textMuted)),
       ],
     ).animate().fadeIn(delay: 200.ms);
   }

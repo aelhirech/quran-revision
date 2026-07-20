@@ -3,6 +3,7 @@ import '../core/app_colors.dart';
 import '../core/prayer_l10n.dart';
 import '../core/strings.dart';
 import '../models/prayer.dart';
+import 'pill_chip.dart';
 
 class PrayerSelector extends StatelessWidget {
   final Set<Prayer> selected;
@@ -60,52 +61,17 @@ class PrayerSelector extends StatelessWidget {
   }
 
   Widget _chip(BuildContext context, Prayer p) {
-    final cs = Theme.of(context).colorScheme;
     final isSelected = selected.contains(p);
-    return GestureDetector(
+    return PillChip(
+      label: p.displayName,
+      selected: isSelected,
       onTap: () => onToggle(p),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? cs.primary : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? cs.primary : AppColors.cardBorder,
-            width: 1.5,
-          ),
-          boxShadow: isSelected
-              ? [BoxShadow(
-                  color: cs.primary.withValues(alpha: 0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                )]
-              : [],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isSelected)
-              const Padding(
-                padding: EdgeInsets.only(right: 6),
-                child: Icon(Icons.check, color: Colors.white, size: 14),
-              ),
-            Text(
-              p.displayName,
-              style: TextStyle(
-                color: isSelected ? Colors.white : cs.onSurface,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _tahiyyatGroup(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final palette = context.palette;
     final isActive = tahiyyatCount > 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,19 +87,11 @@ class PrayerSelector extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: isActive ? cs.primary : Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            color: isActive ? cs.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isActive ? cs.primary : AppColors.cardBorder,
-              width: 1.5,
+              color: isActive ? cs.primary : palette.textPrimary.withValues(alpha: 0.3),
             ),
-            boxShadow: isActive
-                ? [BoxShadow(
-                    color: cs.primary.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  )]
-                : [],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -141,7 +99,7 @@ class PrayerSelector extends StatelessWidget {
               _stepBtn(
                 icon: Icons.remove,
                 enabled: tahiyyatCount > 0,
-                color: isActive ? Colors.white : cs.onSurfaceVariant,
+                color: isActive ? cs.onPrimary : cs.onSurfaceVariant,
                 onTap: () => onTahiyyatCountChanged(tahiyyatCount - 1),
               ),
               Padding(
@@ -151,7 +109,7 @@ class PrayerSelector extends StatelessWidget {
                       ? S.tahiyyatCount
                       : '${Prayer.tahiyyatMasjid.displayName}  ×$tahiyyatCount',
                   style: TextStyle(
-                    color: isActive ? Colors.white : cs.onSurfaceVariant,
+                    color: isActive ? cs.onPrimary : cs.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -160,7 +118,7 @@ class PrayerSelector extends StatelessWidget {
               _stepBtn(
                 icon: Icons.add,
                 enabled: tahiyyatCount < 5,
-                color: isActive ? Colors.white : cs.onSurface,
+                color: isActive ? cs.onPrimary : cs.onSurface,
                 onTap: () => onTahiyyatCountChanged(tahiyyatCount + 1),
               ),
             ],

@@ -11,7 +11,7 @@ class HadithCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final palette = context.palette;
     final text = S.locale == 'en' ? hadith.textEn : hadith.textFr;
     final source = S.locale == 'en' ? hadith.sourceEn : hadith.sourceFr;
 
@@ -19,34 +19,37 @@ class HadithCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.surfaceCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: palette.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.format_quote_rounded, color: AppColors.green, size: 18),
+              Icon(Icons.format_quote_rounded, color: palette.goldDark, size: 16),
               const SizedBox(width: 6),
               Text(S.hadithDuJourLabel,
-                  style: const TextStyle(
-                      fontSize: 11,
+                  style: TextStyle(
+                      fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.green,
-                      letterSpacing: 0.8)),
+                      color: palette.goldDark,
+                      letterSpacing: 1.2)),
             ],
           ),
           const SizedBox(height: 10),
           Text(text,
-              style: const TextStyle(
-                  fontSize: 13, fontStyle: FontStyle.italic, height: 1.5)),
+              style: TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  height: 1.6,
+                  color: palette.textPrimary)),
           const SizedBox(height: 8),
           Text(source,
               style: TextStyle(
                   fontSize: 11,
-                  color: cs.onSurfaceVariant,
+                  color: palette.textMuted,
                   fontWeight: FontWeight.w500)),
         ],
       ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
 
@@ -37,7 +36,7 @@ class _SouratePickerSheetState extends State<SouratePickerSheet> {
           Container(
             width: 40, height: 4,
             decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2)),
           ),
           Padding(
@@ -67,10 +66,10 @@ class _SouratePickerSheetState extends State<SouratePickerSheet> {
                 final s = filtered[i];
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: AppColors.greenContainer,
+                    backgroundColor: cs.primaryContainer,
                     child: Text('${s.id}',
-                        style: const TextStyle(
-                            color: AppColors.green,
+                        style: TextStyle(
+                            color: cs.primary,
                             fontWeight: FontWeight.w700,
                             fontSize: 12)),
                   ),

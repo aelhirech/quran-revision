@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import '../core/app_colors.dart';
 import '../core/quran_data.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
@@ -230,16 +231,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _resetSection(ColorScheme cs, AppState state) {
-    return Card(
-      elevation: 0,
-      color: cs.errorContainer.withValues(alpha: 0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: ListTile(
-        leading: Icon(Icons.refresh, color: cs.error),
-        title: Text(S.reinitialiser,
-            style: TextStyle(color: cs.error, fontWeight: FontWeight.w600)),
-        subtitle: Text(S.reinitDesc),
-        onTap: () => _showResetDialog(state),
+    final danger = context.palette.danger;
+    return Container(
+      decoration: BoxDecoration(
+        color: danger.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: danger.withValues(alpha: 0.4)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: ListTile(
+          leading: Icon(Icons.refresh, color: danger),
+          title: Text(S.reinitialiser,
+              style: TextStyle(color: danger, fontWeight: FontWeight.w600)),
+          subtitle: Text(S.reinitDesc),
+          onTap: () => _showResetDialog(state),
+        ),
       ),
     ).animate().fadeIn(delay: 200.ms);
   }

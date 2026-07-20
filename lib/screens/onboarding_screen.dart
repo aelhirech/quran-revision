@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/quran_data.dart';
@@ -8,6 +9,10 @@ import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../state/app_state.dart';
+import '../widgets/index_badge.dart';
+import '../widgets/ornamental_divider.dart';
+import '../widgets/pill_chip.dart';
+import '../widgets/primary_cta_button.dart';
 import '../widgets/verse_range_picker.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -169,58 +174,55 @@ class _IntroPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final palette = context.palette;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Spacer(flex: 3),
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppColors.greenContainer,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(Icons.menu_book, size: 36, color: AppColors.green),
+            Text(
+              S.bismillah,
+              style: GoogleFonts.amiri(fontSize: 22, color: palette.gold),
             ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1),
-            const SizedBox(height: 24),
+            const SizedBox(height: 26),
             Text(
               S.introTitle,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                color: cs.onSurface,
-                height: 1.2,
+                fontSize: 30,
+                fontWeight: FontWeight.w600,
+                color: palette.textPrimary,
+                height: 1.25,
               ),
             ).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(begin: 0.08),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            const OrnamentalDivider(),
+            const SizedBox(height: 24),
             Text(
               S.introLine1,
-              style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant, height: 1.55),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 15.5,
+                  fontStyle: FontStyle.italic,
+                  color: palette.textPrimary.withValues(alpha: 0.7),
+                  height: 1.7),
             ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
             const SizedBox(height: 14),
             Text(
               S.introLine2,
-              style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant, height: 1.55),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 15.5,
+                  fontStyle: FontStyle.italic,
+                  color: palette.textPrimary.withValues(alpha: 0.7),
+                  height: 1.7),
             ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
             const Spacer(flex: 4),
             SizedBox(
               width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: onNext,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.green,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
-                child: Text(S.introAction,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700)),
-              ),
+              child: PrimaryCtaButton(label: S.introAction, onPressed: onNext),
             ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
             const SizedBox(height: 24),
           ],
@@ -285,19 +287,16 @@ class _SelectionPage extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    _QuickSelectChip(
+                    PillChip(
                         label: S.toutLeCoran,
                         onTap: () => onQuickSelect(1.0),
-                        active: selections.length == allSourates.length),
+                        selected: selections.length == allSourates.length),
                     const SizedBox(width: 6),
-                    _QuickSelectChip(
-                        label: '3/4', onTap: () => onQuickSelect(0.75)),
+                    PillChip(label: '3/4', onTap: () => onQuickSelect(0.75), selected: false),
                     const SizedBox(width: 6),
-                    _QuickSelectChip(
-                        label: '1/2', onTap: () => onQuickSelect(0.5)),
+                    PillChip(label: '1/2', onTap: () => onQuickSelect(0.5), selected: false),
                     const SizedBox(width: 6),
-                    _QuickSelectChip(
-                        label: '1/4', onTap: () => onQuickSelect(0.25)),
+                    PillChip(label: '1/4', onTap: () => onQuickSelect(0.25), selected: false),
                   ],
                 ),
               ],
@@ -395,6 +394,8 @@ class _RecapPage extends StatelessWidget {
               onBack: onBack,
             ),
             const SizedBox(height: 24),
+            const OrnamentalDivider(),
+            const SizedBox(height: 24),
             // Récap sélection
             _RecapCard(
               icon: Icons.menu_book_outlined,
@@ -420,21 +421,7 @@ class _RecapPage extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: onConfirm,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.green,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
-                child: Text(S.commencer,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700)),
-              ),
-            ),
+            PrimaryCtaButton(label: S.commencer, onPressed: onConfirm),
             const SizedBox(height: 24),
           ],
         ),
@@ -510,44 +497,11 @@ class _StepHeader extends StatelessWidget {
               value: step / total,
               backgroundColor:
                   cs.onPrimaryContainer.withValues(alpha: 0.2),
-              color: cs.onPrimaryContainer,
+              color: context.palette.gold,
               minHeight: 3,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _QuickSelectChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final bool active;
-
-  const _QuickSelectChip({
-    required this.label,
-    required this.onTap,
-    this.active = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: active ? AppColors.green : cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: active ? cs.onPrimary : cs.onSurface)),
       ),
     );
   }
@@ -613,13 +567,13 @@ class _SourateList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final palette = context.palette;
     return ListView.builder(
       itemCount: items.length,
       itemBuilder: (_, i) {
         final item = items[i];
         if (item is int) {
-          return _groupHeader(cs, S.hizb(item));
+          return _groupHeader(palette, S.hizb(item));
         }
         final s = item as Sourate;
         final sel = selections[s.id];
@@ -632,35 +586,36 @@ class _SourateList extends StatelessWidget {
             dense: true,
             title: Row(
               children: [
-                Text(s.nameFr, style: const TextStyle(fontSize: 14)),
+                Text(s.nameFr,
+                    style: TextStyle(fontSize: 14, color: palette.textPrimary)),
                 if (sel != null && !sel.isWhole) ...[
                   const SizedBox(width: 6),
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.greenContainer,
-                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
                     ),
                     child: Text('v.${sel.verseStart}–${sel.verseEnd}',
-                        style: const TextStyle(
-                            fontSize: 10,
-                            color: AppColors.green,
-                            fontWeight: FontWeight.w700)),
+                        style: TextStyle(fontSize: 10, color: palette.goldDark)),
                   ),
                 ],
               ],
             ),
             subtitle: Text(
-                '${s.nameAr}  ·  ${sel != null && !sel.isWhole ? '${sel.verseCount}/${s.verses}' : s.verses} ${S.versetsLabel}',
-                style: const TextStyle(fontSize: 12)),
-            secondary: CircleAvatar(
-              backgroundColor:
-                  selected ? cs.primary : cs.surfaceContainerHighest,
-              foregroundColor:
-                  selected ? cs.onPrimary : cs.onSurfaceVariant,
-              radius: 16,
-              child: Text('${s.id}', style: const TextStyle(fontSize: 10)),
+                '${sel != null && !sel.isWhole ? '${sel.verseCount}/${s.verses}' : s.verses} ${S.versetsLabel}',
+                style: TextStyle(fontSize: 12, color: palette.textMuted)),
+            secondary: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IndexBadge(
+                  text: '${s.id}',
+                  size: 30,
+                  state: selected ? IndexBadgeState.selected : IndexBadgeState.unselected,
+                ),
+                const SizedBox(width: 10),
+                Text(s.nameAr, style: GoogleFonts.amiri(fontSize: 18, color: palette.textPrimary)),
+              ],
             ),
           ),
         );
@@ -668,15 +623,15 @@ class _SourateList extends StatelessWidget {
     );
   }
 
-  Widget _groupHeader(ColorScheme cs, String label) {
+  Widget _groupHeader(AppPalette palette, String label) {
     return Container(
-      color: AppColors.greenContainer,
+      color: palette.gold.withValues(alpha: 0.1),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: Text(label,
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: AppColors.green,
+              color: palette.goldDark,
               letterSpacing: 0.8)),
     );
   }

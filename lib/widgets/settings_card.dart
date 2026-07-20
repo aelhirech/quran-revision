@@ -42,21 +42,16 @@ class _SettingsCardState extends State<SettingsCard> {
     final cs = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4)),
-        ],
+        color: context.palette.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.palette.cardBorder),
       ),
       child: Material(
         color: Colors.transparent,
         child: Column(
           children: [
             ListTile(
-              leading: Icon(Icons.language, color: AppColors.green),
+              leading: Icon(Icons.language, color: cs.primary),
               title: Text(S.langueLabel),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -69,20 +64,18 @@ class _SettingsCardState extends State<SettingsCard> {
             ),
             const Divider(height: 1, indent: 56),
             SwitchListTile(
-              secondary: Icon(Icons.shuffle, color: AppColors.green),
+              secondary: Icon(Icons.shuffle, color: cs.primary),
               title: Text(S.aleatoireLabel),
               subtitle: Text(S.aleatoireSubtitle),
               value: context.watch<AppState>().config?.shuffleEnabled ?? true,
-              activeThumbColor: AppColors.green,
               onChanged: (val) => context.read<AppState>().setShuffleEnabled(val),
             ),
             const Divider(height: 1, indent: 56),
             SwitchListTile(
-              secondary: Icon(Icons.notifications_outlined, color: AppColors.green),
+              secondary: Icon(Icons.notifications_outlined, color: cs.primary),
               title: Text(S.notificationsLabel),
               subtitle: Text(S.notifSubtitle),
               value: _notifEnabled,
-              activeThumbColor: AppColors.green,
               onChanged: _toggleNotif,
             ),
           ],
@@ -99,15 +92,15 @@ class _SettingsCardState extends State<SettingsCard> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? AppColors.green : Colors.transparent,
+          color: selected ? cs.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected ? AppColors.green : AppColors.cardBorder,
+            color: selected ? cs.primary : context.palette.cardBorder,
           ),
         ),
         child: Text(label,
             style: TextStyle(
-              color: selected ? Colors.white : cs.onSurfaceVariant,
+              color: selected ? cs.onPrimary : cs.onSurfaceVariant,
               fontWeight: FontWeight.w700,
               fontSize: 12,
             )),

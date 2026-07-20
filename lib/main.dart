@@ -70,7 +70,9 @@ class _AppRoot extends StatelessWidget {
     return MaterialApp(
       title: S.appTitle,
       debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
       home: state.config == null
           ? const OnboardingScreen()
           : const ShellScreen(),

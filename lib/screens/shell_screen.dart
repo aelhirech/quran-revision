@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../state/app_state.dart';
 import '../widgets/day_plan_tab.dart';
@@ -46,7 +47,7 @@ class _ShellScreenState extends State<ShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final palette = context.palette;
     return Scaffold(
       body: IndexedStack(
         index: _index,
@@ -57,12 +58,15 @@ class _ShellScreenState extends State<ShellScreen> {
           ProfileScreen(),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        backgroundColor: cs.surface,
-        indicatorColor: cs.primaryContainer,
-        destinations: _destinations(context),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: palette.cardBorder)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: _destinations(context),
+        ),
       ).animate().slideY(
             begin: 1,
             end: 0,

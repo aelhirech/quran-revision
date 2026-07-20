@@ -68,6 +68,8 @@ class S {
   static String get reinitConfirm => _t('La progression du cycle sera perdue. Continue ?', 'Cycle progress will be lost. Continue?');
 
   // Onboarding — intro
+  static String get bismillah => 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
+  static String get homeEpigraph => 'وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا';
   static String get introTitle => _t('Révise le Coran chaque jour', 'Revise the Quran every day');
   static String get introLine1 => _t(
     'Dis à l\'app quelles prières tu fais seul, et elle répartit tes sourates sur chaque rakaa.',

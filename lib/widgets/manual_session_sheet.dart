@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
 import '../core/strings.dart';
+import 'primary_cta_button.dart';
 
 class ManualSessionSheet extends StatefulWidget {
   final int maxUnits;
@@ -93,22 +93,9 @@ class _ManualSessionSheetState extends State<ManualSessionSheet> {
             ],
           ),
           const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: FilledButton(
-              onPressed: () => Navigator.pop(context, _units),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.green,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-              ),
-              child: Text(
-                S.loggerSession,
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ),
+          PrimaryCtaButton(
+            label: S.loggerSession,
+            onPressed: () => Navigator.pop(context, _units),
           ),
         ],
       ),

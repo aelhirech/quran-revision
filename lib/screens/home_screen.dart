@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../core/app_colors.dart';
 import '../core/hadith_data.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
@@ -10,7 +12,9 @@ import '../services/history_service.dart';
 import '../state/app_state.dart';
 import '../widgets/cycle_progress_card.dart';
 import '../widgets/hadith_card.dart';
+import '../widgets/ornamental_divider.dart';
 import '../widgets/prayer_selector.dart';
+import '../widgets/primary_cta_button.dart';
 
 class HomeScreen extends StatefulWidget {
   final void Function(DailySession) onVoirPlan;
@@ -132,16 +136,30 @@ class _HomeScreenState extends State<HomeScreen> {
         slivers: [
           // Pas de floating : SliverAppBar.large afficherait le titre deux fois
           // pendant l'animation de repli si floating était activé.
-          SliverAppBar.large(
-            title: Text(S.reviserAujourdhui),
+          SliverAppBar(
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
-            centerTitle: false,
+            toolbarHeight: 0,
+            elevation: 0,
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                Center(
+                  child: Text(S.homeEpigraph,
+                      style: GoogleFonts.amiri(fontSize: 15, color: context.palette.gold)),
+                ).animate().fadeIn(),
+                const SizedBox(height: 10),
+                Text(S.reviserAujourdhui,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                        color: context.palette.textPrimary)),
+                const SizedBox(height: 10),
+                const Center(child: OrnamentalDivider(lineWidth: 26)),
+                const SizedBox(height: 18),
                 CycleProgressCard(
                   progress: progress,
                   pos: pos,
@@ -192,21 +210,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() => _tahiyyatCount = n),
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton.icon(
-                    onPressed: canCommit
-                        ? () {
-                            _buildPlan(state);
-                            if (_session != null) widget.onVoirPlan(_session!);
-                          }
-                        : null,
-                    icon: const Icon(Icons.calendar_today_outlined),
-                    label: Text(S.voirPlanDuJour,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                  ),
+                PrimaryCtaButton(
+                  onPressed: canCommit
+                      ? () {
+                          _buildPlan(state);
+                          if (_session != null) widget.onVoirPlan(_session!);
+                        }
+                      : null,
+                  icon: Icons.calendar_today_outlined,
+                  label: S.voirPlanDuJour,
                 ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
                 if (widget.onSaisirManuel != null)
                   TextButton(

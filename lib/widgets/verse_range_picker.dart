@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
@@ -53,10 +53,10 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isActive ? AppColors.green : null)),
-              backgroundColor: isActive ? AppColors.greenContainer : null,
+                      color: isActive ? Theme.of(context).colorScheme.primary : null)),
+              backgroundColor: isActive ? Theme.of(context).colorScheme.primaryContainer : null,
               side: isActive
-                  ? const BorderSide(color: AppColors.green, width: 1.5)
+                  ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5)
                   : null,
               onPressed: () => setState(() => _range = RangeValues(
                     c.start.toDouble(),
@@ -88,26 +88,26 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
           Container(
             width: 40, height: 4,
             decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 20),
           Text(widget.sourate.nameFr,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           Text(widget.sourate.nameAr,
-              style: const TextStyle(fontSize: 20, height: 1.8)),
+              style: GoogleFonts.amiri(fontSize: 20, height: 1.8)),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('v.$start',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, color: AppColors.green)),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700, color: cs.primary)),
               Text('$count ${S.versetsLabel}',
                   style: const TextStyle(fontWeight: FontWeight.w500)),
               Text('v.$end',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, color: AppColors.green)),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700, color: cs.primary)),
             ],
           ),
           RangeSlider(
@@ -115,7 +115,7 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
             min: 1,
             max: widget.sourate.verses.toDouble(),
             divisions: widget.sourate.verses - 1,
-            activeColor: AppColors.green,
+            activeColor: cs.primary,
             onChanged: (v) => setState(() => _range = v),
           ),
           if (widget.sourate.verses > 50) ...[

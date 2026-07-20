@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quran/quran.dart' as quran;
-import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import '../services/verse_service.dart';
@@ -43,7 +42,7 @@ class VerseBottomSheet extends StatelessWidget {
         ),
         child: Column(
           children: [
-            _handle(),
+            _handle(cs),
             _header(cs, surahNameAr),
             Expanded(
               child: ListView.separated(
@@ -64,13 +63,13 @@ class VerseBottomSheet extends StatelessWidget {
     );
   }
 
-  Widget _handle() => Padding(
+  Widget _handle(ColorScheme cs) => Padding(
         padding: const EdgeInsets.only(top: 12, bottom: 4),
         child: Container(
           width: 40,
           height: 4,
           decoration: BoxDecoration(
-            color: Colors.grey.shade300,
+            color: cs.onSurfaceVariant.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -96,7 +95,7 @@ class VerseBottomSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Divider(color: AppColors.cardBorder),
+          Divider(color: cs.outlineVariant),
         ],
       ),
     );
@@ -112,15 +111,15 @@ class VerseBottomSheet extends StatelessWidget {
           margin: const EdgeInsets.only(top: 4, left: 8),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.greenContainer,
+            color: cs.primaryContainer,
           ),
           child: Center(
             child: Text(
               '$verseNumber',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color: AppColors.green,
+                color: cs.primary,
               ),
             ),
           ),

@@ -1,71 +1,129 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-ThemeData buildAppTheme() {
-  const green = AppColors.green;
-  const greenLight = AppColors.greenLight;
-  const bg = AppColors.bg;
+ThemeData buildAppTheme(Brightness brightness) {
+  final isDark = brightness == Brightness.dark;
+  final palette = isDark ? AppPalette.dark : AppPalette.light;
 
   final base = ColorScheme.fromSeed(
-    seedColor: green,
-    brightness: Brightness.light,
+    seedColor: palette.primary,
+    brightness: brightness,
   ).copyWith(
-    primary: green,
-    onPrimary: Colors.white,
-    primaryContainer: AppColors.greenContainer,
-    onPrimaryContainer: green,
-    secondary: greenLight,
-    surface: Colors.white,
-    onSurface: const Color(0xFF111311),
-    surfaceContainerHighest: bg,
-    onSurfaceVariant: const Color(0xFF4A5450),
+    primary: palette.primary,
+    onPrimary: palette.onPrimary,
+    primaryContainer: isDark ? const Color(0xFF1B2D22) : const Color(0xFFE3EEE6),
+    onPrimaryContainer: isDark ? palette.primary : palette.primary,
+    secondary: palette.gold,
+    onSecondary: palette.onPrimary,
+    surface: palette.cream,
+    onSurface: palette.textPrimary,
+    surfaceContainerHighest: palette.surfaceCardSolid,
+    onSurfaceVariant: isDark ? const Color(0xFFB7C2BC) : const Color(0xFF4A5450),
+    error: palette.danger,
+    onError: Colors.white,
+    errorContainer: isDark ? const Color(0xFF3A2320) : const Color(0xFFF4E0DC),
+    onErrorContainer: palette.danger,
+  );
+
+  final loraText = GoogleFonts.loraTextTheme(
+    ThemeData(brightness: brightness).textTheme,
+  ).apply(
+    bodyColor: palette.textPrimary,
+    displayColor: palette.textPrimary,
   );
 
   return ThemeData(
     colorScheme: base,
     useMaterial3: true,
-    scaffoldBackgroundColor: bg,
+    brightness: brightness,
+    scaffoldBackgroundColor: palette.cream,
+    textTheme: loraText,
+    extensions: [palette],
     cardTheme: CardThemeData(
       elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      shadowColor: Colors.black.withValues(alpha: 0.06),
+      color: palette.surfaceCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: palette.cardBorder),
+      ),
+      shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
     ),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      foregroundColor: Color(0xFF111311),
-      titleTextStyle: TextStyle(
-        color: Color(0xFF111311),
-        fontSize: 28,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.5,
+      foregroundColor: palette.textPrimary,
+      titleTextStyle: GoogleFonts.lora(
+        color: palette.textPrimary,
+        fontSize: 26,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.3,
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: Colors.white,
+      backgroundColor: palette.cream,
       elevation: 0,
-      shadowColor: Colors.black.withValues(alpha: 0.08),
-      indicatorColor: AppColors.greenContainer,
-      labelTextStyle: WidgetStateProperty.all(
-        const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-      ),
+      shadowColor: Colors.transparent,
+      indicatorColor: Colors.transparent,
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return IconThemeData(
+          color: selected ? palette.primary : palette.textPrimary.withValues(alpha: 0.45),
+          size: 22,
+        );
+      }),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return GoogleFonts.lora(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1,
+          color: selected ? palette.primary : palette.textPrimary.withValues(alpha: 0.45),
+        );
+      }),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: green,
-        foregroundColor: Colors.white,
+        backgroundColor: palette.primary,
+        foregroundColor: palette.onPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        textStyle: GoogleFonts.lora(fontWeight: FontWeight.w600, fontSize: 15),
         elevation: 0,
       ),
     ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: palette.textPrimary,
+        side: BorderSide(color: palette.textPrimary.withValues(alpha: isDark ? 0.2 : 0.3)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: GoogleFonts.lora(fontWeight: FontWeight.w600, fontSize: 14),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        return states.contains(WidgetState.selected) ? palette.onPrimary : palette.textPrimary.withValues(alpha: 0.5);
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        return states.contains(WidgetState.selected)
+            ? palette.primary
+            : Colors.transparent;
+      }),
+      trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+        return states.contains(WidgetState.selected)
+            ? palette.primary
+            : palette.textPrimary.withValues(alpha: 0.25);
+      }),
+    ),
     chipTheme: ChipThemeData(
-      backgroundColor: bg,
-      selectedColor: AppColors.greenContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      backgroundColor: palette.surfaceCard,
+      selectedColor: palette.primary,
+      labelStyle: GoogleFonts.lora(fontSize: 13, color: palette.textPrimary),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: palette.cardBorder),
+      ),
       side: BorderSide.none,
     ),
   );

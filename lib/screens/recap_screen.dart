@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import '../core/app_colors.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
@@ -9,7 +10,9 @@ import '../models/session_record.dart';
 import '../services/history_service.dart';
 import '../services/learning_service.dart';
 import '../state/app_state.dart';
+import '../widgets/dome_progress_card.dart';
 import '../widgets/history_card.dart';
+import '../widgets/ornamental_divider.dart';
 import '../widgets/sourates_recap_card.dart';
 import '../widgets/streak_card.dart';
 
@@ -96,6 +99,10 @@ class _RecapScreenState extends State<RecapScreen> {
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: OrnamentalDivider(),
+                ),
                 StreakCard(streak: _streak, totalDays: _totalDays),
                 const SizedBox(height: 16),
                 _cycleCard(cs, progress, pos, total, daysRemaining),
@@ -118,64 +125,53 @@ class _RecapScreenState extends State<RecapScreen> {
   Widget _cycleCard(ColorScheme cs, double progress, int pos, int total,
       int daysRemaining) {
     final percent = (progress * 100).round();
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [cs.primary, const Color(0xFF81C784)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: cs.primary.withValues(alpha: 0.28),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(22),
+    final palette = context.palette;
+    final onPrimary = palette.onPrimary;
+    return DomeProgressCard(
+      topRadius: 150,
+      bottomRadius: 16,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(S.cycleActuel,
               style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: onPrimary.withValues(alpha: 0.65),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5)),
-          const SizedBox(height: 14),
+                  letterSpacing: 2.5)),
+          const SizedBox(height: 12),
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('$percent%',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 52,
-                      fontWeight: FontWeight.w800,
-                      height: 1,
-                      letterSpacing: -1)),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 7, left: 8),
-                child: Text('· $pos / $total ${S.unitesLabel}',
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontSize: 15)),
-              ),
+              Text('$percent',
+                  style: TextStyle(
+                      color: onPrimary,
+                      fontSize: 50,
+                      fontWeight: FontWeight.w600,
+                      height: 1)),
+              Text('%',
+                  style: TextStyle(color: palette.gold, fontSize: 22, fontWeight: FontWeight.w600)),
             ],
           ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
-          const SizedBox(height: 18),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
-              color: Colors.white,
-              minHeight: 6,
+          const SizedBox(height: 6),
+          Text('$pos / $total ${S.unitesLabel}',
+              style: TextStyle(color: onPrimary.withValues(alpha: 0.75), fontSize: 13, fontStyle: FontStyle.italic)),
+          const SizedBox(height: 16),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 220),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: onPrimary.withValues(alpha: 0.18),
+                color: palette.gold,
+                minHeight: 3,
+              ),
             ),
           ).animate().scaleX(
                 begin: 0,
-                alignment: Alignment.centerLeft,
+                alignment: Alignment.center,
                 duration: 700.ms,
                 curve: Curves.easeOut,
                 delay: 200.ms,
@@ -186,7 +182,7 @@ class _RecapScreenState extends State<RecapScreen> {
                 ? S.joursRestantsMsg(daysRemaining)
                 : '🎉 ${S.objectifAtteint}',
             style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+                color: onPrimary.withValues(alpha: 0.75), fontSize: 13),
           ),
         ],
       ),
@@ -200,8 +196,9 @@ class _RecapScreenState extends State<RecapScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
+        color: context.palette.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.palette.cardBorder),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -284,15 +281,9 @@ class _RecapScreenState extends State<RecapScreen> {
     return Expanded(
       child: Container(
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
+          color: context.palette.surfaceCard,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          border: Border.all(color: context.palette.cardBorder),
         ),
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
         child: Column(

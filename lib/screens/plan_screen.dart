@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:quran/quran.dart' as quran;
 import '../core/app_colors.dart';
@@ -12,6 +13,7 @@ import '../services/history_service.dart';
 import '../state/app_state.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/preview_banner.dart';
+import '../widgets/primary_cta_button.dart';
 
 class PlanScreen extends StatefulWidget {
   final DailySession session;
@@ -189,11 +191,10 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
-  Widget _engageButton() => FilledButton.icon(
+  Widget _engageButton() => PrimaryCtaButton(
         onPressed: widget.onEngager,
-        icon: const Icon(Icons.check_rounded),
-        label: Text(S.sEngager,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        icon: Icons.check_rounded,
+        label: S.sEngager,
       );
 
   Future<void> _showCompletionSummary() async {
@@ -214,15 +215,12 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   Widget _completionButton() {
-    final button = FilledButton.icon(
+    final button = PrimaryCtaButton(
       onPressed: _allDone ? _showCompletionSummary : null,
-      icon: Icon(_allDone ? Icons.check_circle : Icons.check_circle_outline),
-      label: Text(
-        _allDone
-            ? S.revisionComplete
-            : '$_checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
+      icon: _allDone ? Icons.check_circle : Icons.check_circle_outline,
+      label: _allDone
+          ? S.revisionComplete
+          : '$_checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
     );
 
     if (!_allDone) return button;
@@ -243,16 +241,17 @@ class _PlanScreenState extends State<PlanScreen> {
   Widget _summaryBar(ColorScheme cs) {
     final session = widget.session;
     final isOnTrack = session.isOnTrack;
-    final bgColor = isOnTrack ? cs.primaryContainer : cs.tertiaryContainer;
+    final palette = context.palette;
     final cycleEnd =
         (session.cyclePosition + session.totalUnits).clamp(0, session.cycleTotal);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        color: palette.gold.withValues(alpha: 0.07),
+        border: Border.all(color: palette.gold.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,41 +262,39 @@ class _PlanScreenState extends State<PlanScreen> {
               Text(
                 S.unitesRakaas(session.totalUnits, session.totalRakaas),
                 style: TextStyle(
-                    color: cs.onSurface,
+                    color: palette.textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 13),
               ),
               Text(
                 isOnTrack ? S.dansLesTemps : S.prendsAvance,
                 style: TextStyle(
-                  color: isOnTrack
-                      ? cs.onPrimaryContainer
-                      : cs.onTertiaryContainer,
+                  color: isOnTrack ? palette.primary : cs.tertiary,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Row(
             children: [
               Text(
                 '${S.cycleEnCours} : $cycleEnd / ${session.cycleTotal}',
-                style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.7), fontSize: 11),
+                style: TextStyle(color: palette.textMuted, fontSize: 11),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(3),
                   child: LinearProgressIndicator(
                     value: session.cycleTotal == 0
                         ? 0
                         : cycleEnd / session.cycleTotal,
-                    minHeight: 4,
-                    backgroundColor: cs.onSurface.withValues(alpha: 0.12),
-                    color: cs.onSurface.withValues(alpha: 0.45),
+                    minHeight: 3,
+                    backgroundColor: palette.textPrimary.withValues(alpha: 0.1),
+                    color: palette.gold,
                   ),
                 ),
               ),
@@ -368,8 +365,8 @@ class _CompletionCelebrationSheet extends StatelessWidget {
           Text(S.waouhIslamic,
               style: TextStyle(
                   fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.green)),
+                  fontWeight: FontWeight.w700,
+                  color: context.palette.primary)),
           const SizedBox(height: 4),
           Text(S.waouhSubtitle,
               textAlign: TextAlign.center,
@@ -393,20 +390,9 @@ class _CompletionCelebrationSheet extends StatelessWidget {
           // Résumé session
           ...session.plan.map((pp) => _prayerRow(cs, pp)),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: FilledButton(
-              onPressed: () => Navigator.pop(context),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.green,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-              ),
-              child: Text(S.terminer,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700)),
-            ),
+          PrimaryCtaButton(
+            label: S.terminer,
+            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
@@ -424,11 +410,11 @@ class _CompletionCelebrationSheet extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: AppColors.greenContainer,
+              color: cs.primaryContainer,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.mosque_outlined,
-                size: 16, color: AppColors.green),
+            child: Icon(Icons.mosque_outlined,
+                size: 16, color: cs.primary),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -461,7 +447,6 @@ class _StreakBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     String message;
     if (streak == 1) {
       message = S.premierJour;
@@ -471,11 +456,13 @@ class _StreakBadge extends StatelessWidget {
       message = S.streakJours(streak);
     }
 
+    final palette = context.palette;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.greenContainer,
+        color: palette.gold.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.gold.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -489,10 +476,9 @@ class _StreakBadge extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: cs.onSurface)),
+                      color: palette.textPrimary)),
               Text(S.streakLabel,
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.green)),
+                  style: TextStyle(fontSize: 11, color: palette.goldDark)),
             ],
           ),
         ],
@@ -544,14 +530,11 @@ class _CommitmentSheetState extends State<_CommitmentSheet> {
                   color: cs.onSurface)),
           const SizedBox(height: 20),
           if (!_showPartial) ...[
-            FilledButton.icon(
+            PrimaryCtaButton(
+              height: 50,
+              icon: Icons.check_circle_outline,
+              label: S.toutFait,
               onPressed: widget.onToutFait,
-              icon: const Icon(Icons.check_circle_outline),
-              label: Text(S.toutFait,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
@@ -648,7 +631,7 @@ class _FocusMosqueeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final units = _uniqueUnits;
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+      backgroundColor: const Color(0xFF0E1410),
       body: SafeArea(
         child: Stack(
           children: [
@@ -682,8 +665,8 @@ class _FocusMosqueeScreen extends StatelessWidget {
                       verses.join('  '),
                       textAlign: TextAlign.right,
                       textDirection: TextDirection.rtl,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: GoogleFonts.scheherazadeNew(
+                        color: const Color(0xFFF2F7F3),
                         fontSize: 24,
                         height: 2.2,
                       ),
@@ -702,8 +685,8 @@ class _FocusMosqueeScreen extends StatelessWidget {
                   icon: const Icon(Icons.close, size: 18),
                   label: Text(S.quitterFocus),
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white.withValues(alpha: 0.15),
-                    foregroundColor: Colors.white,
+                    backgroundColor: const Color(0xFF86E0A8),
+                    foregroundColor: const Color(0xFF0E1410),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
                   ),
