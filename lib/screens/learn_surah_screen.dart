@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:quran/quran.dart' as quran;
 import '../core/app_colors.dart';
+import '../core/hadith_data.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/sourate.dart';
+import '../services/history_service.dart';
 import '../services/learning_service.dart';
 import '../services/student_service.dart';
+import '../state/app_state.dart';
 import '../widgets/dome_progress_card.dart';
 import '../widgets/index_badge.dart';
 import '../widgets/primary_cta_button.dart';
@@ -35,11 +39,19 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
   late LearningProgress _progress;
   bool _verseVisible = false;
   int _selectedBlockSize = 1;
+  int _streak = 0;
 
   @override
   void initState() {
     super.initState();
     _progress = widget.progress;
+    _loadStreak();
+  }
+
+  Future<void> _loadStreak() async {
+    final pauseDates = context.read<AppState>().pauseDates;
+    final streak = await HistoryService.currentStreak(pauseDates: pauseDates);
+    if (mounted) setState(() => _streak = streak);
   }
 
   int get _currentVerse => _progress.nextVerse;
@@ -130,6 +142,12 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             centerTitle: false,
+            actions: [
+              if (_streak > 0) ...[
+                _streakBadge(context, _streak),
+                const SizedBox(width: 16),
+              ],
+            ],
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
@@ -150,12 +168,43 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
                 if (_progress.isComplete) _addToRevisionButton(cs) else _actionRow(cs, block.length),
                 const SizedBox(height: 32),
                 if (_progress.learnedCount > 0) _learnedList(cs, s),
+                const SizedBox(height: 28),
+                _closingHadith(context),
               ]),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _streakBadge(BuildContext context, int streak) {
+    final palette = context.palette;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.gold.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        S.streakJours(streak),
+        style: TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w600, color: palette.goldDark),
+      ),
+    ).animate().fadeIn(delay: 100.ms);
+  }
+
+  Widget _closingHadith(BuildContext context) {
+    final h = hadithDuJour(DateTime.now());
+    final text = S.locale == 'en' ? h.textEn : h.textFr;
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+          fontSize: 12,
+          fontStyle: FontStyle.italic,
+          color: context.palette.textMuted),
+    ).animate().fadeIn(delay: 250.ms);
   }
 
   Widget _blockSizeSelector(ColorScheme cs) {

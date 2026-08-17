@@ -7,13 +7,10 @@
 
 ## Stack & environnement
 
-- **Flutter** 3.44.2, Material 3, Provider (ChangeNotifier)
+- **Flutter** 3.47.0 (stable), Material 3, Provider (ChangeNotifier)
 - **Dart**, pas de TypeScript ni backend
-- `PUB_CACHE = D:\pub-cache\Cache`
-- Flutter : `D:\develop\flutter\bin\flutter.bat`
-- Commande flutter : `$env:PUB_CACHE = "D:\pub-cache\Cache"; D:\develop\flutter\bin\flutter.bat <cmd>`
-- Working dir : `D:\Prog\Quran_revision`
-- **C: est plein** — tout va sur D: (SDK, dossiers, fichiers volumineux)
+- macOS — SDK installé localement : `~/Documents/Prog/Applications/flutter/bin` (ajouté au PATH via `~/.zshrc`)
+- Working dir : `~/Documents/Prog/quran-revision`
 - Branch principale : `main` / feature branches : `feature/phase-X`
 
 ---
@@ -71,13 +68,19 @@ lib/
 - **[S6-B] No-repeat sourate par prière** : `RevisionEngine.buildDayPlan` interdit maintenant qu'une sourate apparaisse deux fois dans la même prière (swap + `usedInPrayer` set) — règle liturgique
 - **[S6-C] Cycle progress bar** : `_summaryBar` du `PlanScreen` affiche `Cycle en cours : X / Y` avec une mini barre de progression linéaire
 
+### Direction artistique — Mus'haf / Tahajjud (commit `bf47184`)
+- Refonte visuelle complète sur tous les écrans : thème clair « Mus'haf » (papier crème, vert profond, or, serif Lora/Amiri) + thème sombre « Tahajjud » suivi automatiquement via `ThemeMode.system`
+- Nouveaux tokens de design : `AppPalette` (`core/app_colors.dart`), composants partagés (`DomeProgressCard`, `OrnamentalDivider`, `PrimaryCtaButton`, `IndexBadge`, `PillChip`)
+- Support web ajouté pour prévisualisation locale (`flutter run -d chrome`)
+- Ajout ultérieur : badge de série + hadith de clôture dans `LearnSurahScreen`, pour coller au mockup « Verset du soir » du design doc
+
 ---
 
 ## Backlog
 
 | Priorité | Feature | Notes |
 |----------|---------|-------|
-| P3 | **Gamification narrative [H]** | vision long terme, direction artistique à valider |
+| P3 | **Gamification narrative [H]** | vision long terme — direction artistique déjà validée (Mus'haf/Tahajjud), reste à définir la mécanique narrative |
 | P3 | **Cycle wrap affiché** | si cyclePosition + totalUnits > cycleTotal, afficher "(cycle bouclé)" dans le summary bar |
 
 ---
@@ -88,7 +91,7 @@ lib/
 |---------|------|
 | `lib/core/revision_engine.dart` | Algorithme de distribution des versets dans les rakaas |
 | `lib/state/app_state.dart` | Orchestrateur état global |
-| `lib/screens/onboarding_screen.dart` | Onboarding à refaire |
+| `lib/screens/onboarding_screen.dart` | Onboarding 3 pages (intro/sélection/récap) |
 | `lib/screens/plan_screen.dart` | Affichage plan du jour + indicateur fraîcheur |
 | `lib/screens/learn_surah_screen.dart` | Apprentissage verset par verset (bloc) |
 | `lib/widgets/day_plan_tab.dart` | Routing Plan/Preview/Home + saisie manuelle |
@@ -106,17 +109,16 @@ fix(sprint-N): corrections code review
 
 ## Skills disponibles (Claude Code)
 
-- `app-developer` (local) — implémentation Flutter UI + logique
-- `flutter-logic` (local) — logique métier, services, state
 - `code-review` — revue post-implémentation, sévérité CRITICAL→SUGGESTION
-- `product-strategist` — specs fonctionnelles depuis backlog
+
+> Les skills locaux `app-developer` / `flutter-logic` / `product-strategist` mentionnés dans une version antérieure de ce fichier ne sont pas présents dans ce dépôt (pas de `.claude/skills/`) — à reconfigurer si besoin, sinon travailler directement avec les agents généraux.
 
 ## Démarrer un nouveau sprint
 
 1. Lire ce fichier
 2. Lire les fichiers clés listés ci-dessus (surtout `revision_engine.dart` + `app_state.dart`)
-3. Créer une branch `feature/phase-4-sprint6` (ou phase suivante)
-4. Implémenter avec le skill `app-developer`
+3. Créer une branch `feature/phase-N-sprintM`
+4. Implémenter
 5. Code review avec le skill `code-review`
 6. Appliquer les corrections
 7. Mettre à jour ce fichier (section "Fonctionnalités livrées" + backlog)

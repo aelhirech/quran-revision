@@ -12,7 +12,7 @@ class NotificationService {
       requestSoundPermission: false,
     );
     await _plugin.initialize(
-      const InitializationSettings(android: android, iOS: ios),
+      settings: const InitializationSettings(android: android, iOS: ios),
     );
   }
 
@@ -85,11 +85,11 @@ class NotificationService {
       );
 
       await _plugin.periodicallyShow(
-        id,
-        title,
-        body,
-        RepeatInterval.daily,
-        details,
+        id: id,
+        title: title,
+        body: body,
+        repeatInterval: RepeatInterval.daily,
+        notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     } catch (e) {
