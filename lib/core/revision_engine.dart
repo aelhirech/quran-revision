@@ -10,7 +10,13 @@ import '../models/user_config.dart';
 const int _wordLimit = 150;
 
 /// Minimum de lignes Mushaf Madinah par rakaa pour qu'une subdivision ait du sens.
-const double _minLinesPerSlot = 3.0;
+const double _minLinesPerSlot = 5.0;
+
+/// Identité d'une unité pour la contrainte "pas deux fois la même plage
+/// de versets dans une même prière" (S6-B assouplie : la sourate peut
+/// revenir, tant que la plage exacte diffère).
+String _unitKey(RevisionUnit u) =>
+    '${u.sourate.id}_${u.verseStart}_${u.verseEnd}';
 
 class RevisionEngine {
   static List<RevisionUnit> buildUnits(List<SourateSelection> selections) {
@@ -95,25 +101,25 @@ class RevisionEngine {
     int unitIndex = 0;
     for (final prayer in prayersAlone) {
       final rakaas = <RakaaAssignment>[];
-      final usedInPrayer = <int>{};
+      final usedInPrayer = <String>{};
       for (int r = 1; r <= prayer.rakaas; r++) {
         final canHaveSurat = r <= prayer.suratRakaas;
-        if (!canHaveSurat || unitIndex >= todayUnits.length) {
+        if (!canHaveSurat) {
+          // Rakaa silencieuse (au-delà du nombre de rakaas récitées à voix haute) —
+          // c'est la seule situation où une rakaa reste vide.
           rakaas.add(RakaaAssignment(rakaaNumber: r));
           continue;
         }
-        // Find the earliest remaining unit whose sourate isn't already in this prayer.
+        // 1. Cherche la prochaine unité non encore consommée aujourd'hui et pas
+        //    déjà assignée dans cette prière (même exacte plage de versets).
         int found = -1;
         for (int k = unitIndex; k < todayUnits.length; k++) {
-          if (!usedInPrayer.contains(todayUnits[k].sourate.id)) {
+          if (!usedInPrayer.contains(_unitKey(todayUnits[k]))) {
             found = k;
             break;
           }
         }
-        if (found == -1) {
-          // All remaining units duplicate a sourate already used — leave empty.
-          rakaas.add(RakaaAssignment(rakaaNumber: r));
-        } else {
+        if (found != -1) {
           // Swap to bring the non-duplicate forward. This may reorder units
           // across prayers; within-prayer uniqueness takes priority over cycle order.
           if (found != unitIndex) {
@@ -123,8 +129,28 @@ class RevisionEngine {
           }
           final unit = todayUnits[unitIndex];
           rakaas.add(RakaaAssignment(rakaaNumber: r, unit: unit));
-          usedInPrayer.add(unit.sourate.id);
+          usedInPrayer.add(_unitKey(unit));
           unitIndex++;
+          continue;
+        }
+        // 2. Plus rien de neuf à consommer : réutilise une unité déjà assignée
+        //    ailleurs aujourd'hui mais pas encore dans cette prière — mieux
+        //    qu'une rakaa vide, et ce n'est pas une répétition dans la prière.
+        RevisionUnit? reuse;
+        for (final u in todayUnits) {
+          if (!usedInPrayer.contains(_unitKey(u))) {
+            reuse = u;
+            break;
+          }
+        }
+        // 3. Dernier recours : tout a déjà été récité dans cette prière —
+        //    on répète plutôt que de laisser la rakaa vide.
+        reuse ??= todayUnits.isNotEmpty ? todayUnits.first : null;
+        if (reuse != null) {
+          rakaas.add(RakaaAssignment(rakaaNumber: r, unit: reuse));
+          usedInPrayer.add(_unitKey(reuse));
+        } else {
+          rakaas.add(RakaaAssignment(rakaaNumber: r));
         }
       }
       plan.add(PrayerPlan(prayer: prayer, rakaas: rakaas));

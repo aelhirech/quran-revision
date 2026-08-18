@@ -330,7 +330,8 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
           children: learned.map((v) {
             return GestureDetector(
               onLongPress: () => _unmarkVerse(v),
-              child: IndexBadge(text: '$v', state: IndexBadgeState.done),
+              child: IndexBadge(
+                  text: '$v', state: IndexBadgeState.done, doneIcon: null),
             );
           }).toList(),
         ),

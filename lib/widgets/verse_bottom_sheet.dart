@@ -105,21 +105,23 @@ class VerseBottomSheet extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 28,
-          height: 28,
-          margin: const EdgeInsets.only(top: 4, left: 8),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: cs.primaryContainer,
-          ),
-          child: Center(
-            child: Text(
-              '$verseNumber',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: cs.primary,
+        RepaintBoundary(
+          child: Container(
+            width: 28,
+            height: 28,
+            margin: const EdgeInsets.only(top: 4, left: 8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: cs.primaryContainer,
+            ),
+            child: Center(
+              child: Text(
+                '$verseNumber',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: cs.primary,
+                ),
               ),
             ),
           ),
