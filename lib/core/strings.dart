@@ -45,19 +45,31 @@ class S {
 
   // Profile
   static String get dureeObjectif => _t('Durée objectif', 'Target duration');
+  static String get rythmeLabel => _t('Rythme', 'Pace');
   static String get joursEcoules => _t('Jours écoulés', 'Days elapsed');
   static String get joursRestantsLabel => _t('Jours restants', 'Days remaining');
   static String get souratesMemoriees => _t('Sourates mémorisées', 'Memorized surahs');
   static String get reinitialiser => _t('Réinitialiser la configuration', 'Reset configuration');
   static String get reinitDesc => _t('Repart de zéro avec une nouvelle sélection', 'Start over with a new selection');
   static String get modifier => _t('Modifier', 'Edit');
-  static String get modifierDuree => _t('Modifier la durée', 'Edit duration');
+  static String get modifierDuree => _t('Modifier le rythme', 'Edit pace');
   static String get modifierSourates => _t('Modifier les sourates', 'Edit surahs');
+  static String get rythmeParDuree => _t('Par durée', 'By duration');
+  static String get rythmeParLignes => _t('Par lignes/jour', 'By lines/day');
+  static String get dureePersonnalisee => _t('Personnalisé…', 'Custom…');
+  static String get dureeCustomTitle => _t('Durée personnalisée', 'Custom duration');
+  static String get lignesCustomTitle => _t('Lignes par jour personnalisées', 'Custom lines per day');
+  static String get joursSuffix => _t('jours', 'days');
+  static String get lignesSuffix => _t('lignes', 'lines');
   static String get modifierPlanConfirm => _t('La progression de cette session sera perdue. Continuer ?', 'Your progress for this session will be lost. Continue?');
   static String get annuler => _t('Annuler', 'Cancel');
   static String get confirmer => _t('Confirmer', 'Confirm');
   static String get sauver => _t('Sauver', 'Save');
   static String get langueLabel => _t('Langue', 'Language');
+  static String get riwayaLabel => _t('Riwaya', 'Riwaya');
+  static String get riwayaSubtitle => _t('Lecture du texte coranique affiché', 'Displayed Quran text reading');
+  static String get hafs => 'Hafs';
+  static String get warsh => 'Warsh';
   static String get notificationsLabel => _t('Notifications', 'Notifications');
   static String get notifSubtitle => _t('Rappel matin et bilan soir', 'Morning reminder and evening recap');
   static String get reviserEn => _t('Réviser en ', 'Revise in ');
@@ -149,6 +161,9 @@ class S {
 
   static String joursDuration(int n) =>
       locale == 'fr' ? '$n jours' : '$n days';
+
+  static String lignesParJourValeur(int n) =>
+      locale == 'fr' ? '$n lignes/jour' : '$n lines/day';
 
   // Apprentissage
   static String get apprendre => _t('Apprendre', 'Learn');
