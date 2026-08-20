@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:quran/quran.dart' as quran;
 import '../core/app_colors.dart';
 import '../core/freshness_engine.dart';
 import '../core/strings.dart';
@@ -10,6 +9,7 @@ import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
 import '../services/history_service.dart';
+import '../services/verse_service.dart';
 import '../state/app_state.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/preview_banner.dart';
@@ -630,6 +630,7 @@ class _FocusMosqueeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final units = _uniqueUnits;
+    final riwaya = context.watch<AppState>().riwaya;
     return Scaffold(
       backgroundColor: const Color(0xFF0E1410),
       body: SafeArea(
@@ -643,12 +644,7 @@ class _FocusMosqueeScreen extends StatelessWidget {
                   height: 32),
               itemBuilder: (_, i) {
                 final unit = units[i];
-                final verses = List.generate(
-                  unit.verseCount,
-                  (j) => quran.getVerse(
-                      unit.sourate.id, unit.verseStart + j,
-                      verseEndSymbol: true),
-                );
+                final verses = VerseService.versesForUnit(unit, riwaya: riwaya);
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

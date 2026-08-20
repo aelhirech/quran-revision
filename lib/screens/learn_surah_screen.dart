@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:quran/quran.dart' as quran;
 import '../core/app_colors.dart';
 import '../core/hadith_data.dart';
 import '../core/strings.dart';
@@ -12,6 +11,7 @@ import '../models/sourate.dart';
 import '../services/history_service.dart';
 import '../services/learning_service.dart';
 import '../services/student_service.dart';
+import '../services/verse_service.dart';
 import '../state/app_state.dart';
 import '../widgets/dome_progress_card.dart';
 import '../widgets/index_badge.dart';
@@ -127,10 +127,11 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final riwaya = context.watch<AppState>().riwaya;
     final s = _progress.sourate;
     final block = _currentBlock;
     final blockVerseText = block
-        .map((v) => quran.getVerse(s.id, v, verseEndSymbol: true))
+        .map((v) => VerseService.getVerse(s.id, v, riwaya: riwaya))
         .join('\n\n');
 
     return Scaffold(

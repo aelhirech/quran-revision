@@ -3,18 +3,22 @@ import 'package:provider/provider.dart';
 import 'core/app_theme.dart';
 import 'core/strings.dart';
 import 'models/daily_session.dart';
+import 'models/riwaya.dart';
 import 'models/user_config.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/shell_screen.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
+import 'services/warsh_service.dart';
 import 'state/app_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.initialize();
+  await WarshService.initialize();
   final config = await StorageService.loadConfig();
   final locale = await StorageService.loadLocale();
+  final riwaya = await StorageService.loadRiwaya();
   final cyclePosition = await StorageService.loadCyclePosition();
   final previewSession = await StorageService.loadPreviewSession();
   final todaySession = await StorageService.loadTodaySession();
@@ -22,6 +26,7 @@ void main() async {
   S.locale = locale;
   runApp(QuranRevisionApp(
     initialConfig: config,
+    initialRiwaya: riwaya,
     initialCyclePosition: cyclePosition,
     initialPreviewSession: previewSession,
     initialTodaySession: todaySession,
@@ -31,6 +36,7 @@ void main() async {
 
 class QuranRevisionApp extends StatelessWidget {
   final UserConfig? initialConfig;
+  final Riwaya initialRiwaya;
   final int initialCyclePosition;
   final DailySession? initialPreviewSession;
   final DailySession? initialTodaySession;
@@ -39,6 +45,7 @@ class QuranRevisionApp extends StatelessWidget {
   const QuranRevisionApp({
     super.key,
     this.initialConfig,
+    this.initialRiwaya = Riwaya.hafs,
     this.initialCyclePosition = 0,
     this.initialPreviewSession,
     this.initialTodaySession,
@@ -51,6 +58,7 @@ class QuranRevisionApp extends StatelessWidget {
       create: (_) => AppState(
         initialConfig,
         locale: S.locale,
+        riwaya: initialRiwaya,
         initialCyclePosition: initialCyclePosition,
         initialPreviewSession: initialPreviewSession,
         initialTodaySession: initialTodaySession,

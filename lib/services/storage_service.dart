@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/daily_session.dart';
+import '../models/riwaya.dart';
 import '../models/user_config.dart';
 
 class StorageService {
@@ -11,6 +12,7 @@ class StorageService {
   static const _keyPreviewSession = 'preview_session';
   static const _keyTodaySession = 'today_session';
   static const _keyPauseDates = 'pause_dates';
+  static const _keyRiwaya = 'riwaya';
 
   static Future<void> saveConfig(UserConfig config) async {
     final prefs = await SharedPreferences.getInstance();
@@ -106,6 +108,18 @@ class StorageService {
   static Future<Set<String>> loadPauseDates() async {
     final prefs = await SharedPreferences.getInstance();
     return (prefs.getStringList(_keyPauseDates) ?? []).toSet();
+  }
+
+  static Future<void> saveRiwaya(Riwaya riwaya) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyRiwaya, riwaya.name);
+  }
+
+  static Future<Riwaya> loadRiwaya() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyRiwaya);
+    return Riwaya.values.firstWhere((r) => r.name == raw,
+        orElse: () => Riwaya.hafs);
   }
 
   static Future<void> clear() async {

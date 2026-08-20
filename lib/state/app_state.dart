@@ -3,6 +3,7 @@ import '../core/freshness_engine.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
+import '../models/riwaya.dart';
 import '../models/user_config.dart';
 import '../services/history_service.dart';
 import '../services/storage_service.dart';
@@ -14,6 +15,7 @@ class AppState extends ChangeNotifier {
   DailySession? _todaySession;
   Set<String> _pauseDates;
   String _locale;
+  Riwaya _riwaya;
   // Durée de cycle calculée depuis l'historique (mode adaptatif uniquement)
   int? _adaptiveCycleDays;
   // Fraîcheur par sourate (sourateId → niveau)
@@ -22,11 +24,16 @@ class AppState extends ChangeNotifier {
   AppState(
     this._config, {
     String locale = 'fr',
+    Riwaya riwaya = Riwaya.hafs,
     int initialCyclePosition = 0,
     DailySession? initialPreviewSession,
     DailySession? initialTodaySession,
     Set<String> initialPauseDates = const {},
   })  : _locale = locale,
+        // `riwaya` must stay a public named arg for callers — `this._riwaya`
+        // would make the constructor arg private.
+        // ignore: prefer_initializing_formals
+        _riwaya = riwaya,
         _cyclePosition = initialCyclePosition,
         _previewSession = initialPreviewSession,
         _todaySession = initialTodaySession,
@@ -40,6 +47,7 @@ class AppState extends ChangeNotifier {
   DailySession? get todaySession => _todaySession;
   Set<String> get pauseDates => Set.unmodifiable(_pauseDates);
   String get locale => _locale;
+  Riwaya get riwaya => _riwaya;
   /// Retourne la durée adaptive uniquement si le mode est activé.
   int? get adaptiveCycleDays =>
       _config?.adaptiveCycle == true ? _adaptiveCycleDays : null;
@@ -67,6 +75,12 @@ class AppState extends ChangeNotifier {
     _locale = locale;
     S.locale = locale;
     await StorageService.saveLocale(locale);
+    notifyListeners();
+  }
+
+  Future<void> setRiwaya(Riwaya riwaya) async {
+    _riwaya = riwaya;
+    await StorageService.saveRiwaya(riwaya);
     notifyListeners();
   }
 

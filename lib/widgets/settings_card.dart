@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
+import '../models/riwaya.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../state/app_state.dart';
@@ -63,6 +64,20 @@ class _SettingsCardState extends State<SettingsCard> {
               ),
             ),
             const Divider(height: 1, indent: 56),
+            ListTile(
+              leading: Icon(Icons.menu_book_outlined, color: cs.primary),
+              title: Text(S.riwayaLabel),
+              subtitle: Text(S.riwayaSubtitle),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _riwayaChip(context, S.hafs, Riwaya.hafs, cs),
+                  const SizedBox(width: 8),
+                  _riwayaChip(context, S.warsh, Riwaya.warsh, cs),
+                ],
+              ),
+            ),
+            const Divider(height: 1, indent: 56),
             SwitchListTile(
               secondary: Icon(Icons.shuffle, color: cs.primary),
               title: Text(S.aleatoireLabel),
@@ -82,6 +97,31 @@ class _SettingsCardState extends State<SettingsCard> {
         ),
       ),
     ).animate().fadeIn(delay: 150.ms);
+  }
+
+  Widget _riwayaChip(
+      BuildContext context, String label, Riwaya riwaya, ColorScheme cs) {
+    final selected = context.watch<AppState>().riwaya == riwaya;
+    return GestureDetector(
+      onTap: () => context.read<AppState>().setRiwaya(riwaya),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? cs.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? cs.primary : context.palette.cardBorder,
+          ),
+        ),
+        child: Text(label,
+            style: TextStyle(
+              color: selected ? cs.onPrimary : cs.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            )),
+      ),
+    );
   }
 
   Widget _langChip(BuildContext context, String label, String locale, ColorScheme cs) {
