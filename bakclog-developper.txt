@@ -1,0 +1,90 @@
+# Backlog développeur — Quran Revision App
+# Statuts : ✅ Complet | 🟡 Partiel | ❌ À faire
+
+---
+
+## Fonctionnalités livrées (sprints 1–6)
+
+✅ Restructuration navigation [C]
+   "Plan du jour" renommé "Réviser", onglet "Apprendre" ajouté.
+
+✅ Sélection rapide à l'onboarding [F]
+   Boutons Tout / 1/4 / 1/2 / 3/4 du Coran (depuis la fin) — sélection en 1 tap.
+   But : aller vite dans la sélection, pas grouper par juz.
+
+✅ Suppression "by duration" dans le setup [F2]
+   Plus de versesPerDay. Révision intelligente par défaut.
+
+✅ Moteur de lignes Mushaf
+   Distribution par lignes (~8,5 mots/ligne) au lieu de mots fixes.
+   Verset long ≠ verset court : identifiés par estimatedLines.
+   Minimum de lignes par rakaa respecté (seuil _minLinesPerSlot = 3).
+
+✅ Répétition cyclique si rakaas > unités disponibles
+   Plutôt que laisser des rakaas vides, le moteur répartit cycliquement.
+
+✅ Cycle adaptatif [G]
+   Durée du cycle calculée depuis l'historique des sessions (RevisionEngine + UserConfig).
+
+✅ Récap différencié [D]
+   Stats séparées révision / apprentissage / mémorisées dans RecapScreen.
+
+✅ SRS léger — fraîcheur sourate
+   lastRevisionDate par sourate dans HistoryService.
+
+✅ Indicateur chaud/froid dans PlanScreen
+   Badge visuel par sourate selon ancienneté de la dernière révision.
+
+✅ Apprentissage multi-versets [B]
+   Sélecteur bloc 1 / 3 / 5 versets dans LearnSurahScreen.
+
+✅ Saisie manuelle [E]
+   Bottom sheet stepper dans DayPlanTab — enregistre une session sans plan généré.
+
+✅ Onboarding wizard pas-à-pas
+   3 pages (PageView, NeverScrollableScrollPhysics), sélection rapide intégrée.
+
+✅ Effet waouh à la complétion de révision
+   Écran ما شاء الله avec streak anticipé (+1). Récompense sur le bon moment.
+
+✅ Commitment modal non-dismissable
+   L'utilisateur doit déclarer : tout fait / une partie / rien — avant de quitter.
+
+✅ Mode focus mosquée [A]
+   Plein écran texte arabe RTL via rootNavigator, masque la NavigationBar.
+
+✅ Fix bug "edit surah"
+   startDate préservé lors de l'édition des sourates — évitait de réinitialiser la progression du cycle.
+
+✅ No-repeat sourate dans une même prière
+   Le moteur interdit qu'une sourate apparaisse deux fois dans la même prière.
+   Si plus de rakaas que d'unités uniques disponibles, rakaa laissée vide (règle liturgique).
+
+✅ Feedback progression cycle dans PlanScreen
+   Summary bar affiche "Cycle en cours : X / Y" avec mini barre de progression.
+
+---
+
+## Backlog — à faire ou partiel
+
+❌ Gamification narrative [H]
+   Vision long terme. Direction artistique à valider avant implémentation.
+   Paliers de streak, badges, narration progressive.
+
+🟡 Effet waouh à l'onboarding
+   L'onboarding est fonctionnel (wizard 3 pages) mais manque d'effet waouh à la fin.
+   La sélection des sourates reste longue même avec les boutons rapides.
+   À faire : animation de bienvenue / écran de confirmation engageant après le setup.
+
+🟡 Impression que ça n'avance pas après validation
+   La mini barre de cycle dans le summary bar (sprint 6) améliore la situation.
+   Reste à faire : animation du badge chaud/froid de la sourate validée (scale/color transition)
+   pour rendre la connexion action → état explicite dans le PlanScreen.
+
+❌ Cycle wrap affiché
+   Si cyclePosition + totalUnits > cycleTotal, afficher "(cycle bouclé)" dans le summary bar
+   au lieu d'afficher 100 / 100 prématurément.
+
+❌ Réinitialisation du cycle à l'édition des sourates
+   Actuellement, éditer la liste des sourates remet cyclePosition à 0 (AppState.saveConfig).
+   À discuter : faut-il proposer un choix "garder la position / recommencer le cycle" ?
