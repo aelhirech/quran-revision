@@ -74,6 +74,12 @@ lib/
 - Support web ajouté pour prévisualisation locale (`flutter run -d chrome`)
 - Ajout ultérieur : badge de série + hadith de clôture dans `LearnSurahScreen`, pour coller au mockup « Verset du soir » du design doc
 
+### Rythme personnalisable + riwaya Warsh/Hafs
+- **Durée d'objectif étendue** : presets 7→365 jours + « Personnalisé… » (`PresetDropdown`, `lib/widgets/preset_dropdown.dart`), utilisé dans profil et onboarding
+- **[Rythme par lignes/jour]** : mode alternatif à la durée — `UserConfig.paceByLines`/`targetLinesPerDay`, `RevisionEngine._unitsForLines` sélectionne les unités du jour par seuil de lignes Mushaf plutôt que par jours restants (toggle "Par durée"/"Par lignes/jour")
+- **[Riwaya Warsh/Hafs]** : toggle dans `SettingsCard` (`AppState.riwaya`, persistée via `StorageService`). Texte Warsh bundlé en asset local `assets/quran/warsh.json` (6236 versets, numérotation identique au Hafs — source : dataset ouvert `fawazahmed0/quran-api`, édition `ara-quranwarsh`, licence Unlicense — **non un texte certifié**, à garder en tête si un utilisateur signale une variante). Tous les call sites de texte arabe passent maintenant par `VerseService` (plus d'appel direct à `package:quran` dans les écrans)
+- Tests de régression ajoutés : `test/core/revision_engine_test.dart` (mode lignes/jour vs durée)
+
 ---
 
 ## Backlog
