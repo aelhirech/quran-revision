@@ -9,6 +9,7 @@ import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../state/app_state.dart';
+import '../widgets/preset_dropdown.dart';
 import '../widgets/profile_info_card.dart';
 import '../widgets/settings_card.dart';
 
@@ -23,6 +24,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _editing = false;
   Set<int> _selectedIds = {};
   int _revisionDays = 30;
+  bool _paceByLines = false;
+  int _targetLinesPerDay = 15;
   String _search = '';
 
   @override
@@ -32,6 +35,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (config != null && !_editing) {
       _selectedIds = config.selections.map((s) => s.sourate.id).toSet();
       _revisionDays = config.revisionDays;
+      _paceByLines = config.paceByLines;
+      _targetLinesPerDay = config.targetLinesPerDay;
     }
   }
 
@@ -58,41 +63,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
       startDate: state.config?.startDate ?? DateTime.now(),
       shuffleEnabled: state.config?.shuffleEnabled ?? true,
       adaptiveCycle: state.config?.adaptiveCycle ?? false,
+      paceByLines: _paceByLines,
+      targetLinesPerDay: _targetLinesPerDay,
     ));
     if (mounted) setState(() => _editing = false);
   }
 
   Future<void> _showDurationDialog() async {
+    bool tempPaceByLines = _paceByLines;
     int tempDays = _revisionDays;
-    final confirmed = await showDialog<int>(
+    int tempLines = _targetLinesPerDay;
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           title: Text(S.modifierDuree),
-          content: DropdownButton<int>(
-            value: tempDays,
-            isExpanded: true,
-            items: [7, 14, 21, 30, 60, 90]
-                .map((d) => DropdownMenuItem(
-                    value: d, child: Text(S.joursDuration(d))))
-                .toList(),
-            onChanged: (v) => setS(() => tempDays = v!),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(value: false, label: Text(S.rythmeParDuree)),
+                  ButtonSegment(value: true, label: Text(S.rythmeParLignes)),
+                ],
+                selected: {tempPaceByLines},
+                onSelectionChanged: (s) =>
+                    setS(() => tempPaceByLines = s.first),
+              ),
+              const SizedBox(height: 16),
+              tempPaceByLines
+                  ? PresetDropdown(
+                      value: tempLines,
+                      presets: linesPerDayPresets,
+                      labelBuilder: S.lignesParJourValeur,
+                      customDialogTitle: S.lignesCustomTitle,
+                      customSuffix: S.lignesSuffix,
+                      onChanged: (v) => setS(() => tempLines = v),
+                    )
+                  : PresetDropdown(
+                      value: tempDays,
+                      presets: durationPresets,
+                      labelBuilder: S.joursDuration,
+                      customDialogTitle: S.dureeCustomTitle,
+                      customSuffix: S.joursSuffix,
+                      onChanged: (v) => setS(() => tempDays = v),
+                    ),
+            ],
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: Text(S.annuler)),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, tempDays),
+                onPressed: () => Navigator.pop(ctx, true),
                 child: Text(S.sauver)),
           ],
         ),
       ),
     );
-    if (confirmed == null || !mounted) return;
+    if (confirmed != true || !mounted) return;
     final state = context.read<AppState>();
-    await state.saveConfig(state.config!.copyWith(revisionDays: confirmed));
-    setState(() => _revisionDays = confirmed);
+    await state.saveConfig(state.config!.copyWith(
+      revisionDays: tempDays,
+      paceByLines: tempPaceByLines,
+      targetLinesPerDay: tempLines,
+    ));
+    setState(() {
+      _revisionDays = tempDays;
+      _paceByLines = tempPaceByLines;
+      _targetLinesPerDay = tempLines;
+    });
   }
 
   @override
@@ -287,16 +328,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(S.reviserEn,
                     style: TextStyle(color: cs.onPrimaryContainer)),
                 const SizedBox(width: 8),
-                DropdownButton<int>(
-                  value: _revisionDays,
-                  items: [7, 14, 21, 30, 60, 90]
-                      .map((d) => DropdownMenuItem(
-                          value: d, child: Text(S.joursDuration(d))))
-                      .toList(),
-                  onChanged: (v) => setState(() => _revisionDays = v!),
-                  dropdownColor: cs.primaryContainer,
-                  style: TextStyle(color: cs.onPrimaryContainer),
-                ),
+                _paceByLines
+                    ? PresetDropdown(
+                        value: _targetLinesPerDay,
+                        presets: linesPerDayPresets,
+                        labelBuilder: S.lignesParJourValeur,
+                        customDialogTitle: S.lignesCustomTitle,
+                        customSuffix: S.lignesSuffix,
+                        color: cs.onPrimaryContainer,
+                        dropdownColor: cs.primaryContainer,
+                        onChanged: (v) =>
+                            setState(() => _targetLinesPerDay = v),
+                      )
+                    : PresetDropdown(
+                        value: _revisionDays,
+                        presets: durationPresets,
+                        labelBuilder: S.joursDuration,
+                        customDialogTitle: S.dureeCustomTitle,
+                        customSuffix: S.joursSuffix,
+                        color: cs.onPrimaryContainer,
+                        dropdownColor: cs.primaryContainer,
+                        onChanged: (v) => setState(() => _revisionDays = v),
+                      ),
                 const Spacer(),
                 TextButton.icon(
                   onPressed: () => setState(() {

@@ -12,6 +12,7 @@ import '../state/app_state.dart';
 import '../widgets/index_badge.dart';
 import '../widgets/ornamental_divider.dart';
 import '../widgets/pill_chip.dart';
+import '../widgets/preset_dropdown.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/verse_range_picker.dart';
 
@@ -27,6 +28,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final Map<int, SourateSelection> _selections = {};
   int _revisionDays = 30;
+  bool _paceByLines = false;
+  int _targetLinesPerDay = 15;
   bool _groupByHizb = false;
   String _search = '';
 
@@ -126,6 +129,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       selections: _selections.values.toList(),
       revisionDays: _revisionDays,
       startDate: DateTime.now(),
+      paceByLines: _paceByLines,
+      targetLinesPerDay: _targetLinesPerDay,
     );
     await context.read<AppState>().saveConfig(config);
   }
@@ -157,6 +162,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             totalVerses: _totalVerses,
             revisionDays: _revisionDays,
             onRevisionDaysChanged: (v) => setState(() => _revisionDays = v),
+            paceByLines: _paceByLines,
+            onPaceByLinesChanged: (v) => setState(() => _paceByLines = v),
+            targetLinesPerDay: _targetLinesPerDay,
+            onTargetLinesPerDayChanged: (v) =>
+                setState(() => _targetLinesPerDay = v),
             onBack: _prevPage,
             onConfirm: _selections.isEmpty ? null : _confirm,
           ),
@@ -366,6 +376,10 @@ class _RecapPage extends StatelessWidget {
   final int totalVerses;
   final int revisionDays;
   final ValueChanged<int> onRevisionDaysChanged;
+  final bool paceByLines;
+  final ValueChanged<bool> onPaceByLinesChanged;
+  final int targetLinesPerDay;
+  final ValueChanged<int> onTargetLinesPerDayChanged;
   final VoidCallback onBack;
   final VoidCallback? onConfirm;
 
@@ -374,6 +388,10 @@ class _RecapPage extends StatelessWidget {
     required this.totalVerses,
     required this.revisionDays,
     required this.onRevisionDaysChanged,
+    required this.paceByLines,
+    required this.onPaceByLinesChanged,
+    required this.targetLinesPerDay,
+    required this.onTargetLinesPerDayChanged,
     required this.onBack,
     required this.onConfirm,
   });
@@ -402,22 +420,40 @@ class _RecapPage extends StatelessWidget {
               label: S.souratesCount(selections.length, totalVerses),
             ),
             const SizedBox(height: 12),
-            // Durée du cycle
+            // Rythme du cycle
             _RecapCard(
               icon: Icons.calendar_today_outlined,
               label: S.cycleObjectif,
-              trailing: DropdownButton<int>(
-                value: revisionDays,
-                underline: const SizedBox(),
-                items: [7, 14, 21, 30, 60, 90]
-                    .map((d) => DropdownMenuItem(
-                        value: d,
-                        child: Text(S.joursDuration(d),
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: cs.onSurface))))
-                    .toList(),
-                onChanged: (v) => onRevisionDaysChanged(v!),
+              trailing: paceByLines
+                  ? PresetDropdown(
+                      value: targetLinesPerDay,
+                      presets: linesPerDayPresets,
+                      labelBuilder: S.lignesParJourValeur,
+                      customDialogTitle: S.lignesCustomTitle,
+                      customSuffix: S.lignesSuffix,
+                      color: cs.onSurface,
+                      onChanged: onTargetLinesPerDayChanged,
+                    )
+                  : PresetDropdown(
+                      value: revisionDays,
+                      presets: durationPresets,
+                      labelBuilder: S.joursDuration,
+                      customDialogTitle: S.dureeCustomTitle,
+                      customSuffix: S.joursSuffix,
+                      color: cs.onSurface,
+                      onChanged: onRevisionDaysChanged,
+                    ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(value: false, label: Text(S.rythmeParDuree)),
+                  ButtonSegment(value: true, label: Text(S.rythmeParLignes)),
+                ],
+                selected: {paceByLines},
+                onSelectionChanged: (s) => onPaceByLinesChanged(s.first),
               ),
             ),
             const Spacer(),

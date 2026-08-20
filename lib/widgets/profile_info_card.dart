@@ -26,8 +26,14 @@ class ProfileInfoCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            _row(cs, Icons.calendar_today_outlined,
-                S.dureeObjectif, S.joursDuration(config.revisionDays), 0),
+            _row(
+                cs,
+                Icons.calendar_today_outlined,
+                config.paceByLines ? S.rythmeLabel : S.dureeObjectif,
+                config.paceByLines
+                    ? S.lignesParJourValeur(config.targetLinesPerDay)
+                    : S.joursDuration(config.revisionDays),
+                0),
             const Divider(height: 24),
             _row(cs, Icons.today_outlined,
                 S.joursEcoules, S.joursDuration(elapsed), 80),

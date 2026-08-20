@@ -2,12 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'sourate.dart';
 import 'sourate_selection.dart';
 
+/// Valeurs prédéfinies proposées dans les dropdowns de rythme (profil +
+/// onboarding) — un "Personnalisé…" permet toujours de saisir une valeur libre.
+const List<int> durationPresets = [7, 14, 21, 30, 60, 90, 180, 365];
+const List<int> linesPerDayPresets = [5, 10, 15, 20, 30, 40, 60];
+
 class UserConfig {
   final List<SourateSelection> selections;
   final int revisionDays;
   final DateTime startDate;
   final bool shuffleEnabled;
   final bool adaptiveCycle;
+  final bool paceByLines;
+  final int targetLinesPerDay;
 
   const UserConfig({
     required this.selections,
@@ -15,6 +22,8 @@ class UserConfig {
     required this.startDate,
     this.shuffleEnabled = true,
     this.adaptiveCycle = false,
+    this.paceByLines = false,
+    this.targetLinesPerDay = 15,
   });
 
   List<Sourate> get learnedSourates => selections.map((s) => s.sourate).toList();
@@ -31,6 +40,8 @@ class UserConfig {
     DateTime? startDate,
     bool? shuffleEnabled,
     bool? adaptiveCycle,
+    bool? paceByLines,
+    int? targetLinesPerDay,
   }) =>
       UserConfig(
         selections: selections ?? this.selections,
@@ -38,6 +49,8 @@ class UserConfig {
         startDate: startDate ?? this.startDate,
         shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
         adaptiveCycle: adaptiveCycle ?? this.adaptiveCycle,
+        paceByLines: paceByLines ?? this.paceByLines,
+        targetLinesPerDay: targetLinesPerDay ?? this.targetLinesPerDay,
       );
 
   Map<String, dynamic> toJson() => {
@@ -46,6 +59,8 @@ class UserConfig {
         'startDate': startDate.toIso8601String(),
         'shuffleEnabled': shuffleEnabled,
         'adaptiveCycle': adaptiveCycle,
+        'paceByLines': paceByLines,
+        'targetLinesPerDay': targetLinesPerDay,
       };
 
   factory UserConfig.fromJson(Map<String, dynamic> j) {
@@ -68,6 +83,8 @@ class UserConfig {
             DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
         shuffleEnabled: j['shuffleEnabled'] as bool? ?? true,
         adaptiveCycle: j['adaptiveCycle'] as bool? ?? false,
+        paceByLines: j['paceByLines'] as bool? ?? false,
+        targetLinesPerDay: j['targetLinesPerDay'] as int? ?? 15,
       );
     } catch (e) {
       assert(() {

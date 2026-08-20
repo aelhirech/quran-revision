@@ -59,6 +59,24 @@ class RevisionEngine {
     return (unitsLeft / daysRemaining).ceil();
   }
 
+  /// Nombre d'unités (à partir de [pos], cycliquement) dont la somme des
+  /// lignes Mushaf estimées atteint [targetLines] — mode "rythme par
+  /// lignes/jour", alternative à [dailyTarget] qui se base sur les jours
+  /// restants.
+  static int _unitsForLines(
+      List<RevisionUnit> units, int pos, int cycleTotal, int targetLines) {
+    if (cycleTotal == 0) return 0;
+    if (targetLines <= 0) return 1;
+    double acc = 0;
+    int count = 0;
+    for (int i = 0; i < cycleTotal; i++) {
+      acc += units[(pos + i) % cycleTotal].estimatedLines;
+      count++;
+      if (acc >= targetLines) break;
+    }
+    return count;
+  }
+
   static DailySession buildDayPlan({
     required UserConfig config,
     required List<Prayer> prayersAlone,
@@ -80,14 +98,15 @@ class RevisionEngine {
     final totalSuratRakaas =
         prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
 
-    final target = dailyTarget(
-      cyclePosition: cyclePosition % cycleTotal,
-      cycleTotal: cycleTotal,
-      daysRemaining: daysRemaining,
-    );
-
     final pos = cyclePosition % cycleTotal;
-    final unitsToAssign = target.clamp(0, cycleTotal);
+    final unitsToAssign = config.paceByLines
+        ? _unitsForLines(units, pos, cycleTotal, config.targetLinesPerDay)
+            .clamp(0, cycleTotal)
+        : dailyTarget(
+            cyclePosition: pos,
+            cycleTotal: cycleTotal,
+            daysRemaining: daysRemaining,
+          ).clamp(0, cycleTotal);
     final baseUnits = <RevisionUnit>[];
     for (int i = 0; i < unitsToAssign; i++) {
       baseUnits.add(units[(pos + i) % cycleTotal]);
