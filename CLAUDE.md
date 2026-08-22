@@ -21,7 +21,7 @@ Exécuter dans l'ordre, sans redemander de confirmation entre chaque étape **sa
 4. Mettre à jour `CHANGELOG.md` (Fonctionnalités livrées + Backlog), et `docs/DOCUMENTATION_TECHNIQUE.md` si le sprint a touché `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajouté/supprimé un écran/service.
 5. Commit sur la feature branch (`feat(sprint-N): ...` / `fix(sprint-N): ...`).
 6. Merge la feature branch dans `main`.
-7. **Avant de pusher `main` : demander confirmation explicite.** `codemagic.yaml` soumet automatiquement un build à TestFlight (groupe "External Testers") — si le déclenchement Codemagic est configuré sur push vers `main`, un push automatique enverrait potentiellement un build à de vrais testeurs externes sans avertissement. Toutes les autres étapes ci-dessus peuvent s'enchaîner sans interruption ; celle-ci non.
+7. **Avant de pusher `main` : demander confirmation explicite.** Pas de CI/CD connectée à ce dépôt — le build et la distribution (TestFlight/App Store) se font manuellement via Xcode (Archive → Distribute App), déconnectés d'un push GitHub. La confirmation reste requise par prudence générale (action visible/partagée, difficile à annuler), pas à cause d'un déclenchement automatique. Toutes les autres étapes ci-dessus peuvent s'enchaîner sans interruption ; celle-ci non.
 
 ## Au début de chaque session
 1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` et `CHANGELOG.md` en entier.

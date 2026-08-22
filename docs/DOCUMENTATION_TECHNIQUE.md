@@ -25,7 +25,7 @@ Concepts métier centraux (à comprendre avant de lire le code) :
 - **Flutter** (SDK Dart `^3.12.2`), Material 3, **Provider** (`ChangeNotifier`) comme unique gestion d'état — voir `[[pas-de-sur-ingenierie]]` dans CLAUDE.md, ne pas introduire Riverpod/Bloc/GetX.
 - Pas de backend : toute la persistance est locale (`shared_preferences` + `sqflite`).
 - Dépendances clés (`pubspec.yaml`) : `provider`, `shared_preferences`, `sqflite`, `flutter_local_notifications`, `flutter_animate`, `quran` (texte Hafs + métadonnées via `package:quran`), `google_fonts` (Lora/Amiri), `path`.
-- Build/CI : Codemagic (`codemagic.yaml`) — un seul workflow `ios-testflight` (build signé + upload TestFlight + email de notif). Pas de workflow Android configuré à ce jour.
+- Build/déploiement : aucune CI/CD connectée au dépôt — build et distribution (TestFlight/App Store) faits manuellement via Xcode (Archive → Distribute App). Pas de pipeline Android à ce jour.
 - Dépôt GitHub : `aelhirech/quran-revision`.
 
 ---
@@ -176,17 +176,18 @@ Si vous ajoutez une table ou colonne, incrémentez `version` dans `_open()` et a
 
 Unique `ChangeNotifier` de l'app, injecté à la racine via `ChangeNotifierProvider` (`main.dart`). Tient l'état runtime et délègue tout calcul/persistance aux engines/services — **ne contient pas de logique métier elle-même**, seulement de l'orchestration.
 
-État tenu : `_config` (UserConfig?), `_cyclePosition`, `_previewSession`/`_todaySession` (DailySession?), `_pauseDates`, `_locale`, `_riwaya`, `_adaptiveCycleDays`, `_freshness` (Map sourateId→FreshnessLevel).
+État tenu : `_config` (UserConfig?), `_cyclePosition`, `_previewSession`/`_todaySession` (DailySession?), `_pauseDates`, `_locale`, `_riwaya`, `_adaptiveCycleDays`, `_freshness` (Map sourateId→FreshnessLevel), `_checkedRakaas` (Map prayerIndex→Set\<rakaaNumber\>, Sprint 7 — voir plus bas).
 
 Méthodes notables :
-- `saveConfig()` — remplace toute la config **et réinitialise le cycle à zéro** (`_cyclePosition = 0`, sessions effacées). C'est intentionnel (nouvelle sélection = nouveau cycle) mais destructif — les écrans qui appellent ça (édition des sourates, réinitialisation) doivent avertir l'utilisateur avant (voir `modifierPlanConfirm` / `reinitConfirm` dans `strings.dart`).
+- `saveConfig()` — remplace la config. Depuis le Sprint 7, ne réinitialise le cycle (`_cyclePosition = 0`, sessions/checked rakaas effacés) **que si la sélection de sourates a réellement changé** (`_sameSelections`, comparaison par id+plage de versets) — un simple changement de rythme (durée, lignes/jour) préserve la progression en cours.
 - `advanceCycle(unitsCompleted, cycleTotal)` — délègue à `RevisionEngine.advanceCycle`, ne recalcule jamais l'arithmétique ici.
 - `setPreviewSession()` — après avoir sauvegardé la preview, lance `refreshFreshness().catchError((_) {})` en arrière-plan (fire-and-forget volontaire : si la DB échoue, les badges de fraîcheur sont simplement absents, pas de crash).
 - `engager()` — transforme la `previewSession` en `todaySession` (c'est l'action du bouton « S'engager »).
 - `refreshAdaptiveCycle()` — no-op silencieux si `adaptiveCycle` est désactivé ou `totalUnits <= 0` ; ne fait qu'informer l'affichage (voir piège §5.3).
-- `clearConfig()` — reset complet, y compris `StorageService.clear()` (efface **tout** SharedPreferences, pas seulement la config).
+- `toggleChecked(prayerIndex, rakaaNumber)` (Sprint 7) — coche/décoche une rakaa de la session en cours, persistée via `StorageService.saveCheckedRakaas` à chaque appel (survit à un redémarrage de l'app avant validation). `notifyListeners()` est appelé **avant** l'écriture disque pour que l'UI réagisse sans attendre le round-trip SharedPreferences.
+- `clearConfig()` — reset complet, mais via `StorageService.clearConfigOnly()` (Sprint 7) qui ne touche que config/cycle/sessions/pauses/checked-rakaas — **ne wipe plus** langue/riwaya/notifications/tour vu (avant Sprint 7, `StorageService.clear()` effaçait tout SharedPreferences).
 
-**Piège** : `saveConfig`, `clearConfig` et le flux d'édition des sourates dans `profile_screen.dart` réinitialisent `_cyclePosition` à 0 — sauf le fix Sprint 6 `[S6-A]` qui a spécifiquement préservé `startDate` lors de l'édition des sourates pour éviter de reset silencieusement toute la progression. Si vous touchez à ce flux, vérifiez que ce fix n'est pas régressé.
+**Piège (partiellement résolu au Sprint 7)** : le flux d'édition des sourates dans `profile_screen.dart` et `learn_screen.dart._addToRevision` passent tous les deux par `saveConfig()`, qui ne reset plus le cycle si la sélection n'a pas changé (fix Sprint 7). Le fix Sprint 6 `[S6-A]` (préserver `startDate`) reste par ailleurs en place. Si vous touchez à ce flux, vérifiez que ces deux fixes ne régressent pas.
 
 ---
 
@@ -209,23 +210,28 @@ Méthodes notables :
 
 Flux complet : `HomeScreen` (« Voir le plan du jour ») → `AppState.setPreviewSession()` → `PlanScreen` preview (« S'engager ») → `AppState.engager()` (promeut preview → todaySession) → `PlanScreen` actif (checklist) → complétion → `DayPlanTab._onComplete()` → `AppState.clearTodaySession()` → retour à `HomeScreen`.
 
-**`HomeScreen`** — sélection des prières récitées seul (`_prayersAlone: Set<Prayer>`) + compteur d'entrées à la mosquée (`_tahiyyatCount`, chaque entrée = une occurrence dupliquée de `Prayer.tahiyyatMasjid` dans `_effectivePrayers`). Bouton « Voir le plan du jour » appelle `RevisionEngine.buildDayPlan()` puis `onVoirPlan`. **Attention** : `build()` recalcule indépendamment `units`, `cycleTotal`, `pos`, `daysRemaining` à partir de `RevisionEngine.buildUnits()` — cette arithmétique de cycle est dupliquée à plusieurs endroits de l'UI (voir §8.5), pas seulement centralisée dans l'engine/AppState.
+**`HomeScreen`** — sélection des prières récitées seul (`_prayersAlone: Set<Prayer>`) + compteur d'entrées à la mosquée (`_tahiyyatCount`, chaque entrée = une occurrence dupliquée de `Prayer.tahiyyatMasjid` dans `_effectivePrayers`). Bouton « Voir le plan du jour » appelle `RevisionEngine.buildDayPlan()` puis `onVoirPlan`. `daysRemaining` utilise `state.adaptiveCycleDays ?? config.effectiveDays(...)` (fix Sprint 7 — avant, Home ignorait le cycle adaptatif et affichait un nombre différent de `RecapScreen` pour le même état). **Attention** : `build()` recalcule quand même indépendamment `units`/`cycleTotal`/`pos` à partir de `RevisionEngine.buildUnits()` — cette arithmétique reste dupliquée à plusieurs endroits de l'UI (voir §8.5). Sprint 7 y a aussi ajouté le tour guidé (`SpotlightOverlay`, voir plus bas) via des `KeyedSubtree` posées sur le sélecteur de prières et le bouton « Voir le plan ».
 
 **`PlanScreen`** — écran unique réutilisé pour la preview (lecture seule) et la session active (checklist), distingués par le flag `isPreview`. Points métier intégrés à l'UI (donc absents de `RevisionEngine`, à connaître avant de les modifier) :
-- **Modal d'engagement** (`_CommitmentSheet`, non-dismissible) : force l'utilisateur à déclarer « Tout fait / Une part / Rien fait » avant d'abandonner un plan actif. Le nombre de rakaas par défaut en mode « Une part » est `(totalRakaas / 2).round().clamp(1, totalRakaas)` — règle ad-hoc locale à ce widget.
+- **Cases cochées persistées (Sprint 7)** : `checkedByPrayer` vient de `AppState.checkedRakaas` (persisté) en mode actif, d'un `Map` local jetable (`_previewChecked`) en mode preview (cases non interactives). Avant Sprint 7, l'état coché n'était qu'un `State` local jamais persisté — un redémarrage de l'app avant validation faisait tout perdre.
+- **Carte de check-in (Sprint 7)** : `_checkInSummary`, affichée en tête de l'aperçu avant engagement — salutation selon l'heure + chips des sourates froides/gelées du plan du jour (via `freshnessOf`, couleur par `freshnessColor()` de `widgets/freshness_badge.dart`).
+- **Modal d'engagement** (`_CommitmentSheet`, non-dismissible) : force l'utilisateur à déclarer « Tout fait / Une part / Rien fait » avant d'abandonner un plan actif. Le nombre de rakaas par défaut en mode « Une part » est `(totalRakaas / 2).round().clamp(1, totalRakaas)` — règle ad-hoc locale à ce widget. **Fix Sprint 7** : la déclaration « une part fait » se fait toujours en nombre de **rakaas** (naturel pour l'utilisateur), mais `PlanScreen._coverageForFirstRakaas(n)` traduit maintenant ce nombre en unités de cycle réelles + sourates réellement couvertes (les N premières rakaas du plan, dans l'ordre) avant d'appeler `onComplete`. Avant ce fix, le nombre de rakaas était transmis tel quel comme si c'était des unités de cycle (échelles différentes), et l'historique de fraîcheur marquait *tout* le plan du jour comme revu même si rien n'était réellement coché.
+- `onComplete` a désormais la signature `Function(int unitsCompleted, Set<int> sourateIds)` (avant Sprint 7 : juste `unitsCompleted`) — précisément pour porter la couverture réelle décrite ci-dessus jusqu'à `DayPlanTab`.
 - **`_StreakBadge`** : paliers de streak codés en dur — `1` (« premier jour »), `7`/`30`/`100` (« nouveau palier ») — n'existent nulle part ailleurs, à dupliquer manuellement si un autre écran doit les afficher.
 - **Streak anticipé** : `HistoryService.currentStreak() + 1` à l'écran de complétion, pour anticiper la session du jour pas encore enregistrée en DB au moment de l'affichage.
-- `_FocusMosqueeScreen` (mode focus plein écran) utilise des couleurs codées en dur (`Color(0xFF0E1410)` etc.) au lieu de `AppPalette` — **déroge à la règle CLAUDE.md « couleurs toujours via AppPalette »**, à corriger si cet écran est retouché.
+- `_FocusMosqueeScreen` (mode focus plein écran) utilise des couleurs codées en dur (`Color(0xFF0E1410)` etc.) au lieu de `AppPalette` — **déroge à la règle CLAUDE.md « couleurs toujours via AppPalette »**, à corriger si cet écran est retouché. Toujours présent après Sprint 7 (non traité, priorité basse).
 
 **`DayPlanTab._onComplete()`** est le pipeline de complétion de session (le point le plus sensible de ce groupe de fichiers) :
 1. Calcule `cycleWraps` (le cycle boucle-t-il avec cette session ?) — **logique dupliquée localement**, pas exposée par `AppState`/`RevisionEngine`.
 2. Capture `now` une seule fois (évite un décalage si minuit survient pendant le flux).
-3. Extrait les `sourateId` de la session pour alimenter l'historique de fraîcheur.
-4. Enchaîne séquentiellement : `AppState.advanceCycle()` → `refreshAdaptiveCycle(notify: false)` → `HistoryService.recordSession()` + `recordSourateHistory()` → `refreshFreshness(notify: false)`.
+3. Reçoit `sourateIds` directement de `PlanScreen` (Sprint 7, voir plus haut) au lieu de les re-dériver de tout `session.plan`.
+4. Lance en parallèle (`Future.wait`, Sprint 7) `AppState.advanceCycle()`, `HistoryService.recordSession()` et `recordSourateHistory()` — les 3 écritures sont indépendantes (prefs `cyclePosition`, table `sessions`, table `sourate_sessions`). Puis, dans un second `Future.wait`, `refreshAdaptiveCycle(notify: false)` et `refreshFreshness(notify: false)` — chacun dépend d'une des 3 écritures précédentes (respectivement `recordSession`/`recordSourateHistory`), donc attend la fin du premier groupe. **Avant Sprint 7** ces 5 appels étaient tous séquentiels, et `refreshAdaptiveCycle` était appelé *avant* `recordSession` (la moyenne adaptative restait alors en retard d'une session par rapport à la saisie manuelle, qui faisait déjà les choses dans le bon ordre).
 5. Si le cycle boucle, affiche `_CycleMilestoneDialog` (non-dismissible).
 6. `AppState.clearTodaySession()`.
 
-La saisie manuelle (`ManualSessionSheet`, stepper 1..maxUnits) suit le même pipeline `advanceCycle → refreshAdaptiveCycle → refreshFreshness`, mais avec `prayers: const []` (aucune prière associée).
+La saisie manuelle (`ManualSessionSheet`, stepper 1..maxUnits) suit un pipeline similaire (`recordSession → advanceCycle → refreshAdaptiveCycle → refreshFreshness`), mais avec `prayers: const []` (aucune prière associée) — resté séquentiel, non touché par la parallélisation du Sprint 7.
+
+**Tour guidé (Sprint 7, `widgets/spotlight_tour.dart`)** : `SpotlightOverlay` — overlay maison (`CustomPainter`, pas de dépendance externe) affiché une seule fois par `ShellScreen` juste après l'onboarding, tant qu'aucune session n'est encore engagée (`StorageService.hasSeenTour()`/`setTourSeen()`). Cible 3 `GlobalKey` statiques (`TourKeys` — nav bar, sélecteur de prières, bouton « Voir le plan ») posées via `KeyedSubtree` dans `ShellScreen`/`HomeScreen`. Pas de bouton « revoir le tutoriel » (voir Backlog dans CHANGELOG.md).
 
 **`prayer_selector.dart`** : le nombre maximum d'entrées « Tahiyyat al-Masjid » est plafonné en dur à `5` (`tahiyyatCount < 5`) — encore une règle métier sans source de vérité centrale.
 
@@ -262,11 +268,11 @@ Widgets réutilisables transverses : `PillChip` (chip sélectionnable, `dashed: 
 
 **`SettingsCard`** (imbriqué dans `ProfileScreen`) : langue, riwaya, shuffle (tous via `AppState`), et notifications — dont l'état (`notif_enabled`) est stocké **directement dans `StorageService`**, hors de `UserConfig`, donc **il survit à `AppState.clearConfig()`** (réinitialisation du profil). À savoir avant de supposer qu'un « reset complet » efface vraiment tout.
 
-**`RecapScreen`** est en lecture seule (streak, position de cycle, répartition sourates, historique 7 jours). Piège à connaître : la carte de répartition (`enRevision`/`memorisees`/`enCours`) combine deux sources de données indépendantes (`UserConfig.selections` vs `LearningProgress`) qui **ne sont pas mutuellement exclusives** — une sourate peut compter à la fois « en révision » et « mémorisée », la carte ne réconcilie pas les deux. `HistoryCard` reçoit 14 sessions mais n'en affiche que les 7 premières (`sessions.take(7)`) — écart entre ce que demande l'appelant et ce que le widget restitue, à clarifier si quelqu'un y touche.
+**`RecapScreen`** est en lecture seule (streak, position de cycle, répartition sourates, historique 7 jours). Piège à connaître : la carte de répartition (`enRevision`/`memorisees`/`enCours`) combine deux sources de données indépendantes (`UserConfig.selections` vs `LearningProgress`) qui **ne sont pas mutuellement exclusives** — une sourate peut compter à la fois « en révision » et « mémorisée », la carte ne réconcilie pas les deux. `HistoryCard` reçoit 14 sessions mais n'en affiche que les 7 premières (`sessions.take(7)`) — écart entre ce que demande l'appelant et ce que le widget restitue, à clarifier si quelqu'un y touche. `_load()` démarre `AppState.refreshFreshness(notify: false)` en parallèle des autres lectures (Sprint 7, avant : appelé après coup, en série).
 
-**`StudentProfileBar`** (onglet Apprendre, pas Profil) : la suppression d'un profil élève se fait par **un simple appui long, sans aucune confirmation** dans toute la chaîne d'appel (`student_profile_bar.dart` → `learn_screen.dart:_deleteStudent`). C'est l'action la plus dangereuse identifiée dans toute la couche UI — à corriger en priorité si le sujet de la robustesse UX revient.
+**`SouratesRecapCard` (Sprint 7)** : affiche désormais un badge de fraîcheur (`FreshnessBadge`, `widgets/freshness_badge.dart` — Récente/Froide/Très froide) par sourate, et chaque ligne est cliquable (`onTap`) vers le nouvel écran **`SurahReaderScreen`** (`screens/surah_reader_screen.dart`) — lecture plein texte d'une sourate/plage, sans mode caché/révélé. Avant Sprint 7, aucune navigation de lecture n'existait depuis le Récap. Le fond de carte utilise maintenant `context.palette.surfaceCard` + `cardBorder` (avant : `Colors.white` en dur, cassait l'apparence en thème sombre — corrigé).
 
-**Écart de convention** : `sourates_recap_card.dart` utilise `Colors.white` en dur pour le fond de carte au lieu de `context.palette.surfaceCard` — casse probablement l'apparence en thème sombre (Tahajjud).
+**`StudentProfileBar`** (onglet Apprendre, pas Profil) : la suppression d'un profil élève se fait par **un simple appui long, sans aucune confirmation** dans toute la chaîne d'appel (`student_profile_bar.dart` → `learn_screen.dart:_deleteStudent`). C'est l'action la plus dangereuse identifiée dans toute la couche UI — à corriger en priorité si le sujet de la robustesse UX revient (non traité au Sprint 7).
 
 ### 8.5 Dette technique UI identifiée (à garder à l'esprit, pas à corriger d'office)
 
@@ -274,12 +280,14 @@ Cette liste consolide ce que l'analyse fichier-par-fichier a fait remonter — u
 
 1. **Arithmétique de cycle dupliquée** dans `home_screen.dart`, `plan_screen.dart` (`_summaryBar`), `recap_screen.dart` et `day_plan_tab.dart` (`cycleWraps`) — chacun recalcule `pos`/`cycleTotal`/`daysRemaining` ou la détection de bouclage indépendamment plutôt que de consommer une valeur unique exposée par `AppState`/`RevisionEngine`.
 2. **Magic numbers métier hors de `core/`** : seuil 80% « bonne journée » répété 5 fois dans `history_card.dart` ; paliers de streak 1/7/30/100 dans `plan_screen.dart` ; plafond de 5 entrées Tahiyyat dans `prayer_selector.dart` ; règle « moitié des rakaas par défaut » dans `_CommitmentSheet`.
-3. **Couleurs codées en dur** (déroge à la règle `AppPalette`) : `_FocusMosqueeScreen` (plan_screen.dart), `sourates_recap_card.dart`, `learning_progress_card.dart`.
+3. **Couleurs codées en dur** (déroge à la règle `AppPalette`) : `_FocusMosqueeScreen` (plan_screen.dart), `learning_progress_card.dart`. `sourates_recap_card.dart` corrigé au Sprint 7 (utilise `palette.surfaceCard`). Le voile (scrim) de `SpotlightOverlay` (Sprint 7) reste en `Colors.black` en dur, mais **volontairement** — un voile de modale est conventionnellement invariant au thème (comme `ModalBarrier` de Flutter), le passer par `AppPalette` l'inverserait en thème sombre.
 4. **Chaîne hors `S.`** : `'✓ Complet'` dans `learning_progress_card.dart`.
-5. **Composants dupliqués plutôt que réutilisés** : hadith de clôture et badge de streak réimplémentés dans `learn_surah_screen.dart` au lieu de `HadithCard`/`StreakCard` ; filtre de recherche sourate dupliqué entre `OnboardingScreen` et `SouratePickerSheet`.
+5. **Composants dupliqués plutôt que réutilisés** : hadith de clôture et badge de streak réimplémentés dans `learn_surah_screen.dart` au lieu de `HadithCard`/`StreakCard` ; filtre de recherche sourate dupliqué entre `OnboardingScreen` et `SouratePickerSheet`. Non traité au Sprint 7 (revue de code identifiée, priorité basse).
 6. **Confirmation manquante** : suppression d'un profil élève (`StudentProfileBar` → appui long direct, aucun dialog).
 7. **Mismatch appelant/widget** : `HistoryCard` reçoit 14 sessions, n'en affiche que 7.
 8. **Libellé ambigu** : « Sourates mémorisées » dans `ProfileInfoCard` compte en réalité `config.selections.length` (sourates en révision), pas les sourates réellement mémorisées via `LearningProgress.isComplete` — à ne pas confondre avec le calcul distinct de `RecapScreen`.
+9. **Race lire-modifier-écrire** (Sprint 7, revue de code) : `LearningService`/`StudentService` (`upsert`/`remove`) suivent un schéma lire-tout/modifier/réécrire-tout sans synchronisation — deux appels rapprochés peuvent se piétiner. Non traité : ajouter une vraie synchronisation serait disproportionné pour une app locale mono-utilisateur (risque réel faible).
+10. **Plage de versets trompeuse** (Sprint 7, revue de code) : `learn_surah_screen.dart` affiche `v.X–Y` pour le bloc courant, ce qui laisse croire à une plage contiguë alors que `_currentBlock` peut retourner des versets non contigus si l'utilisateur a désappris des versets précis entre-temps. Non traité (cas rare, priorité basse).
 
 ---
 
@@ -323,12 +331,11 @@ Lancer les tests : `flutter test`.
 
 ---
 
-## 12. CI/CD
+## 12. Build & déploiement
 
-`codemagic.yaml` — un seul workflow, `ios-testflight` :
-- `flutter pub get` → `flutter build ipa --release` (signature App Store via `ios_signing.distribution_type: app_store`) → publication automatique sur TestFlight (groupe bêta « External Testers ») → email de notification (succès/échec) à l'adresse du mainteneur.
-- **Aucun workflow Android** n'est configuré à ce jour — un build/déploiement Android nécessiterait d'ajouter un workflow dédié.
-- `max_build_duration: 60` (minutes).
+Aucune CI/CD connectée à ce dépôt (un fichier `codemagic.yaml` a existé un temps mais a été retiré — le déploiement n'est pas piloté par un service externe). Le build et la distribution se font **manuellement via Xcode** : ouvrir `ios/Runner.xcworkspace`, Archive, puis Distribute App vers TestFlight/App Store. Un `git push` sur `main` ne déclenche donc aucun build ni aucune distribution automatique.
+
+Pas de pipeline Android à ce jour.
 
 ---
 
@@ -342,8 +349,8 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 | `lib/services/` : stateless, jamais de `notifyListeners` | Seule `AppState` doit notifier l'UI ; un service qui notifie casserait l'hypothèse « un seul `notifyListeners()` par opération logique ». |
 | `AppState` : un seul `notifyListeners()` par opération logique | Déjà respecté dans le code actuel (`app_state.dart`) — vérifier en review qu'un nouveau setter ne notifie pas deux fois. |
 | Modèles : mise à jour uniquement via `copyWith()` | `UserConfig.copyWith()` est le point d'entrée utilisé partout (onboarding excepté, qui construit un `UserConfig` neuf faute de config existante) — préserver ce pattern. |
-| `if (!mounted) return;` après chaque `await` dans un `State` | Respecté quasi partout dans le code actuel (voir notes par écran en §8) — un des rares écarts trouvés est `learn_screen.dart`/`_loadStreak` qui utilise `if (mounted) setState(...)` (équivalent, style différent). |
-| Texte utilisateur → `lib/core/strings.dart` ; texte arabe → `VerseService` | Deux écarts connus à ce jour : `'✓ Complet'` en dur dans `learning_progress_card.dart` (texte), et aucun appel direct à `package:quran` détecté hors `VerseService`/`WarshService` (texte arabe respecté). |
+| `if (!mounted) return;` après chaque `await` dans un `State` | Respecté quasi partout dans le code actuel (voir notes par écran en §8) — un des rares écarts trouvés est `learn_screen.dart`/`_loadStreak` qui utilise `if (mounted) setState(...)` (équivalent, style différent). `profile_screen.dart._showDurationDialog` avait un `setState` sans re-check `mounted` après un `await state.saveConfig(...)` — corrigé au Sprint 7. |
+| Texte utilisateur → `lib/core/strings.dart` ; texte arabe → `VerseService` | `'✓ Complet'` en dur dans `learning_progress_card.dart` (texte, non traité). `verse_bottom_sheet.dart` appelait `package:quran` directement (`getSurahNameArabic`) au lieu de passer par `VerseService` — corrigé au Sprint 7 (`VerseService.surahNameArabic()` ajouté) ; plus aucun appel direct à `package:quran` hors `VerseService`/`WarshService`. |
 | Couleurs → toujours `AppPalette` | Écarts connus listés en §8.5 point 3 — à ne pas reproduire. |
 
 ---
@@ -370,17 +377,17 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 | Modifier le dashboard de statistiques | `lib/screens/recap_screen.dart` |
 | Modifier la navigation globale (4 onglets) | `lib/screens/shell_screen.dart` |
 | Modifier les tests de régression du moteur de révision | `test/core/revision_engine_test.dart` |
-| Modifier le pipeline de build/déploiement iOS | `codemagic.yaml` |
+| Builder/distribuer l'app iOS | Xcode (`ios/Runner.xcworkspace`) — Archive → Distribute App, manuel |
 
 ---
 
 ## 15. Maintenir ce document
 
-Ce document a été généré par une lecture complète du code source (tous les fichiers de `lib/`, `test/`, `codemagic.yaml`, `pubspec.yaml`) à la date indiquée en fin de fichier — il n'est **pas** auto-généré à chaque build et **va driver avec le temps**, exactement comme `CHANGELOG.md` (voir la note d'expérience du 2026-08-20 dans `CLAUDE.md` du projet : une doc maintenue à la main a déjà divergé du dépôt réel par le passé).
+Ce document a été généré par une lecture complète du code source (tous les fichiers de `lib/`, `test/`, `pubspec.yaml`) à la date indiquée en fin de fichier — il n'est **pas** auto-généré à chaque build et **va driver avec le temps**, exactement comme `CHANGELOG.md` (voir la note d'expérience du 2026-08-20 dans `CLAUDE.md` du projet : une doc maintenue à la main a déjà divergé du dépôt réel par le passé).
 
 - Après un sprint qui touche `RevisionEngine`, `FreshnessEngine`, `AppState`, ou qui ajoute/supprime un écran/service : mettre à jour la section correspondante ici, en plus de `CHANGELOG.md`.
 - Si vous (humain ou Claude) trouvez une divergence entre ce document et le code réel, corrigez ce document plutôt que de le laisser mentir — le code fait toujours foi.
 - Les points de §8.5 (« dette technique identifiée ») doivent être retirés de la liste au fur et à mesure qu'ils sont corrigés, pas laissés indéfiniment.
 
-*Dernière rédaction complète : 2026-08-22, à partir d'une lecture intégrale de `lib/` (8093 lignes) et de `test/`.*
+*Dernière rédaction complète : 2026-08-22, à partir d'une lecture intégrale de `lib/` (8093 lignes) et de `test/`. Mise à jour le 2026-08-22 (même jour) pour refléter le Sprint 7 (`lib/` : 8860 lignes) et le retrait de `codemagic.yaml` (déploiement manuel via Xcode).*
 

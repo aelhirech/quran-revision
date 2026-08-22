@@ -66,6 +66,8 @@
 ### Documentation technique (2026-08-22)
 - Création de `docs/DOCUMENTATION_TECHNIQUE.md` — référence de maintenance complète (architecture, moteurs métier détaillés, services, écrans, dette technique UI identifiée), générée à partir d'une lecture intégrale du code source.
 - Suppression de `context/CONTEXT.md` — remplacé par `docs/DOCUMENTATION_TECHNIQUE.md` (comment ça marche) + ce fichier `CHANGELOG.md` (quoi a été livré, backlog).
+- **Correction déploiement** : `codemagic.yaml` supprimé (n'était pas réellement utilisé — le déploiement se fait manuellement via Xcode, pas Codemagic). `CLAUDE.md`/`docs/DOCUMENTATION_TECHNIQUE.md` corrigés en conséquence ; la confirmation explicite avant push vers `main` reste requise (prudence générale), mais n'est plus justifiée par un risque de déclenchement TestFlight automatique.
+- Mise à jour de `docs/DOCUMENTATION_TECHNIQUE.md` pour refléter les changements Sprint 7 (`checkedRakaas`/`_sameSelections`/`clearConfigOnly` dans `AppState`, `SurahReaderScreen`, `SpotlightOverlay`, fix unités/rakaas de `_CommitmentSheet`, pipeline `_onComplete` réordonné+parallélisé) — dette technique §8.5 mise à jour (items corrigés retirés, nouveaux items non traités ajoutés avec raison).
 
 ---
 
@@ -80,7 +82,6 @@
 | P3 | **Historique par verset** | aujourd'hui la fraîcheur (Sprint 3, étendue Sprint 7) est au niveau sourate ; un suivi verset par verset demanderait un nouveau modèle de données (`sourate_sessions` ne descend pas à ce niveau) |
 | P3 | **Revoir le tutoriel depuis Profil** | le tour (Sprint 7) ne s'affiche qu'une fois après l'onboarding ; un bouton de replay demanderait de faire communiquer ProfileScreen → ShellScreen (changer d'onglet + relancer le tour), pas fait faute de demande explicite |
 | P3 | **Source vérifié du coran** | vérifier le coran warsh et hafs |
-| P3 | **Rafraîchir docs/DOCUMENTATION_TECHNIQUE.md** | pas mis à jour pour le Sprint 7 (checkedRakaas dans AppState, SurahReaderScreen, SpotlightOverlay, clearConfigOnly, saveConfig scoping) — CHANGELOG.md est à jour, mais la doc technique dérive maintenant du code réel sur ces points |
 
 ---
 
