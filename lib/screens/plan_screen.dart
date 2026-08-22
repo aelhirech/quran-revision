@@ -167,8 +167,10 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
             ),
           ),
-          if (widget.isPreview)
+          if (widget.isPreview) ...[
+            SliverToBoxAdapter(child: _checkInSummary(cs)),
             const SliverToBoxAdapter(child: PreviewBanner()),
+          ],
           SliverToBoxAdapter(child: _summaryBar(cs)),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
@@ -253,6 +255,82 @@ class _PlanScreenState extends State<PlanScreen> {
             duration: 900.ms,
             color: Colors.white.withValues(alpha: 0.4),
             delay: 100.ms);
+  }
+
+  /// Carte de check-in affichée avant de s'engager : salutation selon l'heure
+  /// + sourates froides/gelées du plan, pour savoir en un coup d'œil quoi
+  /// surveiller aujourd'hui (sans ouvrir chaque rakaa une par une).
+  Widget _checkInSummary(ColorScheme cs) {
+    final palette = context.palette;
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? S.checkInMatin
+        : hour >= 18
+            ? S.checkInSoir
+            : S.checkInNeutre;
+
+    final seenSourateIds = <int>{};
+    final toWatch = <(String, FreshnessLevel)>[];
+    for (final pp in widget.session.plan) {
+      for (final r in pp.rakaas) {
+        final unit = r.unit;
+        if (unit == null || !seenSourateIds.add(unit.sourate.id)) continue;
+        final level = widget.freshnessOf?.call(unit.sourate.id);
+        if (level == FreshnessLevel.cold || level == FreshnessLevel.frozen) {
+          toWatch.add((unit.sourate.nameFr, level!));
+        }
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: palette.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(greeting,
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: palette.textPrimary)),
+          const SizedBox(height: 4),
+          Text(S.checkInUnites(widget.session.totalUnits),
+              style: TextStyle(color: palette.textMuted, fontSize: 13)),
+          if (toWatch.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(S.checkInSouratesAVeiller.toUpperCase(),
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurfaceVariant,
+                    letterSpacing: 1.0)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: toWatch.map((e) {
+                final (name, level) = e;
+                final color =
+                    level == FreshnessLevel.frozen ? Colors.redAccent : palette.gold;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: color.withValues(alpha: 0.6)),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(name, style: TextStyle(fontSize: 11, color: color)),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    ).animate().fadeIn().slideY(begin: 0.06);
   }
 
   Widget _summaryBar(ColorScheme cs) {

@@ -14,6 +14,7 @@ class StorageService {
   static const _keyPauseDates = 'pause_dates';
   static const _keyRiwaya = 'riwaya';
   static const _keyCheckedRakaas = 'today_checked_rakaas';
+  static const _keyTourSeen = 'onboarding_tour_seen';
 
   static Future<void> saveConfig(UserConfig config) async {
     final prefs = await SharedPreferences.getInstance();
@@ -147,6 +148,16 @@ class StorageService {
     final raw = prefs.getString(_keyRiwaya);
     return Riwaya.values.firstWhere((r) => r.name == raw,
         orElse: () => Riwaya.hafs);
+  }
+
+  static Future<bool> hasSeenTour() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyTourSeen) ?? false;
+  }
+
+  static Future<void> setTourSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyTourSeen, true);
   }
 
   static Future<void> clear() async {

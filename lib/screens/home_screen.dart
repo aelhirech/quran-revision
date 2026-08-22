@@ -15,6 +15,7 @@ import '../widgets/hadith_card.dart';
 import '../widgets/ornamental_divider.dart';
 import '../widgets/prayer_selector.dart';
 import '../widgets/primary_cta_button.dart';
+import '../widgets/spotlight_tour.dart';
 
 class HomeScreen extends StatefulWidget {
   final void Function(DailySession) onVoirPlan;
@@ -198,27 +199,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                PrayerSelector(
-                  selected: _prayersAlone,
-                  onToggle: (p) => setState(() {
-                    _prayersAlone.contains(p)
-                        ? _prayersAlone.remove(p)
-                        : _prayersAlone.add(p);
-                  }),
-                  tahiyyatCount: _tahiyyatCount,
-                  onTahiyyatCountChanged: (n) =>
-                      setState(() => _tahiyyatCount = n),
+                KeyedSubtree(
+                  key: TourKeys.prayerSelector,
+                  child: PrayerSelector(
+                    selected: _prayersAlone,
+                    onToggle: (p) => setState(() {
+                      _prayersAlone.contains(p)
+                          ? _prayersAlone.remove(p)
+                          : _prayersAlone.add(p);
+                    }),
+                    tahiyyatCount: _tahiyyatCount,
+                    onTahiyyatCountChanged: (n) =>
+                        setState(() => _tahiyyatCount = n),
+                  ),
                 ),
                 const SizedBox(height: 24),
-                PrimaryCtaButton(
-                  onPressed: canCommit
-                      ? () {
-                          _buildPlan(state);
-                          if (_session != null) widget.onVoirPlan(_session!);
-                        }
-                      : null,
-                  icon: Icons.calendar_today_outlined,
-                  label: S.voirPlanDuJour,
+                KeyedSubtree(
+                  key: TourKeys.voirPlanButton,
+                  child: PrimaryCtaButton(
+                    onPressed: canCommit
+                        ? () {
+                            _buildPlan(state);
+                            if (_session != null) widget.onVoirPlan(_session!);
+                          }
+                        : null,
+                    icon: Icons.calendar_today_outlined,
+                    label: S.voirPlanDuJour,
+                  ),
                 ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
                 if (widget.onSaisirManuel != null)
                   TextButton(

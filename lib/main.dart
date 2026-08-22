@@ -15,7 +15,12 @@ import 'state/app_state.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.initialize();
-  await WarshService.initialize();
+  // Ne doit jamais bloquer le démarrage : si l'asset Warsh échoue à charger
+  // (corruption, hoquet réseau sur le premier chargement web), l'app démarre
+  // quand même en Hafs plutôt que de rester bloquée sur un écran blanc.
+  try {
+    await WarshService.initialize();
+  } catch (_) {}
   final config = await StorageService.loadConfig();
   final locale = await StorageService.loadLocale();
   final riwaya = await StorageService.loadRiwaya();
