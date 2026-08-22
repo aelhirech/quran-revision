@@ -17,8 +17,8 @@ import '../widgets/manual_session_sheet.dart';
 class DayPlanTab extends StatelessWidget {
   const DayPlanTab({super.key});
 
-  Future<void> _onComplete(
-      BuildContext context, AppState state, int unitsCompleted) async {
+  Future<void> _onComplete(BuildContext context, AppState state,
+      int unitsCompleted, Set<int> sourateIds) async {
     final allUnits = RevisionEngine.buildUnits(state.config!.selections);
     final cycleTotal = allUnits.length;
     final cycleWraps =
@@ -28,25 +28,33 @@ class DayPlanTab extends StatelessWidget {
     final now = DateTime.now();
     final sessionDate = now.toIso8601String().substring(0, 10);
 
-    // Sourates couvertes dans cette session — pour le SRS
-    final sessionSourateIds = state.todaySession!.plan
-        .expand((pp) => pp.rakaas)
-        .where((r) => r.unit != null)
-        .map((r) => r.unit!.sourate.id)
-        .toSet()
-        .toList();
-
-    await state.advanceCycle(unitsCompleted, cycleTotal);
-    await state.refreshAdaptiveCycle(cycleTotal, notify: false);
-    await HistoryService.recordSession(SessionRecord(
+    // Les 3 écritures sont indépendantes (prefs cyclePosition, table
+    // sessions, table sourate_sessions) — lancées en parallèle. Les deux
+    // rafraîchissements qui suivent lisent chacun l'une de ces écritures et
+    // doivent donc attendre qu'elle soit posée (refreshAdaptiveCycle après
+    // recordSession, sinon la moyenne reste en retard d'une session comme la
+    // saisie manuelle le fait déjà correctement ; refreshFreshness après
+    // recordSourateHistory).
+    final recordSessionF = HistoryService.recordSession(SessionRecord(
       date: now,
       unitsCompleted: unitsCompleted,
       totalUnits: cycleTotal,
       prayers:
           state.todaySession!.prayersAlone.map((p) => p.name).toList(),
     ));
-    await HistoryService.recordSourateHistory(sessionDate, sessionSourateIds);
-    await state.refreshFreshness(notify: false);
+    // Ne marque comme "revues" (fraîcheur) que les sourates réellement
+    // couvertes par ce qui a été déclaré/coché — pas tout le plan du jour.
+    final recordSourateHistoryF =
+        HistoryService.recordSourateHistory(sessionDate, sourateIds.toList());
+    await Future.wait([
+      state.advanceCycle(unitsCompleted, cycleTotal),
+      recordSessionF,
+      recordSourateHistoryF,
+    ]);
+    await Future.wait([
+      state.refreshAdaptiveCycle(cycleTotal, notify: false),
+      state.refreshFreshness(notify: false),
+    ]);
 
     if (cycleWraps && context.mounted) {
       await showDialog<void>(
@@ -105,8 +113,8 @@ class DayPlanTab extends StatelessWidget {
         key: ValueKey(state.todaySession),
         session: state.todaySession!,
         freshnessOf: state.freshnessFor,
-        onComplete: (unitsCompleted) =>
-            _onComplete(context, state, unitsCompleted),
+        onComplete: (unitsCompleted, sourateIds) =>
+            _onComplete(context, state, unitsCompleted, sourateIds),
         onChangePlan: () => state.clearTodaySession(),
       );
     }

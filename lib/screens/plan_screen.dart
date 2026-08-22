@@ -18,7 +18,7 @@ import '../widgets/primary_cta_button.dart';
 
 class PlanScreen extends StatefulWidget {
   final DailySession session;
-  final Future<void> Function(int unitsCompleted)? onComplete;
+  final Future<void> Function(int unitsCompleted, Set<int> sourateIds)? onComplete;
   final VoidCallback? onEngager;
   final VoidCallback? onChangePlan;
   final bool isPreview;
@@ -70,6 +70,34 @@ class _PlanScreenState extends State<PlanScreen> {
   int _checkedCountOf(Map<int, Set<int>> checkedByPrayer) =>
       checkedByPrayer.values.fold(0, (sum, s) => sum + s.length);
 
+  /// Toutes les sourates couvertes par le plan du jour (déclaration "tout fait").
+  Set<int> get _allSourateIds => {
+        for (final pp in widget.session.plan)
+          for (final r in pp.rakaas)
+            if (r.unit != null) r.unit!.sourate.id,
+      };
+
+  /// Unités (échelle attendue par `advanceCycle`) et sourates réellement
+  /// couvertes par les [n] premières rakaas du plan (dans l'ordre) — utilisé
+  /// pour la déclaration manuelle "une part fait", où l'utilisateur pense en
+  /// rakaas récitées, pas en unités de cycle.
+  ({int units, Set<int> sourateIds}) _coverageForFirstRakaas(int n) {
+    final seenLabels = <String>{};
+    final sourateIds = <int>{};
+    int counted = 0;
+    for (final pp in widget.session.plan) {
+      for (final r in pp.rakaas) {
+        if (r.unit == null) continue;
+        if (counted >= n) break;
+        counted++;
+        seenLabels.add(r.unit!.label);
+        sourateIds.add(r.unit!.sourate.id);
+      }
+      if (counted >= n) break;
+    }
+    return (units: seenLabels.length, sourateIds: sourateIds);
+  }
+
   Future<void> _confirmChangePlan(BuildContext context) async {
     if (widget.isPreview) {
       widget.onChangePlan?.call();
@@ -86,11 +114,16 @@ class _PlanScreenState extends State<PlanScreen> {
         totalRakaas: _totalRakaasWithUnit,
         onToutFait: () async {
           Navigator.pop(context);
-          if (mounted) await widget.onComplete!(widget.session.totalUnits);
+          if (mounted) {
+            await widget.onComplete!(widget.session.totalUnits, _allSourateIds);
+          }
         },
         onPartFait: (n) async {
           Navigator.pop(context);
-          if (mounted) await widget.onComplete!(n);
+          final coverage = _coverageForFirstRakaas(n);
+          if (mounted) {
+            await widget.onComplete!(coverage.units, coverage.sourateIds);
+          }
         },
         onRienFait: () {
           Navigator.pop(context);
@@ -224,7 +257,9 @@ class _PlanScreenState extends State<PlanScreen> {
         streakFuture: streakFuture,
       ),
     );
-    if (mounted) await widget.onComplete!(widget.session.totalUnits);
+    if (mounted) {
+      await widget.onComplete!(widget.session.totalUnits, _allSourateIds);
+    }
   }
 
   Widget _completionButton(bool allDone, int checkedCount) {

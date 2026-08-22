@@ -35,7 +35,8 @@ class RevisionUnit {
 
   factory RevisionUnit.fromJson(Map<String, dynamic> j) {
     final id = j['sourateId'] as int;
-    final sourate = allSourates.firstWhere((s) => s.id == id);
+    final sourate = allSourates.firstWhere((s) => s.id == id,
+        orElse: () => throw FormatException('Sourate inconnue: $id'));
     return RevisionUnit(
       sourate: sourate,
       verseStart: j['verseStart'] as int,

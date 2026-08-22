@@ -25,7 +25,13 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_keyConfig);
     if (raw == null) return null;
-    return UserConfig.fromJson(jsonDecode(raw));
+    try {
+      return UserConfig.fromJson(jsonDecode(raw));
+    } catch (_) {
+      // Config corrompue (ex. après une refonte de quran_data.dart) : mieux
+      // vaut renvoyer l'utilisateur à l'onboarding qu'un crash au démarrage.
+      return null;
+    }
   }
 
   static Future<void> saveCyclePosition(int position) async {
@@ -173,8 +179,19 @@ class StorageService {
     await prefs.setBool(_keyTourSeen, true);
   }
 
-  static Future<void> clear() async {
+  /// Réinitialise uniquement la configuration de révision (sourates, cycle,
+  /// sessions, pauses) — pas les préférences d'app (langue, riwaya,
+  /// notifications, tour vu), que "Réinitialiser" dans le profil ne doit pas
+  /// toucher.
+  static Future<void> clearConfigOnly() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await Future.wait([
+      prefs.remove(_keyConfig),
+      prefs.remove(_keyCyclePosition),
+      prefs.remove(_keyPreviewSession),
+      prefs.remove(_keyTodaySession),
+      prefs.remove(_keyPauseDates),
+      prefs.remove(_keyCheckedRakaas),
+    ]);
   }
 }

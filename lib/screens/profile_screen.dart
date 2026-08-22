@@ -129,6 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       paceByLines: tempPaceByLines,
       targetLinesPerDay: tempLines,
     ));
+    if (!mounted) return;
     setState(() {
       _revisionDays = tempDays;
       _paceByLines = tempPaceByLines;

@@ -126,8 +126,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final progress = cycleTotal == 0 ? 0.0 : pos / cycleTotal;
     final daysElapsed =
         DateTime.now().difference(state.config!.startDate).inDays;
-    final daysRemaining =
-        (state.config!.revisionDays - daysElapsed).clamp(0, 9999);
+    final effectiveDays = state.adaptiveCycleDays ??
+        state.config!.effectiveDays(state.config!.totalSelectedVerses);
+    final daysRemaining = (effectiveDays - daysElapsed).clamp(0, 9999);
 
     final canCommit = _effectivePrayers.isNotEmpty;
 

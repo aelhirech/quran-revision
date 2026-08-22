@@ -4,6 +4,7 @@ import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/riwaya.dart';
+import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../services/history_service.dart';
 import '../services/storage_service.dart';
@@ -90,16 +91,30 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ne remet le cycle à zéro que si les sourates sélectionnées ont vraiment
+  /// changé — un simple ajustement du rythme (durée, lignes/jour) ne doit pas
+  /// effacer la progression ni la session du jour en cours.
   Future<void> saveConfig(UserConfig config) async {
+    final selectionsChanged =
+        _config == null || !_sameSelections(_config!.selections, config.selections);
     _config = config;
-    _cyclePosition = 0;
-    _todaySession = null;
     await StorageService.saveConfig(config);
-    await StorageService.saveCyclePosition(0);
-    await StorageService.clearTodaySession();
-    await StorageService.clearPreviewSession();
-    await _resetCheckedRakaas();
+    if (selectionsChanged) {
+      _cyclePosition = 0;
+      _todaySession = null;
+      await StorageService.saveCyclePosition(0);
+      await StorageService.clearTodaySession();
+      await StorageService.clearPreviewSession();
+      await _resetCheckedRakaas();
+    }
     notifyListeners();
+  }
+
+  bool _sameSelections(List<SourateSelection> a, List<SourateSelection> b) {
+    if (a.length != b.length) return false;
+    String key(SourateSelection s) =>
+        '${s.sourate.id}:${s.verseStart}:${s.verseEnd}';
+    return a.map(key).toSet().containsAll(b.map(key));
   }
 
   Future<void> advanceCycle(int unitsCompleted, int cycleTotal) async {
@@ -206,7 +221,7 @@ class AppState extends ChangeNotifier {
     _previewSession = null;
     _pauseDates = {};
     _checkedRakaas = {};
-    await StorageService.clear();
+    await StorageService.clearConfigOnly();
     notifyListeners();
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:quran/quran.dart' as quran;
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import '../services/verse_service.dart';
@@ -33,7 +32,7 @@ class VerseBottomSheet extends StatelessWidget {
     final riwaya = context.watch<AppState>().riwaya;
     final verses = VerseService.versesForUnit(unit, riwaya: riwaya);
     final surahId = unit.sourate.id;
-    final surahNameAr = quran.getSurahNameArabic(surahId);
+    final surahNameAr = VerseService.surahNameArabic(surahId);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,

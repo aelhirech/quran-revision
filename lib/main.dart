@@ -18,19 +18,36 @@ void main() async {
   // Ne doit jamais bloquer le démarrage : si l'asset Warsh échoue à charger
   // (corruption, hoquet réseau sur le premier chargement web), l'app démarre
   // quand même en Hafs plutôt que de rester bloquée sur un écran blanc.
+  var warshAvailable = true;
   try {
     await WarshService.initialize();
-  } catch (_) {}
-  final config = await StorageService.loadConfig();
-  final locale = await StorageService.loadLocale();
-  final riwaya = await StorageService.loadRiwaya();
-  final cyclePosition = await StorageService.loadCyclePosition();
-  final previewSession = await StorageService.loadPreviewSession();
-  final todaySession = await StorageService.loadTodaySession();
-  final pauseDates = await StorageService.loadPauseDates();
+  } catch (_) {
+    warshAvailable = false;
+  }
+  // Lectures indépendantes démarrées en parallèle — un seul aller-retour
+  // au lieu de 7 en série avant le premier frame.
+  final configF = StorageService.loadConfig();
+  final localeF = StorageService.loadLocale();
+  final riwayaF = warshAvailable ? StorageService.loadRiwaya() : null;
+  final cyclePositionF = StorageService.loadCyclePosition();
+  final previewSessionF = StorageService.loadPreviewSession();
+  final todaySessionF = StorageService.loadTodaySession();
+  final pauseDatesF = StorageService.loadPauseDates();
   // loadCheckedRakaas purge elle-même la clé si sa date ne correspond plus
   // à aujourd'hui — pas besoin de dupliquer cette vérification ici.
-  final checkedRakaas = await StorageService.loadCheckedRakaas();
+  final checkedRakaasF = StorageService.loadCheckedRakaas();
+
+  final config = await configF;
+  final locale = await localeF;
+  // Si le texte Warsh n'a pas pu être chargé, on ignore la riwaya persistée
+  // pour éviter un crash au premier rendu de verset (WarshService.getVerse
+  // lève sinon une exception faute de données).
+  final riwaya = riwayaF == null ? Riwaya.hafs : await riwayaF;
+  final cyclePosition = await cyclePositionF;
+  final previewSession = await previewSessionF;
+  final todaySession = await todaySessionF;
+  final pauseDates = await pauseDatesF;
+  final checkedRakaas = await checkedRakaasF;
   S.locale = locale;
   runApp(QuranRevisionApp(
     initialConfig: config,

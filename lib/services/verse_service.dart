@@ -26,4 +26,7 @@ class VerseService {
 
   /// Nombre total de versets d'une sourate selon le package Tanzil.
   static int verseCount(int surahId) => quran.getVerseCount(surahId);
+
+  /// Nom arabe d'une sourate — identique entre Hafs et Warsh.
+  static String surahNameArabic(int surahId) => quran.getSurahNameArabic(surahId);
 }

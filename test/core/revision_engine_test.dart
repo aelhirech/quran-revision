@@ -97,4 +97,24 @@ void main() {
       expect(session.totalUnits, 3);
     });
   });
+
+  group('RevisionEngine.buildDayPlan — cas limites', () {
+    test('aucune sourate sélectionnée ne fait pas planter (division par zéro)', () {
+      final config = UserConfig(
+        selections: const [],
+        revisionDays: 30,
+        startDate: DateTime(2026, 1, 1),
+      );
+      final session = RevisionEngine.buildDayPlan(
+        config: config,
+        prayersAlone: [Prayer.fajr],
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+      );
+      expect(session.totalUnits, 0);
+      expect(session.cycleTotal, 0);
+      // Toutes les rakaas restent "Al-Fatiha seule" (aucune unité à assigner).
+      expect(session.plan.first.rakaas.every((r) => r.unit == null), isTrue);
+    });
+  });
 }

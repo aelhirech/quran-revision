@@ -134,17 +134,20 @@ class _LearnScreenState extends State<LearnScreen> {
     final state = context.read<AppState>();
     final config = state.config;
     if (config == null) return;
-    if (config.selections.any((sel) => sel.sourate.id == s.id)) {
+    final alreadyInRevision = config.selections.any((sel) => sel.sourate.id == s.id);
+    if (alreadyInRevision) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${s.nameFr} ${S.dejaInRevision}')),
       );
-      return;
+    } else {
+      await state.saveConfig(
+          config.copyWith(selections: [...config.selections, SourateSelection.whole(s)]));
     }
-    await state.saveConfig(
-        config.copyWith(selections: [...config.selections, SourateSelection.whole(s)]));
+    // Retiré de l'apprentissage dans tous les cas — sinon une sourate déjà
+    // présente dans les deux listes reste bloquée en "en cours" pour toujours.
     await LearningService.remove(s.id);
     await _reload();
-    if (mounted) {
+    if (!alreadyInRevision && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${s.nameFr} ${S.ajouteARevision}')),
       );
