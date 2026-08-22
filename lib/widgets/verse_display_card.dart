@@ -61,7 +61,7 @@ class VerseDisplayCard extends StatelessWidget {
                     verseText,
                     textAlign: TextAlign.center,
                     textDirection: TextDirection.rtl,
-                    style: GoogleFonts.scheherazadeNew(
+                    style: GoogleFonts.amiri(
                         fontSize: 28, height: 2.0, color: palette.textPrimary),
                   ),
                   const SizedBox(height: 14),

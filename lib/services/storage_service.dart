@@ -13,6 +13,7 @@ class StorageService {
   static const _keyTodaySession = 'today_session';
   static const _keyPauseDates = 'pause_dates';
   static const _keyRiwaya = 'riwaya';
+  static const _keyCheckedRakaas = 'today_checked_rakaas';
 
   static Future<void> saveConfig(UserConfig config) async {
     final prefs = await SharedPreferences.getInstance();
@@ -98,6 +99,32 @@ class StorageService {
   static Future<void> clearTodaySession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyTodaySession);
+  }
+
+  /// Rakaas cochées dans la session du jour, par index de prière — permet de
+  /// survivre à un redémarrage de l'app sans perdre la progression déjà cochée.
+  static Future<void> saveCheckedRakaas(Map<int, Set<int>> checked) async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = checked.map((k, v) => MapEntry(k.toString(), v.toList()));
+    await prefs.setString(_keyCheckedRakaas, jsonEncode(encoded));
+  }
+
+  static Future<Map<int, Set<int>>> loadCheckedRakaas() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyCheckedRakaas);
+    if (raw == null) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) =>
+          MapEntry(int.parse(k), (v as List).cast<int>().toSet()));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> clearCheckedRakaas() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyCheckedRakaas);
   }
 
   static Future<void> savePauseDates(Set<String> dates) async {

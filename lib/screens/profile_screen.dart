@@ -156,16 +156,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             centerTitle: false,
             actions: [
               if (!_editing) ...[
-                IconButton(
-                  icon: const Icon(Icons.timer_outlined),
-                  tooltip: S.modifierDuree,
+                TextButton.icon(
+                  icon: const Icon(Icons.timer_outlined, size: 18),
+                  label: Text(S.rythmeLabelCourt),
                   onPressed: _showDurationDialog,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.playlist_add_check_outlined),
-                  tooltip: S.modifierSourates,
+                TextButton.icon(
+                  icon: const Icon(Icons.playlist_add_check_outlined, size: 18),
+                  label: Text(S.souratesLabelCourt),
                   onPressed: () => setState(() => _editing = true),
                 ),
+                const SizedBox(width: 4),
               ] else ...[
                 TextButton(
                   onPressed: () => setState(() => _editing = false),

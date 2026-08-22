@@ -1,15 +1,17 @@
 enum Prayer {
-  // Prières obligatoires (fard)
+  // Ordre chronologique de la journée (tahiyyatMasjid est hors-chrono,
+  // ajouté séparément selon le nombre d'entrées à la mosquée — voir
+  // HomeScreen._effectivePrayers)
+  sunnaFajr,     // 2r avant Fajr
   fajr,
+  duha,          // 2r+ après le lever du soleil, avant Dhouhr
+  sunnaDhuhrAv,  // 4r avant Dhouhr (ou 2r selon madhab)
   dhuhr,
+  sunnaDhuhrAp,  // 2r après Dhouhr
   asr,
   maghrib,
-  isha,
-  // Sunna rawatib
-  sunnaFajr,     // 2r avant Fajr
-  sunnaDhuhrAv,  // 4r avant Dhouhr (ou 2r selon madhab)
-  sunnaDhuhrAp,  // 2r après Dhouhr
   sunnaMaghrib,  // 2r après Maghrib
+  isha,
   sunnaIsha,     // 2r après Isha
   witr,              // 1 ou 3r après Isha
   tahiyyatMasjid,   // 2r en entrant à la mosquée
@@ -23,6 +25,7 @@ extension PrayerExtension on Prayer {
       case Prayer.asr:          return 'Asr';
       case Prayer.maghrib:      return 'Maghrib';
       case Prayer.isha:         return "Isha";
+      case Prayer.duha:         return 'Doha';
       case Prayer.sunnaFajr:    return 'Sunna Fajr';
       case Prayer.sunnaDhuhrAv: return 'Sunna Dhouhr (avant)';
       case Prayer.sunnaDhuhrAp: return 'Sunna Dhouhr (après)';
@@ -47,6 +50,7 @@ extension PrayerExtension on Prayer {
       case Prayer.asr:            return 'Asr';
       case Prayer.maghrib:        return 'Maghrib';
       case Prayer.isha:           return 'Isha';
+      case Prayer.duha:           return 'Duha';
       case Prayer.sunnaFajr:      return 'Sunnah Fajr';
       case Prayer.sunnaDhuhrAv:   return 'Sunnah Dhuhr (before)';
       case Prayer.sunnaDhuhrAp:   return 'Sunnah Dhuhr (after)';
@@ -64,6 +68,7 @@ extension PrayerExtension on Prayer {
       case Prayer.asr:          return 'العصر';
       case Prayer.maghrib:      return 'المغرب';
       case Prayer.isha:         return 'العشاء';
+      case Prayer.duha:         return 'الضحى';
       case Prayer.sunnaFajr:    return 'سنة الفجر';
       case Prayer.sunnaDhuhrAv: return 'سنة الظهر القبلية';
       case Prayer.sunnaDhuhrAp: return 'سنة الظهر البعدية';
@@ -82,6 +87,7 @@ extension PrayerExtension on Prayer {
       case Prayer.asr:          return 4;
       case Prayer.maghrib:      return 3;
       case Prayer.isha:         return 4;
+      case Prayer.duha:         return 2;
       case Prayer.sunnaFajr:    return 2;
       case Prayer.sunnaDhuhrAv: return 4;
       case Prayer.sunnaDhuhrAp: return 2;
@@ -103,6 +109,7 @@ extension PrayerExtension on Prayer {
       case Prayer.asr:          return 2;
       case Prayer.maghrib:      return 2;
       case Prayer.isha:         return 2;
+      case Prayer.duha:         return 2;
       case Prayer.sunnaFajr:    return 2;
       case Prayer.sunnaDhuhrAv: return 4;
       case Prayer.sunnaDhuhrAp: return 2;

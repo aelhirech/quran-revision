@@ -16,6 +16,9 @@ class AppState extends ChangeNotifier {
   Set<String> _pauseDates;
   String _locale;
   Riwaya _riwaya;
+  // Rakaas cochées dans la session du jour (prayerIndex → n° de rakaas),
+  // persistées pour ne pas perdre la progression au redémarrage de l'app.
+  Map<int, Set<int>> _checkedRakaas;
   // Durée de cycle calculée depuis l'historique (mode adaptatif uniquement)
   int? _adaptiveCycleDays;
   // Fraîcheur par sourate (sourateId → niveau)
@@ -29,6 +32,7 @@ class AppState extends ChangeNotifier {
     DailySession? initialPreviewSession,
     DailySession? initialTodaySession,
     Set<String> initialPauseDates = const {},
+    Map<int, Set<int>> initialCheckedRakaas = const {},
   })  : _locale = locale,
         // `riwaya` must stay a public named arg for callers — `this._riwaya`
         // would make the constructor arg private.
@@ -37,7 +41,8 @@ class AppState extends ChangeNotifier {
         _cyclePosition = initialCyclePosition,
         _previewSession = initialPreviewSession,
         _todaySession = initialTodaySession,
-        _pauseDates = Set.from(initialPauseDates) {
+        _pauseDates = Set.from(initialPauseDates),
+        _checkedRakaas = initialCheckedRakaas.map((k, v) => MapEntry(k, Set.from(v))) {
     S.locale = locale;
   }
 
@@ -46,6 +51,7 @@ class AppState extends ChangeNotifier {
   DailySession? get previewSession => _previewSession;
   DailySession? get todaySession => _todaySession;
   Set<String> get pauseDates => Set.unmodifiable(_pauseDates);
+  Map<int, Set<int>> get checkedRakaas => _checkedRakaas;
   String get locale => _locale;
   Riwaya get riwaya => _riwaya;
   /// Retourne la durée adaptive uniquement si le mode est activé.
@@ -88,10 +94,12 @@ class AppState extends ChangeNotifier {
     _config = config;
     _cyclePosition = 0;
     _todaySession = null;
+    _checkedRakaas = {};
     await StorageService.saveConfig(config);
     await StorageService.saveCyclePosition(0);
     await StorageService.clearTodaySession();
     await StorageService.clearPreviewSession();
+    await StorageService.clearCheckedRakaas();
     notifyListeners();
   }
 
@@ -143,8 +151,20 @@ class AppState extends ChangeNotifier {
   Future<void> clearTodaySession() async {
     _todaySession = null;
     _previewSession = null;
+    _checkedRakaas = {};
     await StorageService.clearTodaySession();
     await StorageService.clearPreviewSession();
+    await StorageService.clearCheckedRakaas();
+    notifyListeners();
+  }
+
+  /// Coche/décoche une rakaa de la session du jour en cours et persiste
+  /// immédiatement — évite de perdre la progression si l'app est relancée
+  /// avant que la session soit marquée complète.
+  Future<void> toggleChecked(int prayerIndex, int rakaaNumber) async {
+    final set = _checkedRakaas.putIfAbsent(prayerIndex, () => {});
+    if (!set.remove(rakaaNumber)) set.add(rakaaNumber);
+    await StorageService.saveCheckedRakaas(_checkedRakaas);
     notifyListeners();
   }
 
@@ -180,6 +200,7 @@ class AppState extends ChangeNotifier {
     _todaySession = null;
     _previewSession = null;
     _pauseDates = {};
+    _checkedRakaas = {};
     await StorageService.clear();
     notifyListeners();
   }

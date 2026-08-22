@@ -135,7 +135,7 @@ class VerseBottomSheet extends StatelessWidget {
             text,
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.right,
-            style: GoogleFonts.scheherazadeNew(fontSize: 22, height: 2.0),
+            style: GoogleFonts.amiri(fontSize: 22, height: 2.0),
           ),
         ),
       ],

@@ -23,6 +23,11 @@ void main() async {
   final previewSession = await StorageService.loadPreviewSession();
   final todaySession = await StorageService.loadTodaySession();
   final pauseDates = await StorageService.loadPauseDates();
+  // Si la session du jour est absente (jamais engagée ou stale), les cases
+  // cochées persistées ne peuvent correspondre à aucun plan valide.
+  final checkedRakaas = todaySession == null
+      ? <int, Set<int>>{}
+      : await StorageService.loadCheckedRakaas();
   S.locale = locale;
   runApp(QuranRevisionApp(
     initialConfig: config,
@@ -31,6 +36,7 @@ void main() async {
     initialPreviewSession: previewSession,
     initialTodaySession: todaySession,
     initialPauseDates: pauseDates,
+    initialCheckedRakaas: checkedRakaas,
   ));
 }
 
@@ -41,6 +47,7 @@ class QuranRevisionApp extends StatelessWidget {
   final DailySession? initialPreviewSession;
   final DailySession? initialTodaySession;
   final Set<String> initialPauseDates;
+  final Map<int, Set<int>> initialCheckedRakaas;
 
   const QuranRevisionApp({
     super.key,
@@ -50,6 +57,7 @@ class QuranRevisionApp extends StatelessWidget {
     this.initialPreviewSession,
     this.initialTodaySession,
     this.initialPauseDates = const {},
+    this.initialCheckedRakaas = const {},
   });
 
   @override
@@ -63,6 +71,7 @@ class QuranRevisionApp extends StatelessWidget {
         initialPreviewSession: initialPreviewSession,
         initialTodaySession: initialTodaySession,
         initialPauseDates: initialPauseDates,
+        initialCheckedRakaas: initialCheckedRakaas,
       ),
       child: const _AppRoot(),
     );

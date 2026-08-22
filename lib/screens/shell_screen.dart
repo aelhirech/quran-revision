@@ -28,14 +28,14 @@ class _ShellScreenState extends State<ShellScreen> {
         label: S.reviser,
       ),
       NavigationDestination(
-        icon: const Icon(Icons.bar_chart_outlined),
-        selectedIcon: const Icon(Icons.bar_chart),
-        label: S.recap,
-      ),
-      NavigationDestination(
         icon: const Icon(Icons.auto_stories_outlined),
         selectedIcon: const Icon(Icons.auto_stories),
         label: S.apprendre,
+      ),
+      NavigationDestination(
+        icon: const Icon(Icons.bar_chart_outlined),
+        selectedIcon: const Icon(Icons.bar_chart),
+        label: S.recap,
       ),
       NavigationDestination(
         icon: const Icon(Icons.person_outline),
@@ -53,8 +53,8 @@ class _ShellScreenState extends State<ShellScreen> {
         index: _index,
         children: const [
           DayPlanTab(),
-          RecapScreen(),
           LearnScreen(),
+          RecapScreen(),
           ProfileScreen(),
         ],
       ),

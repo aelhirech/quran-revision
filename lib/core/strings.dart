@@ -54,6 +54,8 @@ class S {
   static String get modifier => _t('Modifier', 'Edit');
   static String get modifierDuree => _t('Modifier le rythme', 'Edit pace');
   static String get modifierSourates => _t('Modifier les sourates', 'Edit surahs');
+  static String get rythmeLabelCourt => _t('Rythme', 'Pace');
+  static String get souratesLabelCourt => _t('Sourates', 'Surahs');
   static String get rythmeParDuree => _t('Par durée', 'By duration');
   static String get rythmeParLignes => _t('Par lignes/jour', 'By lines/day');
   static String get dureePersonnalisee => _t('Personnalisé…', 'Custom…');

@@ -38,13 +38,20 @@ class PlanScreen extends StatefulWidget {
 }
 
 class _PlanScreenState extends State<PlanScreen> {
-  final Map<int, Set<int>> _checked = {};
+  // Preview : progression jetable, jamais persistée (cases non interactives).
+  // Session active : la progression vit dans AppState, persistée à chaque
+  // coche pour survivre à un redémarrage de l'app avant la validation finale.
+  final Map<int, Set<int>> _previewChecked = {};
   bool _justCompleted = false;
 
-  bool get _allDone {
+  Map<int, Set<int>> _checkedOf(BuildContext context) => widget.isPreview
+      ? _previewChecked
+      : context.watch<AppState>().checkedRakaas;
+
+  bool _allDoneOf(Map<int, Set<int>> checkedByPrayer) {
     for (int pi = 0; pi < widget.session.plan.length; pi++) {
       final pp = widget.session.plan[pi];
-      final checked = _checked[pi] ?? {};
+      final checked = checkedByPrayer[pi] ?? {};
       for (final r in pp.rakaas) {
         if (r.unit != null && !checked.contains(r.rakaaNumber)) return false;
       }
@@ -60,8 +67,8 @@ class _PlanScreenState extends State<PlanScreen> {
     return count;
   }
 
-  int get _checkedCount =>
-      _checked.values.fold(0, (sum, s) => sum + s.length);
+  int _checkedCountOf(Map<int, Set<int>> checkedByPrayer) =>
+      checkedByPrayer.values.fold(0, (sum, s) => sum + s.length);
 
   Future<void> _confirmChangePlan(BuildContext context) async {
     if (widget.isPreview) {
@@ -94,12 +101,17 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   void _toggle(int prayerIndex, int rakaaNumber) {
+    if (!widget.isPreview) {
+      context.read<AppState>().toggleChecked(prayerIndex, rakaaNumber);
+      return;
+    }
     setState(() {
-      final set = _checked.putIfAbsent(prayerIndex, () => {});
+      final set = _previewChecked.putIfAbsent(prayerIndex, () => {});
       set.contains(rakaaNumber) ? set.remove(rakaaNumber) : set.add(rakaaNumber);
-      if (_allDone && !_justCompleted) {
+      final allDone = _allDoneOf(_previewChecked);
+      if (allDone && !_justCompleted) {
         _justCompleted = true;
-      } else if (!_allDone) {
+      } else if (!allDone) {
         _justCompleted = false;
       }
     });
@@ -108,9 +120,12 @@ class _PlanScreenState extends State<PlanScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final checkedByPrayer = _checkedOf(context);
+    final allDone = _allDoneOf(checkedByPrayer);
+    final checkedCount = _checkedCountOf(checkedByPrayer);
     final progress = _totalRakaasWithUnit == 0
         ? 1.0
-        : _checkedCount / _totalRakaasWithUnit;
+        : checkedCount / _totalRakaasWithUnit;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -164,7 +179,7 @@ class _PlanScreenState extends State<PlanScreen> {
                   return PrayerPlanCard(
                     prayerIndex: i,
                     pp: pp,
-                    checked: _checked[i] ?? {},
+                    checked: checkedByPrayer[i] ?? {},
                     isPreview: widget.isPreview,
                     onToggle: (rakaa) => _toggle(i, rakaa),
                     freshnessOf: widget.freshnessOf,
@@ -184,7 +199,9 @@ class _PlanScreenState extends State<PlanScreen> {
           padding: const EdgeInsets.all(16),
           child: SizedBox(
             height: 56,
-            child: widget.isPreview ? _engageButton() : _completionButton(),
+            child: widget.isPreview
+                ? _engageButton()
+                : _completionButton(allDone, checkedCount),
           ),
         ),
       ),
@@ -214,16 +231,16 @@ class _PlanScreenState extends State<PlanScreen> {
     if (mounted) await widget.onComplete!(widget.session.totalUnits);
   }
 
-  Widget _completionButton() {
+  Widget _completionButton(bool allDone, int checkedCount) {
     final button = PrimaryCtaButton(
-      onPressed: _allDone ? _showCompletionSummary : null,
-      icon: _allDone ? Icons.check_circle : Icons.check_circle_outline,
-      label: _allDone
+      onPressed: allDone ? _showCompletionSummary : null,
+      icon: allDone ? Icons.check_circle : Icons.check_circle_outline,
+      label: allDone
           ? S.revisionComplete
-          : '$_checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
+          : '$checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
     );
 
-    if (!_allDone) return button;
+    if (!allDone) return button;
 
     return button
         .animate(key: const ValueKey('done'))
@@ -661,7 +678,7 @@ class _FocusMosqueeScreen extends StatelessWidget {
                       verses.join('  '),
                       textAlign: TextAlign.right,
                       textDirection: TextDirection.rtl,
-                      style: GoogleFonts.scheherazadeNew(
+                      style: GoogleFonts.amiri(
                         color: const Color(0xFFF2F7F3),
                         fontSize: 24,
                         height: 2.2,
