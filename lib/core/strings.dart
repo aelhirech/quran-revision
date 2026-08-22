@@ -241,6 +241,7 @@ class S {
   // Fraîcheur sourate (SRS léger)
   static String get fraicheurFroide => _t('Froide', 'Cold');
   static String get fraicheurGelee => _t('Très froide', 'Fading');
+  static String get fraicheurRecente => _t('Récente', 'Recent');
 
   // Apprentissage multi-versets
   static String get versetsParBloc => _t('Versets par bloc', 'Verses per block');

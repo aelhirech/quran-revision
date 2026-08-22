@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../core/app_colors.dart';
+import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/sourate_selection.dart';
+import '../screens/surah_reader_screen.dart';
 
 class SouratesRecapCard extends StatelessWidget {
   final List<SourateSelection> selections;
+  final FreshnessLevel? Function(int sourateId)? freshnessOf;
 
-  const SouratesRecapCard({super.key, required this.selections});
+  const SouratesRecapCard({
+    super.key,
+    required this.selections,
+    this.freshnessOf,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +48,7 @@ class SouratesRecapCard extends StatelessWidget {
             ...selections.asMap().entries.map((e) {
               final sel = e.value;
               final s = sel.sourate;
+              final freshness = freshnessOf?.call(s.id);
               return ListTile(
                 dense: true,
                 leading: CircleAvatar(
@@ -51,12 +60,25 @@ class SouratesRecapCard extends StatelessWidget {
                 title: Text(s.nameFr,
                     style: const TextStyle(fontWeight: FontWeight.w500)),
                 subtitle: Text(s.nameAr),
-                trailing: Text(
-                  sel.isWhole
-                      ? '${s.verses} ${S.versetsLabel}'
-                      : '${sel.verseStart}–${sel.verseEnd} (${sel.verseCount} ${S.versetsLabel})',
-                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (freshness != null) ...[
+                      _freshnessBadge(context, freshness),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      sel.isWhole
+                          ? '${s.verses} ${S.versetsLabel}'
+                          : '${sel.verseStart}–${sel.verseEnd} (${sel.verseCount} ${S.versetsLabel})',
+                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                    ),
+                    const Icon(Icons.chevron_right, size: 18),
+                  ],
                 ),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => SurahReaderScreen(selection: sel),
+                )),
               )
                   .animate()
                   .fadeIn(delay: Duration(milliseconds: 300 + e.key * 40))
@@ -67,5 +89,22 @@ class SouratesRecapCard extends StatelessWidget {
         ),
       ),
     ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1);
+  }
+
+  Widget _freshnessBadge(BuildContext context, FreshnessLevel level) {
+    final palette = context.palette;
+    final (label, color) = switch (level) {
+      FreshnessLevel.hot => (S.fraicheurRecente, palette.primary),
+      FreshnessLevel.cold => (S.fraicheurFroide, palette.gold),
+      FreshnessLevel.frozen => (S.fraicheurGelee, Colors.redAccent),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 10, color: color)),
+    );
   }
 }

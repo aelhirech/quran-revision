@@ -56,6 +56,9 @@ class _RecapScreenState extends State<RecapScreen> {
     final total    = await totalF;
     final sessions = await sessF;
     final progress = await progressF;
+    // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
+    // sans être passé par un plan du jour cette session.
+    if (mounted) await context.read<AppState>().refreshFreshness(notify: false);
     if (mounted) {
       setState(() {
         _streak = streak;
@@ -113,7 +116,10 @@ class _RecapScreenState extends State<RecapScreen> {
                 const SizedBox(height: 16),
                 HistoryCard(sessions: _sessions),
                 const SizedBox(height: 16),
-                SouratesRecapCard(selections: state.config!.selections),
+                SouratesRecapCard(
+                  selections: state.config!.selections,
+                  freshnessOf: state.freshnessFor,
+                ),
               ]),
             ),
           ),
