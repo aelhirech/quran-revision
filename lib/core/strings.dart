@@ -28,6 +28,12 @@ class S {
 
   // Plan screen
   static String get planDuJourTitle => _t('Plan du jour', 'Daily Plan');
+  static String get checkInMatin => _t('Bismillah, bon matin', 'Bismillah, good morning');
+  static String get checkInSoir => _t('Bismillah, bonne soirée', 'Bismillah, good evening');
+  static String get checkInNeutre => _t('Bismillah, prêt(e) ?', 'Bismillah, ready?');
+  static String checkInUnites(int n) =>
+      _t('$n unité${n > 1 ? 's' : ''} t\'attendent aujourd\'hui', '$n unit${n > 1 ? 's' : ''} waiting for you today');
+  static String get checkInSouratesAVeiller => _t('À surveiller aujourd\'hui', 'Keep an eye on today');
   static String get revisionComplete => _t('Révision complétée ✓', 'Revision complete ✓');
   static String get modifierPlan => _t('Modifier le plan', 'Edit plan');
   static String get alFatihaSeul => _t('Al-Fatiha (pas de sourate)', 'Al-Fatiha (no surah)');
@@ -54,6 +60,8 @@ class S {
   static String get modifier => _t('Modifier', 'Edit');
   static String get modifierDuree => _t('Modifier le rythme', 'Edit pace');
   static String get modifierSourates => _t('Modifier les sourates', 'Edit surahs');
+  static String get rythmeLabelCourt => _t('Rythme', 'Pace');
+  static String get souratesLabelCourt => _t('Sourates', 'Surahs');
   static String get rythmeParDuree => _t('Par durée', 'By duration');
   static String get rythmeParLignes => _t('Par lignes/jour', 'By lines/day');
   static String get dureePersonnalisee => _t('Personnalisé…', 'Custom…');
@@ -239,6 +247,7 @@ class S {
   // Fraîcheur sourate (SRS léger)
   static String get fraicheurFroide => _t('Froide', 'Cold');
   static String get fraicheurGelee => _t('Très froide', 'Fading');
+  static String get fraicheurRecente => _t('Récente', 'Recent');
 
   // Apprentissage multi-versets
   static String get versetsParBloc => _t('Versets par bloc', 'Verses per block');
@@ -286,4 +295,40 @@ class S {
   static String get streakLabel => _t('Série', 'Streak');
   static String get historique => _t('Historique', 'History');
   static String get aucuneSession => _t('Aucune session enregistrée', 'No sessions recorded yet');
+
+  // Tour guidé (onboarding avec surbrillance)
+  static String get tourPasser => _t('Passer', 'Skip');
+  static String get tourSuivant => _t('Suivant', 'Next');
+  static String get tourTerminer => _t('Compris', 'Got it');
+
+  static String get tourNavTitle => _t('Bienvenue !', 'Welcome!');
+  static String get tourNavBody => _t(
+    "Ton app a 4 sections : Réviser (ici), Apprendre, Récap et Profil.",
+    'Your app has 4 sections: Revise (here), Learn, Recap and Profile.',
+  );
+  static String get tourApprendreTitle => _t('Apprendre', 'Learn');
+  static String get tourApprendreBody => _t(
+    'Mémorise verset par verset avec un mode caché/révélé, à ton rythme.',
+    'Memorize verse by verse with a hide/reveal mode, at your own pace.',
+  );
+  static String get tourRecapTitle => _t('Récap', 'Recap');
+  static String get tourRecapBody => _t(
+    'Suis ta progression et repère les sourates qui commencent à refroidir.',
+    'Track your progress and spot the surahs that are starting to cool down.',
+  );
+  static String get tourProfilTitle => _t('Profil', 'Profile');
+  static String get tourProfilBody => _t(
+    'Ajuste ton rythme ou tes sourates sélectionnées à tout moment.',
+    'Adjust your pace or selected surahs at any time.',
+  );
+  static String get tourPrieresTitle => _t('Tes prières', 'Your prayers');
+  static String get tourPrieresBody => _t(
+    "Choisis les prières où tu récites seul aujourd'hui.",
+    'Choose the prayers you recite alone today.',
+  );
+  static String get tourVoirPlanTitle => _t('Ton plan du jour', 'Your daily plan');
+  static String get tourVoirPlanBody => _t(
+    "Puis appuie ici pour générer et voir ce que tu as à réviser.",
+    'Then tap here to generate and see what you have to revise.',
+  );
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
+import 'arabic_verse_text.dart';
 import 'ornamental_divider.dart';
 
 class VerseDisplayCard extends StatelessWidget {
@@ -57,12 +57,11 @@ class VerseDisplayCard extends StatelessWidget {
         child: visible
             ? Column(
                 children: [
-                  Text(
-                    verseText,
+                  ArabicVerseText(
+                    text: verseText,
                     textAlign: TextAlign.center,
-                    textDirection: TextDirection.rtl,
-                    style: GoogleFonts.scheherazadeNew(
-                        fontSize: 28, height: 2.0, color: palette.textPrimary),
+                    fontSize: 28,
+                    color: palette.textPrimary,
                   ),
                   const SizedBox(height: 14),
                   const OrnamentalDivider(lineWidth: 30),

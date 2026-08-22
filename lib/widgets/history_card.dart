@@ -175,7 +175,7 @@ class HistoryCard extends StatelessWidget {
                     value: pct,
                     minHeight: 4,
                     backgroundColor: cs.surface,
-                    color: pct >= 0.8 ? cs.primary : cs.primary,
+                    color: pct >= 0.8 ? cs.primary : cs.onSurfaceVariant,
                   ),
                 ),
               ],

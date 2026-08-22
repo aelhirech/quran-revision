@@ -92,13 +92,18 @@ class RevisionEngine {
 
     final totalVerses = config.totalSelectedVerses;
     final daysElapsed = today.difference(config.startDate).inDays;
-    final effectiveDays = effectiveDaysOverride ?? config.effectiveDays(totalVerses);
+    // >= 1 : une config corrompue/personnalisée à 0 jour ne doit pas faire
+    // planter clamp(1, effectiveDays) (nécessite lowerLimit <= upperLimit).
+    final effectiveDays =
+        (effectiveDaysOverride ?? config.effectiveDays(totalVerses)).clamp(1, 1 << 30);
     final daysRemaining = (effectiveDays - daysElapsed).clamp(1, effectiveDays);
 
     final totalSuratRakaas =
         prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
 
-    final pos = cyclePosition % cycleTotal;
+    // Aucune sourate sélectionnée : rien à faire avancer dans le cycle
+    // (dailyTarget/_unitsForLines savent déjà gérer cycleTotal == 0).
+    final pos = cycleTotal == 0 ? 0 : cyclePosition % cycleTotal;
     final unitsToAssign = config.paceByLines
         ? _unitsForLines(units, pos, cycleTotal, config.targetLinesPerDay)
             .clamp(0, cycleTotal)

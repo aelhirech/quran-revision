@@ -79,7 +79,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _longPressSourate(Sourate s) async {
-    if (!_selections.containsKey(s.id)) {
+    final wasSelected = _selections.containsKey(s.id);
+    if (!wasSelected) {
       setState(() => _selections[s.id] = SourateSelection.whole(s));
     }
     final result = await showModalBottomSheet<SourateSelection>(
@@ -89,7 +90,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       builder: (_) => VerseRangePicker(sourate: s, current: _selections[s.id]!),
     );
     if (!mounted) return;
-    if (result != null) setState(() => _selections[s.id] = result);
+    if (result != null) {
+      setState(() => _selections[s.id] = result);
+    } else if (!wasSelected) {
+      // Feuille fermée sans confirmer : annule la présélection faite pour
+      // pouvoir l'ouvrir, sinon la sourate reste cochée par accident.
+      setState(() => _selections.remove(s.id));
+    }
   }
 
   /// Sélectionne [fraction] du Coran depuis la FIN (ordre de mémorisation courant).

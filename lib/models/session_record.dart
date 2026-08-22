@@ -25,6 +25,8 @@ class SessionRecord {
         date: DateTime.parse(m['date'] as String),
         unitsCompleted: m['units_completed'] as int,
         totalUnits: m['total_units'] as int,
-        prayers: (m['prayers'] as String).split(','),
+        prayers: (m['prayers'] as String).isEmpty
+            ? const []
+            : (m['prayers'] as String).split(','),
       );
 }
