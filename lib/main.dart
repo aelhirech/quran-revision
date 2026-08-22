@@ -28,11 +28,9 @@ void main() async {
   final previewSession = await StorageService.loadPreviewSession();
   final todaySession = await StorageService.loadTodaySession();
   final pauseDates = await StorageService.loadPauseDates();
-  // Si la session du jour est absente (jamais engagée ou stale), les cases
-  // cochées persistées ne peuvent correspondre à aucun plan valide.
-  final checkedRakaas = todaySession == null
-      ? <int, Set<int>>{}
-      : await StorageService.loadCheckedRakaas();
+  // loadCheckedRakaas purge elle-même la clé si sa date ne correspond plus
+  // à aujourd'hui — pas besoin de dupliquer cette vérification ici.
+  final checkedRakaas = await StorageService.loadCheckedRakaas();
   S.locale = locale;
   runApp(QuranRevisionApp(
     initialConfig: config,

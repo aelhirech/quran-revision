@@ -118,7 +118,7 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      S.tourEtape(_index + 1, widget.steps.length),
+                      S.etapeN(_index + 1, widget.steps.length),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,

@@ -52,13 +52,14 @@ class _RecapScreenState extends State<RecapScreen> {
     final totalF   = HistoryService.totalSessionDays();
     final sessF    = HistoryService.recentSessions(limit: 14);
     final progressF = LearningService.loadAll();
+    // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
+    // sans être passé par un plan du jour cette session.
+    final freshnessF = context.read<AppState>().refreshFreshness(notify: false);
     final streak   = await streakF;
     final total    = await totalF;
     final sessions = await sessF;
     final progress = await progressF;
-    // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
-    // sans être passé par un plan du jour cette session.
-    if (mounted) await context.read<AppState>().refreshFreshness(notify: false);
+    await freshnessF;
     if (mounted) {
       setState(() {
         _streak = streak;

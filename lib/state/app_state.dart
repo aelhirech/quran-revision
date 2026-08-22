@@ -94,12 +94,11 @@ class AppState extends ChangeNotifier {
     _config = config;
     _cyclePosition = 0;
     _todaySession = null;
-    _checkedRakaas = {};
     await StorageService.saveConfig(config);
     await StorageService.saveCyclePosition(0);
     await StorageService.clearTodaySession();
     await StorageService.clearPreviewSession();
-    await StorageService.clearCheckedRakaas();
+    await _resetCheckedRakaas();
     notifyListeners();
   }
 
@@ -151,21 +150,27 @@ class AppState extends ChangeNotifier {
   Future<void> clearTodaySession() async {
     _todaySession = null;
     _previewSession = null;
-    _checkedRakaas = {};
     await StorageService.clearTodaySession();
     await StorageService.clearPreviewSession();
-    await StorageService.clearCheckedRakaas();
+    await _resetCheckedRakaas();
     notifyListeners();
+  }
+
+  Future<void> _resetCheckedRakaas() async {
+    _checkedRakaas = {};
+    await StorageService.clearCheckedRakaas();
   }
 
   /// Coche/décoche une rakaa de la session du jour en cours et persiste
   /// immédiatement — évite de perdre la progression si l'app est relancée
-  /// avant que la session soit marquée complète.
+  /// avant que la session soit marquée complète. `notifyListeners` se déclenche
+  /// avant l'écriture disque pour que la coche s'affiche sans attendre le
+  /// round-trip SharedPreferences.
   Future<void> toggleChecked(int prayerIndex, int rakaaNumber) async {
     final set = _checkedRakaas.putIfAbsent(prayerIndex, () => {});
     if (!set.remove(rakaaNumber)) set.add(rakaaNumber);
-    await StorageService.saveCheckedRakaas(_checkedRakaas);
     notifyListeners();
+    await StorageService.saveCheckedRakaas(_checkedRakaas);
   }
 
   /// Recalcule la durée adaptive depuis l'historique.

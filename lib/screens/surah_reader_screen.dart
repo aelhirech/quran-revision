@@ -5,6 +5,7 @@ import '../core/app_colors.dart';
 import '../models/sourate_selection.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
+import '../widgets/arabic_verse_text.dart';
 import '../widgets/ornamental_divider.dart';
 
 /// Lecture plein texte d'une sourate (ou d'une plage de versets sélectionnée),
@@ -44,15 +45,11 @@ class SurahReaderScreen extends StatelessWidget {
             const SizedBox(height: 12),
             const OrnamentalDivider(),
             const SizedBox(height: 20),
-            Text(
-              verses.join('  '),
-              textAlign: TextAlign.right,
-              textDirection: TextDirection.rtl,
-              style: GoogleFonts.amiri(
-                fontSize: 24,
-                height: 2.2,
-                color: palette.textPrimary,
-              ),
+            ArabicVerseText(
+              text: verses.join('  '),
+              fontSize: 24,
+              height: 2.2,
+              color: palette.textPrimary,
             ),
           ],
         ),

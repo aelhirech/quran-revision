@@ -300,8 +300,6 @@ class S {
   static String get tourPasser => _t('Passer', 'Skip');
   static String get tourSuivant => _t('Suivant', 'Next');
   static String get tourTerminer => _t('Compris', 'Got it');
-  static String tourEtape(int step, int total) =>
-      _t('$step / $total', '$step / $total');
 
   static String get tourNavTitle => _t('Bienvenue !', 'Welcome!');
   static String get tourNavBody => _t(

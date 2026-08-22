@@ -104,10 +104,17 @@ class StorageService {
 
   /// Rakaas cochées dans la session du jour, par index de prière — permet de
   /// survivre à un redémarrage de l'app sans perdre la progression déjà cochée.
+  /// La date est stockée à côté : si elle ne correspond plus à aujourd'hui
+  /// (session jamais explicitement clôturée puis minuit passé), le chargement
+  /// la traite comme absente et purge la clé — même logique que
+  /// [_sessionOrNullIfStale] pour [loadTodaySession].
   static Future<void> saveCheckedRakaas(Map<int, Set<int>> checked) async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = checked.map((k, v) => MapEntry(k.toString(), v.toList()));
-    await prefs.setString(_keyCheckedRakaas, jsonEncode(encoded));
+    await prefs.setString(_keyCheckedRakaas, jsonEncode({
+      'date': DateTime.now().toIso8601String().substring(0, 10),
+      'checked': encoded,
+    }));
   }
 
   static Future<Map<int, Set<int>>> loadCheckedRakaas() async {
@@ -116,7 +123,13 @@ class StorageService {
     if (raw == null) return {};
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      return decoded.map((k, v) =>
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      if (decoded['date'] != today) {
+        await clearCheckedRakaas();
+        return {};
+      }
+      final checked = decoded['checked'] as Map<String, dynamic>;
+      return checked.map((k, v) =>
           MapEntry(int.parse(k), (v as List).cast<int>().toSet()));
     } catch (_) {
       return {};

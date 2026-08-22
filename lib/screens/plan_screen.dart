@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/freshness_engine.dart';
@@ -11,6 +10,8 @@ import '../models/revision_unit.dart';
 import '../services/history_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
+import '../widgets/arabic_verse_text.dart';
+import '../widgets/freshness_badge.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/preview_banner.dart';
 import '../widgets/primary_cta_button.dart';
@@ -42,7 +43,6 @@ class _PlanScreenState extends State<PlanScreen> {
   // Session active : la progression vit dans AppState, persistée à chaque
   // coche pour survivre à un redémarrage de l'app avant la validation finale.
   final Map<int, Set<int>> _previewChecked = {};
-  bool _justCompleted = false;
 
   Map<int, Set<int>> _checkedOf(BuildContext context) => widget.isPreview
       ? _previewChecked
@@ -108,12 +108,6 @@ class _PlanScreenState extends State<PlanScreen> {
     setState(() {
       final set = _previewChecked.putIfAbsent(prayerIndex, () => {});
       set.contains(rakaaNumber) ? set.remove(rakaaNumber) : set.add(rakaaNumber);
-      final allDone = _allDoneOf(_previewChecked);
-      if (allDone && !_justCompleted) {
-        _justCompleted = true;
-      } else if (!allDone) {
-        _justCompleted = false;
-      }
     });
   }
 
@@ -315,8 +309,7 @@ class _PlanScreenState extends State<PlanScreen> {
               runSpacing: 6,
               children: toWatch.map((e) {
                 final (name, level) = e;
-                final color =
-                    level == FreshnessLevel.frozen ? Colors.redAccent : palette.gold;
+                final color = freshnessColor(level, palette);
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -752,15 +745,11 @@ class _FocusMosqueeScreen extends StatelessWidget {
                           letterSpacing: 0.5),
                     ),
                     const SizedBox(height: 14),
-                    Text(
-                      verses.join('  '),
-                      textAlign: TextAlign.right,
-                      textDirection: TextDirection.rtl,
-                      style: GoogleFonts.amiri(
-                        color: const Color(0xFFF2F7F3),
-                        fontSize: 24,
-                        height: 2.2,
-                      ),
+                    ArabicVerseText(
+                      text: verses.join('  '),
+                      fontSize: 24,
+                      height: 2.2,
+                      color: const Color(0xFFF2F7F3),
                     ),
                   ],
                 );

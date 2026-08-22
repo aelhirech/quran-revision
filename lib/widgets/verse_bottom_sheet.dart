@@ -6,6 +6,7 @@ import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
+import 'arabic_verse_text.dart';
 
 class VerseBottomSheet extends StatelessWidget {
   final RevisionUnit unit;
@@ -130,14 +131,7 @@ class VerseBottomSheet extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.right,
-            style: GoogleFonts.amiri(fontSize: 22, height: 2.0),
-          ),
-        ),
+        Expanded(child: ArabicVerseText(text: text, fontSize: 22)),
       ],
     );
   }

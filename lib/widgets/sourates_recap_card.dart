@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../core/app_colors.dart';
 import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/sourate_selection.dart';
 import '../screens/surah_reader_screen.dart';
+import 'freshness_badge.dart';
 
 class SouratesRecapCard extends StatelessWidget {
   final List<SourateSelection> selections;
@@ -64,7 +64,7 @@ class SouratesRecapCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (freshness != null) ...[
-                      _freshnessBadge(context, freshness),
+                      FreshnessBadge(level: freshness),
                       const SizedBox(width: 8),
                     ],
                     Text(
@@ -89,22 +89,5 @@ class SouratesRecapCard extends StatelessWidget {
         ),
       ),
     ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1);
-  }
-
-  Widget _freshnessBadge(BuildContext context, FreshnessLevel level) {
-    final palette = context.palette;
-    final (label, color) = switch (level) {
-      FreshnessLevel.hot => (S.fraicheurRecente, palette.primary),
-      FreshnessLevel.cold => (S.fraicheurFroide, palette.gold),
-      FreshnessLevel.frozen => (S.fraicheurGelee, Colors.redAccent),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        border: Border.all(color: color.withValues(alpha: 0.6)),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(label, style: TextStyle(fontSize: 10, color: color)),
-    );
   }
 }
