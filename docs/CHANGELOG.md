@@ -6,6 +6,69 @@
 
 ---
 
+## Phase 6 — Cadrage (pas encore implémenté)
+
+> Discuté et tranché en conversation avant tout code — à lire en entier avant de commencer `feature/phase-6-sprint1` (branché depuis la pointe de `feature/phase-5-sprint8`, non mergée sur `main`). Objectif de la phase : remplacer la fraîcheur/historique par sourate (Sprint 3/7/8) et `LearningProgress` (SharedPreferences) par **une seule table de faits par verset**, alimentant un rituel check-in/check-out en vue "journée" plutôt que prière par prière. Reprend et remplace le backlog Sprint 7 « Rituel matin/soir check-in/check-out » (P2) et « Historique par verset » (P3).
+
+### Modèle de données — table de faits
+
+```sql
+CREATE TABLE ayah_facts (
+  user_id   TEXT NOT NULL,   -- réservé pour un futur compte/sync ; valeur locale fixe pour l'instant, profils élèves hors scope (voir Décisions)
+  date      TEXT NOT NULL,   -- YYYY-MM-DD, jour auquel le fait est rattaché (voir règle multi-jours)
+  riwaya    TEXT NOT NULL,   -- 'hafs' | 'warsh'
+  surah_id  INTEGER NOT NULL,
+  ayah_id   INTEGER NOT NULL,-- n'a de sens qu'avec `riwaya` sur la même ligne (Sprint 8 : Hafs 6236 vs Warsh 6214, numérotations natives différentes, jamais comparables entre elles)
+  type      TEXT NOT NULL,   -- 'learn' | 'revise'
+  reach     INTEGER NOT NULL DEFAULT 0,  -- bool — l'utilisateur a confirmé au check-out avoir atteint ce verset
+  cold      INTEGER NOT NULL DEFAULT 0,  -- bool — déclaration manuelle, en plus du calcul automatique existant (FreshnessEngine)
+  checked_out INTEGER NOT NULL DEFAULT 0 -- bool — la journée est-elle scellée (voir "Verrouillage")
+);
+```
+Index à prévoir dès la création (pas ajoutés après coup) : `(date)`, `(riwaya, surah_id, ayah_id)` — la granularité verset multiplie vite le nombre de lignes (une journée de 50 versets = 50 lignes).
+
+### Ce que ça remplace
+
+- `HistoryService.sessions`/`sourate_sessions` (granularité sourate) → lignes de cette table.
+- `LearningService`/`StudentService` `LearningProgress.learnedVerses` (Set en SharedPreferences) → lignes `type='learn'`.
+- `StorageService.previewSession`/`todaySession`/`checkedRakaas` (blobs SharedPreferences séparés de l'historique) → les lignes `date = today, checked_out = 0` **sont** l'état du jour ; plus de mécanisme de persistance séparé. Une seule source pour l'aperçu du jour et l'historique.
+- `FreshnessEngine` passe du niveau sourate au niveau verset — **changement de comportement dans un fichier `core/`, test de régression obligatoire avant modification** (règle CLAUDE.md du projet ; couverture actuelle : zéro).
+
+### Verrouillage (décidé)
+
+Le **check-out** scelle la journée (`checked_out = 1`), pas le passage de minuit seul — un jour non check-outé reste modifiable même après minuit, jusqu'à ce que l'utilisateur le clôture explicitement.
+
+### Règle de rattrapage multi-jours (décidée)
+
+- **Écart d'un jour** (dernière visite = hier, hier jamais check-outé) : on demande simplement de check-outer hier — pas de flux à deux parties.
+- **Écart de plusieurs jours** : check-out proposé en **deux parties** dans le même écran — (1) finalise le dernier jour resté en attente, les lignes écrites gardent **la date de ce jour-là**, pas aujourd'hui ; (2) optionnel, si l'utilisateur veut aussi ajouter des choses pour aujourd'hui, ces lignes-là sont datées d'aujourd'hui. Jamais plus d'un jour "en attente" à la fois par construction (un nouveau check-in n'est possible qu'une fois le précédent check-out scellé).
+
+### Check-in éditable (décidé)
+
+Au check-in, l'utilisateur peut ajouter/retirer des ayah au plan proposé, y compris depuis des sourates hors de la sélection courante. **Tout ajout avance le cycle de révision** (`RevisionEngine`/`cyclePosition`), qu'il vienne d'une sourate déjà planifiée ou non — pas de notion d'ajout "hors cycle".
+
+### Vue pilotée (décidée)
+
+Le check-in/check-out affiche une vue "journée" agrégée (pas prière par prière) — elle **complète** l'écran de plan actuel groupé par prière (`PlanScreen`), ne le remplace pas. La déclaration "cold" sur un verset se fait depuis cette vue.
+
+### Bismillah (décidé)
+
+Sur tout écran affichant du texte coranique (plan du jour, récap, lecture pleine sourate), la première ligne est **réservée et fixe** pour la Bismillah — centrée, hors du flux scrollable des versets, affichée uniquement si la sourate en a une. La donnée existe déjà : `assets/quran/metadata/quran-metadata-surah-name.json` (bundlée Sprint 8, jamais utilisée jusqu'ici) contient `bismillah_pre: true/false` par sourate.
+
+### Décisions actées
+
+- **Profils élèves hors scope** — `user_id` prépare un futur compte/sync (pas une unification avec `StudentProfile`), à réconcilier plus tard. `StudentService`/`LearningProgress` élèves restent inchangés ce sprint.
+- **Migration SQLite via `ALTER TABLE`/`onUpgrade`, pas un wipe** — schéma actuel (`sessions`/`sourate_sessions` v3) migré proprement vers `ayah_facts`, données existantes préservées. Explicitement demandé : que ça reste propre, pas "un amas de fonctions et fonctionnalités" — un plan de migration clair à écrire en `EnterPlanMode`, pas une succession de rustines.
+- **Table de faits mutable uniquement pour la journée en cours** (`checked_out = 0`), gelée dès le check-out — verrou appliqué côté application (service layer), pas par trigger SQL, cohérent avec le reste du projet (pas de mécanisme DB au-delà de ce que sqflite offre nativement).
+
+### Ouvert — à trancher en `EnterPlanMode` au début du sprint
+
+- Conception précise du "moteur simple et fiable" consommant `ayah_facts` pour toutes les pages (Recap, Plan du jour, Learn) — quelles requêtes dérivées exactement (prochain verset non appris, fraîcheur par verset, streak), où elles vivent (service vs "engine" pur Dart type `RevisionEngine`), et comment éviter qu'un écran ne réinvente sa propre requête (le problème que la fusion `LearningService`/`sourate_sessions` cherche justement à éliminer).
+- Écriture exacte du plan de migration `sessions`/`sourate_sessions` (v3) → `ayah_facts` — mapping précis des colonnes, gestion du fait que `LearningProgress` actuel n'a qu'un `startDate` par sourate (pas une date par verset appris) donc une reconstruction fidèle ligne-par-ligne n'est pas possible pour l'historique d'apprentissage déjà existant — décider de l'approximation acceptée (ex. toutes les lignes `learn` historiques héritent du `startDate` de leur sourate) plutôt que de la découvrir en codant.
+- Écran(s) exact(s) du check-in/check-out à deux parties (rattrapage multi-jours) — maquette/flow avant implémentation.
+
+---
+
 ## Fonctionnalités livrées
 
 ### Phase 4 — Sprint 1 (commit `ef4fbfd`, fix `37b2494`)
@@ -100,9 +163,7 @@
 |----------|---------|-------|
 | P3 | **Gamification narrative [H]** | vision long terme — direction artistique déjà validée (Mus'haf/Tahajjud), reste à définir la mécanique narrative |
 | P3 | **Cycle wrap affiché** | si cyclePosition + totalUnits > cycleTotal, afficher "(cycle bouclé)" dans le summary bar |
-| P2 | **Rituel matin/soir "check-in/check-out"** | Sprint 7 a livré un check-in simple (salutation + sourates froides) mais pas de distinction matin (check-in) / soir (check-out) ni de mécanique dédiée — à définir : qu'est-ce qui différencie concrètement les deux moments dans ce contexte de révision (pas un usage compulsif à limiter comme les apps anti-addiction) |
-| P2 | **Mode "versets froids" en jeu à part** | écran dédié en dehors du plan du jour classique pour retravailler spécifiquement les versets/sourates froids ou gelés, en mode ludique — nécessite de définir la mécanique de jeu avant d'implémenter (valeur vs complexité à évaluer) |
-| P3 | **Historique par verset** | aujourd'hui la fraîcheur (Sprint 3, étendue Sprint 7) est au niveau sourate ; un suivi verset par verset demanderait un nouveau modèle de données (`sourate_sessions` ne descend pas à ce niveau) |
+| P2 | **Mode "versets froids" en jeu à part** | écran dédié en dehors du plan du jour classique pour retravailler spécifiquement les versets/sourates froids ou gelés, en mode ludique — nécessite de définir la mécanique de jeu avant d'implémenter (valeur vs complexité à évaluer). Le "cold" déclaratif de la Phase 6 fournit la donnée, pas le mode de jeu lui-même |
 | P3 | **Revoir le tutoriel depuis Profil** | le tour (Sprint 7) ne s'affiche qu'une fois après l'onboarding ; un bouton de replay demanderait de faire communiquer ProfileScreen → ShellScreen (changer d'onglet + relancer le tour), pas fait faute de demande explicite |
 | P3 | **Jeu mot arabe → traduction (Apprendre)** | mini-jeu : verset découpé mot par mot, l'utilisateur retrouve la bonne traduction parmi plusieurs propositions — travaille la compréhension du sens en plus de la mémorisation par cœur. Nécessite les données word-by-word (ressource QUL "QPC Hafs script - Word by word") |
 | P3 | **Affichage tajweed coloré** | coloration du texte par règle de tajwid (ressource QUL "QPC Hafs Tajweed") — attention à passer par `AppPalette`/tokens sémantiques pour rester cohérent clair/sombre, pas de couleurs de tajwid en dur |
