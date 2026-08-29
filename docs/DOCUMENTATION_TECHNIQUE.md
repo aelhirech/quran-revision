@@ -25,7 +25,7 @@ Concepts métier centraux (à comprendre avant de lire le code) :
 - **Flutter** (SDK Dart `^3.12.2`), Material 3, **Provider** (`ChangeNotifier`) comme unique gestion d'état — voir `[[pas-de-sur-ingenierie]]` dans CLAUDE.md, ne pas introduire Riverpod/Bloc/GetX.
 - Pas de backend : toute la persistance est locale (`shared_preferences` + `sqflite`).
 - Dépendances clés (`pubspec.yaml`) : `provider`, `shared_preferences`, `sqflite`, `flutter_local_notifications`, `flutter_animate`, `quran` (texte Hafs + métadonnées via `package:quran`), `google_fonts` (Lora/Amiri), `path`.
-- Build/déploiement : aucune CI/CD connectée au dépôt — build et distribution (TestFlight/App Store) faits manuellement via Xcode (Archive → Distribute App). Pas de pipeline Android à ce jour.
+- Build/déploiement : CI/CD Codemagic connectée au dépôt (`codemagic.yaml`, workflow `ios-testflight`) — un `git push` sur `main` déclenche automatiquement build + signing + publication TestFlight. Pas de pipeline Android à ce jour.
 - Dépôt GitHub : `aelhirech/quran-revision`.
 
 ---
@@ -333,7 +333,11 @@ Lancer les tests : `flutter test`.
 
 ## 12. Build & déploiement
 
-Aucune CI/CD connectée à ce dépôt (un fichier `codemagic.yaml` a existé un temps mais a été retiré — le déploiement n'est pas piloté par un service externe). Le build et la distribution se font **manuellement via Xcode** : ouvrir `ios/Runner.xcworkspace`, Archive, puis Distribute App vers TestFlight/App Store. Un `git push` sur `main` ne déclenche donc aucun build ni aucune distribution automatique.
+CI/CD Codemagic connectée au dépôt via `codemagic.yaml` (workflow `ios-testflight`, `aelhirech/quran-revision`). **Un `git push` sur `main` déclenche automatiquement** : `flutter pub get` → signing (voir ci-dessous) → détermination du build number → `flutter build ipa --release` → publication TestFlight via l'API App Store Connect. C'est pourquoi la confirmation explicite avant push vers `main` (voir `CLAUDE.md`, section « Fin de sprint ») est désormais requise pour une vraie raison opérationnelle, pas seulement par prudence générale.
+
+**Signing iOS** : mécanisme natif Codemagic (`environment.ios_signing`, `distribution_type: app_store`), pas de script manuel `fetch-signing-files` (abandonné — échouait de façon persistante avec « Cannot save Signing Certificates without certificate private key » même avec un compte Apple propre). Certificat de distribution et profil de provisioning générés manuellement (OpenSSL + upload CSR sur Apple Developer, profil App Store créé et téléchargé) puis uploadés dans Codemagic (Team settings → Code signing identities), référencés par `codemagic_certificate`.
+
+**Build number automatique** : script `Determine next build number` résout l'Apple ID numérique de l'app via `app-store-connect apps list --bundle-id-identifier ... --json` (les commandes `get-latest-app-store-build-number`/`get-latest-testflight-build-number` exigent cet ID numérique, pas le bundle identifier), prend le max entre App Store et TestFlight, l'incrémente, et l'injecte via `--build-number` à `flutter build ipa`. Le `+N` dans `pubspec.yaml` (`version:`) n'est donc qu'un fallback pour les builds manuels via Xcode — pas utilisé par la CI.
 
 Pas de pipeline Android à ce jour.
 
@@ -389,5 +393,5 @@ Ce document a été généré par une lecture complète du code source (tous les
 - Si vous (humain ou Claude) trouvez une divergence entre ce document et le code réel, corrigez ce document plutôt que de le laisser mentir — le code fait toujours foi.
 - Les points de §8.5 (« dette technique identifiée ») doivent être retirés de la liste au fur et à mesure qu'ils sont corrigés, pas laissés indéfiniment.
 
-*Dernière rédaction complète : 2026-08-22, à partir d'une lecture intégrale de `lib/` (8093 lignes) et de `test/`. Mise à jour le 2026-08-22 (même jour) pour refléter le Sprint 7 (`lib/` : 8860 lignes) et le retrait de `codemagic.yaml` (déploiement manuel via Xcode).*
+*Dernière rédaction complète : 2026-08-22, à partir d'une lecture intégrale de `lib/` (8093 lignes) et de `test/`. Mise à jour le 2026-08-22 (même jour) pour refléter le Sprint 7 (`lib/` : 8860 lignes) et le retrait de `codemagic.yaml` (déploiement manuel via Xcode). Mise à jour le 2026-08-29 : `codemagic.yaml` réintroduit et rendu fonctionnel (signing + build number auto + publication TestFlight sur push `main`) — voir §12.*
 

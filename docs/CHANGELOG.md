@@ -63,6 +63,12 @@
 - **`/simplify` (commit `98b8e05`)** : badge de fraîcheur et rendu du texte arabe des versets factorisés (`widgets/freshness_badge.dart`, `widgets/arabic_verse_text.dart`, plus 2 duplications) ; état mort supprimé (`_justCompleted`) ; `AppState.toggleChecked` notifie avant l'écriture disque au lieu d'après (case cochée affichée sans attendre le round-trip SharedPreferences) ; `StorageService.loadCheckedRakaas` gère elle-même la péremption au lieu d'un check ad hoc dans `main.dart`.
 - **`/code-review` complet du projet + fixes (commit `02acd78`)** : revue à 8 agents sur tout `lib/`, 25 findings consolidés. Corrigés notamment : la déclaration manuelle "une part fait" avançait le cycle en comptant des **rakaas** comme si c'étaient des **unités de cycle** (`PlanScreen._coverageForFirstRakaas` calcule maintenant la vraie couverture) ; la complétion partielle marquait *toutes* les sourates du plan comme "revues" même sans rien coché (fraîcheur faussée) ; `AppState.saveConfig` remettait le cycle à zéro pour tout changement de config, même un simple ajustement de rythme (compare maintenant l'ancienne et la nouvelle sélection) ; `clearConfig` vidait toutes les SharedPreferences (langue, riwaya, notifications) au lieu de la seule config (`StorageService.clearConfigOnly`) ; divergence "jours restants" Home vs Récap en cycle adaptatif ; division par zéro dans `RevisionEngine.buildDayPlan` si aucune sourate sélectionnée (+ test de régression) ; `loadConfig()` ne plante plus sur une config corrompue. Détail complet dans l'historique de conversation — 6 findings mineurs sciemment non traités (over-engineering vs risque réel pour une app locale mono-utilisateur), listés avec leur raison dans le rapport de revue.
 
+### CI/CD Codemagic — déploiement TestFlight automatique (2026-08-29)
+- **Réintroduction et mise en fonctionnement de `codemagic.yaml`** (l'entrée du 2026-08-22 ci-dessous documentait son retrait — c'est aujourd'hui l'inverse : un `git push` sur `main` déclenche build + signing + publication TestFlight automatiques).
+- **Signing iOS** : le script manuel `app-store-connect fetch-signing-files --create` échouait de façon persistante (`Cannot save Signing Certificates without certificate private key`), y compris avec un compte Apple propre (0 certificat distribution, clé API en rôle Admin) — cause probablement un comportement instable de cette commande CLI plutôt qu'un conflit de certificat. Contournement : certificat + profil de provisioning générés manuellement (OpenSSL pour le certificat en l'absence de Mac disponible, upload CSR sur Apple Developer, profil App Store généré et téléchargé), uploadés dans Codemagic (Team settings → Code signing identities), et le mécanisme natif `environment.ios_signing` (`distribution_type: app_store`) utilisé à la place du script.
+- **Build number automatique** : App Store Connect rejette tout upload dont le `CFBundleVersion` n'est pas strictement supérieur au précédent. Ajout d'un script qui résout l'Apple ID numérique de l'app (`app-store-connect apps list --bundle-id-identifier`) — nécessaire car `get-latest-app-store-build-number`/`get-latest-testflight-build-number` exigent cet ID et pas le bundle identifier (bug trouvé en code review, vérifié contre la doc officielle avant fix) —, prend le max des deux dernières valeurs connues (App Store + TestFlight), l'incrémente, et l'injecte via `flutter build ipa --build-number=...`. Plus besoin d'incrémenter `pubspec.yaml` manuellement avant chaque push sur `main`.
+- `CLAUDE.md` et `docs/DOCUMENTATION_TECHNIQUE.md` (§12) corrigés en conséquence.
+
 ### Documentation technique (2026-08-22)
 - Création de `docs/DOCUMENTATION_TECHNIQUE.md` — référence de maintenance complète (architecture, moteurs métier détaillés, services, écrans, dette technique UI identifiée), générée à partir d'une lecture intégrale du code source.
 - Suppression de `context/CONTEXT.md` — remplacé par `docs/DOCUMENTATION_TECHNIQUE.md` (comment ça marche) + ce fichier `CHANGELOG.md` (quoi a été livré, backlog).
@@ -73,6 +79,8 @@
 
 ## Backlog
 
+> Fusionné le 2026-08-29 avec l'ancien `bakclog-developper.txt` (fichier séparé, supprimé — voir `CLAUDE.md`). Un item de ce fichier n'a pas été repris car déjà résolu et documenté : « réinitialisation du cycle à l'édition des sourates » (fix Sprint 7, entrée `/code-review` ci-dessus — `AppState.saveConfig` compare désormais l'ancienne et la nouvelle sélection).
+
 | Priorité | Feature | Notes |
 |----------|---------|-------|
 | P3 | **Gamification narrative [H]** | vision long terme — direction artistique déjà validée (Mus'haf/Tahajjud), reste à définir la mécanique narrative |
@@ -82,6 +90,8 @@
 | P3 | **Historique par verset** | aujourd'hui la fraîcheur (Sprint 3, étendue Sprint 7) est au niveau sourate ; un suivi verset par verset demanderait un nouveau modèle de données (`sourate_sessions` ne descend pas à ce niveau) |
 | P3 | **Revoir le tutoriel depuis Profil** | le tour (Sprint 7) ne s'affiche qu'une fois après l'onboarding ; un bouton de replay demanderait de faire communiquer ProfileScreen → ShellScreen (changer d'onglet + relancer le tour), pas fait faute de demande explicite |
 | P3 | **Source vérifié du coran** | vérifier le coran warsh et hafs |
+| P3 | **Effet waouh à l'onboarding** | le wizard 3 pages est fonctionnel mais manque d'un écran de confirmation engageant en fin de setup ; la sélection des sourates reste perçue comme longue même avec les boutons rapides |
+| P3 | **Animation badge chaud/froid à la validation** | la mini barre de cycle (Sprint 6) donne un feedback de progression, mais le badge chaud/froid de la sourate qui vient d'être validée ne s'anime pas (scale/color transition) pour rendre la connexion action → état plus explicite dans PlanScreen |
 
 ---
 
