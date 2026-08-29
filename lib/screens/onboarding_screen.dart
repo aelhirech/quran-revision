@@ -3,11 +3,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/quran_data.dart';
 import '../core/strings.dart';
+import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
+import '../services/hizb_metadata_service.dart';
 import '../state/app_state.dart';
 import '../widgets/index_badge.dart';
 import '../widgets/ornamental_divider.dart';
@@ -17,7 +18,12 @@ import '../widgets/primary_cta_button.dart';
 import '../widgets/verse_range_picker.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  /// Non-null quand l'utilisateur bascule vers un parcours (riwaya) jamais
+  /// configuré — la riwaya est déjà décidée, l'assistant saute directement
+  /// à la sélection des sourates (pas d'intro, pas de choix de riwaya).
+  final Riwaya? presetRiwaya;
+
+  const OnboardingScreen({super.key, this.presetRiwaya});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -32,6 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _targetLinesPerDay = 15;
   bool _groupByHizb = false;
   String _search = '';
+  late Riwaya _riwaya = widget.presetRiwaya ?? Riwaya.hafs;
 
   @override
   void dispose() {
@@ -43,6 +50,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _selections.values.fold(0, (sum, s) => sum + s.verseCount);
 
   List<Object> get _listItems {
+    final allSourates = context.read<AppState>().sourates;
     final sourates = allSourates
         .where((s) =>
             _search.isEmpty ||
@@ -51,7 +59,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             s.id.toString() == _search)
         .toList();
     if (_search.isNotEmpty || !_groupByHizb) return sourates;
-    return _groupedBy(sourates, (s) => sourateHizbMap[s.id] ?? 1);
+    return _groupedBy(
+        sourates, (s) => HizbMetadataService.surahStartHizb[s.id] ?? 1);
   }
 
   List<Object> _groupedBy(List<Sourate> sourates, int Function(Sourate) key) {
@@ -101,6 +110,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   /// Sélectionne [fraction] du Coran depuis la FIN (ordre de mémorisation courant).
   void _quickSelect(double fraction) {
+    final allSourates = context.read<AppState>().sourates;
     setState(() {
       _selections.clear();
       if (fraction >= 1.0) {
@@ -130,6 +140,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
   }
 
+  /// Choix de riwaya (première page, seulement quand presetRiwaya est null) —
+  /// bascule AppState immédiatement pour que la page de sélection suivante
+  /// affiche les bons comptes de versets/mots.
+  Future<void> _confirmRiwaya(Riwaya riwaya) async {
+    final ok = await context.read<AppState>().setRiwaya(riwaya);
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(S.warshUnavailable)));
+      return;
+    }
+    setState(() => _riwaya = riwaya);
+    _nextPage();
+  }
+
   Future<void> _confirm() async {
     if (_selections.isEmpty) return;
     final config = UserConfig(
@@ -138,19 +163,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       startDate: DateTime.now(),
       paceByLines: _paceByLines,
       targetLinesPerDay: _targetLinesPerDay,
+      riwaya: _riwaya,
     );
     await context.read<AppState>().saveConfig(config);
   }
 
   @override
   Widget build(BuildContext context) {
+    final showIntroAndRiwaya = widget.presetRiwaya == null;
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          _IntroPage(onNext: _nextPage),
+          if (showIntroAndRiwaya) _IntroPage(onNext: _nextPage),
+          if (showIntroAndRiwaya) _RiwayaPage(onSelect: _confirmRiwaya),
           _SelectionPage(
             selections: _selections,
             totalVerses: _totalVerses,
@@ -249,6 +277,105 @@ class _IntroPage extends StatelessWidget {
   }
 }
 
+// ─── Page : Choix de riwaya ──────────────────────────────────────────────────
+
+class _RiwayaPage extends StatelessWidget {
+  final void Function(Riwaya) onSelect;
+  const _RiwayaPage({required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Spacer(flex: 2),
+            Text(
+              S.choisirRiwayaTitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w600,
+                color: palette.textPrimary,
+                height: 1.25,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              S.choisirRiwayaSubtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: palette.textPrimary.withValues(alpha: 0.7),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            _RiwayaChoiceCard(
+              label: S.hafs,
+              description: S.hafsDescription,
+              onTap: () => onSelect(Riwaya.hafs),
+            ),
+            const SizedBox(height: 14),
+            _RiwayaChoiceCard(
+              label: S.warsh,
+              description: S.warshDescription,
+              onTap: () => onSelect(Riwaya.warsh),
+            ),
+            const Spacer(flex: 3),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RiwayaChoiceCard extends StatelessWidget {
+  final String label;
+  final String description;
+  final VoidCallback onTap;
+
+  const _RiwayaChoiceCard({
+    required this.label,
+    required this.description,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cs.outlineVariant),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface)),
+            const SizedBox(height: 6),
+            Text(description,
+                style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Page 1 : Sélection sourates ─────────────────────────────────────────────
 
 class _SelectionPage extends StatelessWidget {
@@ -281,6 +408,7 @@ class _SelectionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final totalSourates = context.watch<AppState>().sourates.length;
     return SafeArea(
       child: Column(
         children: [
@@ -307,7 +435,7 @@ class _SelectionPage extends StatelessWidget {
                     PillChip(
                         label: S.toutLeCoran,
                         onTap: () => onQuickSelect(1.0),
-                        selected: selections.length == allSourates.length),
+                        selected: selections.length == totalSourates),
                     const SizedBox(width: 6),
                     PillChip(label: '3/4', onTap: () => onQuickSelect(0.75), selected: false),
                     const SizedBox(width: 6),

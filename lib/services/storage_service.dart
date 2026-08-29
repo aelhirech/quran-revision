@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/daily_session.dart';
 import '../models/riwaya.dart';
 import '../models/user_config.dart';
+import 'riwaya_key.dart';
 
 class StorageService {
   static const _keyConfig = 'user_config';
@@ -16,14 +17,20 @@ class StorageService {
   static const _keyCheckedRakaas = 'today_checked_rakaas';
   static const _keyTourSeen = 'onboarding_tour_seen';
 
-  static Future<void> saveConfig(UserConfig config) async {
+  /// Hafs et Warsh sont deux parcours indépendants (config, cycle, sessions,
+  /// pauses, cases cochées) — ces 6 clés sont donc préfixées par riwaya.
+  /// Langue/riwaya-active/notifications/tour-vu restent des préférences
+  /// globales, non préfixées.
+  static String _track(String base, Riwaya riwaya) => riwayaKey(base, riwaya);
+
+  static Future<void> saveConfig(UserConfig config, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyConfig, jsonEncode(config.toJson()));
+    await prefs.setString(_track(_keyConfig, riwaya), jsonEncode(config.toJson()));
   }
 
-  static Future<UserConfig?> loadConfig() async {
+  static Future<UserConfig?> loadConfig(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyConfig);
+    final raw = prefs.getString(_track(_keyConfig, riwaya));
     if (raw == null) return null;
     try {
       return UserConfig.fromJson(jsonDecode(raw));
@@ -34,14 +41,14 @@ class StorageService {
     }
   }
 
-  static Future<void> saveCyclePosition(int position) async {
+  static Future<void> saveCyclePosition(int position, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_keyCyclePosition, position);
+    await prefs.setInt(_track(_keyCyclePosition, riwaya), position);
   }
 
-  static Future<int> loadCyclePosition() async {
+  static Future<int> loadCyclePosition(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_keyCyclePosition) ?? 0;
+    return prefs.getInt(_track(_keyCyclePosition, riwaya)) ?? 0;
   }
 
   static Future<void> saveLocale(String locale) async {
@@ -64,29 +71,31 @@ class StorageService {
     return prefs.getBool(_keyNotifEnabled) ?? true;
   }
 
-  static Future<void> savePreviewSession(DailySession session) async {
+  static Future<void> savePreviewSession(DailySession session, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyPreviewSession, jsonEncode(session.toJson()));
+    await prefs.setString(
+        _track(_keyPreviewSession, riwaya), jsonEncode(session.toJson()));
   }
 
-  static Future<DailySession?> loadPreviewSession() async {
+  static Future<DailySession?> loadPreviewSession(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    return _sessionOrNullIfStale(prefs.getString(_keyPreviewSession));
+    return _sessionOrNullIfStale(prefs.getString(_track(_keyPreviewSession, riwaya)));
   }
 
-  static Future<void> clearPreviewSession() async {
+  static Future<void> clearPreviewSession(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyPreviewSession);
+    await prefs.remove(_track(_keyPreviewSession, riwaya));
   }
 
-  static Future<void> saveTodaySession(DailySession session) async {
+  static Future<void> saveTodaySession(DailySession session, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyTodaySession, jsonEncode(session.toJson()));
+    await prefs.setString(
+        _track(_keyTodaySession, riwaya), jsonEncode(session.toJson()));
   }
 
-  static Future<DailySession?> loadTodaySession() async {
+  static Future<DailySession?> loadTodaySession(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    return _sessionOrNullIfStale(prefs.getString(_keyTodaySession));
+    return _sessionOrNullIfStale(prefs.getString(_track(_keyTodaySession, riwaya)));
   }
 
   static DailySession? _sessionOrNullIfStale(String? raw) {
@@ -103,9 +112,9 @@ class StorageService {
     }
   }
 
-  static Future<void> clearTodaySession() async {
+  static Future<void> clearTodaySession(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyTodaySession);
+    await prefs.remove(_track(_keyTodaySession, riwaya));
   }
 
   /// Rakaas cochées dans la session du jour, par index de prière — permet de
@@ -114,24 +123,26 @@ class StorageService {
   /// (session jamais explicitement clôturée puis minuit passé), le chargement
   /// la traite comme absente et purge la clé — même logique que
   /// [_sessionOrNullIfStale] pour [loadTodaySession].
-  static Future<void> saveCheckedRakaas(Map<int, Set<int>> checked) async {
+  static Future<void> saveCheckedRakaas(
+      Map<int, Set<int>> checked, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = checked.map((k, v) => MapEntry(k.toString(), v.toList()));
-    await prefs.setString(_keyCheckedRakaas, jsonEncode({
+    await prefs.setString(_track(_keyCheckedRakaas, riwaya), jsonEncode({
       'date': DateTime.now().toIso8601String().substring(0, 10),
       'checked': encoded,
     }));
   }
 
-  static Future<Map<int, Set<int>>> loadCheckedRakaas() async {
+  static Future<Map<int, Set<int>>> loadCheckedRakaas(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyCheckedRakaas);
+    final key = _track(_keyCheckedRakaas, riwaya);
+    final raw = prefs.getString(key);
     if (raw == null) return {};
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final today = DateTime.now().toIso8601String().substring(0, 10);
       if (decoded['date'] != today) {
-        await clearCheckedRakaas();
+        await clearCheckedRakaas(riwaya);
         return {};
       }
       final checked = decoded['checked'] as Map<String, dynamic>;
@@ -142,19 +153,19 @@ class StorageService {
     }
   }
 
-  static Future<void> clearCheckedRakaas() async {
+  static Future<void> clearCheckedRakaas(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyCheckedRakaas);
+    await prefs.remove(_track(_keyCheckedRakaas, riwaya));
   }
 
-  static Future<void> savePauseDates(Set<String> dates) async {
+  static Future<void> savePauseDates(Set<String> dates, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_keyPauseDates, dates.toList());
+    await prefs.setStringList(_track(_keyPauseDates, riwaya), dates.toList());
   }
 
-  static Future<Set<String>> loadPauseDates() async {
+  static Future<Set<String>> loadPauseDates(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    return (prefs.getStringList(_keyPauseDates) ?? []).toSet();
+    return (prefs.getStringList(_track(_keyPauseDates, riwaya)) ?? []).toSet();
   }
 
   static Future<void> saveRiwaya(Riwaya riwaya) async {
@@ -180,18 +191,57 @@ class StorageService {
   }
 
   /// Réinitialise uniquement la configuration de révision (sourates, cycle,
-  /// sessions, pauses) — pas les préférences d'app (langue, riwaya,
-  /// notifications, tour vu), que "Réinitialiser" dans le profil ne doit pas
-  /// toucher.
-  static Future<void> clearConfigOnly() async {
+  /// sessions, pauses) du parcours [riwaya] — pas l'autre parcours, ni les
+  /// préférences d'app (langue, riwaya active, notifications, tour vu), que
+  /// "Réinitialiser" dans le profil ne doit pas toucher.
+  static Future<void> clearConfigOnly(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
     await Future.wait([
-      prefs.remove(_keyConfig),
-      prefs.remove(_keyCyclePosition),
-      prefs.remove(_keyPreviewSession),
-      prefs.remove(_keyTodaySession),
-      prefs.remove(_keyPauseDates),
-      prefs.remove(_keyCheckedRakaas),
+      prefs.remove(_track(_keyConfig, riwaya)),
+      prefs.remove(_track(_keyCyclePosition, riwaya)),
+      prefs.remove(_track(_keyPreviewSession, riwaya)),
+      prefs.remove(_track(_keyTodaySession, riwaya)),
+      prefs.remove(_track(_keyPauseDates, riwaya)),
+      prefs.remove(_track(_keyCheckedRakaas, riwaya)),
     ]);
+  }
+
+  /// Migration one-shot pour les installations existantes : avant l'ajout des
+  /// parcours par riwaya, ces 6 clés étaient globales et implicitement
+  /// Hafs (Warsh n'était qu'un affichage alternatif du même texte). On les
+  /// renomme donc telles quelles vers le parcours Hafs. Idempotent : les
+  /// anciennes clés n'existent plus après le premier passage.
+  static Future<void> migrateLegacyTrackData() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.containsKey(_keyConfig)) {
+      await prefs.setString(
+          _track(_keyConfig, Riwaya.hafs), prefs.getString(_keyConfig)!);
+      await prefs.remove(_keyConfig);
+    }
+    if (prefs.containsKey(_keyCyclePosition)) {
+      await prefs.setInt(_track(_keyCyclePosition, Riwaya.hafs),
+          prefs.getInt(_keyCyclePosition)!);
+      await prefs.remove(_keyCyclePosition);
+    }
+    if (prefs.containsKey(_keyPreviewSession)) {
+      await prefs.setString(_track(_keyPreviewSession, Riwaya.hafs),
+          prefs.getString(_keyPreviewSession)!);
+      await prefs.remove(_keyPreviewSession);
+    }
+    if (prefs.containsKey(_keyTodaySession)) {
+      await prefs.setString(_track(_keyTodaySession, Riwaya.hafs),
+          prefs.getString(_keyTodaySession)!);
+      await prefs.remove(_keyTodaySession);
+    }
+    if (prefs.containsKey(_keyPauseDates)) {
+      await prefs.setStringList(_track(_keyPauseDates, Riwaya.hafs),
+          prefs.getStringList(_keyPauseDates)!);
+      await prefs.remove(_keyPauseDates);
+    }
+    if (prefs.containsKey(_keyCheckedRakaas)) {
+      await prefs.setString(_track(_keyCheckedRakaas, Riwaya.hafs),
+          prefs.getString(_keyCheckedRakaas)!);
+      await prefs.remove(_keyCheckedRakaas);
+    }
   }
 }

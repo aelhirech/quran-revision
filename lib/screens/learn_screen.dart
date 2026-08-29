@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/quran_data.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
+import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/student_profile.dart';
@@ -29,11 +29,25 @@ class _LearnScreenState extends State<LearnScreen> {
   List<StudentProfile> _students = [];
   String? _activeStudentId; // null = profil principal
   bool _loading = true;
+  Riwaya? _lastRiwaya;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final riwaya = context.read<AppState>().riwaya;
+    final isFirstCall = _lastRiwaya == null;
+    _lastRiwaya = riwaya;
+    // Le premier appel suit juste initState (déjà couvert par _load() ci-
+    // dessus) — seul un changement de riwaya *après* le montage doit
+    // recharger. La progression des profils élèves n'est pas concernée
+    // (un seul parcours, non séparé par riwaya, voir StudentService).
+    if (!isFirstCall && _activeStudentId == null) _reload();
   }
 
   Future<void> _load() async {
@@ -50,7 +64,7 @@ class _LearnScreenState extends State<LearnScreen> {
 
   Future<List<LearningProgress>> _loadProgress() async {
     if (_activeStudentId == null) {
-      return LearningService.loadAll();
+      return LearningService.loadAll(context.read<AppState>().riwaya);
     }
     return StudentService.loadProgress(_activeStudentId!);
   }
@@ -78,9 +92,30 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   Future<void> _deleteStudent(StudentProfile p) async {
+    final cs = Theme.of(context).colorScheme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(S.supprimerEleve),
+        content: Text('${S.supprimerEleveConfirm} ${p.name} ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(S.annuler),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: cs.error),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(S.supprimer),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     await StudentService.removeProfile(p.id);
     final students = await StudentService.loadProfiles();
-    if (mounted) setState(() => _students = students);
+    if (!mounted) return;
+    setState(() => _students = students);
     if (_activeStudentId == p.id) await _switchProfile(null);
   }
 
@@ -145,7 +180,7 @@ class _LearnScreenState extends State<LearnScreen> {
     }
     // Retiré de l'apprentissage dans tous les cas — sinon une sourate déjà
     // présente dans les deux listes reste bloquée en "en cours" pour toujours.
-    await LearningService.remove(s.id);
+    await LearningService.remove(s.id, state.riwaya);
     await _reload();
     if (!alreadyInRevision && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -162,7 +197,10 @@ class _LearnScreenState extends State<LearnScreen> {
                 .toSet() ??
             {})
         : <int>{};
-    final available = allSourates
+    final riwaya = context.read<AppState>().riwaya;
+    final available = context
+        .read<AppState>()
+        .sourates
         .where((s) => !inProgressIds.contains(s.id) && !learnedIds.contains(s.id))
         .toList();
     if (available.isEmpty) return;
@@ -177,7 +215,7 @@ class _LearnScreenState extends State<LearnScreen> {
 
     final p = LearningProgress.start(picked);
     if (_activeStudentId == null) {
-      await LearningService.upsert(p);
+      await LearningService.upsert(p, riwaya);
     } else {
       await StudentService.upsertProgress(_activeStudentId!, p);
     }
@@ -186,6 +224,7 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   Future<void> _deleteLearning(LearningProgress p) async {
+    final riwaya = context.read<AppState>().riwaya;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -205,7 +244,7 @@ class _LearnScreenState extends State<LearnScreen> {
     );
     if (confirmed == true) {
       if (_activeStudentId == null) {
-        await LearningService.remove(p.sourate.id);
+        await LearningService.remove(p.sourate.id, riwaya);
       } else {
         await StudentService.removeProgress(_activeStudentId!, p.sourate.id);
       }

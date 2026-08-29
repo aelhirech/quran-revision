@@ -1,4 +1,3 @@
-import '../core/quran_data.dart';
 import 'sourate.dart';
 
 class RevisionUnit {
@@ -27,18 +26,15 @@ class RevisionUnit {
   }
 
   Map<String, dynamic> toJson() => {
-        'sourateId': sourate.id,
+        'sourate': sourate.toJson(),
         'verseStart': verseStart,
         'verseEnd': verseEnd,
         'isWhole': isWhole,
       };
 
   factory RevisionUnit.fromJson(Map<String, dynamic> j) {
-    final id = j['sourateId'] as int;
-    final sourate = allSourates.firstWhere((s) => s.id == id,
-        orElse: () => throw FormatException('Sourate inconnue: $id'));
     return RevisionUnit(
-      sourate: sourate,
+      sourate: Sourate.fromJson(j['sourate'] as Map<String, dynamic>),
       verseStart: j['verseStart'] as int,
       verseEnd: j['verseEnd'] as int,
       isWhole: j['isWhole'] as bool,

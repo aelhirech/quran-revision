@@ -75,9 +75,22 @@ class S {
   static String get sauver => _t('Sauver', 'Save');
   static String get langueLabel => _t('Langue', 'Language');
   static String get riwayaLabel => _t('Riwaya', 'Riwaya');
-  static String get riwayaSubtitle => _t('Lecture du texte coranique affiché', 'Displayed Quran text reading');
+  static String get riwayaSubtitle => _t('Parcours de révision actif', 'Active revision track');
+  static String get switchRiwayaTitle => _t('Changer de parcours ?', 'Switch track?');
+  static String get warshUnavailable => _t(
+      "Le texte Warsh n'a pas pu être chargé sur cet appareil.",
+      "Warsh text could not be loaded on this device.");
+  static String get switchRiwayaConfirm => _t(
+      "Hafs et Warsh sont deux parcours séparés (sourates, cycle, progression). Tu vas basculer vers l'autre parcours — le parcours actuel n'est pas perdu, tu pourras y revenir.",
+      "Hafs and Warsh are two separate tracks (surahs, cycle, progress). You're about to switch to the other track — the current one isn't lost, you can come back to it.");
   static String get hafs => 'Hafs';
   static String get warsh => 'Warsh';
+  static String get choisirRiwayaTitle => _t('Quelle riwaya veux-tu réviser ?', 'Which riwaya do you want to revise?');
+  static String get choisirRiwayaSubtitle => _t(
+      'Hafs et Warsh sont deux parcours séparés — sourates, cycle et progression indépendants. Tu pourras basculer plus tard dans Réglages.',
+      'Hafs and Warsh are two separate tracks — independent surahs, cycle and progress. You can switch later in Settings.');
+  static String get hafsDescription => _t('La transmission la plus répandue dans le monde', 'The most widespread transmission worldwide');
+  static String get warshDescription => _t("La transmission de Nafi', répandue en Afrique du Nord et de l'Ouest", "Nafi's transmission, widespread in North and West Africa");
   static String get notificationsLabel => _t('Notifications', 'Notifications');
   static String get notifSubtitle => _t('Rappel matin et bilan soir', 'Morning reminder and evening recap');
   static String get reviserEn => _t('Réviser en ', 'Revise in ');

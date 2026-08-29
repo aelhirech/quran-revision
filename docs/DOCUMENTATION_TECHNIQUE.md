@@ -24,7 +24,7 @@ Concepts métier centraux (à comprendre avant de lire le code) :
 
 - **Flutter** (SDK Dart `^3.12.2`), Material 3, **Provider** (`ChangeNotifier`) comme unique gestion d'état — voir `[[pas-de-sur-ingenierie]]` dans CLAUDE.md, ne pas introduire Riverpod/Bloc/GetX.
 - Pas de backend : toute la persistance est locale (`shared_preferences` + `sqflite`).
-- Dépendances clés (`pubspec.yaml`) : `provider`, `shared_preferences`, `sqflite`, `flutter_local_notifications`, `flutter_animate`, `quran` (texte Hafs + métadonnées via `package:quran`), `google_fonts` (Lora/Amiri), `path`.
+- Dépendances clés (`pubspec.yaml`) : `provider`, `shared_preferences`, `sqflite`, `flutter_local_notifications`, `flutter_animate`, `google_fonts` (Lora/Amiri), `path`. Le texte coranique (Hafs + Warsh) n'est plus un package pub.dev depuis le Sprint 8 (retrait de `quran: ^1.4.1`) — assets bundlés `assets/quran/hafs.json`/`warsh.json`, voir §6.
 - Build/déploiement : CI/CD Codemagic connectée au dépôt (`codemagic.yaml`, workflow `ios-testflight`) — un `git push` sur `main` déclenche automatiquement build + signing + publication TestFlight. Pas de pipeline Android à ce jour.
 - Dépôt GitHub : `aelhirech/quran-revision`.
 
@@ -131,6 +131,7 @@ C'est l'objet de configuration central, il mérite d'être détaillé séparéme
 | `shuffleEnabled` | Ordre aléatoire (déterministe par date) des unités dans le cycle |
 | `adaptiveCycle` | Si activé, `AppState.refreshAdaptiveCycle` recalcule une estimation de durée depuis `HistoryService.avgUnitsPerDay()` — **affichage informatif seulement**, ne modifie pas `revisionDays` ni le calcul réel du plan (voir `effectiveDays()` qui retourne toujours `revisionDays` telle quelle, commentaire explicite ligne 34 : *« Révision intelligente uniquement — le cycle est toujours basé sur revisionDays »*) |
 | `paceByLines` / `targetLinesPerDay` | Mode alternatif au calcul par durée, presets `linesPerDayPresets = [5,10,15,20,30,40,60]` |
+| `riwaya` (Sprint 8) | Auto-descriptif — le parcours (`StorageService`) sous lequel ce `UserConfig` est déjà stocké détermine en pratique la riwaya ; ce champ sert surtout de défaut `Riwaya.hafs` pour les anciens `UserConfig` persistés sans ce champ (installations pré-Sprint 8) |
 
 **Piège** : `adaptiveCycle` est un peu trompeur au premier abord — on pourrait croire qu'il change le comportement de `RevisionEngine`, mais il ne fait que calculer un `_adaptiveCycleDays` affiché dans l'UI (`AppState.adaptiveCycleDays` getter) pour informer l'utilisateur, sans jamais réinjecter cette valeur dans `buildDayPlan()`. Si un ticket demande de le rendre réellement adaptatif, c'est un changement de comportement, pas un bugfix.
 
@@ -140,15 +141,18 @@ C'est l'objet de configuration central, il mérite d'être détaillé séparéme
 
 Tous stateless, méthodes `static`, aucun `notifyListeners`. C'est la seule couche qui touche à l'I/O.
 
+**Depuis le Sprint 8, Hafs et Warsh sont deux parcours indépendants** (profil principal uniquement — les profils élèves restent à parcours unique, voir §7) : `StorageService`, `LearningService` et `HistoryService` prennent tous un paramètre `Riwaya` explicite et scopent leurs clés/lignes en conséquence. Rien n'est jamais traduit d'un parcours vers l'autre — voir le piège en fin de section.
+
 | Service | Support | Rôle |
 |---|---|---|
-| `StorageService` | SharedPreferences | Persiste `UserConfig`, `cyclePosition`, `locale`, `notifEnabled`, `previewSession`/`todaySession` (avec expiration au changement de jour, voir `_sessionOrNullIfStale`), `pauseDates`, `riwaya`. Clés préfixées `_key*`. |
-| `HistoryService` | sqflite (`history.db`, v2) | Table `sessions` (une ligne par jour, upsert via delete+insert) et `sourate_sessions` (PK composite `date+sourate_id`, pour la fraîcheur par sourate). Calcule `currentStreak()` (jours consécutifs, pauses ignorées sans casser la série, cap 30 jours sautés d'affilée), `totalSessionDays()`, `avgUnitsPerDay()` (moyenne sur les 14 dernières sessions par défaut). |
-| `LearningService` | SharedPreferences | Progression de mémorisation pour l'utilisateur principal (`learning_progress_v1`) — CRUD simple (`loadAll`/`saveAll`/`upsert`/`remove`). |
-| `StudentService` | SharedPreferences | Idem mais multi-profils : `student_profiles_v1` + une clé `learning_progress_{profileId}_v1` par élève. Supprimer un profil nettoie aussi sa progression associée. |
+| `StorageService` | SharedPreferences | Persiste `UserConfig`, `cyclePosition`, `previewSession`/`todaySession` (expiration au changement de jour, `_sessionOrNullIfStale`), `pauseDates`, `checkedRakaas` — ces 6 clés sont préfixées par riwaya (`_track(base, riwaya)`, factorisé dans `riwaya_key.dart`, partagé avec `LearningService`). `locale`, `notifEnabled`, `riwaya` (la riwaya *active*, pas les données d'un parcours), `tourSeen` restent des préférences globales non préfixées. `migrateLegacyTrackData()` — migration one-shot des installations pré-Sprint 8 : renomme les 6 anciennes clés non préfixées vers le parcours Hafs (elles étaient déjà implicitement numérotées en Hafs). |
+| `HistoryService` | sqflite (`history.db`, v3 depuis Sprint 8) | Table `sessions` (une ligne par jour+riwaya, upsert via delete+insert) et `sourate_sessions` (PK composite `date+sourate_id+riwaya`, pour la fraîcheur par sourate). Toutes les méthodes (`recordSession`, `recordSourateHistory`, `currentStreak`, `totalSessionDays`, `lastRevisionDates`, `avgUnitsPerDay`) prennent `riwaya` en paramètre requis et filtrent dessus. |
+| `LearningService` | SharedPreferences | Progression de mémorisation du profil principal — une clé par riwaya (`learning_progress_v1_hafs`/`_warsh`) depuis Sprint 8. CRUD simple (`loadAll`/`saveAll`/`upsert`/`remove`), toutes prennent `riwaya`. |
+| `StudentService` | SharedPreferences | Idem mais multi-profils : `student_profiles_v1` + une clé `learning_progress_{profileId}_v1` par élève — **volontairement non séparé par riwaya** (choix Sprint 8 : les profils élèves restent un seul parcours, quelle que soit la riwaya active ; limitation acceptée, pas un oubli). Supprimer un profil nettoie aussi sa progression associée. |
 | `NotificationService` | `flutter_local_notifications` | Deux notifs quotidiennes récurrentes (`RepeatInterval.daily`) : rappel matin (id 1) et bilan soir (id 2), heures configurables. Toutes les erreurs sont catch+debugPrint, jamais propagées — une notif qui échoue à se programmer ne doit pas crasher l'app. |
-| `VerseService` | `package:quran` + `WarshService` | **Point d'entrée unique** pour le texte arabe affiché — arbitre Hafs/Warsh selon le `Riwaya` passé en paramètre. Ne jamais appeler `package:quran` directement depuis un écran. |
-| `WarshService` | asset `assets/quran/warsh.json` | Charge une fois (`_data` en cache statique) le texte Warsh depuis l'asset bundlé. Source : dataset ouvert `fawazahmed0/quran-api`, édition `ara-quranwarsh`, licence Unlicense — **non un texte certifié**, à garder en tête si un utilisateur signale une variante (note déjà présente dans CHANGELOG.md, reprise ici car importante). |
+| `VerseService` | `HafsService` + `WarshService` | **Point d'entrée unique** pour le texte arabe affiché, `verseCount`/`wordCount` riwaya-aware — arbitre Hafs/Warsh selon le `Riwaya` passé en paramètre. Ne jamais appeler `HafsService`/`WarshService` directement depuis un écran. Formate elle-même le chiffre arabe-indien de fin de verset (`verseEndSymbol`, défaut `true`) — plus de dépendance à `package:quran` (retiré Sprint 8). |
+| `HafsService` / `WarshService` | assets `assets/quran/hafs.json` / `warsh.json` | Chargent le texte + calculent `verseCounts`/`wordCounts` par sourate (une fois, en cache statique). Implémentation partagée dans `QuranTextAsset` (`quran_text_asset.dart`) — les deux classes ne sont que de fines façades statiques paramétrées par le chemin d'asset. Source Sprint 8 : QUL (Tarteel AI) — Hafs explicitement crédité King Fahd Complex sur la page de la ressource ; Warsh moins explicitement sourcé (piste ouverte au backlog) mais plateforme bien mieux maintenue que l'ancien dataset communautaire. **Hafs et Warsh ont chacun leur propre numérotation native** (6236 vs 6214 versets au total, frontières de versets différentes sur ~50 sourates) — ce n'est pas juste un texte différent sur la même grille. |
+| `HizbMetadataService` | asset `assets/quran/metadata/quran-metadata-hizb.json` | `surahStartHizb` : numéro de Hizb où commence chaque sourate, donnée QUL officielle (remplace l'ancienne estimation par position cumulative de `quran_data.dart`). Retombe sur `{}` si jamais initialisé/échec de chargement — purement cosmétique (groupement dans l'onboarding), ne doit jamais bloquer le boot. |
 
 ### Base de données SQLite (`HistoryService`)
 
@@ -158,17 +162,21 @@ CREATE TABLE sessions (
   date TEXT NOT NULL,             -- YYYY-MM-DD
   units_completed INTEGER NOT NULL,
   total_units INTEGER NOT NULL,
-  prayers TEXT NOT NULL           -- noms de Prayer joints par virgule
+  prayers TEXT NOT NULL,          -- noms de Prayer joints par virgule
+  riwaya TEXT NOT NULL            -- ajouté en v3
 );
 
-CREATE TABLE sourate_sessions (   -- ajoutée en v2 (onUpgrade)
+CREATE TABLE sourate_sessions (   -- ajoutée en v2, PK élargie en v3 (rebuild table)
   date TEXT NOT NULL,
   sourate_id INTEGER NOT NULL,
-  PRIMARY KEY (date, sourate_id)
+  riwaya TEXT NOT NULL,
+  PRIMARY KEY (date, sourate_id, riwaya)
 );
 ```
 
-Si vous ajoutez une table ou colonne, incrémentez `version` dans `_open()` et ajoutez la migration dans `onUpgrade` — ne modifiez jamais `onCreate` seul (les utilisateurs existants ne repasseront pas par `onCreate`).
+Si vous ajoutez une table ou colonne, incrémentez `version` dans `_open()` et ajoutez la migration dans `onUpgrade` — ne modifiez jamais `onCreate` seul (les utilisateurs existants ne repasseront pas par `onCreate`). Élargir une PRIMARY KEY n'est pas exprimable via `ALTER TABLE` en SQLite : suivre le pattern v2→v3 (créer la table `_new` avec la bonne PK, `INSERT ... SELECT`, `DROP`, `RENAME`).
+
+**Piège (Sprint 8)** : un verset "appris" ou "sélectionné" en Hafs n'est pas le même contenu mémorisé qu'en Warsh (texte différent, numérotation différente) — traduire un index ou une plage de versets d'un parcours vers l'autre n'a pas de sens, même approximativement. C'est pourquoi Hafs/Warsh sont deux parcours **complètement indépendants** plutôt qu'un mapping de numérotation (une piste explorée puis abandonnée — voir CHANGELOG Sprint 8). Ne jamais réintroduire de logique qui suppose qu'un `verseStart`/`verseEnd` garde son sens en changeant de riwaya.
 
 ---
 
@@ -176,18 +184,23 @@ Si vous ajoutez une table ou colonne, incrémentez `version` dans `_open()` et a
 
 Unique `ChangeNotifier` de l'app, injecté à la racine via `ChangeNotifierProvider` (`main.dart`). Tient l'état runtime et délègue tout calcul/persistance aux engines/services — **ne contient pas de logique métier elle-même**, seulement de l'orchestration.
 
-État tenu : `_config` (UserConfig?), `_cyclePosition`, `_previewSession`/`_todaySession` (DailySession?), `_pauseDates`, `_locale`, `_riwaya`, `_adaptiveCycleDays`, `_freshness` (Map sourateId→FreshnessLevel), `_checkedRakaas` (Map prayerIndex→Set\<rakaaNumber\>, Sprint 7 — voir plus bas).
+État tenu : `_config` (UserConfig?), `_cyclePosition`, `_previewSession`/`_todaySession` (DailySession?), `_pauseDates`, `_locale`, `_riwaya`, `warshAvailable` (bool, immuable pour la durée du process — Warsh a-t-il pu charger au boot), `_hasSeenTour` (Sprint 8, voir plus bas), `_sourates` (Sprint 8, `List<Sourate>` riwaya-aware — remplace l'usage direct de `quran_data.allSourates`, désormais dépourvue de comptes verses/words), `_adaptiveCycleDays`, `_freshness` (Map sourateId→FreshnessLevel), `_checkedRakaas` (Map prayerIndex→Set\<rakaaNumber\>, Sprint 7).
 
 Méthodes notables :
-- `saveConfig()` — remplace la config. Depuis le Sprint 7, ne réinitialise le cycle (`_cyclePosition = 0`, sessions/checked rakaas effacés) **que si la sélection de sourates a réellement changé** (`_sameSelections`, comparaison par id+plage de versets) — un simple changement de rythme (durée, lignes/jour) préserve la progression en cours.
+- `saveConfig()` — remplace la config du parcours actif. Depuis le Sprint 7, ne réinitialise le cycle (`_cyclePosition = 0`, sessions/checked rakaas effacés) **que si la sélection de sourates a réellement changé** (`_sameSelections`, comparaison par id+plage de versets) — un simple changement de rythme (durée, lignes/jour) préserve la progression en cours.
 - `advanceCycle(unitsCompleted, cycleTotal)` — délègue à `RevisionEngine.advanceCycle`, ne recalcule jamais l'arithmétique ici.
 - `setPreviewSession()` — après avoir sauvegardé la preview, lance `refreshFreshness().catchError((_) {})` en arrière-plan (fire-and-forget volontaire : si la DB échoue, les badges de fraîcheur sont simplement absents, pas de crash).
 - `engager()` — transforme la `previewSession` en `todaySession` (c'est l'action du bouton « S'engager »).
 - `refreshAdaptiveCycle()` — no-op silencieux si `adaptiveCycle` est désactivé ou `totalUnits <= 0` ; ne fait qu'informer l'affichage (voir piège §5.3).
 - `toggleChecked(prayerIndex, rakaaNumber)` (Sprint 7) — coche/décoche une rakaa de la session en cours, persistée via `StorageService.saveCheckedRakaas` à chaque appel (survit à un redémarrage de l'app avant validation). `notifyListeners()` est appelé **avant** l'écriture disque pour que l'UI réagisse sans attendre le round-trip SharedPreferences.
-- `clearConfig()` — reset complet, mais via `StorageService.clearConfigOnly()` (Sprint 7) qui ne touche que config/cycle/sessions/pauses/checked-rakaas — **ne wipe plus** langue/riwaya/notifications/tour vu (avant Sprint 7, `StorageService.clear()` effaçait tout SharedPreferences).
+- `clearConfig()` — reset complet du parcours actif uniquement, via `StorageService.clearConfigOnly(_riwaya)` — l'autre riwaya (si configurée) n'est pas touchée. Ne touche pas non plus langue/riwaya-active/notifications/tour-vu.
+- **`setRiwaya(riwaya)`** (Sprint 8, réécrit — avant Sprint 8 c'était un simple setter de champ qui ne changeait que le texte affiché) — bascule le parcours actif. No-op (retourne `true`) si déjà sur cette riwaya. Retourne **`false` sans rien changer** si `riwaya == Riwaya.warsh && !warshAvailable` (évite de planter sur `WarshService.verseCounts` qui n'a jamais chargé — bug trouvé en code-review Sprint 8). Sinon : persiste la nouvelle riwaya active, appelle `_loadTrackState()`, notifie une fois. Les appelants (`settings_card.dart`, `onboarding_screen.dart`) doivent vérifier le retour et informer l'utilisateur si `false`.
+- **`_loadTrackState()`** (privée, Sprint 8) — recharge tout l'état scopé par riwaya (config, cycle, sessions, pauses, cases cochées — 6 lectures `StorageService` démarrées en parallèle) pour `_riwaya`, reconstruit `_sourates`, rafraîchit fraîcheur/cycle adaptatif. Si la config du parcours cible est `null` (jamais configuré), `_config` redevient `null` et l'app retombe naturellement sur l'onboarding (`main.dart`, routage sur `config == null`) — pas de mécanisme séparé de "mini-onboarding".
+- `hasSeenTour` / `markTourSeen()` (Sprint 8, déplacés depuis `StorageService` direct) — réactifs via `AppState` plutôt qu'un booléen figé au boot, pour rester corrects si l'utilisateur termine le tour puis change de riwaya dans la même session (bug trouvé en code-review Sprint 8 : `_AppRoot.hasSeenTour` était capturé une fois au démarrage du process et ne se mettait jamais à jour).
 
 **Piège (partiellement résolu au Sprint 7)** : le flux d'édition des sourates dans `profile_screen.dart` et `learn_screen.dart._addToRevision` passent tous les deux par `saveConfig()`, qui ne reset plus le cycle si la sélection n'a pas changé (fix Sprint 7). Le fix Sprint 6 `[S6-A]` (préserver `startDate`) reste par ailleurs en place. Si vous touchez à ce flux, vérifiez que ces deux fixes ne régressent pas.
+
+**Piège (Sprint 8)** : `HomeScreen`, `RecapScreen` et `LearnScreen` restent montés en permanence dans l'`IndexedStack` de `ShellScreen` — un changement de riwaya via `setRiwaya()` ne les recrée pas. Chacun compare la riwaya actuelle à la dernière connue dans `didChangeDependencies()` (qui se déclenche car leur `build()` fait `context.watch<AppState>()`) et relance son chargement si elle a changé. Si vous ajoutez un nouvel écran qui charge des données riwaya-scopées (`HistoryService`/`LearningService`) dans `initState()`, il a besoin du même pattern, sinon il affichera les données de l'ancien parcours après un changement de riwaya en cours de session.
 
 ---
 
@@ -305,9 +318,8 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 ## 10. Localisation & contenu
 
 - **Toutes les chaînes UI** passent par la classe statique `S` (`lib/core/strings.dart`, ~290 lignes) — getters `S.xxx` retournant FR ou EN selon `S.locale` (`'fr'` par défaut), plus quelques fonctions paramétrées (`S.streakJours(n)`, `S.versetN(n, total)`, etc.). `S.locale` est synchronisé avec `AppState.locale` à l'initialisation (`main.dart`) et à chaque `AppState.setLocale()`.
-- **Texte arabe du Coran** : jamais d'appel direct à `package:quran` depuis un écran/widget — toujours via `VerseService` (`lib/services/verse_service.dart`), qui arbitre Hafs (`package:quran`, par défaut) vs Warsh (`WarshService`, asset local `assets/quran/warsh.json`). La numérotation des versets est identique entre les deux éditions ; seul le texte diffère.
-- **Source Warsh** : dataset ouvert `fawazahmed0/quran-api`, édition `ara-quranwarsh`, licence Unlicense — **non un texte certifié**. À garder en tête si un utilisateur signale une variante inhabituelle.
-- **Données statiques** : `lib/core/quran_data.dart` contient les 113 sourates (hors Al-Fatiha, récitée automatiquement à chaque rakaa) avec compte de mots, plus `sourateHizbMap` (calculé une fois au chargement depuis la position cumulative des versets). `lib/core/hadith_data.dart` contient les hadiths motivants (rotation quotidienne déterministe via `hadithDuJour(date)`) et le hadith d'intention affiché sur la preview.
+- **Texte arabe du Coran** : jamais d'appel direct à `HafsService`/`WarshService` depuis un écran/widget — toujours via `VerseService` (`lib/services/verse_service.dart`), qui arbitre Hafs vs Warsh selon la `Riwaya` passée en paramètre. **Depuis le Sprint 8, Hafs (6236 versets) et Warsh (6214 versets) ont chacun leur propre numérotation native — ce n'est plus une hypothèse "texte différent, numérotation identique"** (fausse, voir §6). Source : QUL (Tarteel AI), Hafs explicitement crédité King Fahd Complex, Warsh moins explicitement sourcé (voir Backlog).
+- **Données statiques** : `lib/core/quran_data.dart` contient id/noms (FR/AR) des 113 sourates (hors Al-Fatiha) — les comptes de versets/mots ne sont plus stockés ici depuis le Sprint 8 (riwaya-dépendants, injectés via `buildSourates()` depuis `HafsService`/`WarshService`, voir §6). Le regroupement par Hizb vient de `HizbMetadataService` (donnée QUL officielle), plus de l'ancienne estimation locale. `lib/core/hadith_data.dart` contient les hadiths motivants (rotation quotidienne déterministe via `hadithDuJour(date)`) et le hadith d'intention affiché sur la preview.
 - **Prières** : les noms affichés passent par l'extension `PrayerL10n.displayName` (`lib/core/prayer_l10n.dart`), séparée du modèle `Prayer` pour ne pas polluer `models/` d'une dépendance à `S`.
 
 ---
@@ -322,6 +334,7 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 1. `RevisionEngine` — pur Dart, zéro I/O, le plus critique et le moins couvert vu sa complexity réelle.
 2. `FreshnessEngine` — pur Dart également, trivial à tester.
 3. Services (`SharedPreferences.setMockInitialValues({})` pour le storage ; `sqflite` n'a **pas** de lib de mock installée — ajouter `sqflite_common_ffi` en dev_dependency serait un prérequis avant de tester `HistoryService`).
+4. **Sprint 8 (non fait, signalé explicitement)** : la logique par-riwaya ajoutée (`StorageService`/`LearningService` clés préfixées + `migrateLegacyTrackData()`, `HistoryService` schéma v3, `AppState.setRiwaya`/`_loadTrackState`) n'a **aucun test de régression** — même limitation que le reste des services (pas de `sqflite_common_ffi`), mais c'est une zone neuve et non triviale (migration one-shot, guard `warshAvailable`) qui mériterait d'être en tête de liste si une session de tests est ouverte.
 
 Aucune lib de mock (mockito/mocktail) n'est dans `pubspec.yaml` — ne pas en ajouter tant qu'un test de service/`AppState` n'en a pas réellement besoin (règle anti-sur-ingénierie du projet).
 
@@ -393,5 +406,5 @@ Ce document a été généré par une lecture complète du code source (tous les
 - Si vous (humain ou Claude) trouvez une divergence entre ce document et le code réel, corrigez ce document plutôt que de le laisser mentir — le code fait toujours foi.
 - Les points de §8.5 (« dette technique identifiée ») doivent être retirés de la liste au fur et à mesure qu'ils sont corrigés, pas laissés indéfiniment.
 
-*Dernière rédaction complète : 2026-08-22, à partir d'une lecture intégrale de `lib/` (8093 lignes) et de `test/`. Mise à jour le 2026-08-22 (même jour) pour refléter le Sprint 7 (`lib/` : 8860 lignes) et le retrait de `codemagic.yaml` (déploiement manuel via Xcode). Mise à jour le 2026-08-29 : `codemagic.yaml` réintroduit et rendu fonctionnel (signing + build number auto + publication TestFlight sur push `main`) — voir §12.*
+*Dernière rédaction complète : 2026-08-22, à partir d'une lecture intégrale de `lib/` (8093 lignes) et de `test/`. Mise à jour le 2026-08-22 (même jour) pour refléter le Sprint 7 (`lib/` : 8860 lignes) et le retrait de `codemagic.yaml` (déploiement manuel via Xcode). Mise à jour le 2026-08-29 : `codemagic.yaml` réintroduit et rendu fonctionnel (signing + build number auto + publication TestFlight sur push `main`) — voir §12. Mise à jour le 2026-08-29 (Sprint 8) : source du texte coranique remplacée (QUL/Tarteel), Hafs/Warsh transformés en parcours de révision/mémorisation/historique indépendants (numérotation de versets réellement différente entre les deux riwayat) — §2, §6, §7, §10, §11 revus en conséquence.*
 

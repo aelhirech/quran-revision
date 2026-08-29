@@ -49,8 +49,9 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
   }
 
   Future<void> _loadStreak() async {
-    final pauseDates = context.read<AppState>().pauseDates;
-    final streak = await HistoryService.currentStreak(pauseDates: pauseDates);
+    final state = context.read<AppState>();
+    final streak = await HistoryService.currentStreak(
+        pauseDates: state.pauseDates, riwaya: state.riwaya);
     if (mounted) setState(() => _streak = streak);
   }
 
@@ -87,7 +88,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
 
   Future<void> _save(LearningProgress updated) async {
     if (widget.studentId == null) {
-      await LearningService.upsert(updated);
+      await LearningService.upsert(updated, context.read<AppState>().riwaya);
     } else {
       await StudentService.upsertProgress(widget.studentId!, updated);
     }

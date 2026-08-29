@@ -1,13 +1,17 @@
 import 'package:flutter/foundation.dart';
 import '../core/freshness_engine.dart';
+import '../core/quran_data.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/riwaya.dart';
+import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
+import '../services/hafs_service.dart';
 import '../services/history_service.dart';
 import '../services/storage_service.dart';
+import '../services/warsh_service.dart';
 
 class AppState extends ChangeNotifier {
   UserConfig? _config;
@@ -17,6 +21,9 @@ class AppState extends ChangeNotifier {
   Set<String> _pauseDates;
   String _locale;
   Riwaya _riwaya;
+  final bool warshAvailable;
+  bool _hasSeenTour;
+  List<Sourate> _sourates;
   // Rakaas cochées dans la session du jour (prayerIndex → n° de rakaas),
   // persistées pour ne pas perdre la progression au redémarrage de l'app.
   Map<int, Set<int>> _checkedRakaas;
@@ -29,6 +36,8 @@ class AppState extends ChangeNotifier {
     this._config, {
     String locale = 'fr',
     Riwaya riwaya = Riwaya.hafs,
+    this.warshAvailable = true,
+    bool initialHasSeenTour = false,
     int initialCyclePosition = 0,
     DailySession? initialPreviewSession,
     DailySession? initialTodaySession,
@@ -39,6 +48,8 @@ class AppState extends ChangeNotifier {
         // would make the constructor arg private.
         // ignore: prefer_initializing_formals
         _riwaya = riwaya,
+        _hasSeenTour = initialHasSeenTour,
+        _sourates = _souratesFor(riwaya),
         _cyclePosition = initialCyclePosition,
         _previewSession = initialPreviewSession,
         _todaySession = initialTodaySession,
@@ -46,6 +57,13 @@ class AppState extends ChangeNotifier {
         _checkedRakaas = initialCheckedRakaas.map((k, v) => MapEntry(k, Set.from(v))) {
     S.locale = locale;
   }
+
+  static List<Sourate> _souratesFor(Riwaya riwaya) => buildSourates(
+        verseCounts:
+            riwaya == Riwaya.warsh ? WarshService.verseCounts : HafsService.verseCounts,
+        wordCounts:
+            riwaya == Riwaya.warsh ? WarshService.wordCounts : HafsService.wordCounts,
+      );
 
   UserConfig? get config => _config;
   int get cyclePosition => _cyclePosition;
@@ -55,6 +73,20 @@ class AppState extends ChangeNotifier {
   Map<int, Set<int>> get checkedRakaas => _checkedRakaas;
   String get locale => _locale;
   Riwaya get riwaya => _riwaya;
+  bool get hasSeenTour => _hasSeenTour;
+
+  Future<void> markTourSeen() async {
+    if (_hasSeenTour) return;
+    _hasSeenTour = true;
+    await StorageService.setTourSeen();
+    notifyListeners();
+  }
+  /// Sourates du parcours actif, avec comptes de versets/mots corrects pour
+  /// la riwaya active (Hafs 6236 versets au total, Warsh 6214 — les comptes
+  /// par sourate diffèrent en conséquence). À utiliser à la place de
+  /// `quran_data.dart`'s data brute partout où une liste de sourates est
+  /// nécessaire.
+  List<Sourate> get sourates => _sourates;
   /// Retourne la durée adaptive uniquement si le mode est activé.
   int? get adaptiveCycleDays =>
       _config?.adaptiveCycle == true ? _adaptiveCycleDays : null;
@@ -74,7 +106,7 @@ class AppState extends ChangeNotifier {
     } else {
       _pauseDates.add(today);
     }
-    await StorageService.savePauseDates(_pauseDates);
+    await StorageService.savePauseDates(_pauseDates, _riwaya);
     notifyListeners();
   }
 
@@ -85,10 +117,46 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setRiwaya(Riwaya riwaya) async {
+  /// Bascule le parcours actif (Hafs <-> Warsh). Chaque riwaya est un
+  /// parcours indépendant (config, cycle, sessions, progression, historique
+  /// séparés) — rien n'est traduit d'un parcours vers l'autre. Si le
+  /// parcours cible n'a jamais été configuré, `config` redevient `null` et
+  /// l'app retombe naturellement sur l'onboarding (voir main.dart).
+  /// Retourne `false` sans rien changer si la riwaya demandée n'a pas pu
+  /// être chargée au démarrage (texte Warsh indisponible) — évite de planter
+  /// sur `WarshService.verseCounts` en essayant de construire les sourates.
+  Future<bool> setRiwaya(Riwaya riwaya) async {
+    if (riwaya == _riwaya) return true;
+    if (riwaya == Riwaya.warsh && !warshAvailable) return false;
     _riwaya = riwaya;
     await StorageService.saveRiwaya(riwaya);
+    await _loadTrackState();
     notifyListeners();
+    return true;
+  }
+
+  Future<void> _loadTrackState() async {
+    // Lectures indépendantes démarrées en parallèle — un seul aller-retour
+    // au lieu de plusieurs en série (même principe qu'au boot, main.dart).
+    final configF = StorageService.loadConfig(_riwaya);
+    final cyclePositionF = StorageService.loadCyclePosition(_riwaya);
+    final previewSessionF = StorageService.loadPreviewSession(_riwaya);
+    final todaySessionF = StorageService.loadTodaySession(_riwaya);
+    final pauseDatesF = StorageService.loadPauseDates(_riwaya);
+    final checkedRakaasF = StorageService.loadCheckedRakaas(_riwaya);
+    _config = await configF;
+    _cyclePosition = await cyclePositionF;
+    _previewSession = await previewSessionF;
+    _todaySession = await todaySessionF;
+    _pauseDates = await pauseDatesF;
+    _checkedRakaas = await checkedRakaasF;
+    _sourates = _souratesFor(_riwaya);
+    _adaptiveCycleDays = null;
+    await refreshFreshness(notify: false);
+    if (_config?.adaptiveCycle == true) {
+      final totalUnits = RevisionEngine.buildUnits(_config!.selections).length;
+      await refreshAdaptiveCycle(totalUnits, notify: false);
+    }
   }
 
   /// Ne remet le cycle à zéro que si les sourates sélectionnées ont vraiment
@@ -98,13 +166,13 @@ class AppState extends ChangeNotifier {
     final selectionsChanged =
         _config == null || !_sameSelections(_config!.selections, config.selections);
     _config = config;
-    await StorageService.saveConfig(config);
+    await StorageService.saveConfig(config, _riwaya);
     if (selectionsChanged) {
       _cyclePosition = 0;
       _todaySession = null;
-      await StorageService.saveCyclePosition(0);
-      await StorageService.clearTodaySession();
-      await StorageService.clearPreviewSession();
+      await StorageService.saveCyclePosition(0, _riwaya);
+      await StorageService.clearTodaySession(_riwaya);
+      await StorageService.clearPreviewSession(_riwaya);
       await _resetCheckedRakaas();
     }
     notifyListeners();
@@ -125,13 +193,13 @@ class AppState extends ChangeNotifier {
       unitsCompleted: unitsCompleted,
       cycleTotal: cycleTotal,
     );
-    await StorageService.saveCyclePosition(_cyclePosition);
+    await StorageService.saveCyclePosition(_cyclePosition, _riwaya);
     notifyListeners();
   }
 
   Future<void> setPreviewSession(DailySession session) async {
     _previewSession = session;
-    await StorageService.savePreviewSession(session);
+    await StorageService.savePreviewSession(session, _riwaya);
     notifyListeners();
     // Charger la fraîcheur en arrière-plan — badges apparaissent dès que la DB répond
     // catchError : si la DB échoue, badges absents mais pas de crash
@@ -141,7 +209,7 @@ class AppState extends ChangeNotifier {
   /// Recalcule la fraîcheur depuis l'historique des révisions par sourate.
   /// Appelé quand une session démarre et après chaque session complétée.
   Future<void> refreshFreshness({bool notify = true}) async {
-    final dates = await HistoryService.lastRevisionDates();
+    final dates = await HistoryService.lastRevisionDates(riwaya: _riwaya);
     _freshness = FreshnessEngine.computeAll(dates, DateTime.now());
     if (notify) notifyListeners();
   }
@@ -150,30 +218,30 @@ class AppState extends ChangeNotifier {
     _todaySession = _previewSession;
     _previewSession = null;
     if (_todaySession != null) {
-      await StorageService.saveTodaySession(_todaySession!);
+      await StorageService.saveTodaySession(_todaySession!, _riwaya);
     }
-    await StorageService.clearPreviewSession();
+    await StorageService.clearPreviewSession(_riwaya);
     notifyListeners();
   }
 
   Future<void> clearPreview() async {
     _previewSession = null;
-    await StorageService.clearPreviewSession();
+    await StorageService.clearPreviewSession(_riwaya);
     notifyListeners();
   }
 
   Future<void> clearTodaySession() async {
     _todaySession = null;
     _previewSession = null;
-    await StorageService.clearTodaySession();
-    await StorageService.clearPreviewSession();
+    await StorageService.clearTodaySession(_riwaya);
+    await StorageService.clearPreviewSession(_riwaya);
     await _resetCheckedRakaas();
     notifyListeners();
   }
 
   Future<void> _resetCheckedRakaas() async {
     _checkedRakaas = {};
-    await StorageService.clearCheckedRakaas();
+    await StorageService.clearCheckedRakaas(_riwaya);
   }
 
   /// Coche/décoche une rakaa de la session du jour en cours et persiste
@@ -185,14 +253,14 @@ class AppState extends ChangeNotifier {
     final set = _checkedRakaas.putIfAbsent(prayerIndex, () => {});
     if (!set.remove(rakaaNumber)) set.add(rakaaNumber);
     notifyListeners();
-    await StorageService.saveCheckedRakaas(_checkedRakaas);
+    await StorageService.saveCheckedRakaas(_checkedRakaas, _riwaya);
   }
 
   /// Recalcule la durée adaptive depuis l'historique.
   /// Appelé après chaque session et quand le toggle adaptatif est activé.
   Future<void> refreshAdaptiveCycle(int totalUnits, {bool notify = true}) async {
     if (_config?.adaptiveCycle != true || totalUnits <= 0) return;
-    final avg = await HistoryService.avgUnitsPerDay();
+    final avg = await HistoryService.avgUnitsPerDay(riwaya: _riwaya);
     if (avg > 0) {
       _adaptiveCycleDays = (totalUnits / avg).ceil();
       if (notify) notifyListeners();
@@ -202,7 +270,7 @@ class AppState extends ChangeNotifier {
   Future<void> setAdaptiveCycle(bool enabled, {int totalUnits = 0}) async {
     if (_config == null) return;
     _config = _config!.copyWith(adaptiveCycle: enabled);
-    await StorageService.saveConfig(_config!);
+    await StorageService.saveConfig(_config!, _riwaya);
     if (enabled) await refreshAdaptiveCycle(totalUnits, notify: false);
     notifyListeners();
   }
@@ -210,7 +278,7 @@ class AppState extends ChangeNotifier {
   Future<void> setShuffleEnabled(bool enabled) async {
     if (_config == null) return;
     _config = _config!.copyWith(shuffleEnabled: enabled);
-    await StorageService.saveConfig(_config!);
+    await StorageService.saveConfig(_config!, _riwaya);
     notifyListeners();
   }
 
@@ -221,7 +289,7 @@ class AppState extends ChangeNotifier {
     _previewSession = null;
     _pauseDates = {};
     _checkedRakaas = {};
-    await StorageService.clearConfigOnly();
+    await StorageService.clearConfigOnly(_riwaya);
     notifyListeners();
   }
 }

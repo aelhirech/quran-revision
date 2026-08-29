@@ -31,8 +31,7 @@ class VerseBottomSheet extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final riwaya = context.watch<AppState>().riwaya;
     final verses = VerseService.versesForUnit(unit, riwaya: riwaya);
-    final surahId = unit.sourate.id;
-    final surahNameAr = VerseService.surahNameArabic(surahId);
+    final surahNameAr = unit.sourate.nameAr;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,

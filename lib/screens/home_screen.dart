@@ -8,6 +8,7 @@ import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
+import '../models/riwaya.dart';
 import '../services/history_service.dart';
 import '../state/app_state.dart';
 import '../widgets/cycle_progress_card.dart';
@@ -34,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _streak = 0;
   List<Prayer>? _lastPrayers;
   bool _isYesterday = false;
+  Riwaya? _lastRiwaya;
 
   /// Liste effective : prières sélectionnées + tahiyyatMasjid répété n fois.
   /// Les doublons sont intentionnels — chaque entrée à la mosquée est une prière séparée.
@@ -43,15 +45,25 @@ class _HomeScreenState extends State<HomeScreen> {
       ];
 
   @override
-  void initState() {
-    super.initState();
-    _loadHistory();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // didChangeDependencies tourne une première fois juste après initState
+    // (couvre le chargement initial), puis à chaque fois qu'AppState notifie
+    // — HomeScreen reste monté (IndexedStack de ShellScreen) le temps d'un
+    // changement de riwaya, donc on recharge le streak/dernière session du
+    // parcours nouvellement actif au lieu de garder ceux de l'ancien.
+    final riwaya = context.read<AppState>().riwaya;
+    if (riwaya != _lastRiwaya) {
+      _lastRiwaya = riwaya;
+      _loadHistory();
+    }
   }
 
   Future<void> _loadHistory() async {
-    final pauseDates = context.read<AppState>().pauseDates;
-    final streak = await HistoryService.currentStreak(pauseDates: pauseDates);
-    final recent = await HistoryService.recentSessions(limit: 1);
+    final state = context.read<AppState>();
+    final streak = await HistoryService.currentStreak(
+        pauseDates: state.pauseDates, riwaya: state.riwaya);
+    final recent = await HistoryService.recentSessions(limit: 1, riwaya: state.riwaya);
     if (!mounted) return;
 
     List<Prayer>? lastPrayers;

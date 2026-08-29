@@ -1,27 +1,18 @@
-import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:quran/quran.dart' as quran;
+import 'quran_text_asset.dart';
 
 /// Texte arabe du Coran selon la riwaya Warsh (transmission de Nafi').
-/// Numérotation des versets identique à l'édition Uthmani/Hafs déjà utilisée
-/// dans l'app — seul le texte diffère.
-/// Source : dataset ouvert fawazahmed0/quran-api (édition ara-quranwarsh).
+/// Source : QUL (Tarteel AI), script Warsh — la numérotation des versets
+/// est celle authentique de l'édition Warsh (6214 versets), différente de
+/// celle de Hafs (6236 versets) : les deux riwayat sont deux parcours
+/// indépendants dans l'app, jamais traduits l'un vers l'autre.
 class WarshService {
-  static Map<String, dynamic>? _data;
+  static final QuranTextAsset _asset = QuranTextAsset('assets/quran/warsh.json');
 
-  static Future<void> initialize() async {
-    if (_data != null) return;
-    final raw = await rootBundle.loadString('assets/quran/warsh.json');
-    _data = jsonDecode(raw) as Map<String, dynamic>;
-  }
+  static Future<void> initialize() => _asset.initialize();
 
-  static String getVerse(int surahNumber, int verseNumber,
-      {bool verseEndSymbol = false}) {
-    final verses = _data?[surahNumber.toString()] as List<dynamic>?;
-    if (verses == null || verseNumber < 1 || verseNumber > verses.length) {
-      throw 'No verse found with given surahNumber and verseNumber.\n\n';
-    }
-    final text = verses[verseNumber - 1] as String;
-    return text + (verseEndSymbol ? quran.getVerseEndSymbol(verseNumber) : '');
-  }
+  static String getVerse(int surahNumber, int verseNumber) =>
+      _asset.getVerse(surahNumber, verseNumber);
+
+  static Map<int, int> get verseCounts => _asset.verseCounts;
+  static Map<int, int> get wordCounts => _asset.wordCounts;
 }

@@ -6,6 +6,7 @@ import '../core/app_colors.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
+import '../models/riwaya.dart';
 import '../models/session_record.dart';
 import '../services/history_service.dart';
 import '../services/learning_service.dart';
@@ -29,29 +30,29 @@ class _RecapScreenState extends State<RecapScreen> {
   List<SessionRecord> _sessions = [];
   List<LearningProgress> _learningProgress = [];
   Set<String> _lastPauseDates = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _load(const {});
-  }
+  Riwaya? _lastRiwaya;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Tourne une première fois juste après initState (couvre le chargement
+    // initial), puis à chaque notification d'AppState.
     final pauseDates = context.read<AppState>().pauseDates;
-    if (!setEquals(pauseDates, _lastPauseDates)) {
+    final riwaya = context.read<AppState>().riwaya;
+    if (!setEquals(pauseDates, _lastPauseDates) || riwaya != _lastRiwaya) {
       _lastPauseDates = Set.from(pauseDates);
+      _lastRiwaya = riwaya;
       _load(pauseDates);
     }
   }
 
   Future<void> _load(Set<String> pauseDates) async {
+    final riwaya = context.read<AppState>().riwaya;
     // Démarrage en parallèle, await typé sur chacun — évite les casts dynamiques
-    final streakF  = HistoryService.currentStreak(pauseDates: pauseDates);
-    final totalF   = HistoryService.totalSessionDays();
-    final sessF    = HistoryService.recentSessions(limit: 14);
-    final progressF = LearningService.loadAll();
+    final streakF  = HistoryService.currentStreak(pauseDates: pauseDates, riwaya: riwaya);
+    final totalF   = HistoryService.totalSessionDays(riwaya: riwaya);
+    final sessF    = HistoryService.recentSessions(limit: 14, riwaya: riwaya);
+    final progressF = LearningService.loadAll(riwaya);
     // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
     // sans être passé par un plan du jour cette session.
     final freshnessF = context.read<AppState>().refreshFreshness(notify: false);

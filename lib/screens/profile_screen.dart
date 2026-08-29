@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/quran_data.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
@@ -40,7 +39,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  List<Sourate> get _filtered => allSourates
+  List<Sourate> get _filtered => context
+      .read<AppState>()
+      .sourates
       .where((s) =>
           s.nameFr.toLowerCase().contains(_search.toLowerCase()) ||
           s.nameAr.contains(_search) ||
@@ -52,7 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final existingSelections = {
       for (final s in state.config?.selections ?? []) s.sourate.id: s
     };
-    final selections = allSourates
+    final selections = state.sourates
         .where((s) => _selectedIds.contains(s.id))
         .map<SourateSelection>(
             (s) => existingSelections[s.id] ?? SourateSelection.whole(s))
@@ -65,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       adaptiveCycle: state.config?.adaptiveCycle ?? false,
       paceByLines: _paceByLines,
       targetLinesPerDay: _targetLinesPerDay,
+      riwaya: state.riwaya,
     ));
     if (mounted) setState(() => _editing = false);
   }
@@ -319,6 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _editBody(ColorScheme cs) {
+    final totalSourates = context.watch<AppState>().sourates.length;
     return SliverFillRemaining(
       child: Column(
         children: [
@@ -355,21 +358,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Spacer(),
                 TextButton.icon(
                   onPressed: () => setState(() {
-                    if (_selectedIds.length == allSourates.length) {
+                    if (_selectedIds.length == totalSourates) {
                       _selectedIds.clear();
                     } else {
-                      _selectedIds.addAll(allSourates.map((s) => s.id));
+                      _selectedIds.addAll(
+                          context.read<AppState>().sourates.map((s) => s.id));
                     }
                   }),
                   icon: Icon(
-                    _selectedIds.length == allSourates.length
+                    _selectedIds.length == totalSourates
                         ? Icons.deselect
                         : Icons.select_all,
                     color: cs.onPrimaryContainer,
                     size: 16,
                   ),
                   label: Text(
-                    _selectedIds.length == allSourates.length
+                    _selectedIds.length == totalSourates
                         ? S.toutDeselectionner
                         : S.toutSelectionner,
                     style: TextStyle(

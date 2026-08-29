@@ -35,17 +35,19 @@ class DayPlanTab extends StatelessWidget {
     // recordSession, sinon la moyenne reste en retard d'une session comme la
     // saisie manuelle le fait déjà correctement ; refreshFreshness après
     // recordSourateHistory).
-    final recordSessionF = HistoryService.recordSession(SessionRecord(
-      date: now,
-      unitsCompleted: unitsCompleted,
-      totalUnits: cycleTotal,
-      prayers:
-          state.todaySession!.prayersAlone.map((p) => p.name).toList(),
-    ));
+    final recordSessionF = HistoryService.recordSession(
+        SessionRecord(
+          date: now,
+          unitsCompleted: unitsCompleted,
+          totalUnits: cycleTotal,
+          prayers:
+              state.todaySession!.prayersAlone.map((p) => p.name).toList(),
+        ),
+        state.riwaya);
     // Ne marque comme "revues" (fraîcheur) que les sourates réellement
     // couvertes par ce qui a été déclaré/coché — pas tout le plan du jour.
-    final recordSourateHistoryF =
-        HistoryService.recordSourateHistory(sessionDate, sourateIds.toList());
+    final recordSourateHistoryF = HistoryService.recordSourateHistory(
+        sessionDate, sourateIds.toList(), state.riwaya);
     await Future.wait([
       state.advanceCycle(unitsCompleted, cycleTotal),
       recordSessionF,
@@ -85,12 +87,14 @@ class DayPlanTab extends StatelessWidget {
       BuildContext context, AppState state, int units, int cycleTotal) async {
     if (units <= 0 || state.config == null) return;
     final now = DateTime.now();
-    await HistoryService.recordSession(SessionRecord(
-      date: now,
-      unitsCompleted: units,
-      totalUnits: cycleTotal,
-      prayers: const [],
-    ));
+    await HistoryService.recordSession(
+        SessionRecord(
+          date: now,
+          unitsCompleted: units,
+          totalUnits: cycleTotal,
+          prayers: const [],
+        ),
+        state.riwaya);
     await state.advanceCycle(units, cycleTotal);
     await state.refreshAdaptiveCycle(cycleTotal, notify: false);
     await state.refreshFreshness(notify: true);

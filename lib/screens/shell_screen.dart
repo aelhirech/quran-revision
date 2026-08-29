@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
-import '../services/storage_service.dart';
 import '../state/app_state.dart';
 import '../widgets/day_plan_tab.dart';
 import '../widgets/spotlight_tour.dart';
@@ -33,13 +32,12 @@ class _ShellScreenState extends State<ShellScreen> {
     // Le tour ne cible que des widgets de HomeScreen (aucune session encore
     // engagée) — pas de sens à le montrer si l'utilisateur a déjà un plan.
     if (state.todaySession != null || state.previewSession != null) return;
-    final seen = await StorageService.hasSeenTour();
-    if (!seen && mounted) setState(() => _showTour = true);
+    if (!state.hasSeenTour && mounted) setState(() => _showTour = true);
   }
 
   Future<void> _dismissTour() async {
     setState(() => _showTour = false);
-    await StorageService.setTourSeen();
+    await context.read<AppState>().markTourSeen();
   }
 
   List<TourStep> get _tourSteps => [

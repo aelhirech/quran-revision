@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'riwaya.dart';
 import 'sourate.dart';
 import 'sourate_selection.dart';
 
@@ -15,6 +16,7 @@ class UserConfig {
   final bool adaptiveCycle;
   final bool paceByLines;
   final int targetLinesPerDay;
+  final Riwaya riwaya;
 
   const UserConfig({
     required this.selections,
@@ -24,6 +26,7 @@ class UserConfig {
     this.adaptiveCycle = false,
     this.paceByLines = false,
     this.targetLinesPerDay = 15,
+    this.riwaya = Riwaya.hafs,
   });
 
   List<Sourate> get learnedSourates => selections.map((s) => s.sourate).toList();
@@ -42,6 +45,7 @@ class UserConfig {
     bool? adaptiveCycle,
     bool? paceByLines,
     int? targetLinesPerDay,
+    Riwaya? riwaya,
   }) =>
       UserConfig(
         selections: selections ?? this.selections,
@@ -51,6 +55,7 @@ class UserConfig {
         adaptiveCycle: adaptiveCycle ?? this.adaptiveCycle,
         paceByLines: paceByLines ?? this.paceByLines,
         targetLinesPerDay: targetLinesPerDay ?? this.targetLinesPerDay,
+        riwaya: riwaya ?? this.riwaya,
       );
 
   Map<String, dynamic> toJson() => {
@@ -61,6 +66,7 @@ class UserConfig {
         'adaptiveCycle': adaptiveCycle,
         'paceByLines': paceByLines,
         'targetLinesPerDay': targetLinesPerDay,
+        'riwaya': riwaya.name,
       };
 
   factory UserConfig.fromJson(Map<String, dynamic> j) {
@@ -85,6 +91,9 @@ class UserConfig {
         adaptiveCycle: j['adaptiveCycle'] as bool? ?? false,
         paceByLines: j['paceByLines'] as bool? ?? false,
         targetLinesPerDay: j['targetLinesPerDay'] as int? ?? 15,
+        riwaya: Riwaya.values.firstWhere(
+            (r) => r.name == j['riwaya'],
+            orElse: () => Riwaya.hafs),
       );
     } catch (e) {
       assert(() {

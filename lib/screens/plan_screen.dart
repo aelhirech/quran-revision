@@ -244,9 +244,10 @@ class _PlanScreenState extends State<PlanScreen> {
       );
 
   Future<void> _showCompletionSummary() async {
-    final pauseDates = context.read<AppState>().pauseDates;
+    final state = context.read<AppState>();
     // +1 anticipe la session d'aujourd'hui, pas encore enregistrée à ce stade.
-    final streakFuture = HistoryService.currentStreak(pauseDates: pauseDates)
+    final streakFuture = HistoryService.currentStreak(
+            pauseDates: state.pauseDates, riwaya: state.riwaya)
         .then((s) => s + 1);
     await showModalBottomSheet(
       context: context,

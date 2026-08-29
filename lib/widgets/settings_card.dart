@@ -99,11 +99,39 @@ class _SettingsCardState extends State<SettingsCard> {
     ).animate().fadeIn(delay: 150.ms);
   }
 
+  Future<void> _switchRiwaya(BuildContext context, Riwaya riwaya) async {
+    final state = context.read<AppState>();
+    if (state.riwaya == riwaya) return;
+    if (riwaya == Riwaya.warsh && !state.warshAvailable) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(S.warshUnavailable)));
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(S.switchRiwayaTitle),
+        content: Text(S.switchRiwayaConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(S.annuler),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(S.confirmer),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await state.setRiwaya(riwaya);
+  }
+
   Widget _riwayaChip(
       BuildContext context, String label, Riwaya riwaya, ColorScheme cs) {
     final selected = context.watch<AppState>().riwaya == riwaya;
     return GestureDetector(
-      onTap: () => context.read<AppState>().setRiwaya(riwaya),
+      onTap: () => _switchRiwaya(context, riwaya),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
