@@ -39,6 +39,12 @@ workflows:
             --strict-match-identifier \
             --json | jq -r '.[0].id')
 
+          if [ -z "$APP_ID" ] || [ "$APP_ID" = "null" ]; then
+            echo "ERROR: could not resolve App Store Connect app id for bundle id $BUNDLE_ID"
+            exit 1
+          fi
+          echo "App Store Connect app id: $APP_ID"
+
           if APP_STORE_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_ID" 2>&1); then
             echo "Latest App Store build number: $APP_STORE_BUILD_NUMBER"
           else
@@ -53,7 +59,11 @@ workflows:
             TESTFLIGHT_BUILD_NUMBER=0
           fi
 
+          PUBSPEC_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/.*+//')
+          echo "pubspec.yaml build number (floor): $PUBSPEC_BUILD_NUMBER"
+
           LATEST=$(( APP_STORE_BUILD_NUMBER > TESTFLIGHT_BUILD_NUMBER ? APP_STORE_BUILD_NUMBER : TESTFLIGHT_BUILD_NUMBER ))
+          LATEST=$(( PUBSPEC_BUILD_NUMBER > LATEST ? PUBSPEC_BUILD_NUMBER : LATEST ))
           echo "BUILD_NUMBER=$((LATEST + 1))" >> $CM_ENV
 
       - name: Build Flutter iOS
