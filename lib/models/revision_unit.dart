@@ -24,20 +24,4 @@ class RevisionUnit {
     if (isWhole) return name;
     return '$name (v.$verseStart–$verseEnd)';
   }
-
-  Map<String, dynamic> toJson() => {
-        'sourate': sourate.toJson(),
-        'verseStart': verseStart,
-        'verseEnd': verseEnd,
-        'isWhole': isWhole,
-      };
-
-  factory RevisionUnit.fromJson(Map<String, dynamic> j) {
-    return RevisionUnit(
-      sourate: Sourate.fromJson(j['sourate'] as Map<String, dynamic>),
-      verseStart: j['verseStart'] as int,
-      verseEnd: j['verseEnd'] as int,
-      isWhole: j['isWhole'] as bool,
-    );
-  }
 }

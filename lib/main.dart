@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/app_theme.dart';
 import 'core/strings.dart';
-import 'models/daily_session.dart';
 import 'models/riwaya.dart';
 import 'models/user_config.dart';
 import 'screens/onboarding_screen.dart';
@@ -64,8 +63,6 @@ void main() async {
   final configF = StorageService.loadConfig(riwaya);
   final localeF = StorageService.loadLocale();
   final cyclePositionF = StorageService.loadCyclePosition(riwaya);
-  final previewSessionF = StorageService.loadPreviewSession(riwaya);
-  final todaySessionF = StorageService.loadTodaySession(riwaya);
   final pauseDatesF = StorageService.loadPauseDates(riwaya);
   // loadCheckedRakaas purge elle-même la clé si sa date ne correspond plus
   // à aujourd'hui — pas besoin de dupliquer cette vérification ici.
@@ -75,8 +72,6 @@ void main() async {
   final config = await configF;
   final locale = await localeF;
   final cyclePosition = await cyclePositionF;
-  final previewSession = await previewSessionF;
-  final todaySession = await todaySessionF;
   final pauseDates = await pauseDatesF;
   final checkedRakaas = await checkedRakaasF;
   final hasSeenTour = await hasSeenTourF;
@@ -86,8 +81,6 @@ void main() async {
     initialRiwaya: riwaya,
     warshAvailable: warshAvailable,
     initialCyclePosition: cyclePosition,
-    initialPreviewSession: previewSession,
-    initialTodaySession: todaySession,
     initialPauseDates: pauseDates,
     initialCheckedRakaas: checkedRakaas,
     initialHasSeenTour: hasSeenTour,
@@ -99,8 +92,6 @@ class QuranRevisionApp extends StatelessWidget {
   final Riwaya initialRiwaya;
   final bool warshAvailable;
   final int initialCyclePosition;
-  final DailySession? initialPreviewSession;
-  final DailySession? initialTodaySession;
   final Set<String> initialPauseDates;
   final Map<int, Set<int>> initialCheckedRakaas;
   final bool initialHasSeenTour;
@@ -111,8 +102,6 @@ class QuranRevisionApp extends StatelessWidget {
     this.initialRiwaya = Riwaya.hafs,
     this.warshAvailable = true,
     this.initialCyclePosition = 0,
-    this.initialPreviewSession,
-    this.initialTodaySession,
     this.initialPauseDates = const {},
     this.initialCheckedRakaas = const {},
     this.initialHasSeenTour = false,
@@ -128,8 +117,6 @@ class QuranRevisionApp extends StatelessWidget {
         warshAvailable: warshAvailable,
         initialHasSeenTour: initialHasSeenTour,
         initialCyclePosition: initialCyclePosition,
-        initialPreviewSession: initialPreviewSession,
-        initialTodaySession: initialTodaySession,
         initialPauseDates: initialPauseDates,
         initialCheckedRakaas: initialCheckedRakaas,
       ),

@@ -1,101 +1,81 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
+import '../screens/check_in_screen.dart';
+import '../screens/check_out_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/plan_screen.dart';
-import '../services/ayah_facts_service.dart';
 import '../services/storage_service.dart';
 import '../state/app_state.dart';
 import '../widgets/manual_session_sheet.dart';
 
-/// Gère la logique de routing du tab "Plan du jour" :
-///   - Aucune session    → HomeScreen (sélection des prières)
-///   - Session en aperçu → PlanScreen en mode preview
-///   - Session engagée   → PlanScreen en mode actif
-class DayPlanTab extends StatelessWidget {
+/// Gère la logique de routing du tab "Réviser" :
+///   - Jour en attente (non scellé) → popup CheckOutScreen (rattrapage)
+///   - Plan du jour généré, pas encore vu → popup CheckInScreen
+///   - Prières choisies pour la manche → PlanScreen (répartition en rakaas)
+///   - Sinon                          → HomeScreen (choix des prières)
+///
+/// Depuis Phase 6 Sprint 2, PlanScreen ne génère plus son propre plan : il
+/// répartit les unités déjà validées au check-in (voir cadrage, "Moteur
+/// quotidien — source unique de vérité"). Check-in et check-out sont tous
+/// deux des popups poussés en plein écran (`Navigator.push`), jamais des
+/// corps d'onglet directement — CheckOutScreen appelle `Navigator.pop()` en
+/// se fermant, ça ne fonctionnerait pas s'il était rendu en place.
+class DayPlanTab extends StatefulWidget {
   const DayPlanTab({super.key});
 
+  @override
+  State<DayPlanTab> createState() => _DayPlanTabState();
+}
+
+class _DayPlanTabState extends State<DayPlanTab> {
+  bool _checkInShown = false;
+  bool _checkOutShown = false;
+
+  /// Manche PlanScreen complétée : marque les unités couvertes comme
+  /// "faites" (`reach=1`). N'avance plus `cyclePosition` — c'est le
+  /// check-out qui le fait, une fois par jour scellé (voir AppState.checkOut).
   Future<void> _onComplete(BuildContext context, AppState state,
       int unitsCompleted, List<RevisionUnit> coveredUnits) async {
-    final allUnits = RevisionEngine.buildUnits(state.config!.selections);
-    final cycleTotal = allUnits.length;
-    final cycleWraps =
-        cycleTotal > 0 && (state.cyclePosition + unitsCompleted) >= cycleTotal;
-
-    // Capturer l'instant une seule fois — évite un décalage de date si minuit passe
-    final now = DateTime.now();
-    final sessionDate = now.toIso8601String().substring(0, 10);
-
-    // Ne marque comme "revus" (fraîcheur/streak) que les versets réellement
-    // couverts par ce qui a été déclaré/coché — pas tout le plan du jour.
-    // Écritures indépendantes (table ayah_facts, prefs "dernières prières")
-    // lancées en parallèle.
-    final recordFactsF = AyahFactsService.recordRevisedUnits(
-        sessionDate, state.riwaya, coveredUnits);
-    final saveLastPrayersF = StorageService.saveLastSessionPrayers(
-        now, state.todaySession!.prayersAlone, state.riwaya);
-    await Future.wait([
-      state.advanceCycle(unitsCompleted, cycleTotal),
-      recordFactsF,
-      saveLastPrayersF,
-    ]);
+    final prayersAlone = state.todaySession!.prayersAlone;
+    await state.markUnitsReached(coveredUnits);
+    // Indépendantes — lancées en parallèle plutôt qu'en série.
     await Future.wait([
       state.refreshAdaptiveCycle(state.config!.totalSelectedVerses, notify: false),
       state.refreshFreshness(notify: false),
+      StorageService.saveLastSessionPrayers(DateTime.now(), prayersAlone, state.riwaya),
     ]);
-
-    if (cycleWraps && context.mounted) {
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const _CycleMilestoneDialog(),
-      );
-    }
-
     await state.clearTodaySession();
   }
 
   Future<void> _showManualSheet(BuildContext context, AppState state) async {
     if (state.config == null) return;
-    final allUnits = RevisionEngine.buildUnits(state.config!.selections);
+    final dayUnits = await state.dayUnits();
+    if (dayUnits.isEmpty || !context.mounted) return;
     final units = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ManualSessionSheet(maxUnits: allUnits.length.clamp(1, 999)),
+      builder: (_) => ManualSessionSheet(maxUnits: dayUnits.length),
     );
     if (units != null && context.mounted) {
-      await _onManualSession(context, state, units, allUnits);
+      await _onManualSession(context, state, units, dayUnits);
     }
   }
 
+  /// Saisie manuelle : marque les [units] premières unités du plan du jour
+  /// déjà validé au check-in comme "faites" — même hypothèse d'ordre que
+  /// PlanScreen (les unités du plan, dans l'ordre où le check-in les liste).
   Future<void> _onManualSession(BuildContext context, AppState state,
-      int units, List<RevisionUnit> allUnits) async {
-    if (units <= 0 || state.config == null) return;
-    final cycleTotal = allUnits.length;
-    // Pas de plan détaillé par rakaa pour la saisie manuelle — les unités
-    // couvertes sont dérivées du cycle à partir de la position actuelle,
-    // même hypothèse d'ordre de consommation que RevisionEngine.buildDayPlan/
-    // advanceCycle. Nécessaire pour alimenter ayah_facts (streak, fraîcheur) :
-    // avant Phase 6, HistoryService.recordSession écrivait déjà une ligne
-    // pour ce chemin (le streak en dépendait), en perdre l'équivalent ici
-    // casserait silencieusement le streak pour qui n'utilise que la saisie
-    // manuelle.
-    final pos = cycleTotal == 0 ? 0 : state.cyclePosition % cycleTotal;
-    final coveredUnits = [
-      for (int i = 0; i < units && cycleTotal > 0; i++)
-        allUnits[(pos + i) % cycleTotal],
-    ];
-    final sessionDate = DateTime.now().toIso8601String().substring(0, 10);
-    await AyahFactsService.recordRevisedUnits(
-        sessionDate, state.riwaya, coveredUnits);
-    await state.advanceCycle(units, cycleTotal);
-    await state.refreshAdaptiveCycle(state.config!.totalSelectedVerses,
-        notify: false);
-    await state.refreshFreshness(notify: true);
+      int units, List<RevisionUnit> dayUnits) async {
+    if (units <= 0) return;
+    final covered = dayUnits.take(units).toList();
+    await state.markUnitsReached(covered);
+    await Future.wait([
+      state.refreshAdaptiveCycle(state.config!.totalSelectedVerses, notify: false),
+      state.refreshFreshness(notify: true),
+    ]);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -106,9 +86,53 @@ class DayPlanTab extends StatelessWidget {
     }
   }
 
+  void _maybeShowCheckOut(AppState state) {
+    if (state.pendingDate == null || _checkOutShown) return;
+    _checkOutShown = true;
+    final date = state.pendingDate!;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => CheckOutScreen(date: date),
+        ),
+      );
+      _checkOutShown = false;
+    });
+  }
+
+  void _maybeShowCheckIn(AppState state) {
+    if (!state.justCheckedIn || _checkInShown) return;
+    _checkInShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => const CheckInScreen(),
+        ),
+      );
+      _checkInShown = false;
+      // Que le popup ait été validé ou fermé (retour), pas de sens à le
+      // réafficher pour le même plan généré aujourd'hui.
+      if (mounted) await context.read<AppState>().acknowledgeCheckIn();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+
+    if (state.pendingDate != null) {
+      // Le popup de rattrapage est poussé en plein écran (voir
+      // _maybeShowCheckOut) ; en dessous, un simple indicateur de
+      // chargement le temps qu'il s'affiche.
+      _maybeShowCheckOut(state);
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    _maybeShowCheckIn(state);
 
     if (state.todaySession != null) {
       return PlanScreen(
@@ -121,78 +145,9 @@ class DayPlanTab extends StatelessWidget {
       );
     }
 
-    if (state.previewSession != null) {
-      return PlanScreen(
-        key: ValueKey(state.previewSession),
-        session: state.previewSession!,
-        freshnessOf: state.freshnessFor,
-        isPreview: true,
-        onEngager: () => state.engager(),
-        onChangePlan: () => state.clearPreview(),
-      );
-    }
-
     return HomeScreen(
-      onVoirPlan: (session) => state.setPreviewSession(session),
+      onVoirPlan: (prayersAlone) => state.buildTodaySession(prayersAlone),
       onSaisirManuel: () => _showManualSheet(context, state),
-    );
-  }
-}
-
-class _CycleMilestoneDialog extends StatelessWidget {
-  const _CycleMilestoneDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 32, 28, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🎉', style: TextStyle(fontSize: 56))
-                .animate()
-                .scale(
-                  begin: const Offset(0.4, 0.4),
-                  duration: 500.ms,
-                  curve: Curves.elasticOut,
-                ),
-            const SizedBox(height: 16),
-            Text(
-              S.cycleTermineTitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: cs.onSurface,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              S.cycleTermineBody,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context),
-                style: FilledButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                child: Text(S.continuer,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ],
-        ),
-      ).animate().fadeIn(duration: 200.ms).slideY(begin: 0.06),
     );
   }
 }

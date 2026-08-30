@@ -15,7 +15,6 @@ class PrayerPlanCard extends StatelessWidget {
   final int prayerIndex;
   final PrayerPlan pp;
   final Set<int> checked;
-  final bool isPreview;
   final void Function(int rakaaNumber) onToggle;
   final FreshnessLevel? Function(int sourateId)? freshnessOf;
 
@@ -24,7 +23,6 @@ class PrayerPlanCard extends StatelessWidget {
     required this.prayerIndex,
     required this.pp,
     required this.checked,
-    required this.isPreview,
     required this.onToggle,
     this.freshnessOf,
   });
@@ -82,7 +80,7 @@ class PrayerPlanCard extends StatelessWidget {
         : (hasUnit ? IndexBadgeState.unselected : IndexBadgeState.unselected);
 
     return InkWell(
-      onTap: hasUnit && !isPreview
+      onTap: hasUnit
           ? () {
               HapticFeedback.selectionClick();
               onToggle(r.rakaaNumber);

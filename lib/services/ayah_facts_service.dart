@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import '../core/streak_engine.dart';
@@ -70,38 +72,6 @@ class AyahFactsService {
   }
 
   // --- Révision ---
-
-  /// Enregistre les versets révisés à la date [date] — éclate chaque unité en
-  /// une ligne par verset (verseStart..verseEnd), `type='revise', reach=1,
-  /// checked_out=1` (pas de notion de jour ouvert tant que le rituel
-  /// check-in/check-out n'existe pas — Sprint 2). Idempotent grâce à l'index
-  /// unique : une même plage réutilisée deux fois le même jour ne produit
-  /// qu'une ligne par verset.
-  static Future<void> recordRevisedUnits(
-      String date, Riwaya riwaya, List<RevisionUnit> units) async {
-    if (units.isEmpty) return;
-    final db = await _open();
-    final batch = db.batch();
-    for (final unit in units) {
-      for (int v = unit.verseStart; v <= unit.verseEnd; v++) {
-        batch.insert(
-          'ayah_facts',
-          AyahFact(
-            userId: _userId,
-            date: date,
-            riwaya: riwaya,
-            surahId: unit.sourate.id,
-            ayahId: v,
-            type: AyahFactType.revise,
-            reach: true,
-            checkedOut: true,
-          ).toMap(),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-      }
-    }
-    await batch.commit(noResult: true);
-  }
 
   /// Dernière date de révision par sourate (un verset révisé vaut pour toute
   /// sa sourate) — remplace `HistoryService.lastRevisionDates`, même contrat
@@ -274,4 +244,232 @@ class AyahFactsService {
         where: 'surah_id = ? AND riwaya = ? AND type = ?',
         whereArgs: [surahId, riwaya.name, AyahFactType.learn.name]);
   }
+
+  // --- Rituel check-in/check-out (Phase 6 Sprint 2) ---
+
+  /// Date la plus ancienne, STRICTEMENT avant aujourd'hui, dont le jour de
+  /// révision n'est pas encore scellé (`checked_out = 0`), ou `null` si
+  /// aucune. Sert à geter le moteur quotidien : tant qu'un jour est en
+  /// attente, on ne génère pas le plan du jour suivant — `cyclePosition`
+  /// n'a pas encore avancé pour ce jour-là, un nouveau plan proposerait les
+  /// mêmes versets une seconde fois. Le filtre `date < aujourd'hui` est
+  /// nécessaire : sans lui, le plan du jour tout juste proposé (encore
+  /// `checked_out = 0` puisque non scellé) se compterait lui-même comme "en
+  /// attente" — un jour non check-outé reste modifiable jusqu'au soir, ce
+  /// n'est pas un rattrapage (voir cadrage, "Verrouillage").
+  static Future<String?> pendingDate({required Riwaya riwaya}) async {
+    final db = await _open();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final rows = await db.rawQuery(
+      'SELECT MIN(date) as d FROM ayah_facts '
+      'WHERE riwaya = ? AND type = ? AND checked_out = 0 AND date < ?',
+      [riwaya.name, AyahFactType.revise.name, today],
+    );
+    return rows.first['d'] as String?;
+  }
+
+  /// Écrit des unités de révision comme proposition du jour — `reach = 0,
+  /// checked_out = 0`, pas encore confirmées. Utilisé à la fois par le
+  /// moteur quotidien (plan initial) et par le check-in (ajout manuel d'une
+  /// sourate/portion) : même écriture. [ConflictAlgorithm.ignore] — pas
+  /// `replace` — la rend idempotente SANS écraser un `reach`/`cold` déjà
+  /// posé sur un verset qui y figurait déjà (ex. deux appels concurrents à
+  /// `ensureDayPlan`, ou un ré-ajout d'un verset déjà coché) ; `replace`
+  /// remettrait silencieusement ces colonnes à leurs valeurs par défaut.
+  static Future<void> proposeUnits(
+      String date, Riwaya riwaya, List<RevisionUnit> units) async {
+    if (units.isEmpty) return;
+    final db = await _open();
+    final batch = db.batch();
+    for (final unit in units) {
+      for (int v = unit.verseStart; v <= unit.verseEnd; v++) {
+        batch.insert(
+          'ayah_facts',
+          AyahFact(
+            userId: _userId,
+            date: date,
+            riwaya: riwaya,
+            surahId: unit.sourate.id,
+            ayahId: v,
+            type: AyahFactType.revise,
+          ).toMap(),
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    }
+    await batch.commit(noResult: true);
+  }
+
+  /// Retire une sourate/portion du plan du jour (check-in, bouton "×").
+  static Future<void> removeFromDayPlan(
+      String date, Riwaya riwaya, int surahId,
+      {int? verseStart, int? verseEnd}) async {
+    final db = await _open();
+    if (verseStart == null || verseEnd == null) {
+      await db.delete('ayah_facts',
+          where: 'date = ? AND riwaya = ? AND surah_id = ? AND type = ?',
+          whereArgs: [date, riwaya.name, surahId, AyahFactType.revise.name]);
+    } else {
+      await db.delete('ayah_facts',
+          where:
+              'date = ? AND riwaya = ? AND surah_id = ? AND ayah_id BETWEEN ? AND ? AND type = ?',
+          whereArgs: [
+            date,
+            riwaya.name,
+            surahId,
+            verseStart,
+            verseEnd,
+            AyahFactType.revise.name
+          ]);
+    }
+  }
+
+  /// Comme [setReach], mais pour plusieurs unités en un seul aller-retour
+  /// SQLite (`db.batch()`) — utilisé quand une manche PlanScreen complétée
+  /// couvre plusieurs sourates/portions d'un coup (voir
+  /// `AppState.markUnitsReached`).
+  static Future<void> setReachForUnits(
+      String date, Riwaya riwaya, List<RevisionUnit> units, bool reach) async {
+    if (units.isEmpty) return;
+    final db = await _open();
+    final batch = db.batch();
+    for (final unit in units) {
+      batch.update('ayah_facts', {'reach': reach ? 1 : 0},
+          where:
+              'date = ? AND riwaya = ? AND surah_id = ? AND ayah_id BETWEEN ? AND ? AND type = ?',
+          whereArgs: [
+            date,
+            riwaya.name,
+            unit.sourate.id,
+            unit.verseStart,
+            unit.verseEnd,
+            AyahFactType.revise.name
+          ]);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  /// Bascule `reach` ("fait"/"pas fait") pour une plage de versets — case à
+  /// cocher du check-out, ou une rakaa cochée dans PlanScreen.
+  static Future<void> setReach(String date, Riwaya riwaya, int surahId,
+      int verseStart, int verseEnd, bool reach) async {
+    final db = await _open();
+    await db.update('ayah_facts', {'reach': reach ? 1 : 0},
+        where:
+            'date = ? AND riwaya = ? AND surah_id = ? AND ayah_id BETWEEN ? AND ? AND type = ?',
+        whereArgs: [
+          date,
+          riwaya.name,
+          surahId,
+          verseStart,
+          verseEnd,
+          AyahFactType.revise.name
+        ]);
+  }
+
+  /// Bascule `cold` ("à retravailler") pour un verset précis — écran détail
+  /// du check-out, granularité verset (pas la sourate entière).
+  static Future<void> setCold(String date, Riwaya riwaya, int surahId,
+      int ayahId, bool cold) async {
+    final db = await _open();
+    await db.update('ayah_facts', {'cold': cold ? 1 : 0},
+        where: 'date = ? AND riwaya = ? AND surah_id = ? AND ayah_id = ? AND type = ?',
+        whereArgs: [date, riwaya.name, surahId, ayahId, AyahFactType.revise.name]);
+  }
+
+  /// `true` si tous les versets de la plage ont `reach = 1` ce jour-là —
+  /// sert à AppState.checkOut pour compter combien des unités proposées par
+  /// le moteur ont réellement été faites (voir doc de `checkOut`). `false`
+  /// aussi bien si rien n'est fait que si la plage a été entièrement retirée
+  /// au check-in ([removeFromDayPlan]) — voir [rangeExists] pour distinguer
+  /// les deux.
+  static Future<bool> isRangeReached(String date, Riwaya riwaya, int surahId,
+      int verseStart, int verseEnd) async {
+    final db = await _open();
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) as total, SUM(reach) as reached FROM ayah_facts '
+      'WHERE date = ? AND riwaya = ? AND surah_id = ? AND ayah_id BETWEEN ? AND ? AND type = ?',
+      [date, riwaya.name, surahId, verseStart, verseEnd, AyahFactType.revise.name],
+    );
+    final total = rows.first['total'] as int? ?? 0;
+    final reached = rows.first['reached'] as int? ?? 0;
+    return total > 0 && total == reached;
+  }
+
+  /// `true` s'il reste au moins une ligne pour cette plage ce jour-là.
+  /// Sert à AppState.checkOut à distinguer "retiré au check-in" (aucune
+  /// ligne — à ignorer, pas un blocage) de "pas encore fait" (des lignes
+  /// existent mais `reach = 0` — bloque le comptage, voir [isRangeReached]).
+  static Future<bool> rangeExists(String date, Riwaya riwaya, int surahId,
+      int verseStart, int verseEnd) async {
+    final db = await _open();
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) as total FROM ayah_facts '
+      'WHERE date = ? AND riwaya = ? AND surah_id = ? AND ayah_id BETWEEN ? AND ? AND type = ?',
+      [date, riwaya.name, surahId, verseStart, verseEnd, AyahFactType.revise.name],
+    );
+    return (rows.first['total'] as int? ?? 0) > 0;
+  }
+
+  /// Scelle une journée : `checked_out = 1` pour toutes ses lignes de
+  /// révision. `reach`/`cold` doivent déjà être à jour (voir
+  /// [setReach]/[setCold], appliqués au fil des interactions du check-out) —
+  /// chaque bascule précédente est déjà durablement écrite, un simple UPDATE
+  /// suffit donc ici, pas besoin d'empaqueter reach+cold+checked_out dans une
+  /// même transaction.
+  static Future<void> sealDay(String date, Riwaya riwaya) async {
+    final db = await _open();
+    await db.update('ayah_facts', {'checked_out': 1},
+        where: 'date = ? AND riwaya = ? AND type = ?',
+        whereArgs: [date, riwaya.name, AyahFactType.revise.name]);
+  }
+
+  /// Reconstruit le plan du jour en lignes groupées par sourate — une entrée
+  /// par plage contiguë de versets écrite ce jour-là (`DayFactGroup`), pour
+  /// l'affichage check-in/check-out et PlanScreen. Groupe en Dart plutôt
+  /// qu'en SQL (même précédent que `learnedVersesBySourate`).
+  static Future<List<DayFactGroup>> dayFacts(
+      String date, Riwaya riwaya) async {
+    final db = await _open();
+    final rows = await db.query('ayah_facts',
+        columns: ['surah_id', 'ayah_id', 'reach', 'cold'],
+        where: 'date = ? AND riwaya = ? AND type = ?',
+        whereArgs: [date, riwaya.name, AyahFactType.revise.name],
+        orderBy: 'surah_id, ayah_id');
+    final bySourate = <int, List<Map<String, Object?>>>{};
+    for (final row in rows) {
+      bySourate.putIfAbsent(row['surah_id'] as int, () => []).add(row);
+    }
+    return [
+      for (final entry in bySourate.entries)
+        DayFactGroup(
+          surahId: entry.key,
+          verseStart: entry.value.map((r) => r['ayah_id'] as int).reduce(min),
+          verseEnd: entry.value.map((r) => r['ayah_id'] as int).reduce(max),
+          reach: entry.value.every((r) => (r['reach'] as int) == 1),
+          coldVerses: {
+            for (final r in entry.value)
+              if ((r['cold'] as int) == 1) r['ayah_id'] as int,
+          },
+        ),
+    ];
+  }
+}
+
+/// Une sourate/portion du plan du jour, reconstruite depuis `ayah_facts`
+/// (voir [AyahFactsService.dayFacts]) — pas un objet persisté séparément.
+class DayFactGroup {
+  final int surahId;
+  final int verseStart;
+  final int verseEnd;
+  final bool reach; // true seulement si toute la plage est reach=1
+  final Set<int> coldVerses;
+
+  const DayFactGroup({
+    required this.surahId,
+    required this.verseStart,
+    required this.verseEnd,
+    required this.reach,
+    required this.coldVerses,
+  });
 }

@@ -17,8 +17,6 @@ class S {
   static String get priereSureratoires => _t('Surérogatoires', 'Supererogatory');
   static String get priereMasjid => _t('Mosquée', 'Mosque');
   static String get tahiyyatCount => _t('Fois en mosquée', 'Mosque entries');
-  static String get sEngager => _t("S'engager", 'Commit');
-  static String get apercuBanniere => _t("Aperçu · Appuie sur S'engager pour commencer", "Preview · Tap Commit to start");
   static String get voirPlanDuJour => _t('Voir le plan du jour', 'See daily plan');
   static String get revisionEnCours => _t('Révision en cours', 'Revision in progress');
   static String get cycleEnCours => _t('Cycle en cours', 'Current cycle');
@@ -27,13 +25,6 @@ class S {
   static String get complete => _t('complété', 'complete');
 
   // Plan screen
-  static String get planDuJourTitle => _t('Plan du jour', 'Daily Plan');
-  static String get checkInMatin => _t('Bismillah, bon matin', 'Bismillah, good morning');
-  static String get checkInSoir => _t('Bismillah, bonne soirée', 'Bismillah, good evening');
-  static String get checkInNeutre => _t('Bismillah, prêt(e) ?', 'Bismillah, ready?');
-  static String checkInUnites(int n) =>
-      _t('$n unité${n > 1 ? 's' : ''} t\'attendent aujourd\'hui', '$n unit${n > 1 ? 's' : ''} waiting for you today');
-  static String get checkInSouratesAVeiller => _t('À surveiller aujourd\'hui', 'Keep an eye on today');
   static String get revisionComplete => _t('Révision complétée ✓', 'Revision complete ✓');
   static String get modifierPlan => _t('Modifier le plan', 'Edit plan');
   static String get alFatihaSeul => _t('Al-Fatiha (pas de sourate)', 'Al-Fatiha (no surah)');
@@ -165,7 +156,6 @@ class S {
 
   // Hadiths
   static String get hadithDuJourLabel => _t('Hadith du jour', 'Hadith of the day');
-  static String get intentionLabel => _t('Rappel avant de commencer', 'Reminder before you start');
 
   static String _t(String fr, String en) => locale == 'fr' ? fr : en;
 
@@ -344,4 +334,68 @@ class S {
     "Puis appuie ici pour générer et voir ce que tu as à réviser.",
     'Then tap here to generate and see what you have to revise.',
   );
+
+  // Check-in / check-out (Phase 6 Sprint 2)
+  static String get checkInEyebrow => _t('CHECK-IN', 'CHECK-IN');
+  static String get checkInTitle => _t('Ta journée de révision', 'Your revision day');
+  static String checkInVersesProposed(int n) => _t(
+      '$n verset${n > 1 ? 's' : ''} proposé${n > 1 ? 's' : ''} aujourd\'hui',
+      '$n verse${n > 1 ? 's' : ''} proposed today');
+  static String get checkInAPrioriser => _t('À prioriser', 'To prioritize');
+  static String get checkInVueDuJour => _t('Vue du jour', 'Today\'s view');
+  static String get checkInAjouterSourate => _t('Ajouter une sourate', 'Add a surah');
+  static String get checkInAjouterDesc =>
+      _t('Même hors de ta sélection en cours.', 'Even outside your current selection.');
+  static String get checkInValider => _t('Valider le check-in', 'Confirm check-in');
+  static String get checkInVersetsInclus =>
+      _t('Versets inclus aujourd\'hui', 'Verses included today');
+  static String get checkInExtendHint => _t(
+      'Le "+" ajoute le prochain verset à la portée du jour.',
+      'The "+" adds the next verse to today\'s scope.');
+
+  static String get checkOutEyebrow => _t('CHECK-OUT', 'CHECK-OUT');
+  static String get checkOutRattrapageEyebrow =>
+      _t('CHECK-OUT · RATTRAPAGE', 'CHECK-OUT · CATCH-UP');
+  static String get checkOutTitreHier => _t('Hier, qu\'as-tu fait ?', 'What did you do yesterday?');
+  static String get checkOutTitreEnAttente =>
+      _t('Un jour est resté en attente', 'A day is still pending');
+  static String get checkOutTitreAujourdhui => _t('Et aujourd\'hui ?', 'What about today?');
+  static String get checkOutHier => _t('Hier', 'Yesterday');
+  static String checkOutIlYaNJours(int n) =>
+      _t('Il y a $n jour${n > 1 ? 's' : ''}', '$n day${n > 1 ? 's' : ''} ago');
+  static String get checkOutPartieOptionnelle =>
+      _t('Partie 2 · optionnelle', 'Part 2 · optional');
+  static String checkOutVoirVersets(int n) =>
+      _t('Voir les $n versets', 'See the $n verses');
+  static String get checkOutARetravailler =>
+      _t('Touche un verset à retravailler', 'Tap a verse to work on again');
+  static String get checkOutCloturerHier => _t('Clôturer hier', 'Close out yesterday');
+  static String get checkOutCloturerJour => _t('Clôturer ce jour', 'Close out this day');
+  static String get checkOutAjouterAujourdhui =>
+      _t('Ajouter aussi aujourd\'hui', 'Also add today');
+  static String get checkOutAjouterDesc => _t(
+      'Optionnel — ces versets seront datés d\'aujourd\'hui.',
+      'Optional — these verses will be dated today.');
+  static String get checkOutValiderAujourdhui =>
+      _t('Valider aussi aujourd\'hui', 'Confirm today too');
+  static String get checkOutTerminerSans => _t('Terminer sans aujourd\'hui', 'Finish without today');
+
+  /// Légende "dernière révision" — texte discret plutôt qu'un badge
+  /// chaud/froid coloré (décidé à la maquette Sprint 1, voir CHANGELOG).
+  static const _staleSinceDays = 180;
+
+  static String lastRevisionLabel(DateTime? lastRevised, DateTime today) {
+    if (lastRevised == null) return _t('Jamais révisée', 'Never revised');
+    final days = today.difference(lastRevised).inDays;
+    if (days >= 365) return _t('Il y a plus d\'un an', 'Over a year ago');
+    if (days >= _staleSinceDays) return _t('Il y a plus de 6 mois', 'Over 6 months ago');
+    if (days >= 90) return _t('Il y a plus de 3 mois', 'Over 3 months ago');
+    return _t('Révisée récemment', 'Recently revised');
+  }
+
+  /// À surveiller au check-in (section "À prioriser") — même seuil que le
+  /// palier "plus de 6 mois" de [lastRevisionLabel], pas un second seuil
+  /// indépendant à maintenir en synchro manuellement.
+  static bool needsAttention(DateTime? lastRevised, DateTime today) =>
+      lastRevised == null || today.difference(lastRevised).inDays >= _staleSinceDays;
 }

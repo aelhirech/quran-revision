@@ -6,7 +6,6 @@ import '../core/app_colors.dart';
 import '../core/hadith_data.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
-import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/riwaya.dart';
 import '../services/ayah_facts_service.dart';
@@ -20,7 +19,7 @@ import '../widgets/primary_cta_button.dart';
 import '../widgets/spotlight_tour.dart';
 
 class HomeScreen extends StatefulWidget {
-  final void Function(DailySession) onVoirPlan;
+  final void Function(List<Prayer> prayersAlone) onVoirPlan;
   final VoidCallback? onSaisirManuel;
 
   const HomeScreen({super.key, required this.onVoirPlan, this.onSaisirManuel});
@@ -32,7 +31,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final Set<Prayer> _prayersAlone = {};
   int _tahiyyatCount = 0;
-  DailySession? _session;
   int _streak = 0;
   List<Prayer>? _lastPrayers;
   bool _isYesterday = false;
@@ -96,19 +94,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ..addAll(others);
       _tahiyyatCount = tahiyyat;
     });
-  }
-
-  void _buildPlan(AppState state) {
-    final prayers = _effectivePrayers;
-    if (state.config == null || prayers.isEmpty) return;
-    final session = RevisionEngine.buildDayPlan(
-      config: state.config!,
-      prayersAlone: prayers,
-      cyclePosition: state.cyclePosition,
-      today: DateTime.now(),
-      effectiveDaysOverride: state.adaptiveCycleDays,
-    );
-    setState(() => _session = session);
   }
 
   @override
@@ -219,10 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   key: TourKeys.voirPlanButton,
                   child: PrimaryCtaButton(
                     onPressed: canCommit
-                        ? () {
-                            _buildPlan(state);
-                            if (_session != null) widget.onVoirPlan(_session!);
-                          }
+                        ? () => widget.onVoirPlan(_effectivePrayers)
                         : null,
                     icon: Icons.calendar_today_outlined,
                     label: S.voirPlanDuJour,

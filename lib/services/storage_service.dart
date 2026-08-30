@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/riwaya.dart';
 import '../models/user_config.dart';
@@ -11,18 +10,19 @@ class StorageService {
   static const _keyCyclePosition = 'cycle_position';
   static const _keyLocale = 'locale';
   static const _keyNotifEnabled = 'notif_enabled';
-  static const _keyPreviewSession = 'preview_session';
-  static const _keyTodaySession = 'today_session';
   static const _keyPauseDates = 'pause_dates';
   static const _keyRiwaya = 'riwaya';
   static const _keyCheckedRakaas = 'today_checked_rakaas';
   static const _keyTourSeen = 'onboarding_tour_seen';
   static const _keyLastSessionPrayers = 'last_session_prayers';
+  static const _keyActivePrayers = 'active_round_prayers';
 
-  /// Hafs et Warsh sont deux parcours indépendants (config, cycle, sessions,
-  /// pauses, cases cochées) — ces 6 clés sont donc préfixées par riwaya.
-  /// Langue/riwaya-active/notifications/tour-vu restent des préférences
-  /// globales, non préfixées.
+  /// Hafs et Warsh sont deux parcours indépendants (config, cycle, pauses,
+  /// cases cochées) — ces clés sont donc préfixées par riwaya. Langue/riwaya-
+  /// active/notifications/tour-vu restent des préférences globales, non
+  /// préfixées. Depuis Phase 6 Sprint 2, le plan du jour n'est plus persisté
+  /// ici (`previewSession`/`todaySession` ont disparu) — les lignes
+  /// `ayah_facts` du jour en sont la seule source, voir `AyahFactsService`.
   static String _track(String base, Riwaya riwaya) => riwayaKey(base, riwaya);
 
   static Future<void> saveConfig(UserConfig config, Riwaya riwaya) async {
@@ -73,50 +73,50 @@ class StorageService {
     return prefs.getBool(_keyNotifEnabled) ?? true;
   }
 
-  static Future<void> savePreviewSession(DailySession session, Riwaya riwaya) async {
+  /// Prières de la manche en cours (choisies dans HomeScreen, pas encore
+  /// clôturée) — permet de reconstruire `AppState.todaySession` (dérivé de
+  /// `ayah_facts`, plus persisté comme objet) si l'app redémarre avant la
+  /// fin de la manche, sans perdre la sélection de prières (Phase 6 Sprint
+  /// 2 ; remplace l'ancien `previewSession`/`todaySession`, voir cadrage).
+  /// Même garde de fraîcheur par date que [loadCheckedRakaas].
+  static Future<void> saveActivePrayers(
+      List<Prayer> prayers, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _track(_keyPreviewSession, riwaya), jsonEncode(session.toJson()));
+    await prefs.setString(_track(_keyActivePrayers, riwaya), jsonEncode({
+      'date': DateTime.now().toIso8601String().substring(0, 10),
+      'prayers': prayers.map((p) => p.name).toList(),
+    }));
   }
 
-  static Future<DailySession?> loadPreviewSession(Riwaya riwaya) async {
+  static Future<List<Prayer>?> loadActivePrayers(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    return _sessionOrNullIfStale(prefs.getString(_track(_keyPreviewSession, riwaya)));
-  }
-
-  static Future<void> clearPreviewSession(Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_track(_keyPreviewSession, riwaya));
-  }
-
-  static Future<void> saveTodaySession(DailySession session, Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _track(_keyTodaySession, riwaya), jsonEncode(session.toJson()));
-  }
-
-  static Future<DailySession?> loadTodaySession(Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    return _sessionOrNullIfStale(prefs.getString(_track(_keyTodaySession, riwaya)));
-  }
-
-  static DailySession? _sessionOrNullIfStale(String? raw) {
+    final raw = prefs.getString(_track(_keyActivePrayers, riwaya));
     if (raw == null) return null;
     try {
-      final session = DailySession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-      final today = DateTime.now();
-      final sameDay = session.date.year == today.year &&
-          session.date.month == today.month &&
-          session.date.day == today.day;
-      return sameDay ? session : null;
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      if (decoded['date'] != today) {
+        await clearActivePrayers(riwaya);
+        return null;
+      }
+      return (decoded['prayers'] as List)
+          .map((name) {
+            try {
+              return Prayer.values.byName(name as String);
+            } catch (_) {
+              return null;
+            }
+          })
+          .whereType<Prayer>()
+          .toList();
     } catch (_) {
       return null;
     }
   }
 
-  static Future<void> clearTodaySession(Riwaya riwaya) async {
+  static Future<void> clearActivePrayers(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_track(_keyTodaySession, riwaya));
+    await prefs.remove(_track(_keyActivePrayers, riwaya));
   }
 
   /// Rakaas cochées dans la session du jour, par index de prière — permet de
@@ -124,7 +124,7 @@ class StorageService {
   /// La date est stockée à côté : si elle ne correspond plus à aujourd'hui
   /// (session jamais explicitement clôturée puis minuit passé), le chargement
   /// la traite comme absente et purge la clé — même logique que
-  /// [_sessionOrNullIfStale] pour [loadTodaySession].
+  /// [loadActivePrayers].
   static Future<void> saveCheckedRakaas(
       Map<int, Set<int>> checked, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
@@ -238,16 +238,15 @@ class StorageService {
     await Future.wait([
       prefs.remove(_track(_keyConfig, riwaya)),
       prefs.remove(_track(_keyCyclePosition, riwaya)),
-      prefs.remove(_track(_keyPreviewSession, riwaya)),
-      prefs.remove(_track(_keyTodaySession, riwaya)),
       prefs.remove(_track(_keyPauseDates, riwaya)),
       prefs.remove(_track(_keyCheckedRakaas, riwaya)),
       prefs.remove(_track(_keyLastSessionPrayers, riwaya)),
+      prefs.remove(_track(_keyActivePrayers, riwaya)),
     ]);
   }
 
   /// Migration one-shot pour les installations existantes : avant l'ajout des
-  /// parcours par riwaya, ces 6 clés étaient globales et implicitement
+  /// parcours par riwaya, ces clés étaient globales et implicitement
   /// Hafs (Warsh n'était qu'un affichage alternatif du même texte). On les
   /// renomme donc telles quelles vers le parcours Hafs. Idempotent : les
   /// anciennes clés n'existent plus après le premier passage.
@@ -262,16 +261,6 @@ class StorageService {
       await prefs.setInt(_track(_keyCyclePosition, Riwaya.hafs),
           prefs.getInt(_keyCyclePosition)!);
       await prefs.remove(_keyCyclePosition);
-    }
-    if (prefs.containsKey(_keyPreviewSession)) {
-      await prefs.setString(_track(_keyPreviewSession, Riwaya.hafs),
-          prefs.getString(_keyPreviewSession)!);
-      await prefs.remove(_keyPreviewSession);
-    }
-    if (prefs.containsKey(_keyTodaySession)) {
-      await prefs.setString(_track(_keyTodaySession, Riwaya.hafs),
-          prefs.getString(_keyTodaySession)!);
-      await prefs.remove(_keyTodaySession);
     }
     if (prefs.containsKey(_keyPauseDates)) {
       await prefs.setStringList(_track(_keyPauseDates, Riwaya.hafs),

@@ -11,26 +11,24 @@ import '../services/ayah_facts_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
 import '../widgets/arabic_verse_text.dart';
-import '../widgets/freshness_badge.dart';
 import '../widgets/prayer_plan_card.dart';
-import '../widgets/preview_banner.dart';
 import '../widgets/primary_cta_button.dart';
 
+/// Répartition en rakaas d'un plan déjà validé au check-in (Phase 6 Sprint
+/// 2, voir cadrage "Moteur quotidien") — checklist active uniquement,
+/// l'ancien mode "aperçu avant engagement" a disparu : le check-in en tient
+/// désormais lieu (`CheckInScreen`).
 class PlanScreen extends StatefulWidget {
   final DailySession session;
   final Future<void> Function(int unitsCompleted, List<RevisionUnit> coveredUnits)? onComplete;
-  final VoidCallback? onEngager;
   final VoidCallback? onChangePlan;
-  final bool isPreview;
   final FreshnessLevel? Function(int sourateId)? freshnessOf;
 
   const PlanScreen({
     super.key,
     required this.session,
     this.onComplete,
-    this.onEngager,
     this.onChangePlan,
-    this.isPreview = false,
     this.freshnessOf,
   });
 
@@ -39,14 +37,8 @@ class PlanScreen extends StatefulWidget {
 }
 
 class _PlanScreenState extends State<PlanScreen> {
-  // Preview : progression jetable, jamais persistée (cases non interactives).
-  // Session active : la progression vit dans AppState, persistée à chaque
-  // coche pour survivre à un redémarrage de l'app avant la validation finale.
-  final Map<int, Set<int>> _previewChecked = {};
-
-  Map<int, Set<int>> _checkedOf(BuildContext context) => widget.isPreview
-      ? _previewChecked
-      : context.watch<AppState>().checkedRakaas;
+  Map<int, Set<int>> _checkedOf(BuildContext context) =>
+      context.watch<AppState>().checkedRakaas;
 
   bool _allDoneOf(Map<int, Set<int>> checkedByPrayer) {
     for (int pi = 0; pi < widget.session.plan.length; pi++) {
@@ -101,10 +93,6 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   Future<void> _confirmChangePlan(BuildContext context) async {
-    if (widget.isPreview) {
-      widget.onChangePlan?.call();
-      return;
-    }
     // Commitment modal — l'utilisateur doit déclarer ce qu'il a fait.
     await showModalBottomSheet<void>(
       context: context,
@@ -136,14 +124,7 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   void _toggle(int prayerIndex, int rakaaNumber) {
-    if (!widget.isPreview) {
-      context.read<AppState>().toggleChecked(prayerIndex, rakaaNumber);
-      return;
-    }
-    setState(() {
-      final set = _previewChecked.putIfAbsent(prayerIndex, () => {});
-      set.contains(rakaaNumber) ? set.remove(rakaaNumber) : set.add(rakaaNumber);
-    });
+    context.read<AppState>().toggleChecked(prayerIndex, rakaaNumber);
   }
 
   @override
@@ -161,7 +142,7 @@ class _PlanScreenState extends State<PlanScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            title: Text(widget.isPreview ? S.planDuJourTitle : S.revisionEnCours),
+            title: Text(S.revisionEnCours),
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             pinned: true,
@@ -173,16 +154,15 @@ class _PlanScreenState extends State<PlanScreen> {
                   )
                 : null,
             actions: [
-              if (!widget.isPreview)
-                IconButton(
-                  icon: const Icon(Icons.mosque_outlined),
-                  tooltip: S.focusMosquee,
-                  onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                    MaterialPageRoute(
-                      builder: (_) => _FocusMosqueeScreen(session: widget.session),
-                    ),
+              IconButton(
+                icon: const Icon(Icons.mosque_outlined),
+                tooltip: S.focusMosquee,
+                onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(
+                    builder: (_) => _FocusMosqueeScreen(session: widget.session),
                   ),
                 ),
+              ),
             ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(4),
@@ -196,10 +176,6 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
             ),
           ),
-          if (widget.isPreview) ...[
-            SliverToBoxAdapter(child: _checkInSummary(cs)),
-            const SliverToBoxAdapter(child: PreviewBanner()),
-          ],
           SliverToBoxAdapter(child: _summaryBar(cs)),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
@@ -211,7 +187,6 @@ class _PlanScreenState extends State<PlanScreen> {
                     prayerIndex: i,
                     pp: pp,
                     checked: checkedByPrayer[i] ?? {},
-                    isPreview: widget.isPreview,
                     onToggle: (rakaa) => _toggle(i, rakaa),
                     freshnessOf: widget.freshnessOf,
                   )
@@ -230,20 +205,12 @@ class _PlanScreenState extends State<PlanScreen> {
           padding: const EdgeInsets.all(16),
           child: SizedBox(
             height: 56,
-            child: widget.isPreview
-                ? _engageButton()
-                : _completionButton(allDone, checkedCount),
+            child: _completionButton(allDone, checkedCount),
           ),
         ),
       ),
     );
   }
-
-  Widget _engageButton() => PrimaryCtaButton(
-        onPressed: widget.onEngager,
-        icon: Icons.check_rounded,
-        label: S.sEngager,
-      );
 
   Future<void> _showCompletionSummary() async {
     final state = context.read<AppState>();
@@ -287,81 +254,6 @@ class _PlanScreenState extends State<PlanScreen> {
             duration: 900.ms,
             color: Colors.white.withValues(alpha: 0.4),
             delay: 100.ms);
-  }
-
-  /// Carte de check-in affichée avant de s'engager : salutation selon l'heure
-  /// + sourates froides/gelées du plan, pour savoir en un coup d'œil quoi
-  /// surveiller aujourd'hui (sans ouvrir chaque rakaa une par une).
-  Widget _checkInSummary(ColorScheme cs) {
-    final palette = context.palette;
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12
-        ? S.checkInMatin
-        : hour >= 18
-            ? S.checkInSoir
-            : S.checkInNeutre;
-
-    final seenSourateIds = <int>{};
-    final toWatch = <(String, FreshnessLevel)>[];
-    for (final pp in widget.session.plan) {
-      for (final r in pp.rakaas) {
-        final unit = r.unit;
-        if (unit == null || !seenSourateIds.add(unit.sourate.id)) continue;
-        final level = widget.freshnessOf?.call(unit.sourate.id);
-        if (level == FreshnessLevel.cold || level == FreshnessLevel.frozen) {
-          toWatch.add((unit.sourate.nameFr, level!));
-        }
-      }
-    }
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: palette.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(greeting,
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: palette.textPrimary)),
-          const SizedBox(height: 4),
-          Text(S.checkInUnites(widget.session.totalUnits),
-              style: TextStyle(color: palette.textMuted, fontSize: 13)),
-          if (toWatch.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(S.checkInSouratesAVeiller.toUpperCase(),
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurfaceVariant,
-                    letterSpacing: 1.0)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: toWatch.map((e) {
-                final (name, level) = e;
-                final color = freshnessColor(level, palette);
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: color.withValues(alpha: 0.6)),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(name, style: TextStyle(fontSize: 11, color: color)),
-                );
-              }).toList(),
-            ),
-          ],
-        ],
-      ),
-    ).animate().fadeIn().slideY(begin: 0.06);
   }
 
   Widget _summaryBar(ColorScheme cs) {

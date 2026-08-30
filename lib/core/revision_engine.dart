@@ -18,6 +18,25 @@ const double _minLinesPerSlot = 5.0;
 String _unitKey(RevisionUnit u) =>
     '${u.sourate.id}_${u.verseStart}_${u.verseEnd}';
 
+/// Résultat de [RevisionEngine.selectDayUnits] — quelles unités composent le
+/// plan du jour, avant toute répartition en rakaas. Consommé à la fois par
+/// [RevisionEngine.buildDayPlan] (répartition immédiate) et par le moteur
+/// quotidien (Phase 6 Sprint 2, qui écrit ces unités dans `ayah_facts` sans
+/// les répartir par prière).
+class DaySelection {
+  final List<RevisionUnit> units;
+  final int cyclePosition; // position normalisée (mod cycleTotal)
+  final int cycleTotal;
+  final int daysRemaining;
+
+  const DaySelection({
+    required this.units,
+    required this.cyclePosition,
+    required this.cycleTotal,
+    required this.daysRemaining,
+  });
+}
+
 class RevisionEngine {
   static List<RevisionUnit> buildUnits(List<SourateSelection> selections) {
     final units = <RevisionUnit>[];
@@ -77,9 +96,13 @@ class RevisionEngine {
     return count;
   }
 
-  static DailySession buildDayPlan({
+  /// Détermine quelles unités composent le plan du jour (rythme par durée ou
+  /// par lignes/jour) — sans les répartir en rakaas. Étapes 1-2 de l'ancien
+  /// `buildDayPlan` monolithique, extraites pour être réutilisables par le
+  /// moteur quotidien (Phase 6 Sprint 2) indépendamment de l'affichage
+  /// prière-par-prière.
+  static DaySelection selectDayUnits({
     required UserConfig config,
-    required List<Prayer> prayersAlone,
     required int cyclePosition,
     required DateTime today,
     int? effectiveDaysOverride,
@@ -98,9 +121,6 @@ class RevisionEngine {
         (effectiveDaysOverride ?? config.effectiveDays(totalVerses)).clamp(1, 1 << 30);
     final daysRemaining = (effectiveDays - daysElapsed).clamp(1, effectiveDays);
 
-    final totalSuratRakaas =
-        prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
-
     // Aucune sourate sélectionnée : rien à faire avancer dans le cycle
     // (dailyTarget/_unitsForLines savent déjà gérer cycleTotal == 0).
     final pos = cycleTotal == 0 ? 0 : cyclePosition % cycleTotal;
@@ -117,7 +137,28 @@ class RevisionEngine {
       baseUnits.add(units[(pos + i) % cycleTotal]);
     }
 
-    final expandedUnits = _expandToRakaas(baseUnits, totalSuratRakaas);
+    return DaySelection(
+      units: baseUnits,
+      cyclePosition: pos,
+      cycleTotal: cycleTotal,
+      daysRemaining: daysRemaining,
+    );
+  }
+
+  /// Répartit des unités déjà choisies dans les rakaas des prières données —
+  /// étapes 3-4 de l'ancien `buildDayPlan` monolithique. Pure : ne dépend que
+  /// de ses arguments, réutilisable que les unités viennent de
+  /// [selectDayUnits] (flux existant) ou des lignes `ayah_facts` déjà
+  /// validées au check-in (Phase 6 Sprint 2 — PlanScreen ne génère plus son
+  /// propre plan, il répartit celui déjà confirmé).
+  static List<PrayerPlan> distributeToRakaas({
+    required List<RevisionUnit> units,
+    required List<Prayer> prayersAlone,
+  }) {
+    final totalSuratRakaas =
+        prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
+
+    final expandedUnits = _expandToRakaas(units, totalSuratRakaas);
     // Mutable copy for no-repeat swap.
     final todayUnits = expandedUnits.toList();
 
@@ -180,14 +221,41 @@ class RevisionEngine {
       plan.add(PrayerPlan(prayer: prayer, rakaas: rakaas));
     }
 
+    return plan;
+  }
+
+  /// Construit le plan complet du jour (sélection + répartition en rakaas)
+  /// en un seul appel — composition pure de [selectDayUnits] +
+  /// [distributeToRakaas], sans effet de bord. Depuis Phase 6 Sprint 2, plus
+  /// aucun appelant de l'app ne l'utilise directement (le moteur quotidien et
+  /// PlanScreen appellent les deux étapes séparément, voir `AppState`) —
+  /// conservée comme fonction pure testée (`test/core/revision_engine_test.dart`)
+  /// plutôt que supprimée avec sa couverture de régression.
+  static DailySession buildDayPlan({
+    required UserConfig config,
+    required List<Prayer> prayersAlone,
+    required int cyclePosition,
+    required DateTime today,
+    int? effectiveDaysOverride,
+  }) {
+    final selection = selectDayUnits(
+      config: config,
+      cyclePosition: cyclePosition,
+      today: today,
+      effectiveDaysOverride: effectiveDaysOverride,
+    );
+    final plan = distributeToRakaas(
+      units: selection.units,
+      prayersAlone: prayersAlone,
+    );
     return DailySession(
       date: today,
       prayersAlone: prayersAlone,
       plan: plan,
-      totalUnits: baseUnits.length,
-      cyclePosition: pos,
-      cycleTotal: cycleTotal,
-      daysRemaining: daysRemaining,
+      totalUnits: selection.units.length,
+      cyclePosition: selection.cyclePosition,
+      cycleTotal: selection.cycleTotal,
+      daysRemaining: selection.daysRemaining,
     );
   }
 

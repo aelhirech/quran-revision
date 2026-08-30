@@ -24,6 +24,9 @@ class _ShellScreenState extends State<ShellScreen> {
   @override
   void initState() {
     super.initState();
+    // Point d'entrée du moteur quotidien (Phase 6 Sprint 2) — à chaque
+    // ouverture/reprise de l'app (voir cadrage "Moteur quotidien").
+    context.read<AppState>().ensureDayPlan();
     _maybeStartTour();
   }
 
@@ -31,7 +34,7 @@ class _ShellScreenState extends State<ShellScreen> {
     final state = context.read<AppState>();
     // Le tour ne cible que des widgets de HomeScreen (aucune session encore
     // engagée) — pas de sens à le montrer si l'utilisateur a déjà un plan.
-    if (state.todaySession != null || state.previewSession != null) return;
+    if (state.todaySession != null) return;
     if (!state.hasSeenTour && mounted) setState(() => _showTour = true);
   }
 

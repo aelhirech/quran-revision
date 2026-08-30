@@ -75,14 +75,6 @@ const List<Hadith> motivatingHadiths = [
   ),
 ];
 
-/// Hadith sur l'intention — affiché dans le banner preview du plan
-const Hadith intentionHadith = Hadith(
-  textFr: '« Les actes ne valent que par leurs intentions, et chacun n\'obtient que ce qu\'il a eu l\'intention de faire. »',
-  textEn: '"Actions are judged by their intentions, and every person will get what they intended."',
-  sourceFr: 'Rapporté par Al-Boukhâri et Muslim',
-  sourceEn: 'Narrated by Al-Bukhari and Muslim',
-);
-
 /// Retourne le hadith motivant du jour (rotation quotidienne).
 Hadith hadithDuJour(DateTime date) {
   final index = (date.year * 365 + date.month * 31 + date.day) % motivatingHadiths.length;
