@@ -57,6 +57,14 @@ Le check-in/check-out affiche une vue "journée" agrégée (pas prière par pri�
 
 Sur tout écran affichant du texte coranique (plan du jour, récap, lecture pleine sourate), la première ligne est **réservée et fixe** pour la Bismillah — centrée, hors du flux scrollable des versets, affichée uniquement si la sourate en a une. La donnée existe déjà : `assets/quran/metadata/quran-metadata-surah-name.json` (bundlée Sprint 8, jamais utilisée jusqu'ici) contient `bismillah_pre: true/false` par sourate.
 
+### Moteur quotidien — source unique de vérité (décidé)
+
+Pas de recalcul à la volée dans les écrans : un seul moteur écrit dans `ayah_facts`, tout le reste (nombre de versets du jour, sourates à réviser, dates, streak, tous les chiffres affichés) se **lit** depuis la table, jamais recalculé indépendamment ailleurs. Corrige directement la dette technique §8.5.1 de `docs/DOCUMENTATION_TECHNIQUE.md` (« arithmétique de cycle dupliquée » dans `home_screen.dart`/`plan_screen.dart`/`recap_screen.dart`/`day_plan_tab.dart`) plutôt que de la reconduire dans le nouveau rituel.
+
+**Déclenchement** : à chaque ouverture/reprise de l'app, si le jour a changé depuis la dernière écriture connue dans `ayah_facts` (pas de vrai cron minuit en arrière-plan sur Flutter sans configuration native supplémentaire — donc « à minuit » en pratique = « à la prochaine ouverture de l'app après minuit »), le moteur calcule le plan du jour (même logique que `RevisionEngine.buildDayPlan()` aujourd'hui) et **écrit directement** les lignes `ayah_facts` du jour (`checked_out = 0`, `reach = 0` — proposées, pas encore confirmées). Le check-in devient une simple vue/édition de ces lignes déjà en base (ajouter un verset/une sourate = INSERT, retirer = DELETE) plutôt qu'un objet `DailySession` construit en mémoire puis promu — élimine la dualité `previewSession`/`todaySession` de `StorageService` évoquée dans « Ce que ça remplace » ci-dessus.
+
+**Maquette produite** (Sprint 1, hors implémentation) : flow interactif validant ce modèle — check-in en liste "chapelet" (une sourate = une ligne, dernière révision affichée en texte discret plutôt qu'un badge chaud/froid — ex. "il y a plus de 6 mois", "jamais révisée" — pas de notion chaud/froid au check-in), navigation poussée (écran de détail par sourate avec retour) plutôt qu'accordéon en place, ajout limité à la sourate depuis le check-in (le détail d'une sourate permet d'ajouter un verset précis à sa portée). Au check-out, la déclaration manuelle (renommée "à retravailler", pas "froid" — évite la confusion avec les seuils automatiques de `FreshnessEngine`) se fait au niveau du **verset précis**, pas de la sourate, via un écran de détail dédié listant les versets de la portion.
+
 ### Décisions actées
 
 - **Profils élèves hors scope** — `user_id` prépare un futur compte/sync (pas une unification avec `StudentProfile`), à réconcilier plus tard. `StudentService`/`LearningProgress` élèves restent inchangés ce sprint.
@@ -65,7 +73,7 @@ Sur tout écran affichant du texte coranique (plan du jour, récap, lecture plei
 
 ### Ouvert — à trancher au début du Sprint 2
 
-- Écran(s) exact(s) du check-in/check-out à deux parties (rattrapage multi-jours) — maquette/flow avant implémentation, y compris comment déclencher l'usage réel de `checked_out = 0`.
+- Flow général et interactions validés par maquette (voir « Moteur quotidien » ci-dessus). Reste à préciser à l'implémentation : le déclenchement exact du rattrapage multi-jours (écran(s) des Parties 1/2, comment on détecte et propose le rattrapage) et l'usage réel de `checked_out = 0`/`1` pendant la journée en cours (le moteur quotidien décidé ci-dessus écrit `checked_out = 0` au démarrage du jour — reste à définir précisément ce qui déclenche le passage à `1`, probablement l'action de check-out explicite plutôt qu'un timer).
 
 ---
 
