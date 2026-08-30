@@ -8,8 +8,8 @@ import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
+import '../services/ayah_facts_service.dart';
 import '../services/hafs_service.dart';
-import '../services/history_service.dart';
 import '../services/storage_service.dart';
 import '../services/warsh_service.dart';
 
@@ -154,8 +154,7 @@ class AppState extends ChangeNotifier {
     _adaptiveCycleDays = null;
     await refreshFreshness(notify: false);
     if (_config?.adaptiveCycle == true) {
-      final totalUnits = RevisionEngine.buildUnits(_config!.selections).length;
-      await refreshAdaptiveCycle(totalUnits, notify: false);
+      await refreshAdaptiveCycle(_config!.totalSelectedVerses, notify: false);
     }
   }
 
@@ -209,7 +208,7 @@ class AppState extends ChangeNotifier {
   /// Recalcule la fraîcheur depuis l'historique des révisions par sourate.
   /// Appelé quand une session démarre et après chaque session complétée.
   Future<void> refreshFreshness({bool notify = true}) async {
-    final dates = await HistoryService.lastRevisionDates(riwaya: _riwaya);
+    final dates = await AyahFactsService.lastRevisionDatesPerSourate(riwaya: _riwaya);
     _freshness = FreshnessEngine.computeAll(dates, DateTime.now());
     if (notify) notifyListeners();
   }
@@ -256,22 +255,25 @@ class AppState extends ChangeNotifier {
     await StorageService.saveCheckedRakaas(_checkedRakaas, _riwaya);
   }
 
-  /// Recalcule la durée adaptive depuis l'historique.
-  /// Appelé après chaque session et quand le toggle adaptatif est activé.
-  Future<void> refreshAdaptiveCycle(int totalUnits, {bool notify = true}) async {
-    if (_config?.adaptiveCycle != true || totalUnits <= 0) return;
-    final avg = await HistoryService.avgUnitsPerDay(riwaya: _riwaya);
+  /// Recalcule la durée adaptive depuis l'historique. [totalVerses] et
+  /// `AyahFactsService.avgVersesPerDay` doivent rester sur la même échelle
+  /// (versets, depuis Phase 6 — pas des unités RevisionEngine, dont la taille
+  /// varie par sourate). Appelé après chaque session et quand le toggle
+  /// adaptatif est activé.
+  Future<void> refreshAdaptiveCycle(int totalVerses, {bool notify = true}) async {
+    if (_config?.adaptiveCycle != true || totalVerses <= 0) return;
+    final avg = await AyahFactsService.avgVersesPerDay(riwaya: _riwaya);
     if (avg > 0) {
-      _adaptiveCycleDays = (totalUnits / avg).ceil();
+      _adaptiveCycleDays = (totalVerses / avg).ceil();
       if (notify) notifyListeners();
     }
   }
 
-  Future<void> setAdaptiveCycle(bool enabled, {int totalUnits = 0}) async {
+  Future<void> setAdaptiveCycle(bool enabled, {int totalVerses = 0}) async {
     if (_config == null) return;
     _config = _config!.copyWith(adaptiveCycle: enabled);
     await StorageService.saveConfig(_config!, _riwaya);
-    if (enabled) await refreshAdaptiveCycle(totalUnits, notify: false);
+    if (enabled) await refreshAdaptiveCycle(totalVerses, notify: false);
     notifyListeners();
   }
 

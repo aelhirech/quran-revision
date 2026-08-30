@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/daily_session.dart';
+import '../models/prayer.dart';
 import '../models/riwaya.dart';
 import '../models/user_config.dart';
 import 'riwaya_key.dart';
@@ -16,6 +17,7 @@ class StorageService {
   static const _keyRiwaya = 'riwaya';
   static const _keyCheckedRakaas = 'today_checked_rakaas';
   static const _keyTourSeen = 'onboarding_tour_seen';
+  static const _keyLastSessionPrayers = 'last_session_prayers';
 
   /// Hafs et Warsh sont deux parcours indépendants (config, cycle, sessions,
   /// pauses, cases cochées) — ces 6 clés sont donc préfixées par riwaya.
@@ -158,6 +160,43 @@ class StorageService {
     await prefs.remove(_track(_keyCheckedRakaas, riwaya));
   }
 
+  /// Dernière sélection de prières d'une session complétée normalement (pas
+  /// la saisie manuelle) — permet à `HomeScreen` de proposer "reprendre les
+  /// prières d'hier". Ne vient plus de l'historique de révision (Phase 6,
+  /// `ayah_facts` n'a pas de notion de prière, une table de faits par verset
+  /// n'a pas à en porter une) : petite persistance UI dédiée, à part.
+  static Future<void> saveLastSessionPrayers(
+      DateTime date, List<Prayer> prayers, Riwaya riwaya) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_track(_keyLastSessionPrayers, riwaya), jsonEncode({
+      'date': date.toIso8601String().substring(0, 10),
+      'prayers': prayers.map((p) => p.name).toList(),
+    }));
+  }
+
+  static Future<({DateTime date, List<Prayer> prayers})?> loadLastSessionPrayers(
+      Riwaya riwaya) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_track(_keyLastSessionPrayers, riwaya));
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final prayers = (decoded['prayers'] as List)
+          .map((name) {
+            try {
+              return Prayer.values.byName(name as String);
+            } catch (_) {
+              return null;
+            }
+          })
+          .whereType<Prayer>()
+          .toList();
+      return (date: DateTime.parse(decoded['date'] as String), prayers: prayers);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<void> savePauseDates(Set<String> dates, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_track(_keyPauseDates, riwaya), dates.toList());
@@ -203,6 +242,7 @@ class StorageService {
       prefs.remove(_track(_keyTodaySession, riwaya)),
       prefs.remove(_track(_keyPauseDates, riwaya)),
       prefs.remove(_track(_keyCheckedRakaas, riwaya)),
+      prefs.remove(_track(_keyLastSessionPrayers, riwaya)),
     ]);
   }
 

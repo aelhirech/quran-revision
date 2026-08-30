@@ -8,7 +8,7 @@ import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/student_profile.dart';
-import '../services/learning_service.dart';
+import '../services/ayah_facts_service.dart';
 import '../services/student_service.dart';
 import '../state/app_state.dart';
 import '../widgets/daily_verse_info_card.dart';
@@ -64,7 +64,9 @@ class _LearnScreenState extends State<LearnScreen> {
 
   Future<List<LearningProgress>> _loadProgress() async {
     if (_activeStudentId == null) {
-      return LearningService.loadAll(context.read<AppState>().riwaya);
+      final state = context.read<AppState>();
+      return AyahFactsService.loadMainLearningProgress(
+          riwaya: state.riwaya, sourates: state.sourates);
     }
     return StudentService.loadProgress(_activeStudentId!);
   }
@@ -180,7 +182,7 @@ class _LearnScreenState extends State<LearnScreen> {
     }
     // Retiré de l'apprentissage dans tous les cas — sinon une sourate déjà
     // présente dans les deux listes reste bloquée en "en cours" pour toujours.
-    await LearningService.remove(s.id, state.riwaya);
+    await AyahFactsService.deleteLearnFacts(s.id, state.riwaya);
     await _reload();
     if (!alreadyInRevision && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -197,7 +199,6 @@ class _LearnScreenState extends State<LearnScreen> {
                 .toSet() ??
             {})
         : <int>{};
-    final riwaya = context.read<AppState>().riwaya;
     final available = context
         .read<AppState>()
         .sourates
@@ -214,11 +215,13 @@ class _LearnScreenState extends State<LearnScreen> {
     if (picked == null) return;
 
     final p = LearningProgress.start(picked);
-    if (_activeStudentId == null) {
-      await LearningService.upsert(p, riwaya);
-    } else {
+    if (_activeStudentId != null) {
       await StudentService.upsertProgress(_activeStudentId!, p);
     }
+    // Profil principal : rien à persister tant qu'aucun verset n'est encore
+    // marqué appris (ayah_facts n'a pas de notion de "sourate démarrée à 0
+    // verset") — l'écran de pratique s'ouvre quand même sur `p` en mémoire ;
+    // `learnVerse` écrira le premier fait au premier verset marqué.
     await _reload();
     if (mounted) _openSourate(p);
   }
@@ -244,7 +247,7 @@ class _LearnScreenState extends State<LearnScreen> {
     );
     if (confirmed == true) {
       if (_activeStudentId == null) {
-        await LearningService.remove(p.sourate.id, riwaya);
+        await AyahFactsService.deleteLearnFacts(p.sourate.id, riwaya);
       } else {
         await StudentService.removeProgress(_activeStudentId!, p.sourate.id);
       }

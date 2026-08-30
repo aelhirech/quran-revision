@@ -9,7 +9,8 @@ import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/riwaya.dart';
-import '../services/history_service.dart';
+import '../services/ayah_facts_service.dart';
+import '../services/storage_service.dart';
 import '../state/app_state.dart';
 import '../widgets/cycle_progress_card.dart';
 import '../widgets/hadith_card.dart';
@@ -61,34 +62,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadHistory() async {
     final state = context.read<AppState>();
-    final streak = await HistoryService.currentStreak(
+    final streak = await AyahFactsService.currentStreak(
         pauseDates: state.pauseDates, riwaya: state.riwaya);
-    final recent = await HistoryService.recentSessions(limit: 1, riwaya: state.riwaya);
+    final last = await StorageService.loadLastSessionPrayers(state.riwaya);
     if (!mounted) return;
 
     List<Prayer>? lastPrayers;
     bool isYesterday = false;
-    if (recent.isNotEmpty) {
-      final last = recent.first;
-      final prayers = last.prayers
-          .map((name) {
-            try {
-              return Prayer.values.byName(name);
-            } catch (_) {
-              return null;
-            }
-          })
-          .whereType<Prayer>()
-          .toList();
-      if (prayers.isNotEmpty) {
-        lastPrayers = prayers;
-        final lastDate = last.date.toIso8601String().substring(0, 10);
-        final yesterday = DateTime.now()
-            .subtract(const Duration(days: 1))
-            .toIso8601String()
-            .substring(0, 10);
-        isYesterday = lastDate == yesterday;
-      }
+    if (last != null && last.prayers.isNotEmpty) {
+      lastPrayers = last.prayers;
+      final lastDate = last.date.toIso8601String().substring(0, 10);
+      final yesterday = DateTime.now()
+          .subtract(const Duration(days: 1))
+          .toIso8601String()
+          .substring(0, 10);
+      isYesterday = lastDate == yesterday;
     }
     setState(() {
       _streak = streak;

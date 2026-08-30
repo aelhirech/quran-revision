@@ -163,7 +163,7 @@ class HistoryCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${s.unitsCompleted} / ${s.totalUnits} ${S.unitesLabel}',
+                Text('${s.unitsCompleted} / ${s.totalUnits} ${S.versetsLabel}',
                     style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,

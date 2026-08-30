@@ -6,9 +6,11 @@
 
 ---
 
-## Phase 6 — Cadrage (pas encore implémenté)
+## Phase 6 — Cadrage
 
-> Discuté et tranché en conversation avant tout code — à lire en entier avant de commencer `feature/phase-6-sprint1` (branché depuis la pointe de `feature/phase-5-sprint8`, non mergée sur `main`). Objectif de la phase : remplacer la fraîcheur/historique par sourate (Sprint 3/7/8) et `LearningProgress` (SharedPreferences) par **une seule table de faits par verset**, alimentant un rituel check-in/check-out en vue "journée" plutôt que prière par prière. Reprend et remplace le backlog Sprint 7 « Rituel matin/soir check-in/check-out » (P2) et « Historique par verset » (P3).
+> Discuté et tranché en conversation avant tout code. Objectif de la phase : remplacer la fraîcheur/historique par sourate (Sprint 3/7/8) et `LearningProgress` (SharedPreferences) par **une seule table de faits par verset**, alimentant un rituel check-in/check-out en vue "journée" plutôt que prière par prière. Reprend et remplace le backlog Sprint 7 « Rituel matin/soir check-in/check-out » (P2) et « Historique par verset » (P3).
+>
+> **Sprint 1 livré** (voir entrée « Phase 6 — Sprint 1 » dans Fonctionnalités livrées ci-dessous) : fondation données uniquement (table + migration + services + moteurs + tests), sans le rituel check-in/check-out — ce cadrage documente l'intention complète de la phase, pas seulement ce qui a déjà été construit. La section « Décisions actées » ci-dessous a été mise à jour pour refléter un changement décidé en cours de route (migration sans backfill, pas d'`ALTER TABLE`).
 
 ### Modèle de données — table de faits
 
@@ -25,14 +27,14 @@ CREATE TABLE ayah_facts (
   checked_out INTEGER NOT NULL DEFAULT 0 -- bool — la journée est-elle scellée (voir "Verrouillage")
 );
 ```
-Index à prévoir dès la création (pas ajoutés après coup) : `(date)`, `(riwaya, surah_id, ayah_id)` — la granularité verset multiplie vite le nombre de lignes (une journée de 50 versets = 50 lignes).
+Index effectivement créés en Sprint 1 (4, pas les 2 prévus au cadrage initial — 2 ajoutés en implémentant, voir entrée Sprint 1) : `(date)`, `(riwaya, surah_id, ayah_id)`, `(riwaya, type, reach, date)` (couvre le filtre commun streak/fraîcheur/moyenne), et un index **unique** `(date, riwaya, surah_id, ayah_id, type)` — nécessaire pour dédupliquer une même plage de versets réutilisée deux fois le même jour (répétition cyclique de `RevisionEngine`, sans quoi les comptages seraient faussés).
 
 ### Ce que ça remplace
 
-- `HistoryService.sessions`/`sourate_sessions` (granularité sourate) → lignes de cette table.
-- `LearningService`/`StudentService` `LearningProgress.learnedVerses` (Set en SharedPreferences) → lignes `type='learn'`.
-- `StorageService.previewSession`/`todaySession`/`checkedRakaas` (blobs SharedPreferences séparés de l'historique) → les lignes `date = today, checked_out = 0` **sont** l'état du jour ; plus de mécanisme de persistance séparé. Une seule source pour l'aperçu du jour et l'historique.
-- `FreshnessEngine` passe du niveau sourate au niveau verset — **changement de comportement dans un fichier `core/`, test de régression obligatoire avant modification** (règle CLAUDE.md du projet ; couverture actuelle : zéro).
+- `HistoryService.sessions`/`sourate_sessions` (granularité sourate) → lignes de cette table. **Fait (Sprint 1)**, via `AyahFactsService`.
+- `LearningService` (profil principal uniquement — `StudentService`/`LearningProgress` élèves inchangés, voir Décisions) `LearningProgress.learnedVerses` (Set en SharedPreferences) → lignes `type='learn'`. **Fait (Sprint 1)**.
+- `StorageService.previewSession`/`todaySession`/`checkedRakaas` (blobs SharedPreferences séparés de l'historique) → les lignes `date = today, checked_out = 0` **sont** l'état du jour ; plus de mécanisme de persistance séparé. Une seule source pour l'aperçu du jour et l'historique. **Pas fait en Sprint 1** — ce remplacement dépend du rituel check-in/check-out (Sprint 2) ; `StorageService`/`PlanScreen` gardent leur mécanisme actuel inchangé pour l'instant.
+- `FreshnessEngine` passe du niveau sourate au niveau verset — **changement de comportement dans un fichier `core/`, test de régression obligatoire avant modification** (règle CLAUDE.md du projet). **Partiellement fait (Sprint 1)** : `computeAll` généralisé (générique sur la clé, testé), mais tous les appelants actuels restent au niveau sourate — le niveau verset proprement dit (badges par verset dans la vue journée) est Sprint 2.
 
 ### Verrouillage (décidé)
 
@@ -58,14 +60,12 @@ Sur tout écran affichant du texte coranique (plan du jour, récap, lecture plei
 ### Décisions actées
 
 - **Profils élèves hors scope** — `user_id` prépare un futur compte/sync (pas une unification avec `StudentProfile`), à réconcilier plus tard. `StudentService`/`LearningProgress` élèves restent inchangés ce sprint.
-- **Migration SQLite via `ALTER TABLE`/`onUpgrade`, pas un wipe** — schéma actuel (`sessions`/`sourate_sessions` v3) migré proprement vers `ayah_facts`, données existantes préservées. Explicitement demandé : que ça reste propre, pas "un amas de fonctions et fonctionnalités" — un plan de migration clair à écrire en `EnterPlanMode`, pas une succession de rustines.
-- **Table de faits mutable uniquement pour la journée en cours** (`checked_out = 0`), gelée dès le check-out — verrou appliqué côté application (service layer), pas par trigger SQL, cohérent avec le reste du projet (pas de mécanisme DB au-delà de ce que sqflite offre nativement).
+- **Migration sans backfill, décidé en cours de route (Sprint 1)** — remplace la décision initiale ci-dessus (« `ALTER TABLE`, pas un wipe »). Au moment d'implémenter, confirmé qu'il n'y a pas encore d'utilisateur réel en production : `sessions`/`sourate_sessions` sont donc **droppées** à la migration (`onUpgrade` v3→v4), sans tentative de backfill ligne-par-ligne dans `ayah_facts`, plutôt que d'inventer une précision par verset qui n'a jamais existé dans l'historique pré-Phase-6. Si un utilisateur réel existe au moment d'un futur changement de schéma, cette décision ne doit **pas** être reconduite sans redemander confirmation.
+- **Table de faits mutable uniquement pour la journée en cours** (`checked_out = 0`), gelée dès le check-out — verrou appliqué côté application (service layer), pas par trigger SQL, cohérent avec le reste du projet (pas de mécanisme DB au-delà de ce que sqflite offre nativement). Non exploité en Sprint 1 (toute ligne écrite l'est avec `checked_out = 1` immédiatement, faute de rituel check-in/check-out) — prévu pour Sprint 2.
 
-### Ouvert — à trancher en `EnterPlanMode` au début du sprint
+### Ouvert — à trancher au début du Sprint 2
 
-- Conception précise du "moteur simple et fiable" consommant `ayah_facts` pour toutes les pages (Recap, Plan du jour, Learn) — quelles requêtes dérivées exactement (prochain verset non appris, fraîcheur par verset, streak), où elles vivent (service vs "engine" pur Dart type `RevisionEngine`), et comment éviter qu'un écran ne réinvente sa propre requête (le problème que la fusion `LearningService`/`sourate_sessions` cherche justement à éliminer).
-- Écriture exacte du plan de migration `sessions`/`sourate_sessions` (v3) → `ayah_facts` — mapping précis des colonnes, gestion du fait que `LearningProgress` actuel n'a qu'un `startDate` par sourate (pas une date par verset appris) donc une reconstruction fidèle ligne-par-ligne n'est pas possible pour l'historique d'apprentissage déjà existant — décider de l'approximation acceptée (ex. toutes les lignes `learn` historiques héritent du `startDate` de leur sourate) plutôt que de la découvrir en codant.
-- Écran(s) exact(s) du check-in/check-out à deux parties (rattrapage multi-jours) — maquette/flow avant implémentation.
+- Écran(s) exact(s) du check-in/check-out à deux parties (rattrapage multi-jours) — maquette/flow avant implémentation, y compris comment déclencher l'usage réel de `checked_out = 0`.
 
 ---
 
@@ -153,6 +153,18 @@ Sur tout écran affichant du texte coranique (plan du jour, récap, lecture plei
 - **Correction déploiement** : `codemagic.yaml` supprimé (n'était pas réellement utilisé — le déploiement se fait manuellement via Xcode, pas Codemagic). `CLAUDE.md`/`docs/DOCUMENTATION_TECHNIQUE.md` corrigés en conséquence ; la confirmation explicite avant push vers `main` reste requise (prudence générale), mais n'est plus justifiée par un risque de déclenchement TestFlight automatique.
 - Mise à jour de `docs/DOCUMENTATION_TECHNIQUE.md` pour refléter les changements Sprint 7 (`checkedRakaas`/`_sameSelections`/`clearConfigOnly` dans `AppState`, `SurahReaderScreen`, `SpotlightOverlay`, fix unités/rakaas de `_CommitmentSheet`, pipeline `_onComplete` réordonné+parallélisé) — dette technique §8.5 mise à jour (items corrigés retirés, nouveaux items non traités ajoutés avec raison).
 
+### Phase 6 — Sprint 1 : fondation `ayah_facts` (2026-08-30)
+- **Remplacement complet de `HistoryService`/`LearningService`** par une seule table de faits SQLite par verset, `ayah_facts` (`history.db` v3→v4), via le nouveau `lib/services/ayah_facts_service.dart`. Portée volontairement limitée à la fondation données — voir cadrage Phase 6 ci-dessus : **aucun nouvel écran** cette fois, l'app se comporte à l'identique pour l'utilisateur, seule la couche de persistance change. Le rituel check-in/check-out "vue journée" et le rattrapage multi-jours restent Sprint 2.
+- **Migration sans backfill** : `sessions`/`sourate_sessions` (v3) sont droppées à la migration, pas de reconstruction ligne-par-ligne — décision prise en cours de route (pas d'utilisateur réel en production à ce jour), voir "Décisions actées" du cadrage ci-dessus pour le détail et la mise en garde si un utilisateur réel existe au moment d'un futur changement de schéma.
+- **`RevisionEngine` et `PlanScreen` inchangés dans leur comportement** — seule la plomberie de fin de session change de destination. `PlanScreen.onComplete` passe de `Function(int, Set<int> sourateIds)` à `Function(int, List<RevisionUnit> coveredUnits)` pour porter les plages verseStart/verseEnd exactes jusqu'à l'écriture des faits (éclatées en une ligne par verset par `AyahFactsService.recordRevisedUnits`).
+- **`StreakEngine` extrait en pur Dart** (`lib/core/streak_engine.dart`) depuis l'algorithme auparavant enfoui dans `HistoryService.currentStreak` — testé avant tout changement de comportement (règle CLAUDE.md). **Comportement préexistant confirmé par le test, pas introduit par ce sprint** : une activité hier sans rien aujourd'hui et sans pause déclarée aujourd'hui affiche un streak à 0, pas 1 (le jour courant doit être actif ou en pause pour que le décompte démarre) — verrouillé, pas corrigé, hors scope de cette migration.
+- **`FreshnessEngine.computeAll` généralisé** (générique sur le type de clé) pour pouvoir un jour calculer une fraîcheur par verset (Sprint 2) sans dupliquer la logique de seuils — tous les appelants actuels restent au niveau sourate.
+- **Apprentissage (profil principal)** : `LearningProgress` n'est plus persisté comme blob — reconstruit à la volée par `AyahFactsService.loadMainLearningProgress` (une requête groupée par sourate, pas un aller-retour SQL par sourate). `LearnSurahScreen` écrit un batch par bloc de versets marqué (1/3/5) au lieu d'un par verset — élimine au passage la race lire-modifier-écrire documentée en dette technique §8.5.9 de `docs/DOCUMENTATION_TECHNIQUE.md` pour ce chemin précis. Les profils élèves (`StudentService`/`LearningProgress`) restent inchangés.
+- **`HomeScreen` — "reprendre les prières d'hier"** : cette fonctionnalité dépendait de `SessionRecord.prayers`, un champ absent du nouveau schéma (une table de faits par verset n'a pas de notion de prière). Ajout d'une petite persistance dédiée `StorageService.saveLastSessionPrayers`/`loadLastSessionPrayers` (même forme que `checkedRakaas`) pour ne pas perdre cette fonctionnalité.
+- **Fix trouvé en `/code-review`** : `AppState.refreshAdaptiveCycle` divisait un total en **unités RevisionEngine** (taille variable par sourate) par une moyenne désormais en **versets/jour**, faussant fortement l'estimation de durée adaptative — corrigé en passant tout en échelle "versets" (`config.totalSelectedVerses` partout, `AyahFactsService.avgVersesPerDay` renommé pour éviter la confusion). Autre fix : la saisie manuelle de session n'écrivait plus aucun fait (donc plus aucune contribution au streak, une régression par rapport à l'ancien `HistoryService.recordSession` systématiquement appelé sur ce chemin) — corrigé en dérivant les unités couvertes depuis la position de cycle actuelle, même hypothèse d'ordre de consommation que `RevisionEngine.buildDayPlan`/`advanceCycle`.
+- **Non corrigé, accepté consciemment** : démarrer une sourate à apprendre sans marquer un seul verset avant de quitter l'écran ne persiste plus rien (avant : un blob à 0% était sauvegardé) — la sourate disparaît de "en cours d'apprentissage" jusqu'au prochain "commencer une sourate". Non destructif (aucun verset n'était réellement appris), priorité basse.
+- **Non testé en runtime complet** : build Windows desktop toujours bloqué par le composant Visual Studio ATL manquant (`atlbase.h`, problème préexistant depuis le Sprint 8, sans rapport avec ce sprint) ; Flutter Web toujours bloqué par `sqflite`. Vérifié via `flutter analyze` (propre) et `flutter test` (18/18, dont les 2 nouvelles suites `streak_engine_test.dart`/`freshness_engine_test.dart`) — à valider sur un vrai appareil avant merge.
+
 ---
 
 ## Backlog
@@ -170,7 +182,8 @@ Sur tout écran affichant du texte coranique (plan du jour, récap, lecture plei
 | P3 | **Effet waouh à l'onboarding** | le wizard 3 pages est fonctionnel mais manque d'un écran de confirmation engageant en fin de setup ; la sélection des sourates reste perçue comme longue même avec les boutons rapides |
 | P3 | **Animation badge chaud/froid à la validation** | la mini barre de cycle (Sprint 6) donne un feedback de progression, mais le badge chaud/froid de la sourate qui vient d'être validée ne s'anime pas (scale/color transition) pour rendre la connexion action → état plus explicite dans PlanScreen |
 | P2 | **Confirmer la provenance exacte du texte Warsh QUL** | Sprint 8 a migré Warsh vers QUL (bien mieux maintenu que l'ancienne source communautaire), mais contrairement à Hafs (explicitement crédité King Fahd Complex sur la page de la ressource), la page Warsh de QUL ne cite aucune source amont. Piste identifiée : ouvrir une issue sur `github.com/TarteelAI/quranic-universal-library` pour demander l'attribution exacte |
-| P3 | **Support `sqflite` sur Flutter Web** | `HistoryService` (streak, historique) plante sur web faute de `sqflite_common_ffi_web` — limitation préexistante, pas propre au Sprint 8, découverte en testant le boot de l'app en runtime. Le web n'est de toute façon qu'une cible de "prévisualisation" (§2 doc technique), pas une cible livrée |
+| P3 | **Support `sqflite` sur Flutter Web** | `AyahFactsService` (streak, historique, apprentissage — anciennement `HistoryService`/`LearningService`) plante sur web faute de `sqflite_common_ffi_web` — limitation préexistante, pas propre au Sprint 8, découverte en testant le boot de l'app en runtime. Le web n'est de toute façon qu'une cible de "prévisualisation" (§2 doc technique), pas une cible livrée |
+| P3 | **Sourate démarrée sans verset appris disparaît** | Phase 6 Sprint 1 : `LearnScreen._startNewSourate` n'écrit plus rien tant qu'aucun verset n'est marqué (`ayah_facts` n'a pas de notion de "sourate démarrée à 0 verset") — la sourate disparaît de "en cours d'apprentissage" si l'utilisateur quitte l'écran avant de marquer un premier bloc. Non destructif (rien n'était réellement appris), accepté consciemment en Sprint 1, pas fait faute de justifier une persistance dédiée pour un cas rare |
 
 ---
 

@@ -9,7 +9,6 @@ import 'screens/onboarding_screen.dart';
 import 'screens/shell_screen.dart';
 import 'services/hafs_service.dart';
 import 'services/hizb_metadata_service.dart';
-import 'services/learning_service.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'services/warsh_service.dart';
@@ -50,12 +49,9 @@ void main() async {
   final warshAvailable = await warshAvailableF;
 
   // Migration one-shot des installations pré-parcours-par-riwaya (config,
-  // cycle, sessions, pauses, cases cochées, progression d'apprentissage)
-  // vers le parcours Hafs — doit tourner avant toute lecture ci-dessous.
-  await Future.wait([
-    StorageService.migrateLegacyTrackData(),
-    LearningService.migrateLegacyTrackData(),
-  ]);
+  // cycle, sessions, pauses, cases cochées) vers le parcours Hafs — doit
+  // tourner avant toute lecture ci-dessous.
+  await StorageService.migrateLegacyTrackData();
 
   // La riwaya active doit être connue avant de charger le reste : chaque
   // parcours (Hafs/Warsh) a sa propre config/cycle/sessions/pauses. Si le

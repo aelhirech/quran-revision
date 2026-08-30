@@ -8,8 +8,7 @@ import '../core/hadith_data.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/sourate.dart';
-import '../services/history_service.dart';
-import '../services/learning_service.dart';
+import '../services/ayah_facts_service.dart';
 import '../services/student_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
@@ -50,7 +49,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
 
   Future<void> _loadStreak() async {
     final state = context.read<AppState>();
-    final streak = await HistoryService.currentStreak(
+    final streak = await AyahFactsService.currentStreak(
         pauseDates: state.pauseDates, riwaya: state.riwaya);
     if (mounted) setState(() => _streak = streak);
   }
@@ -70,11 +69,21 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
 
   Future<void> _markBlockLearned() async {
     HapticFeedback.mediumImpact();
+    final block = _currentBlock;
     var updated = _progress;
-    for (final v in _currentBlock) {
+    for (final v in block) {
       updated = updated.withVerseLearned(v);
     }
-    await _save(updated);
+    if (widget.studentId == null) {
+      // Profil principal : un batch pour tout le bloc (pas un blob complet
+      // comme l'ancien LearningService, et pas une écriture par verset non
+      // plus — évite un bloc à moitié persisté si l'app est interrompue
+      // entre deux écritures individuelles).
+      final riwaya = context.read<AppState>().riwaya;
+      await AyahFactsService.learnVerses(_progress.sourate.id, block, riwaya);
+    } else {
+      await StudentService.upsertProgress(widget.studentId!, updated);
+    }
     if (!mounted) return;
     setState(() {
       _progress = updated;
@@ -86,17 +95,14 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
     }
   }
 
-  Future<void> _save(LearningProgress updated) async {
+  Future<void> _unmarkVerse(int verse) async {
+    final updated = _progress.withVerseUnlearned(verse);
     if (widget.studentId == null) {
-      await LearningService.upsert(updated, context.read<AppState>().riwaya);
+      await AyahFactsService.unlearnVerse(
+          _progress.sourate.id, verse, context.read<AppState>().riwaya);
     } else {
       await StudentService.upsertProgress(widget.studentId!, updated);
     }
-  }
-
-  Future<void> _unmarkVerse(int verse) async {
-    final updated = _progress.withVerseUnlearned(verse);
-    await _save(updated);
     if (!mounted) return;
     setState(() => _progress = updated);
     widget.onChanged();

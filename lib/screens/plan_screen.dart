@@ -7,7 +7,7 @@ import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
-import '../services/history_service.dart';
+import '../services/ayah_facts_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
 import '../widgets/arabic_verse_text.dart';
@@ -18,7 +18,7 @@ import '../widgets/primary_cta_button.dart';
 
 class PlanScreen extends StatefulWidget {
   final DailySession session;
-  final Future<void> Function(int unitsCompleted, Set<int> sourateIds)? onComplete;
+  final Future<void> Function(int unitsCompleted, List<RevisionUnit> coveredUnits)? onComplete;
   final VoidCallback? onEngager;
   final VoidCallback? onChangePlan;
   final bool isPreview;
@@ -70,20 +70,22 @@ class _PlanScreenState extends State<PlanScreen> {
   int _checkedCountOf(Map<int, Set<int>> checkedByPrayer) =>
       checkedByPrayer.values.fold(0, (sum, s) => sum + s.length);
 
-  /// Toutes les sourates couvertes par le plan du jour (déclaration "tout fait").
-  Set<int> get _allSourateIds => {
+  /// Toutes les unités couvertes par le plan du jour (déclaration "tout fait")
+  /// — plages verseStart/verseEnd précises, nécessaires pour écrire des
+  /// faits par verset dans `ayah_facts` (Phase 6).
+  List<RevisionUnit> get _allCoveredUnits => [
         for (final pp in widget.session.plan)
           for (final r in pp.rakaas)
-            if (r.unit != null) r.unit!.sourate.id,
-      };
+            if (r.unit != null) r.unit!,
+      ];
 
-  /// Unités (échelle attendue par `advanceCycle`) et sourates réellement
+  /// Unités (échelle attendue par `advanceCycle`) et unités réellement
   /// couvertes par les [n] premières rakaas du plan (dans l'ordre) — utilisé
   /// pour la déclaration manuelle "une part fait", où l'utilisateur pense en
   /// rakaas récitées, pas en unités de cycle.
-  ({int units, Set<int> sourateIds}) _coverageForFirstRakaas(int n) {
+  ({int units, List<RevisionUnit> coveredUnits}) _coverageForFirstRakaas(int n) {
     final seenLabels = <String>{};
-    final sourateIds = <int>{};
+    final coveredUnits = <RevisionUnit>[];
     int counted = 0;
     for (final pp in widget.session.plan) {
       for (final r in pp.rakaas) {
@@ -91,11 +93,11 @@ class _PlanScreenState extends State<PlanScreen> {
         if (counted >= n) break;
         counted++;
         seenLabels.add(r.unit!.label);
-        sourateIds.add(r.unit!.sourate.id);
+        coveredUnits.add(r.unit!);
       }
       if (counted >= n) break;
     }
-    return (units: seenLabels.length, sourateIds: sourateIds);
+    return (units: seenLabels.length, coveredUnits: coveredUnits);
   }
 
   Future<void> _confirmChangePlan(BuildContext context) async {
@@ -115,14 +117,14 @@ class _PlanScreenState extends State<PlanScreen> {
         onToutFait: () async {
           Navigator.pop(context);
           if (mounted) {
-            await widget.onComplete!(widget.session.totalUnits, _allSourateIds);
+            await widget.onComplete!(widget.session.totalUnits, _allCoveredUnits);
           }
         },
         onPartFait: (n) async {
           Navigator.pop(context);
           final coverage = _coverageForFirstRakaas(n);
           if (mounted) {
-            await widget.onComplete!(coverage.units, coverage.sourateIds);
+            await widget.onComplete!(coverage.units, coverage.coveredUnits);
           }
         },
         onRienFait: () {
@@ -246,7 +248,7 @@ class _PlanScreenState extends State<PlanScreen> {
   Future<void> _showCompletionSummary() async {
     final state = context.read<AppState>();
     // +1 anticipe la session d'aujourd'hui, pas encore enregistrée à ce stade.
-    final streakFuture = HistoryService.currentStreak(
+    final streakFuture = AyahFactsService.currentStreak(
             pauseDates: state.pauseDates, riwaya: state.riwaya)
         .then((s) => s + 1);
     await showModalBottomSheet(
@@ -259,7 +261,7 @@ class _PlanScreenState extends State<PlanScreen> {
       ),
     );
     if (mounted) {
-      await widget.onComplete!(widget.session.totalUnits, _allSourateIds);
+      await widget.onComplete!(widget.session.totalUnits, _allCoveredUnits);
     }
   }
 

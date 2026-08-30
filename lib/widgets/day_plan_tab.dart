@@ -3,10 +3,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
-import '../models/session_record.dart';
+import '../models/revision_unit.dart';
 import '../screens/home_screen.dart';
 import '../screens/plan_screen.dart';
-import '../services/history_service.dart';
+import '../services/ayah_facts_service.dart';
+import '../services/storage_service.dart';
 import '../state/app_state.dart';
 import '../widgets/manual_session_sheet.dart';
 
@@ -18,7 +19,7 @@ class DayPlanTab extends StatelessWidget {
   const DayPlanTab({super.key});
 
   Future<void> _onComplete(BuildContext context, AppState state,
-      int unitsCompleted, Set<int> sourateIds) async {
+      int unitsCompleted, List<RevisionUnit> coveredUnits) async {
     final allUnits = RevisionEngine.buildUnits(state.config!.selections);
     final cycleTotal = allUnits.length;
     final cycleWraps =
@@ -28,33 +29,21 @@ class DayPlanTab extends StatelessWidget {
     final now = DateTime.now();
     final sessionDate = now.toIso8601String().substring(0, 10);
 
-    // Les 3 écritures sont indépendantes (prefs cyclePosition, table
-    // sessions, table sourate_sessions) — lancées en parallèle. Les deux
-    // rafraîchissements qui suivent lisent chacun l'une de ces écritures et
-    // doivent donc attendre qu'elle soit posée (refreshAdaptiveCycle après
-    // recordSession, sinon la moyenne reste en retard d'une session comme la
-    // saisie manuelle le fait déjà correctement ; refreshFreshness après
-    // recordSourateHistory).
-    final recordSessionF = HistoryService.recordSession(
-        SessionRecord(
-          date: now,
-          unitsCompleted: unitsCompleted,
-          totalUnits: cycleTotal,
-          prayers:
-              state.todaySession!.prayersAlone.map((p) => p.name).toList(),
-        ),
-        state.riwaya);
-    // Ne marque comme "revues" (fraîcheur) que les sourates réellement
-    // couvertes par ce qui a été déclaré/coché — pas tout le plan du jour.
-    final recordSourateHistoryF = HistoryService.recordSourateHistory(
-        sessionDate, sourateIds.toList(), state.riwaya);
+    // Ne marque comme "revus" (fraîcheur/streak) que les versets réellement
+    // couverts par ce qui a été déclaré/coché — pas tout le plan du jour.
+    // Écritures indépendantes (table ayah_facts, prefs "dernières prières")
+    // lancées en parallèle.
+    final recordFactsF = AyahFactsService.recordRevisedUnits(
+        sessionDate, state.riwaya, coveredUnits);
+    final saveLastPrayersF = StorageService.saveLastSessionPrayers(
+        now, state.todaySession!.prayersAlone, state.riwaya);
     await Future.wait([
       state.advanceCycle(unitsCompleted, cycleTotal),
-      recordSessionF,
-      recordSourateHistoryF,
+      recordFactsF,
+      saveLastPrayersF,
     ]);
     await Future.wait([
-      state.refreshAdaptiveCycle(cycleTotal, notify: false),
+      state.refreshAdaptiveCycle(state.config!.totalSelectedVerses, notify: false),
       state.refreshFreshness(notify: false),
     ]);
 
@@ -71,32 +60,41 @@ class DayPlanTab extends StatelessWidget {
 
   Future<void> _showManualSheet(BuildContext context, AppState state) async {
     if (state.config == null) return;
-    final cycleTotal = RevisionEngine.buildUnits(state.config!.selections).length;
+    final allUnits = RevisionEngine.buildUnits(state.config!.selections);
     final units = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ManualSessionSheet(maxUnits: cycleTotal.clamp(1, 999)),
+      builder: (_) => ManualSessionSheet(maxUnits: allUnits.length.clamp(1, 999)),
     );
     if (units != null && context.mounted) {
-      await _onManualSession(context, state, units, cycleTotal);
+      await _onManualSession(context, state, units, allUnits);
     }
   }
 
-  Future<void> _onManualSession(
-      BuildContext context, AppState state, int units, int cycleTotal) async {
+  Future<void> _onManualSession(BuildContext context, AppState state,
+      int units, List<RevisionUnit> allUnits) async {
     if (units <= 0 || state.config == null) return;
-    final now = DateTime.now();
-    await HistoryService.recordSession(
-        SessionRecord(
-          date: now,
-          unitsCompleted: units,
-          totalUnits: cycleTotal,
-          prayers: const [],
-        ),
-        state.riwaya);
+    final cycleTotal = allUnits.length;
+    // Pas de plan détaillé par rakaa pour la saisie manuelle — les unités
+    // couvertes sont dérivées du cycle à partir de la position actuelle,
+    // même hypothèse d'ordre de consommation que RevisionEngine.buildDayPlan/
+    // advanceCycle. Nécessaire pour alimenter ayah_facts (streak, fraîcheur) :
+    // avant Phase 6, HistoryService.recordSession écrivait déjà une ligne
+    // pour ce chemin (le streak en dépendait), en perdre l'équivalent ici
+    // casserait silencieusement le streak pour qui n'utilise que la saisie
+    // manuelle.
+    final pos = cycleTotal == 0 ? 0 : state.cyclePosition % cycleTotal;
+    final coveredUnits = [
+      for (int i = 0; i < units && cycleTotal > 0; i++)
+        allUnits[(pos + i) % cycleTotal],
+    ];
+    final sessionDate = DateTime.now().toIso8601String().substring(0, 10);
+    await AyahFactsService.recordRevisedUnits(
+        sessionDate, state.riwaya, coveredUnits);
     await state.advanceCycle(units, cycleTotal);
-    await state.refreshAdaptiveCycle(cycleTotal, notify: false);
+    await state.refreshAdaptiveCycle(state.config!.totalSelectedVerses,
+        notify: false);
     await state.refreshFreshness(notify: true);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -117,8 +115,8 @@ class DayPlanTab extends StatelessWidget {
         key: ValueKey(state.todaySession),
         session: state.todaySession!,
         freshnessOf: state.freshnessFor,
-        onComplete: (unitsCompleted, sourateIds) =>
-            _onComplete(context, state, unitsCompleted, sourateIds),
+        onComplete: (unitsCompleted, coveredUnits) =>
+            _onComplete(context, state, unitsCompleted, coveredUnits),
         onChangePlan: () => state.clearTodaySession(),
       );
     }

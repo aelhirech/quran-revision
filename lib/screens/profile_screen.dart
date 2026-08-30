@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
@@ -228,7 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         value: isAdaptive,
         onChanged: (v) => state.setAdaptiveCycle(
           v,
-          totalUnits: RevisionEngine.buildUnits(config.selections).length,
+          totalVerses: config.totalSelectedVerses,
         ),
         secondary: Icon(
           Icons.auto_awesome_outlined,

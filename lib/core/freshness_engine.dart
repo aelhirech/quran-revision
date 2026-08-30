@@ -22,9 +22,13 @@ class FreshnessEngine {
     return FreshnessLevel.frozen;
   }
 
-  /// Calcule la fraîcheur pour un ensemble de sourates en un seul passage.
-  static Map<int, FreshnessLevel> computeAll(
-    Map<int, DateTime> lastRevisionDates,
+  /// Calcule la fraîcheur pour un ensemble de clés (sourates, ou versets une
+  /// fois la Phase 6 étendue au niveau verset) en un seul passage. Générique
+  /// sur la clé : K=int pour une fraîcheur par sourate (usage actuel), tout
+  /// autre type de clé (ex. un identifiant composite par verset) fonctionne
+  /// à l'identique.
+  static Map<K, FreshnessLevel> computeAll<K>(
+    Map<K, DateTime> lastRevisionDates,
     DateTime today,
   ) {
     return {

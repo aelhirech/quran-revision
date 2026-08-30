@@ -8,8 +8,7 @@ import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/riwaya.dart';
 import '../models/session_record.dart';
-import '../services/history_service.dart';
-import '../services/learning_service.dart';
+import '../services/ayah_facts_service.dart';
 import '../state/app_state.dart';
 import '../widgets/dome_progress_card.dart';
 import '../widgets/history_card.dart';
@@ -47,20 +46,37 @@ class _RecapScreenState extends State<RecapScreen> {
   }
 
   Future<void> _load(Set<String> pauseDates) async {
-    final riwaya = context.read<AppState>().riwaya;
+    final state = context.read<AppState>();
+    final riwaya = state.riwaya;
     // Démarrage en parallèle, await typé sur chacun — évite les casts dynamiques
-    final streakF  = HistoryService.currentStreak(pauseDates: pauseDates, riwaya: riwaya);
-    final totalF   = HistoryService.totalSessionDays(riwaya: riwaya);
-    final sessF    = HistoryService.recentSessions(limit: 14, riwaya: riwaya);
-    final progressF = LearningService.loadAll(riwaya);
+    final streakF = AyahFactsService.currentStreak(pauseDates: pauseDates, riwaya: riwaya);
+    final totalF = AyahFactsService.totalActiveDays(riwaya: riwaya);
+    final countsF = AyahFactsService.recentDayVerseCounts(limit: 14, riwaya: riwaya);
+    final progressF = AyahFactsService.loadMainLearningProgress(
+        riwaya: riwaya, sourates: state.sourates);
     // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
     // sans être passé par un plan du jour cette session.
-    final freshnessF = context.read<AppState>().refreshFreshness(notify: false);
-    final streak   = await streakF;
-    final total    = await totalF;
-    final sessions = await sessF;
+    final freshnessF = state.refreshFreshness(notify: false);
+    final streak = await streakF;
+    final total = await totalF;
+    final counts = await countsF;
     final progress = await progressF;
     await freshnessF;
+
+    // Dénominateur en échelle "versets" (comme le numérateur, désormais issu
+    // d'ayah_facts) — total des versets sélectionnés pour la révision, pas le
+    // nombre d'unités du cycle (échelles différentes).
+    final totalVerses = state.config?.totalSelectedVerses ?? 0;
+    final sessions = [
+      for (final entry in counts.entries)
+        SessionRecord(
+          date: DateTime.parse(entry.key),
+          unitsCompleted: entry.value,
+          totalUnits: totalVerses,
+          prayers: const [],
+        ),
+    ]..sort((a, b) => b.date.compareTo(a.date));
+
     if (mounted) {
       setState(() {
         _streak = streak;
