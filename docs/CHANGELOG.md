@@ -201,6 +201,11 @@ Pas de recalcul à la volée dans les écrans : un seul moteur écrit dans `ayah
   - Duplication visuelle restante entre `CheckInScreen`/`CheckOutScreen` (en-tête "hero", lignes de sourate, formatage "Sourate · v.X–Y") repérée en `/simplify` et en revue de code — pas unifiée cette fois faute de pouvoir vérifier visuellement le résultat sur cette machine (build Windows/Web tous deux bloqués, voir ci-dessous) ; à reprendre si un de ces écrans est retouché.
 - **Non testé en runtime complet** : mêmes limitations que Sprint 1 (build Windows desktop bloqué par le composant Visual Studio ATL manquant, Flutter Web bloqué par `sqflite`) — vérifié via `flutter analyze` (propre) et `flutter test` (31/31, dont les 14 nouveaux tests de ce sprint). Le flow complet check-in → PlanScreen → check-out n'a donc pas été exercé visuellement ; à valider sur un vrai appareil avant merge.
 
+### CI/CD Codemagic — build number : `pubspec.yaml` redevient seule source de vérité (2026-08-31)
+- **Bug** : le filet de sécurité posé le 2026-08-29 (floor `pubspec.yaml` inclus dans `max(App Store, TestFlight, pubspec.yaml)`) n'empêchait pas la récidive — rien ne répercutait jamais le `BUILD_NUMBER` calculé dans `pubspec.yaml`. Si les lookups `get-latest-app-store-build-number`/`get-latest-testflight-build-number` retombent silencieusement à 0, le calcul revient donc systématiquement au même floor (`pubspec.yaml` resté à `+4` depuis le 08-29) → même `BUILD_NUMBER` recalculé à chaque run. Le build `5`, une fois publié avec succès, a été recalculé une deuxième fois au push suivant → rejet App Store Connect `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`.
+- **Décision** : plutôt que fiabiliser une seconde fois le lookup ASC/TestFlight (déjà corrigé une fois le 08-29, retombé en panne dès le run suivant), abandon de l'auto-détection. Étape "Determine next build number" supprimée de `codemagic.yaml`, `flutter build ipa` n'a plus de `--build-number` explicite — lit directement `version: X.Y.Z+N` de `pubspec.yaml`. `pubspec.yaml` redevient donc, comme avant le 08-29, la seule source de vérité du build number iOS : à bumper manuellement au-dessus du dernier build connu avant chaque push sur `main` (nouvelle étape du "Fin de sprint" dans `CLAUDE.md`).
+- Débloqué immédiatement en bumpant `pubspec.yaml` de `+4` à `+6`.
+
 ---
 
 ## Backlog

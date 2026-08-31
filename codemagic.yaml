@@ -18,8 +18,6 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.quranrevision.quranRevision
-      vars:
-        BUNDLE_ID: "com.quranrevision.quranRevision"
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -32,44 +30,9 @@ workflows:
         script: |
           xcode-project use-profiles
 
-      - name: Determine next build number
-        script: |
-          APP_ID=$(app-store-connect apps list \
-            --bundle-id-identifier "$BUNDLE_ID" \
-            --strict-match-identifier \
-            --json | jq -r '.[0].id')
-
-          if [ -z "$APP_ID" ] || [ "$APP_ID" = "null" ]; then
-            echo "ERROR: could not resolve App Store Connect app id for bundle id $BUNDLE_ID"
-            exit 1
-          fi
-          echo "App Store Connect app id: $APP_ID"
-
-          if APP_STORE_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_ID" 2>&1); then
-            echo "Latest App Store build number: $APP_STORE_BUILD_NUMBER"
-          else
-            echo "WARNING: could not fetch latest App Store build number ($APP_STORE_BUILD_NUMBER), assuming 0"
-            APP_STORE_BUILD_NUMBER=0
-          fi
-
-          if TESTFLIGHT_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_ID" 2>&1); then
-            echo "Latest TestFlight build number: $TESTFLIGHT_BUILD_NUMBER"
-          else
-            echo "WARNING: could not fetch latest TestFlight build number ($TESTFLIGHT_BUILD_NUMBER), assuming 0"
-            TESTFLIGHT_BUILD_NUMBER=0
-          fi
-
-          PUBSPEC_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/.*+//')
-          echo "pubspec.yaml build number (floor): $PUBSPEC_BUILD_NUMBER"
-
-          LATEST=$(( APP_STORE_BUILD_NUMBER > TESTFLIGHT_BUILD_NUMBER ? APP_STORE_BUILD_NUMBER : TESTFLIGHT_BUILD_NUMBER ))
-          LATEST=$(( PUBSPEC_BUILD_NUMBER > LATEST ? PUBSPEC_BUILD_NUMBER : LATEST ))
-          echo "BUILD_NUMBER=$((LATEST + 1))" >> $CM_ENV
-
       - name: Build Flutter iOS
         script: |
           flutter build ipa --release \
-            --build-number=$BUILD_NUMBER \
             --export-options-plist=$HOME/export_options.plist
 
     artifacts:
