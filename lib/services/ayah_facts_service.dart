@@ -13,8 +13,7 @@ import '../models/sourate.dart';
 /// (`sessions`/`sourate_sessions`, granularité sourate) et le rôle "profil
 /// principal" de l'ancien LearningService (`Set<int>` par sourate en
 /// SharedPreferences). Un fait = un verset, un jour, un type
-/// ('revise'|'learn'). Les profils élèves ne passent pas par ce service —
-/// ils gardent StudentService/LearningProgress inchangés.
+/// ('revise'|'learn').
 class AyahFactsService {
   static const _userId = 'local';
   static Database? _db;
@@ -124,7 +123,8 @@ class AyahFactsService {
   }
 
   /// Nombre de versets révisés par jour (date ISO → compte), les [limit]
-  /// derniers jours actifs les plus récents — pour `HistoryCard`/`RecapScreen`.
+  /// derniers jours actifs les plus récents — pour `avgVersesPerDay`
+  /// (moyenne sur jours actifs uniquement).
   static Future<Map<String, int>> recentDayVerseCounts(
       {int limit = 14, required Riwaya riwaya}) async {
     final db = await _open();
@@ -137,8 +137,33 @@ class AyahFactsService {
     return {for (final row in rows) row['date'] as String: row['c'] as int};
   }
 
-  // --- Apprentissage (profil principal uniquement — les élèves restent sur
-  // StudentService/LearningProgress, inchangé) ---
+  /// Comme [recentDayVerseCounts], mais avec en plus le total de versets
+  /// *proposés* ce jour-là (faits + pas faits) — dénominateur correct pour
+  /// un pourcentage "journée" (`HistoryCard`/`RecapScreen`), à ne pas
+  /// confondre avec `config.totalSelectedVerses` (tout le cycle, pas le
+  /// jour) — bug identifié en retour TestFlight (2026-09-01) : le récap
+  /// affichait `versets faits ce jour / total du cycle`, un pourcentage
+  /// toujours proche de 0.
+  static Future<Map<String, ({int done, int total})>> recentDayVerseStats(
+      {int limit = 14, required Riwaya riwaya}) async {
+    final done = await recentDayVerseCounts(limit: limit, riwaya: riwaya);
+    if (done.isEmpty) return {};
+    final db = await _open();
+    final placeholders = List.filled(done.length, '?').join(',');
+    final rows = await db.rawQuery(
+      'SELECT date, COUNT(*) as c FROM ayah_facts '
+      'WHERE riwaya = ? AND type = ? AND date IN ($placeholders) '
+      'GROUP BY date',
+      [riwaya.name, AyahFactType.revise.name, ...done.keys],
+    );
+    final totals = {for (final row in rows) row['date'] as String: row['c'] as int};
+    return {
+      for (final date in done.keys)
+        date: (done: done[date]!, total: totals[date] ?? done[date]!),
+    };
+  }
+
+  // --- Apprentissage ---
 
   static Future<void> learnVerse(int surahId, int ayahId, Riwaya riwaya) async {
     await learnVerses(surahId, [ayahId], riwaya);
@@ -214,8 +239,7 @@ class AyahFactsService {
   /// Reconstruit les `LearningProgress` du profil principal à partir des
   /// faits `ayah_facts` (type='learn') — une seule requête groupée par
   /// donnée nécessaire, pas un aller-retour SQL par sourate en cours.
-  /// Utilisé par `LearnScreen`/`RecapScreen` (les élèves restent sur
-  /// `StudentService`/`LearningProgress` persisté, inchangé).
+  /// Utilisé par `LearnScreen`/`RecapScreen`.
   static Future<List<LearningProgress>> loadMainLearningProgress({
     required Riwaya riwaya,
     required List<Sourate> sourates,

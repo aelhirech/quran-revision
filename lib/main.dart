@@ -10,6 +10,7 @@ import 'services/hafs_service.dart';
 import 'services/hizb_metadata_service.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
+import 'services/surah_metadata_service.dart';
 import 'services/warsh_service.dart';
 import 'state/app_state.dart';
 
@@ -36,15 +37,26 @@ Future<void> _initHizb() async {
   }
 }
 
+/// Purement cosmétique (affichage de la Bismillah) — même garde qu'`_initHizb`.
+Future<void> _initSurahMeta() async {
+  try {
+    await SurahMetadataService.initialize();
+  } catch (_) {
+    // SurahMetadataService.bismillahPre retombe sur false si jamais initialisé.
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.initialize();
   // Chargements d'assets indépendants — démarrés en parallèle.
   final hafsF = HafsService.initialize();
   final hizbF = _initHizb();
+  final surahMetaF = _initSurahMeta();
   final warshAvailableF = _initWarsh();
   await hafsF;
   await hizbF;
+  await surahMetaF;
   final warshAvailable = await warshAvailableF;
 
   // Migration one-shot des installations pré-parcours-par-riwaya (config,

@@ -51,7 +51,7 @@ class _RecapScreenState extends State<RecapScreen> {
     // Démarrage en parallèle, await typé sur chacun — évite les casts dynamiques
     final streakF = AyahFactsService.currentStreak(pauseDates: pauseDates, riwaya: riwaya);
     final totalF = AyahFactsService.totalActiveDays(riwaya: riwaya);
-    final countsF = AyahFactsService.recentDayVerseCounts(limit: 14, riwaya: riwaya);
+    final statsF = AyahFactsService.recentDayVerseStats(limit: 14, riwaya: riwaya);
     final progressF = AyahFactsService.loadMainLearningProgress(
         riwaya: riwaya, sourates: state.sourates);
     // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
@@ -59,20 +59,18 @@ class _RecapScreenState extends State<RecapScreen> {
     final freshnessF = state.refreshFreshness(notify: false);
     final streak = await streakF;
     final total = await totalF;
-    final counts = await countsF;
+    final stats = await statsF;
     final progress = await progressF;
     await freshnessF;
 
-    // Dénominateur en échelle "versets" (comme le numérateur, désormais issu
-    // d'ayah_facts) — total des versets sélectionnés pour la révision, pas le
-    // nombre d'unités du cycle (échelles différentes).
-    final totalVerses = state.config?.totalSelectedVerses ?? 0;
+    // totalUnits = versets proposés ce jour-là (pas le total du cycle) —
+    // sinon le % quotidien reste écrasé près de 0 (bug retour TestFlight).
     final sessions = [
-      for (final entry in counts.entries)
+      for (final entry in stats.entries)
         SessionRecord(
           date: DateTime.parse(entry.key),
-          unitsCompleted: entry.value,
-          totalUnits: totalVerses,
+          unitsCompleted: entry.value.done,
+          totalUnits: entry.value.total,
           prayers: const [],
         ),
     ]..sort((a, b) => b.date.compareTo(a.date));

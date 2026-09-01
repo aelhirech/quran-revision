@@ -234,18 +234,8 @@ class S {
   static String get ajouteARevision => _t('ajoutée à la révision ✓', 'added to revision ✓');
   static String get supprimer => _t('Supprimer', 'Delete');
 
-  // Profils élèves
-  static String get moi => _t('Moi', 'Me');
-  static String get ajouterEleve => _t('Élève', 'Student');
-  static String get supprimerEleve => _t("Supprimer l'élève", 'Remove student');
-  static String get supprimerEleveConfirm => _t('Supprimer la progression de', 'Delete progress for');
-  static String get nomEleve => _t("Prénom de l'élève", "Student's name");
-  static String get ajouterEleveHint => _t('Ex : Ibrahim, Sara…', 'E.g. Ibrahim, Sara…');
-  static String get ajouter => _t('Ajouter', 'Add');
-
   // Hints interactions cachées
   static String get swipeSupprimer => _t('← Glisse une carte pour la supprimer', '← Swipe a card to delete it');
-  static String get longPressEleveHint => _t('Maintiens un profil pour le supprimer', 'Long-press a profile to delete it');
 
   // Explication "unités"
   static String get unitesExplTitle => _t("C'est quoi une unité ?", 'What is a unit?');
@@ -367,7 +357,7 @@ class S {
   );
 
   // Check-in / check-out (Phase 6 Sprint 2)
-  static String get checkInEyebrow => _t('CHECK-IN', 'CHECK-IN');
+  static String get checkInEyebrow => _t('BISMILLAH', 'BISMILLAH');
   static String get checkInTitle => _t('Ta journée de révision', 'Your revision day');
   static String checkInVersesProposed(int n) => _t(
       '$n verset${n > 1 ? 's' : ''} proposé${n > 1 ? 's' : ''} aujourd\'hui',
@@ -384,9 +374,9 @@ class S {
       'Le "+" ajoute le prochain verset à la portée du jour.',
       'The "+" adds the next verse to today\'s scope.');
 
-  static String get checkOutEyebrow => _t('CHECK-OUT', 'CHECK-OUT');
+  static String get checkOutEyebrow => _t('BILAN', 'REVIEW');
   static String get checkOutRattrapageEyebrow =>
-      _t('CHECK-OUT · RATTRAPAGE', 'CHECK-OUT · CATCH-UP');
+      _t('BILAN · RATTRAPAGE', 'REVIEW · CATCH-UP');
   static String get checkOutTitreHier => _t('Hier, qu\'as-tu fait ?', 'What did you do yesterday?');
   static String get checkOutTitreEnAttente =>
       _t('Un jour est resté en attente', 'A day is still pending');

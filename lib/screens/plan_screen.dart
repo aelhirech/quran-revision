@@ -147,14 +147,13 @@ class _PlanScreenState extends State<PlanScreen> {
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             pinned: true,
-            leading: widget.onChangePlan != null
-                ? IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    tooltip: S.modifierPlan,
-                    onPressed: () => _confirmChangePlan(context),
-                  )
-                : null,
             actions: [
+              if (widget.onChangePlan != null)
+                IconButton(
+                  icon: const Icon(Icons.tune),
+                  tooltip: S.modifierPlan,
+                  onPressed: () => _confirmChangePlan(context),
+                ),
               IconButton(
                 icon: const Icon(Icons.mosque_outlined),
                 tooltip: S.focusMosquee,

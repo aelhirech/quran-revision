@@ -3,9 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
+import '../services/surah_metadata_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
 import 'arabic_verse_text.dart';
+import 'bismillah_line.dart';
 
 class VerseBottomSheet extends StatelessWidget {
   final RevisionUnit unit;
@@ -52,11 +54,7 @@ class VerseBottomSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 itemCount: verses.length,
                 separatorBuilder: (context, index) => const Divider(height: 24),
-                itemBuilder: (_, i) => _verseRow(
-                  cs,
-                  verseNumber: unit.verseStart + i,
-                  text: verses[i],
-                ),
+                itemBuilder: (_, i) => _verseRow(text: verses[i]),
               ),
             ),
           ],
@@ -97,40 +95,15 @@ class VerseBottomSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          if (unit.verseStart == 1 && SurahMetadataService.bismillahPre(unit.sourate.id))
+            const BismillahLine(),
           Divider(color: cs.outlineVariant),
         ],
       ),
     );
   }
 
-  Widget _verseRow(ColorScheme cs, {required int verseNumber, required String text}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        RepaintBoundary(
-          child: Container(
-            width: 28,
-            height: 28,
-            margin: const EdgeInsets.only(top: 4, left: 8),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: cs.primaryContainer,
-            ),
-            child: Center(
-              child: Text(
-                '$verseNumber',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: cs.primary,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: ArabicVerseText(text: text, fontSize: 22)),
-      ],
-    );
+  Widget _verseRow({required String text}) {
+    return ArabicVerseText(text: text, fontSize: 22);
   }
 }
