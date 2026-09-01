@@ -162,4 +162,35 @@ void main() {
       await AyahFactsService.sealDay(date, Riwaya.hafs);
     });
   });
+
+  group('startLearning — sourate démarrée sans verset appris', () {
+    test('apparaît dans loadMainLearningProgress avec 0 verset appris',
+        () async {
+      await AyahFactsService.startLearning(30, Riwaya.hafs);
+      final progress = await AyahFactsService.loadMainLearningProgress(
+          riwaya: Riwaya.hafs, sourates: [_sourate(30)]);
+      expect(progress, hasLength(1));
+      expect(progress.first.sourate.id, 30);
+      expect(progress.first.learnedVerses, isEmpty);
+    });
+
+    test('reste "en cours" même si le seul verset appris est ensuite désappris',
+        () async {
+      await AyahFactsService.startLearning(31, Riwaya.hafs);
+      await AyahFactsService.learnVerse(31, 1, Riwaya.hafs);
+      await AyahFactsService.unlearnVerse(31, 1, Riwaya.hafs);
+      final progress = await AyahFactsService.loadMainLearningProgress(
+          riwaya: Riwaya.hafs, sourates: [_sourate(31)]);
+      expect(progress, hasLength(1));
+      expect(progress.first.learnedVerses, isEmpty);
+    });
+
+    test('deleteLearnFacts retire aussi la ligne "verset 1 visé"', () async {
+      await AyahFactsService.startLearning(32, Riwaya.hafs);
+      await AyahFactsService.deleteLearnFacts(32, Riwaya.hafs);
+      final progress = await AyahFactsService.loadMainLearningProgress(
+          riwaya: Riwaya.hafs, sourates: [_sourate(32)]);
+      expect(progress, isEmpty);
+    });
+  });
 }

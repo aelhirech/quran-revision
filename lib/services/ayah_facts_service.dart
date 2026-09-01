@@ -165,6 +165,33 @@ class AyahFactsService {
 
   // --- Apprentissage ---
 
+  /// Marque le 1er verset d'une sourate comme visé (`reach = 0`) dès la
+  /// décision de démarrer son apprentissage — même sémantique "proposé (0)
+  /// puis atteint (1)" que `proposeUnits`/`setReach` côté révision, pas un
+  /// événement à part. `ConflictAlgorithm.ignore` : si une ligne existe déjà
+  /// aujourd'hui pour ce verset (ex. déjà appris), on ne l'écrase pas.
+  /// Sans cette ligne, `LearnScreen._startNewSourate` ne persistait rien
+  /// tant qu'aucun verset n'était réellement appris, et la sourate
+  /// disparaissait de "en cours d'apprentissage" si l'utilisateur quittait
+  /// l'écran de pratique avant de marquer un premier bloc (retour TestFlight
+  /// du 2026-09-01).
+  static Future<void> startLearning(int surahId, Riwaya riwaya) async {
+    final db = await _open();
+    final date = DateTime.now().toIso8601String().substring(0, 10);
+    await db.insert(
+      'ayah_facts',
+      AyahFact(
+        userId: _userId,
+        date: date,
+        riwaya: riwaya,
+        surahId: surahId,
+        ayahId: 1,
+        type: AyahFactType.learn,
+      ).toMap(),
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
   static Future<void> learnVerse(int surahId, int ayahId, Riwaya riwaya) async {
     await learnVerses(surahId, [ayahId], riwaya);
   }
@@ -198,9 +225,15 @@ class AyahFactsService {
     await batch.commit(noResult: true);
   }
 
+  /// Repasse un verset à `reach = 0` ("visé, pas encore atteint") plutôt que
+  /// de supprimer sa ligne — sinon désapprendre le seul verset qui rattachait
+  /// une sourate à "en cours d'apprentissage" (typiquement le verset 1, voir
+  /// [startLearning]) la faisait disparaître, reproduisant le même bug par un
+  /// autre chemin. Cohérent avec `revise` (`setReach`), qui ne supprime
+  /// jamais non plus une ligne pour revenir à "pas fait".
   static Future<void> unlearnVerse(int surahId, int ayahId, Riwaya riwaya) async {
     final db = await _open();
-    await db.delete('ayah_facts',
+    await db.update('ayah_facts', {'reach': 0},
         where: 'surah_id = ? AND ayah_id = ? AND riwaya = ? AND type = ?',
         whereArgs: [surahId, ayahId, riwaya.name, AyahFactType.learn.name]);
   }
@@ -239,7 +272,9 @@ class AyahFactsService {
   /// Reconstruit les `LearningProgress` du profil principal à partir des
   /// faits `ayah_facts` (type='learn') — une seule requête groupée par
   /// donnée nécessaire, pas un aller-retour SQL par sourate en cours.
-  /// Utilisé par `LearnScreen`/`RecapScreen`.
+  /// Utilisé par `LearnScreen`/`RecapScreen`. Itère sur `startDates` (pas
+  /// `versesBySourate`) pour inclure aussi les sourates juste démarrées via
+  /// [startLearning], dont aucun verset n'a encore `reach = 1`.
   static Future<List<LearningProgress>> loadMainLearningProgress({
     required Riwaya riwaya,
     required List<Sourate> sourates,
@@ -248,13 +283,13 @@ class AyahFactsService {
     final startDates = await learnStartDatesBySourate(riwaya: riwaya);
     final byId = {for (final s in sourates) s.id: s};
     final result = <LearningProgress>[];
-    for (final entry in versesBySourate.entries) {
+    for (final entry in startDates.entries) {
       final sourate = byId[entry.key];
       if (sourate == null) continue;
       result.add(LearningProgress(
         sourate: sourate,
-        learnedVerses: entry.value,
-        startDate: startDates[entry.key] ?? DateTime.now(),
+        learnedVerses: versesBySourate[entry.key] ?? {},
+        startDate: entry.value,
       ));
     }
     return result;

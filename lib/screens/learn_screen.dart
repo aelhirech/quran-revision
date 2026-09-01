@@ -104,13 +104,10 @@ class _LearnScreenState extends State<LearnScreen> {
 
   Future<void> _startNewSourate() async {
     final inProgressIds = _inProgress.map((p) => p.sourate.id).toSet();
-    final learnedIds = context.read<AppState>().config?.selections
-            .map((s) => s.sourate.id)
-            .toSet() ??
-        {};
-    final available = context
-        .read<AppState>()
-        .sourates
+    final state = context.read<AppState>();
+    final learnedIds =
+        state.config?.selections.map((s) => s.sourate.id).toSet() ?? {};
+    final available = state.sourates
         .where((s) => !inProgressIds.contains(s.id) && !learnedIds.contains(s.id))
         .toList();
     if (available.isEmpty) return;
@@ -124,10 +121,11 @@ class _LearnScreenState extends State<LearnScreen> {
     if (picked == null) return;
 
     final p = LearningProgress.start(picked);
-    // Rien à persister tant qu'aucun verset n'est encore marqué appris
-    // (ayah_facts n'a pas de notion de "sourate démarrée à 0 verset") —
-    // l'écran de pratique s'ouvre quand même sur `p` en mémoire ;
-    // `learnVerse` écrira le premier fait au premier verset marqué.
+    // Verset 1 visé (reach=0) persisté dès le démarrage, pas seulement au
+    // premier verset réellement appris — sinon la sourate disparaît de "en
+    // cours" si l'utilisateur quitte l'écran de pratique avant de marquer un
+    // premier bloc (retour TestFlight du 2026-09-01).
+    await AyahFactsService.startLearning(picked.id, state.riwaya);
     await _reload();
     if (mounted) _openSourate(p);
   }
