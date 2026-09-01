@@ -17,116 +17,57 @@ enum Prayer {
   tahiyyatMasjid,   // 2r en entrant à la mosquée
 }
 
+/// Métadonnées d'une prière — une ligne par valeur de [Prayer]. Remplace
+/// (Phase 6 Sprint 5) 6 switchs parallèles qui répétaient la même
+/// énumération : toute donnée par prière vit ici, à un seul endroit, plutôt
+/// que d'être éparpillée sur 6 blocs à garder synchronisés à la main.
+///
+/// Contrepartie assumée : un `switch` sur `Prayer` est vérifié exhaustif par
+/// l'analyseur Dart à la compilation ; une entrée manquante dans cette table
+/// ne l'est pas — elle échouerait au premier accès (`_meta[this]!`).
+/// `test/models/prayer_test.dart` couvre les 13 valeurs pour compenser.
+/// [frShort] : `null` = identique à [fr] (cas de 10 prières sur 13) — évite
+/// de recopier deux fois la même chaîne pour un unique nom court, régression
+/// repérée en revue de code par rapport à l'ancien `nameFrShort` qui
+/// retombait déjà sur `nameFr` par défaut.
+typedef _PrayerMeta = ({String fr, String? frShort, String en, String ar, int rakaas, int suratRakaas});
+
+const Map<Prayer, _PrayerMeta> _meta = {
+  Prayer.sunnaFajr: (fr: 'Sunna Fajr', frShort: null, en: 'Sunnah Fajr', ar: 'سنة الفجر', rakaas: 2, suratRakaas: 2),
+  Prayer.fajr: (fr: 'Fajr', frShort: null, en: 'Fajr', ar: 'الفجر', rakaas: 2, suratRakaas: 2),
+  Prayer.duha: (fr: 'Doha', frShort: null, en: 'Duha', ar: 'الضحى', rakaas: 2, suratRakaas: 2),
+  Prayer.sunnaDhuhrAv: (fr: 'Sunna Dhouhr (avant)', frShort: 'Sunna Dhouhr (av.)', en: 'Sunnah Dhuhr (before)', ar: 'سنة الظهر القبلية', rakaas: 4, suratRakaas: 4),
+  Prayer.dhuhr: (fr: 'Dhouhr', frShort: null, en: 'Dhuhr', ar: 'الظهر', rakaas: 4, suratRakaas: 2),
+  Prayer.sunnaDhuhrAp: (fr: 'Sunna Dhouhr (après)', frShort: 'Sunna Dhouhr (ap.)', en: 'Sunnah Dhuhr (after)', ar: 'سنة الظهر البعدية', rakaas: 2, suratRakaas: 2),
+  Prayer.asr: (fr: 'Asr', frShort: null, en: 'Asr', ar: 'العصر', rakaas: 4, suratRakaas: 2),
+  Prayer.maghrib: (fr: 'Maghrib', frShort: null, en: 'Maghrib', ar: 'المغرب', rakaas: 3, suratRakaas: 2),
+  Prayer.sunnaMaghrib: (fr: 'Sunna Maghrib', frShort: null, en: 'Sunnah Maghrib', ar: 'سنة المغرب', rakaas: 2, suratRakaas: 2),
+  Prayer.isha: (fr: 'Isha', frShort: null, en: 'Isha', ar: 'العشاء', rakaas: 4, suratRakaas: 2),
+  Prayer.sunnaIsha: (fr: 'Sunna Isha', frShort: null, en: 'Sunnah Isha', ar: 'سنة العشاء', rakaas: 2, suratRakaas: 2),
+  Prayer.witr: (fr: 'Witr', frShort: null, en: 'Witr', ar: 'الوتر', rakaas: 3, suratRakaas: 3),
+  Prayer.tahiyyatMasjid: (fr: 'Tahiyyat al-Masjid', frShort: 'Tahiyyat', en: 'Tahiyyat al-Masjid', ar: 'تحية المسجد', rakaas: 2, suratRakaas: 2),
+};
+
+/// Les 5 prières fard (obligatoires) — les seules dont dépend `isFard`.
+const _fardPrayers = {Prayer.fajr, Prayer.dhuhr, Prayer.asr, Prayer.maghrib, Prayer.isha};
+
 extension PrayerExtension on Prayer {
-  String get nameFr {
-    switch (this) {
-      case Prayer.fajr:         return 'Fajr';
-      case Prayer.dhuhr:        return 'Dhouhr';
-      case Prayer.asr:          return 'Asr';
-      case Prayer.maghrib:      return 'Maghrib';
-      case Prayer.isha:         return "Isha";
-      case Prayer.duha:         return 'Doha';
-      case Prayer.sunnaFajr:    return 'Sunna Fajr';
-      case Prayer.sunnaDhuhrAv: return 'Sunna Dhouhr (avant)';
-      case Prayer.sunnaDhuhrAp: return 'Sunna Dhouhr (après)';
-      case Prayer.sunnaMaghrib: return 'Sunna Maghrib';
-      case Prayer.sunnaIsha:    return "Sunna Isha";
-      case Prayer.witr:         return 'Witr';
-      case Prayer.tahiyyatMasjid: return 'Tahiyyat al-Masjid';
-    }
-  }
+  _PrayerMeta get _m => _meta[this]!;
 
-  String get nameFrShort {
-    if (this == Prayer.tahiyyatMasjid) return 'Tahiyyat';
-    if (this == Prayer.sunnaDhuhrAv) return 'Sunna Dhouhr (av.)';
-    if (this == Prayer.sunnaDhuhrAp) return 'Sunna Dhouhr (ap.)';
-    return nameFr;
-  }
-
-  String get nameEn {
-    switch (this) {
-      case Prayer.fajr:           return 'Fajr';
-      case Prayer.dhuhr:          return 'Dhuhr';
-      case Prayer.asr:            return 'Asr';
-      case Prayer.maghrib:        return 'Maghrib';
-      case Prayer.isha:           return 'Isha';
-      case Prayer.duha:           return 'Duha';
-      case Prayer.sunnaFajr:      return 'Sunnah Fajr';
-      case Prayer.sunnaDhuhrAv:   return 'Sunnah Dhuhr (before)';
-      case Prayer.sunnaDhuhrAp:   return 'Sunnah Dhuhr (after)';
-      case Prayer.sunnaMaghrib:   return 'Sunnah Maghrib';
-      case Prayer.sunnaIsha:      return 'Sunnah Isha';
-      case Prayer.witr:           return 'Witr';
-      case Prayer.tahiyyatMasjid: return 'Tahiyyat al-Masjid';
-    }
-  }
-
-  String get nameAr {
-    switch (this) {
-      case Prayer.fajr:         return 'الفجر';
-      case Prayer.dhuhr:        return 'الظهر';
-      case Prayer.asr:          return 'العصر';
-      case Prayer.maghrib:      return 'المغرب';
-      case Prayer.isha:         return 'العشاء';
-      case Prayer.duha:         return 'الضحى';
-      case Prayer.sunnaFajr:    return 'سنة الفجر';
-      case Prayer.sunnaDhuhrAv: return 'سنة الظهر القبلية';
-      case Prayer.sunnaDhuhrAp: return 'سنة الظهر البعدية';
-      case Prayer.sunnaMaghrib: return 'سنة المغرب';
-      case Prayer.sunnaIsha:    return 'سنة العشاء';
-      case Prayer.witr:           return 'الوتر';
-      case Prayer.tahiyyatMasjid: return 'تحية المسجد';
-    }
-  }
+  String get nameFr => _m.fr;
+  String get nameFrShort => _m.frShort ?? _m.fr;
+  String get nameEn => _m.en;
+  String get nameAr => _m.ar;
 
   /// Nombre total de rakaas de la prière
-  int get rakaas {
-    switch (this) {
-      case Prayer.fajr:         return 2;
-      case Prayer.dhuhr:        return 4;
-      case Prayer.asr:          return 4;
-      case Prayer.maghrib:      return 3;
-      case Prayer.isha:         return 4;
-      case Prayer.duha:         return 2;
-      case Prayer.sunnaFajr:    return 2;
-      case Prayer.sunnaDhuhrAv: return 4;
-      case Prayer.sunnaDhuhrAp: return 2;
-      case Prayer.sunnaMaghrib: return 2;
-      case Prayer.sunnaIsha:    return 2;
-      case Prayer.witr:           return 3;
-      case Prayer.tahiyyatMasjid: return 2;
-    }
-  }
+  int get rakaas => _m.rakaas;
 
   /// Rakaas où l'on récite une sourate après Al-Fatiha.
   /// Pour les fard à 4 rakaas : seulement les 2 premiers.
   /// Pour Maghrib (3 rakaas fard) : les 2 premiers également.
   /// Pour toutes les sunna/nafl : tous les rakaas.
-  int get suratRakaas {
-    switch (this) {
-      case Prayer.fajr:         return 2;
-      case Prayer.dhuhr:        return 2;
-      case Prayer.asr:          return 2;
-      case Prayer.maghrib:      return 2;
-      case Prayer.isha:         return 2;
-      case Prayer.duha:         return 2;
-      case Prayer.sunnaFajr:    return 2;
-      case Prayer.sunnaDhuhrAv: return 4;
-      case Prayer.sunnaDhuhrAp: return 2;
-      case Prayer.sunnaMaghrib: return 2;
-      case Prayer.sunnaIsha:    return 2;
-      case Prayer.witr:           return 3;
-      case Prayer.tahiyyatMasjid: return 2;
-    }
-  }
+  int get suratRakaas => _m.suratRakaas;
 
   bool get isTahiyyat => this == Prayer.tahiyyatMasjid;
-
-  bool get isFard {
-    return this == Prayer.fajr ||
-        this == Prayer.dhuhr ||
-        this == Prayer.asr ||
-        this == Prayer.maghrib ||
-        this == Prayer.isha;
-  }
+  bool get isFard => _fardPrayers.contains(this);
 }

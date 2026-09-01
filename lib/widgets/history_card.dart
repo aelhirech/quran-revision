@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../core/app_colors.dart';
+import '../core/app_rules.dart';
 import '../core/strings.dart';
 import '../models/session_record.dart';
 
@@ -95,7 +96,7 @@ class HistoryCard extends StatelessWidget {
           ? cs.primary.withValues(alpha: 0.12)
           : cs.surface;
       textColor = isToday ? cs.primary : cs.onSurfaceVariant.withValues(alpha: 0.4);
-    } else if (pct >= 0.8) {
+    } else if (pct >= AppRules.goodDayThreshold) {
       circleColor = cs.primaryContainer;
       textColor = cs.primary;
     } else {
@@ -145,7 +146,7 @@ class HistoryCard extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: pct >= 0.8
+              color: pct >= AppRules.goodDayThreshold
                   ? cs.primaryContainer
                   : cs.surface,
               borderRadius: BorderRadius.circular(10),
@@ -155,7 +156,7 @@ class HistoryCard extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: pct >= 0.8 ? cs.primary : cs.onSurfaceVariant)),
+                      color: pct >= AppRules.goodDayThreshold ? cs.primary : cs.onSurfaceVariant)),
             ),
           ),
           const SizedBox(width: 12),
@@ -175,7 +176,7 @@ class HistoryCard extends StatelessWidget {
                     value: pct,
                     minHeight: 4,
                     backgroundColor: cs.surface,
-                    color: pct >= 0.8 ? cs.primary : cs.onSurfaceVariant,
+                    color: pct >= AppRules.goodDayThreshold ? cs.primary : cs.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -186,7 +187,7 @@ class HistoryCard extends StatelessWidget {
               style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: pct >= 0.8 ? cs.primary : cs.onSurfaceVariant)),
+                  color: pct >= AppRules.goodDayThreshold ? cs.primary : cs.onSurfaceVariant)),
         ],
       ),
     );
