@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +11,7 @@ import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../services/hizb_metadata_service.dart';
+import '../services/notification_service.dart';
 import '../state/app_state.dart';
 import '../widgets/index_badge.dart';
 import '../widgets/ornamental_divider.dart';
@@ -16,6 +19,11 @@ import '../widgets/pill_chip.dart';
 import '../widgets/preset_dropdown.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/verse_range_picker.dart';
+
+/// Nombre d'étapes comptées dans le stepper (`_StepHeader`) — Intro/Riwaya
+/// n'y figurent pas (pages d'accueil, pas de config), Célébration non plus
+/// (aboutissement, poussé hors du PageView).
+const int _kOnboardingSteps = 4;
 
 class OnboardingScreen extends StatefulWidget {
   /// Non-null quand l'utilisateur bascule vers un parcours (riwaya) jamais
@@ -36,7 +44,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _revisionDays = 30;
   bool _paceByLines = false;
   int _targetLinesPerDay = 15;
-  bool _groupByHizb = false;
+  bool _groupByHizb = true;
   String _search = '';
   late Riwaya _riwaya = widget.presetRiwaya ?? Riwaya.hafs;
 
@@ -48,6 +56,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   int get _totalVerses =>
       _selections.values.fold(0, (sum, s) => sum + s.verseCount);
+
+  /// Fraction (1.0/0.75/0.5/0.25) dont la sélection actuelle est
+  /// structurellement identique à ce que produirait un tap sur la pill
+  /// correspondante — dérivé de `_selections`, pas suivi manuellement (pas
+  /// de flag à invalider à chaque site de mutation).
+  double? get _lastQuickFraction {
+    // Une plage partielle (long-press → VerseRangePicker) ne peut jamais
+    // correspondre à un preset — tous les presets sélectionnent des
+    // sourates entières. Court-circuite avant la comparaison par id.
+    if (_selections.values.any((sel) => !sel.isWhole)) return null;
+    final allSourates = context.read<AppState>().sourates;
+    final currentIds = _selections.keys.toSet();
+    for (final fraction in const [1.0, 0.75, 0.5, 0.25]) {
+      if (setEquals(currentIds, _quickSelectionIds(fraction, allSourates))) {
+        return fraction;
+      }
+    }
+    return null;
+  }
+
+  /// Ids des sourates que sélectionnerait `_quickSelect(fraction)`, sans
+  /// muter l'état — sert à la fois à l'appliquer et à détecter si la
+  /// sélection actuelle y correspond déjà.
+  Set<int> _quickSelectionIds(double fraction, List<Sourate> allSourates) {
+    if (fraction >= 1.0) return allSourates.map((s) => s.id).toSet();
+    final total = allSourates.fold(0, (sum, s) => sum + s.verses);
+    final target = (total * fraction).round();
+    final ids = <int>{};
+    int count = 0;
+    for (final s in allSourates.reversed) {
+      if (count >= target) break;
+      ids.add(s.id);
+      count += s.verses;
+    }
+    return ids;
+  }
 
   List<Object> get _listItems {
     final allSourates = context.read<AppState>().sourates;
@@ -108,7 +152,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  /// Sélectionne [fraction] du Coran depuis la FIN (ordre de mémorisation courant).
+  /// Sélectionne [fraction] du Coran depuis la FIN (ordre de mémorisation
+  /// courant) — même forme de boucle que `_quickSelectionIds` (qui, lui,
+  /// ne fait que comparer un id-set), mais construit `_selections`
+  /// directement en un seul passage plutôt que de dériver deux fois la
+  /// même liste.
   void _quickSelect(double fraction) {
     final allSourates = context.read<AppState>().sourates;
     setState(() {
@@ -117,17 +165,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         for (final s in allSourates) {
           _selections[s.id] = SourateSelection.whole(s);
         }
-        return;
-      }
-      final total = allSourates.fold(0, (sum, s) => sum + s.verses);
-      final target = (total * fraction).round();
-      int count = 0;
-      for (final s in allSourates.reversed) {
-        if (count >= target) break;
-        _selections[s.id] = SourateSelection.whole(s);
-        count += s.verses;
+      } else {
+        final total = allSourates.fold(0, (sum, s) => sum + s.verses);
+        final target = (total * fraction).round();
+        int count = 0;
+        for (final s in allSourates.reversed) {
+          if (count >= target) break;
+          _selections[s.id] = SourateSelection.whole(s);
+          count += s.verses;
+        }
       }
     });
+    HapticFeedback.selectionClick();
   }
 
   void _nextPage() {
@@ -168,6 +217,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await context.read<AppState>().saveConfig(config);
   }
 
+  /// Pousse l'écran de célébration AVANT de persister la config — la config
+  /// n'est sauvée qu'au tap sur le CTA final de cet écran (`_confirm`, passé
+  /// en `onStart`). Une route poussée reste au-dessus de la pile de
+  /// Navigator même quand `main.dart` bascule `MaterialApp.home` vers
+  /// `ShellScreen` en dessous (même mécanisme que `CheckInScreen`/
+  /// `CheckOutScreen`, poussés en plein écran depuis `DayPlanTab`) — pousser
+  /// avant de persister élimine toute course entre les deux.
+  Future<void> _showCelebration() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _CelebrationPage(
+          selections: _selections,
+          totalVerses: _totalVerses,
+          onStart: _confirm,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final showIntroAndRiwaya = widget.presetRiwaya == null;
@@ -185,6 +255,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             groupByHizb: _groupByHizb,
             search: _search,
             listItems: _listItems,
+            lastQuickFraction: _lastQuickFraction,
             onQuickSelect: _quickSelect,
             onToggleSourate: _toggleSourate,
             onLongPress: _longPressSourate,
@@ -192,9 +263,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             onSearchChanged: (v) => setState(() => _search = v),
             onNext: _selections.isEmpty ? null : _nextPage,
           ),
-          _RecapPage(
-            selections: _selections,
-            totalVerses: _totalVerses,
+          _RhythmPage(
             revisionDays: _revisionDays,
             onRevisionDaysChanged: (v) => setState(() => _revisionDays = v),
             paceByLines: _paceByLines,
@@ -203,7 +272,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             onTargetLinesPerDayChanged: (v) =>
                 setState(() => _targetLinesPerDay = v),
             onBack: _prevPage,
-            onConfirm: _selections.isEmpty ? null : _confirm,
+            onNext: _nextPage,
+          ),
+          _NotificationsPage(onBack: _prevPage, onNext: _nextPage),
+          _RecapPage(
+            selections: _selections,
+            totalVerses: _totalVerses,
+            onBack: _prevPage,
+            onConfirm: _selections.isEmpty ? null : _showCelebration,
           ),
         ],
       ),
@@ -302,7 +378,7 @@ class _RiwayaPage extends StatelessWidget {
                 color: palette.textPrimary,
                 height: 1.25,
               ),
-            ),
+            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08),
             const SizedBox(height: 12),
             Text(
               S.choisirRiwayaSubtitle,
@@ -312,19 +388,19 @@ class _RiwayaPage extends StatelessWidget {
                 color: palette.textPrimary.withValues(alpha: 0.7),
                 height: 1.5,
               ),
-            ),
+            ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
             const SizedBox(height: 32),
             _RiwayaChoiceCard(
               label: S.hafs,
               description: S.hafsDescription,
               onTap: () => onSelect(Riwaya.hafs),
-            ),
+            ).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(begin: 0.1),
             const SizedBox(height: 14),
             _RiwayaChoiceCard(
               label: S.warsh,
               description: S.warshDescription,
               onTap: () => onSelect(Riwaya.warsh),
-            ),
+            ).animate().fadeIn(delay: 280.ms, duration: 400.ms).slideY(begin: 0.1),
             const Spacer(flex: 3),
           ],
         ),
@@ -346,17 +422,20 @@ class _RiwayaChoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final palette = context.palette;
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerLow,
+          color: palette.surfaceCard,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cs.outlineVariant),
+          border: Border.all(color: palette.cardBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,10 +444,10 @@ class _RiwayaChoiceCard extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: cs.onSurface)),
+                    color: palette.textPrimary)),
             const SizedBox(height: 6),
             Text(description,
-                style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
+                style: TextStyle(fontSize: 13, color: palette.textMuted)),
           ],
         ),
       ),
@@ -384,6 +463,7 @@ class _SelectionPage extends StatelessWidget {
   final bool groupByHizb;
   final String search;
   final List<Object> listItems;
+  final double? lastQuickFraction;
   final void Function(double fraction) onQuickSelect;
   final void Function(Sourate) onToggleSourate;
   final Future<void> Function(Sourate) onLongPress;
@@ -397,6 +477,7 @@ class _SelectionPage extends StatelessWidget {
     required this.groupByHizb,
     required this.search,
     required this.listItems,
+    required this.lastQuickFraction,
     required this.onQuickSelect,
     required this.onToggleSourate,
     required this.onLongPress,
@@ -408,13 +489,12 @@ class _SelectionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final totalSourates = context.watch<AppState>().sourates.length;
     return SafeArea(
       child: Column(
         children: [
           _StepHeader(
             step: 1,
-            total: 2,
+            total: _kOnboardingSteps,
             title: S.etapeSelection,
             subtitle: S.souratesCount(selections.length, totalVerses),
           ),
@@ -433,20 +513,33 @@ class _SelectionPage extends StatelessWidget {
                 Row(
                   children: [
                     PillChip(
-                        label: S.toutLeCoran,
-                        onTap: () => onQuickSelect(1.0),
-                        selected: selections.length == totalSourates),
+                      label: S.toutLeCoran,
+                      onTap: () => onQuickSelect(1.0),
+                      selected: lastQuickFraction == 1.0,
+                    ),
                     const SizedBox(width: 6),
-                    PillChip(label: '3/4', onTap: () => onQuickSelect(0.75), selected: false),
+                    PillChip(
+                      label: S.fractionTroisQuarts,
+                      onTap: () => onQuickSelect(0.75),
+                      selected: lastQuickFraction == 0.75,
+                    ),
                     const SizedBox(width: 6),
-                    PillChip(label: '1/2', onTap: () => onQuickSelect(0.5), selected: false),
+                    PillChip(
+                      label: S.fractionMoitie,
+                      onTap: () => onQuickSelect(0.5),
+                      selected: lastQuickFraction == 0.5,
+                    ),
                     const SizedBox(width: 6),
-                    PillChip(label: '1/4', onTap: () => onQuickSelect(0.25), selected: false),
+                    PillChip(
+                      label: S.fractionQuart,
+                      onTap: () => onQuickSelect(0.25),
+                      selected: lastQuickFraction == 0.25,
+                    ),
                   ],
                 ),
               ],
             ),
-          ),
+          ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.08),
           // Recherche + groupement
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -469,20 +562,22 @@ class _SelectionPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 _GroupToggle(
                   icon: Icons.menu_book_outlined,
-                  label: 'Hizb',
+                  label: S.hizbCourt,
                   value: groupByHizb,
                   onChanged: onGroupByHizbChanged,
                 ),
               ],
             ),
           ),
-          // Liste
-          Expanded(child: _SourateList(
-            items: listItems,
-            selections: selections,
-            onToggle: onToggleSourate,
-            onLongPress: onLongPress,
-          )),
+          // Liste (sticky headers Hizb)
+          Expanded(
+            child: _SourateList(
+              items: listItems,
+              selections: selections,
+              onToggle: onToggleSourate,
+              onLongPress: onLongPress,
+            ).animate().fadeIn(duration: 300.ms),
+          ),
           // Bouton suivant
           Padding(
             padding: const EdgeInsets.all(16),
@@ -504,11 +599,9 @@ class _SelectionPage extends StatelessWidget {
   }
 }
 
-// ─── Page 2 : Récap ──────────────────────────────────────────────────────────
+// ─── Page 2 : Rythme / objectif ──────────────────────────────────────────────
 
-class _RecapPage extends StatelessWidget {
-  final Map<int, SourateSelection> selections;
-  final int totalVerses;
+class _RhythmPage extends StatelessWidget {
   final int revisionDays;
   final ValueChanged<int> onRevisionDaysChanged;
   final bool paceByLines;
@@ -516,11 +609,9 @@ class _RecapPage extends StatelessWidget {
   final int targetLinesPerDay;
   final ValueChanged<int> onTargetLinesPerDayChanged;
   final VoidCallback onBack;
-  final VoidCallback? onConfirm;
+  final VoidCallback onNext;
 
-  const _RecapPage({
-    required this.selections,
-    required this.totalVerses,
+  const _RhythmPage({
     required this.revisionDays,
     required this.onRevisionDaysChanged,
     required this.paceByLines,
@@ -528,7 +619,7 @@ class _RecapPage extends StatelessWidget {
     required this.targetLinesPerDay,
     required this.onTargetLinesPerDayChanged,
     required this.onBack,
-    required this.onConfirm,
+    required this.onNext,
   });
 
   @override
@@ -542,20 +633,36 @@ class _RecapPage extends StatelessWidget {
           children: [
             _StepHeader(
               step: 2,
-              total: 2,
-              title: S.etapeRecap,
+              total: _kOnboardingSteps,
+              title: S.etapeRythme,
+              subtitle: S.rythmeQuestion,
               onBack: onBack,
             ),
             const SizedBox(height: 24),
-            const OrnamentalDivider(),
-            const SizedBox(height: 24),
-            // Récap sélection
-            _RecapCard(
-              icon: Icons.menu_book_outlined,
-              label: S.souratesCount(selections.length, totalVerses),
-            ),
-            const SizedBox(height: 12),
-            // Rythme du cycle
+            if (!paceByLines) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  PillChip(
+                    label: S.rythmeTranquille,
+                    selected: revisionDays == 90,
+                    onTap: () => onRevisionDaysChanged(90),
+                  ),
+                  PillChip(
+                    label: S.rythmeRegulier,
+                    selected: revisionDays == 30,
+                    onTap: () => onRevisionDaysChanged(30),
+                  ),
+                  PillChip(
+                    label: S.rythmeIntensif,
+                    selected: revisionDays == 14,
+                    onTap: () => onRevisionDaysChanged(14),
+                  ),
+                ],
+              ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.06),
+              const SizedBox(height: 16),
+            ],
             _RecapCard(
               icon: Icons.calendar_today_outlined,
               label: S.cycleObjectif,
@@ -578,7 +685,7 @@ class _RecapPage extends StatelessWidget {
                       color: cs.onSurface,
                       onChanged: onRevisionDaysChanged,
                     ),
-            ),
+            ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
@@ -592,9 +699,265 @@ class _RecapPage extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            PrimaryCtaButton(label: S.commencer, onPressed: onConfirm),
+            SizedBox(
+              width: double.infinity,
+              child: PrimaryCtaButton(label: S.continuer, onPressed: onNext),
+            ),
             const SizedBox(height: 24),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Page 3 : Rappels (priming permission notifications) ────────────────────
+
+class _NotificationsPage extends StatefulWidget {
+  final VoidCallback onBack;
+  final VoidCallback onNext;
+  const _NotificationsPage({required this.onBack, required this.onNext});
+
+  @override
+  State<_NotificationsPage> createState() => _NotificationsPageState();
+}
+
+class _NotificationsPageState extends State<_NotificationsPage> {
+  bool _working = false;
+
+  Future<void> _enable() async {
+    if (_working) return;
+    setState(() => _working = true);
+    try {
+      await NotificationService.enable();
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+    if (!mounted) return;
+    widget.onNext();
+  }
+
+  Future<void> _skip() async {
+    await NotificationService.disable();
+    if (!mounted) return;
+    widget.onNext();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _StepHeader(
+              step: 3,
+              total: _kOnboardingSteps,
+              title: S.etapeRappels,
+              onBack: widget.onBack,
+            ),
+            const Spacer(flex: 2),
+            Icon(Icons.notifications_active_outlined, size: 64, color: palette.gold)
+                .animate()
+                .scale(
+                    begin: const Offset(0.6, 0.6),
+                    duration: 400.ms,
+                    curve: Curves.easeOutBack),
+            const SizedBox(height: 20),
+            Text(
+              S.rappelsTitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textPrimary),
+            ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
+            const SizedBox(height: 12),
+            Text(
+              S.rappelsBody,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 14,
+                  color: palette.textPrimary.withValues(alpha: 0.7),
+                  height: 1.5),
+            ).animate().fadeIn(delay: 180.ms, duration: 300.ms),
+            const Spacer(flex: 3),
+            SizedBox(
+              width: double.infinity,
+              child: PrimaryCtaButton(
+                label: S.activerRappels,
+                onPressed: _working ? null : _enable,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _working ? null : _skip,
+              child: Text(S.plusTard, style: TextStyle(color: palette.textMuted)),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Page 4 : Récap ──────────────────────────────────────────────────────────
+
+class _RecapPage extends StatelessWidget {
+  final Map<int, SourateSelection> selections;
+  final int totalVerses;
+  final VoidCallback onBack;
+  final VoidCallback? onConfirm;
+
+  const _RecapPage({
+    required this.selections,
+    required this.totalVerses,
+    required this.onBack,
+    required this.onConfirm,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _StepHeader(
+              step: 4,
+              total: _kOnboardingSteps,
+              title: S.etapeRecap,
+              onBack: onBack,
+            ),
+            const SizedBox(height: 24),
+            const OrnamentalDivider(),
+            const SizedBox(height: 24),
+            // Récap sélection
+            _RecapCard(
+              icon: Icons.menu_book_outlined,
+              label: S.souratesCount(selections.length, totalVerses),
+            ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.08),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: PrimaryCtaButton(label: S.commencer, onPressed: onConfirm),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Écran de célébration (poussé, pas une page du PageView) ────────────────
+
+class _CelebrationPage extends StatefulWidget {
+  final Map<int, SourateSelection> selections;
+  final int totalVerses;
+  final Future<void> Function() onStart;
+
+  const _CelebrationPage({
+    required this.selections,
+    required this.totalVerses,
+    required this.onStart,
+  });
+
+  @override
+  State<_CelebrationPage> createState() => _CelebrationPageState();
+}
+
+class _CelebrationPageState extends State<_CelebrationPage> {
+  bool _starting = false;
+
+  Future<void> _start() async {
+    if (_starting) return;
+    setState(() => _starting = true);
+    try {
+      await widget.onStart();
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return PopScope(
+      canPop: !_starting,
+      child: Scaffold(
+        backgroundColor: palette.cream,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Spacer(flex: 3),
+                const Text('✨', style: TextStyle(fontSize: 56))
+                    .animate()
+                    .scale(
+                        begin: const Offset(0.3, 0.3),
+                        duration: 600.ms,
+                        curve: Curves.elasticOut)
+                    .then()
+                    .shimmer(duration: 800.ms),
+                const SizedBox(height: 20),
+                Text(
+                  S.bienvenueTitre,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary),
+                ).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(begin: 0.1),
+                const SizedBox(height: 12),
+                Text(
+                  S.bienvenueSubtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      color: palette.textPrimary.withValues(alpha: 0.7),
+                      height: 1.6),
+                ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
+                const SizedBox(height: 28),
+                const OrnamentalDivider(),
+                const SizedBox(height: 20),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: palette.gold.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: palette.gold.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    S.souratesCount(widget.selections.length, widget.totalVerses),
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: palette.goldDark),
+                  ),
+                ).animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.15),
+                const Spacer(flex: 4),
+                SizedBox(
+                  width: double.infinity,
+                  child: PrimaryCtaButton(
+                    label: S.continuer,
+                    onPressed: _starting ? null : _start,
+                  ),
+                ).animate().fadeIn(delay: 500.ms, duration: 400.ms),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -655,11 +1018,17 @@ class _StepHeader extends StatelessWidget {
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(subtitle!,
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Text(
+                subtitle!,
+                key: ValueKey(subtitle),
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: cs.onPrimaryContainer.withValues(alpha: 0.8))),
+                    color: cs.onPrimaryContainer.withValues(alpha: 0.8)),
+              ),
+            ),
           ],
           const SizedBox(height: 10),
           ClipRRect(
@@ -723,6 +1092,38 @@ class _GroupToggle extends StatelessWidget {
   }
 }
 
+/// Segment de la liste des sourates : `header` non-null = groupe Hizb
+/// (rendu en en-tête épinglé), `header == null` = liste plate (recherche
+/// active ou groupement désactivé).
+class _Section {
+  final int? header;
+  final List<Sourate> entries;
+  const _Section(this.header, this.entries);
+}
+
+List<_Section> _sectionize(List<Object> items) {
+  final sections = <_Section>[];
+  int? currentHeader;
+  var currentEntries = <Sourate>[];
+  void flush() {
+    if (currentHeader != null || currentEntries.isNotEmpty) {
+      sections.add(_Section(currentHeader, currentEntries));
+    }
+  }
+
+  for (final item in items) {
+    if (item is int) {
+      flush();
+      currentHeader = item;
+      currentEntries = <Sourate>[];
+    } else {
+      currentEntries.add(item as Sourate);
+    }
+  }
+  flush();
+  return sections;
+}
+
 class _SourateList extends StatelessWidget {
   final List<Object> items;
   final Map<int, SourateSelection> selections;
@@ -739,73 +1140,120 @@ class _SourateList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    return ListView.builder(
-      itemCount: items.length,
-      itemBuilder: (_, i) {
-        final item = items[i];
-        if (item is int) {
-          return _groupHeader(palette, S.hizb(item));
-        }
-        final s = item as Sourate;
-        final sel = selections[s.id];
-        final selected = sel != null;
-        return GestureDetector(
-          onLongPress: () => onLongPress(s),
-          child: CheckboxListTile(
-            value: selected,
-            onChanged: (_) => onToggle(s),
-            dense: true,
-            title: Row(
-              children: [
-                Text(s.nameFr,
-                    style: TextStyle(fontSize: 14, color: palette.textPrimary)),
-                if (sel != null && !sel.isWhole) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
-                    ),
-                    child: Text('v.${sel.verseStart}–${sel.verseEnd}',
-                        style: TextStyle(fontSize: 10, color: palette.goldDark)),
-                  ),
-                ],
-              ],
+    final sections = _sectionize(items);
+    return CustomScrollView(
+      slivers: [
+        for (final section in sections) ...[
+          if (section.header != null)
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _HizbHeaderDelegate(
+                label: S.hizb(section.header!),
+                palette: palette,
+              ),
             ),
-            subtitle: Text(
-                '${sel != null && !sel.isWhole ? '${sel.verseCount}/${s.verses}' : s.verses} ${S.versetsLabel}',
-                style: TextStyle(fontSize: 12, color: palette.textMuted)),
-            secondary: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IndexBadge(
-                  text: '${s.id}',
-                  size: 30,
-                  state: selected ? IndexBadgeState.selected : IndexBadgeState.unselected,
-                ),
-                const SizedBox(width: 10),
-                Text(s.nameAr, style: GoogleFonts.amiri(fontSize: 18, color: palette.textPrimary)),
-              ],
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => _tile(palette, section.entries[i]),
+              childCount: section.entries.length,
             ),
           ),
-        );
-      },
+        ],
+      ],
     );
   }
 
-  Widget _groupHeader(AppPalette palette, String label) {
-    return Container(
-      color: palette.gold.withValues(alpha: 0.1),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: palette.goldDark,
-              letterSpacing: 0.8)),
+  Widget _tile(AppPalette palette, Sourate s) {
+    final sel = selections[s.id];
+    final selected = sel != null;
+    return GestureDetector(
+      onLongPress: () => onLongPress(s),
+      child: CheckboxListTile(
+        value: selected,
+        onChanged: (_) {
+          HapticFeedback.selectionClick();
+          onToggle(s);
+        },
+        dense: true,
+        title: Row(
+          children: [
+            Text(s.nameFr,
+                style: TextStyle(fontSize: 14, color: palette.textPrimary)),
+            if (sel != null && !sel.isWhole) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
+                ),
+                child: Text('v.${sel.verseStart}–${sel.verseEnd}',
+                    style: TextStyle(fontSize: 10, color: palette.goldDark)),
+              ),
+            ],
+          ],
+        ),
+        subtitle: Text(
+            '${sel != null && !sel.isWhole ? '${sel.verseCount}/${s.verses}' : s.verses} ${S.versetsLabel}',
+            style: TextStyle(fontSize: 12, color: palette.textMuted)),
+        secondary: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedScale(
+              scale: selected ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+              child: IndexBadge(
+                text: '${s.id}',
+                size: 30,
+                state: selected ? IndexBadgeState.selected : IndexBadgeState.unselected,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(s.nameAr, style: GoogleFonts.amiri(fontSize: 18, color: palette.textPrimary)),
+          ],
+        ),
+      ),
     );
   }
+}
+
+class _HizbHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final String label;
+  final AppPalette palette;
+
+  const _HizbHeaderDelegate({required this.label, required this.palette});
+
+  @override
+  double get minExtent => 28;
+  @override
+  double get maxExtent => 28;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Color.alphaBlend(palette.gold.withValues(alpha: 0.14), palette.cream),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      // FittedBox : l'en-tête épinglé a une hauteur fixe (minExtent/maxExtent
+      // ci-dessus) — sans ça, un réglage d'accessibilité "texte agrandi"
+      // ferait déborder le label hors de sa bande.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: palette.goldDark,
+                letterSpacing: 0.8)),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _HizbHeaderDelegate oldDelegate) =>
+      label != oldDelegate.label || palette != oldDelegate.palette;
 }
 
 class _RecapCard extends StatelessWidget {

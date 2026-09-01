@@ -28,13 +28,13 @@ class _SettingsCardState extends State<SettingsCard> {
 
   Future<void> _toggleNotif(bool val) async {
     setState(() => _notifEnabled = val);
-    await StorageService.saveNotifEnabled(val);
     if (val) {
-      await NotificationService.requestPermission();
-      await NotificationService.scheduleMorning();
-      await NotificationService.scheduleEvening();
+      final granted = await NotificationService.enable();
+      // Permission refusée par l'OS : réconcilie le switch avec la réalité
+      // au lieu de rester bloqué sur l'état optimiste posé ci-dessus.
+      if (mounted && !granted) setState(() => _notifEnabled = false);
     } else {
-      await NotificationService.cancelAll();
+      await NotificationService.disable();
     }
   }
 

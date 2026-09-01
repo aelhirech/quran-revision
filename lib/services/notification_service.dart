@@ -1,8 +1,30 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'storage_service.dart';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
+
+  /// Active les rappels : demande la permission OS, persiste le résultat
+  /// réel (pas un optimiste `true`), planifie matin+soir seulement si
+  /// accordée. Point d'entrée unique (onboarding + réglages) — retourne si
+  /// la permission a été accordée, pour que l'appelant puisse réconcilier
+  /// son état UI avec la réalité.
+  static Future<bool> enable() async {
+    final granted = await requestPermission();
+    await StorageService.saveNotifEnabled(granted);
+    if (granted) {
+      await Future.wait([scheduleMorning(), scheduleEvening()]);
+    }
+    return granted;
+  }
+
+  /// Désactive les rappels : persiste explicitement `false` (pas de valeur
+  /// par défaut fantôme) et annule les notifications planifiées.
+  static Future<void> disable() async {
+    await StorageService.saveNotifEnabled(false);
+    await cancelAll();
+  }
 
   static Future<void> initialize() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -17,17 +39,22 @@ class NotificationService {
   }
 
   static Future<bool> requestPermission() async {
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
-    if (ios != null) {
-      return await ios.requestPermissions(alert: true, badge: true, sound: true) ?? false;
+    try {
+      final ios = _plugin.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      if (ios != null) {
+        return await ios.requestPermissions(alert: true, badge: true, sound: true) ?? false;
+      }
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        return await android.requestNotificationsPermission() ?? false;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('requestPermission error: $e');
+      return false;
     }
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    if (android != null) {
-      return await android.requestNotificationsPermission() ?? false;
-    }
-    return false;
   }
 
   /// Planifie le rappel matin (heure configurable)

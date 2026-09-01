@@ -125,6 +125,37 @@ class S {
   static String get etapeRecap => _t('Récapitulatif', 'Summary');
   static String get cycleObjectif => _t('Objectif de cycle', 'Cycle goal');
   static String etapeN(int n, int total) => '$n / $total';
+  static String get fractionTroisQuarts => _t('3/4', '3/4');
+  static String get fractionMoitie => _t('1/2', '1/2');
+  static String get fractionQuart => _t('1/4', '1/4');
+  static String get hizbCourt => _t('Hizb', 'Hizb');
+
+  // Onboarding wizard — rythme/objectif
+  static String get etapeRythme => _t('Ton rythme', 'Your pace');
+  static String get rythmeQuestion =>
+      _t('À quel rythme veux-tu avancer ?', 'At what pace do you want to progress?');
+  static String get rythmeTranquille => _t('Tranquille · 90j', 'Relaxed · 90d');
+  static String get rythmeRegulier => _t('Régulier · 30j', 'Steady · 30d');
+  static String get rythmeIntensif => _t('Intensif · 14j', 'Intensive · 14d');
+
+  // Onboarding wizard — rappels
+  static String get etapeRappels => _t('Rappels', 'Reminders');
+  static String get rappelsTitle =>
+      _t('Ne rate plus une révision', 'Never miss a revision');
+  static String get rappelsBody => _t(
+    'Un rappel le matin pour planifier ta journée, un bilan le soir pour ne rien oublier.',
+    'A morning reminder to plan your day, an evening recap so nothing slips.',
+  );
+  static String get activerRappels => _t('Activer les rappels', 'Enable reminders');
+  static String get plusTard => _t('Plus tard', 'Later');
+
+  // Onboarding wizard — célébration
+  static String get bienvenueTitre =>
+      _t('Ton parcours commence', 'Your journey begins');
+  static String get bienvenueSubtitle => _t(
+    "Qu'Allah facilite ta révision et bénisse chaque verset.",
+    'May Allah ease your revision and bless every verse.',
+  );
 
   // Gamification — écran waouh
   static String get waouhIslamic => _t('ما شاء الله', 'ما شاء الله');
