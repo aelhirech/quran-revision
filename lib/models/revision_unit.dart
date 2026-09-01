@@ -24,4 +24,20 @@ class RevisionUnit {
     if (isWhole) return name;
     return '$name (v.$verseStart–$verseEnd)';
   }
+
+  /// Deux unités qui portent exactement la même plage de versets de la même
+  /// sourate représentent le même contenu à réviser, quelle que soit la façon
+  /// dont chacune a été produite (`isWhole` n'entre donc pas en jeu — c'est
+  /// une info sur l'origine de la plage, pas sur son contenu). Utilisé par
+  /// `RevisionEngine` pour la règle "pas deux fois la même plage dans une
+  /// même prière" (S6-B).
+  @override
+  bool operator ==(Object other) =>
+      other is RevisionUnit &&
+      other.sourate.id == sourate.id &&
+      other.verseStart == verseStart &&
+      other.verseEnd == verseEnd;
+
+  @override
+  int get hashCode => Object.hash(sourate.id, verseStart, verseEnd);
 }
