@@ -9,7 +9,7 @@ Instructions de travail pour ce dépôt. Complète `docs/DOCUMENTATION_TECHNIQUE
 Deux phrases suffisent pour piloter tout le cycle défini dans le Sprint Workflow du `CLAUDE.md` parent (`d:\Prog\CLAUDE.md`) — pas besoin de redétailler les étapes à chaque fois.
 
 ### « Début de sprint » (+ description de ce qu'on fait)
-1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` + `docs/CHANGELOG.md` 
+1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` + `docs/CHANGELOG.md` (+ `test/CLAUDE.md` si le travail touche `test/`).
 2. Créer la branche `feature/phase-X-sprintN`.
 3. Implémenter.
 
@@ -19,10 +19,10 @@ Exécuter dans l'ordre, sans redemander de confirmation entre chaque étape **sa
 2. `/code-review` — bugs de correction.
 3. Appliquer les fixes remontés par les deux passes.
 4. Mettre à jour `docs/CHANGELOG.md` (Fonctionnalités livrées + Backlog), et `docs/DOCUMENTATION_TECHNIQUE.md` si le sprint a touché `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajouté/supprimé un écran/service.
-5. Commit sur la feature branch (feature(sprint-N):)
-6. Vérifier que la demande utilisateur a bien été traitée dans son intégralité avec soit une modification de code soit un enregistrement dans docs/CHANGELOG.md après discussion avec l'utilisateur : (Pourquoi on la pas traité, décision manquantes, trop flou pour être implémenter etc)
-7. **Avant de merger et pusher `main`, si le sprint touche du code iOS : bumper le build number dans `pubspec.yaml`.** Depuis le 2026-08-31, `codemagic.yaml` ne calcule plus automatiquement le build number (le lookup App Store Connect/TestFlight s'est montré peu fiable — voir incident du même jour : collision `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` car le build 5 avait déjà été publié et rien ne répercutait le nombre utilisé dans `pubspec.yaml`). `pubspec.yaml` (`version: X.Y.Z+N`) est donc la **seule source de vérité** du build number iOS : `flutter build ipa` lit `+N` directement, sans override. Avant de pusher `main`, vérifier le dernier build number publié sur TestFlight/App Store Connect et bumper `+N` strictement au-dessus dans `pubspec.yaml`.
-8. **Avant de merger et pusher `main` : demander confirmation explicite.** Depuis le 2026-08-29, CI/CD Codemagic connectée à ce dépôt (`codemagic.yaml`, workflow `ios-testflight`) : un `git push` sur `main` déclenche automatiquement build + signing + **publication TestFlight**. La confirmation est donc requise pour une vraie raison opérationnelle (déclenchement automatique d'une distribution externe), pas seulement par prudence générale. Toutes les autres étapes ci-dessus peuvent s'enchaîner sans interruption ; celle-ci non.
+5. Commit sur la feature branch (`feat(sprint-N): ...` / `fix(sprint-N): ...`).
+6. Merge la feature branch dans `main`.
+7. **Avant de pusher `main`, si le sprint touche du code iOS : bumper le build number dans `pubspec.yaml`.** Depuis le 2026-08-31, `codemagic.yaml` ne calcule plus automatiquement le build number (le lookup App Store Connect/TestFlight s'est montré peu fiable — voir incident du même jour : collision `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` car le build 5 avait déjà été publié et rien ne répercutait le nombre utilisé dans `pubspec.yaml`). `pubspec.yaml` (`version: X.Y.Z+N`) est donc la **seule source de vérité** du build number iOS : `flutter build ipa` lit `+N` directement, sans override. Avant de pusher `main`, vérifier le dernier build number publié sur TestFlight/App Store Connect et bumper `+N` strictement au-dessus dans `pubspec.yaml`.
+8. **Avant de pusher `main` : demander confirmation explicite.** Depuis le 2026-08-29, CI/CD Codemagic connectée à ce dépôt (`codemagic.yaml`, workflow `ios-testflight`) : un `git push` sur `main` déclenche automatiquement build + signing + **publication TestFlight**. La confirmation est donc requise pour une vraie raison opérationnelle (déclenchement automatique d'une distribution externe), pas seulement par prudence générale. Toutes les autres étapes ci-dessus peuvent s'enchaîner sans interruption ; celle-ci non.
 
 ## Au début de chaque session
 1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` et `docs/CHANGELOG.md` en entier.
@@ -54,4 +54,4 @@ Projet solo, un seul développeur, Provider comme unique gestion d'état.
 - Mettre à jour `docs/CHANGELOG.md` (« Fonctionnalités livrées » + « Backlog ») à la fin de chaque sprint/tâche notable — c'est le seul historique persistant du projet, pas de ticket externe. Mettre à jour `docs/DOCUMENTATION_TECHNIQUE.md` en plus si le sprint touche `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajoute/supprime un écran/service.
 - `docs/CHANGELOG.md` est le **seul** fichier d'historique/backlog du projet — pas de fichier séparé (`README.md` racine et `bakclog-developper.txt` supprimés le 2026-08-29, fusionnés dans ce fichier). Toujours utiliser le chemin complet `docs/CHANGELOG.md` (pas `CHANGELOG.md` seul) pour éviter de recréer un fichier fantôme à la racine.
 - Si une règle métier change dans `RevisionEngine`/`FreshnessEngine` sans test de régression associé, le signaler explicitement à l'utilisateur plutôt que de laisser passer silencieusement (voir `test/CLAUDE.md`, couverture quasi nulle aujourd'hui).
-- Convention de commit : `feature/sprint-N: description` / `fix/sprint-N: description`.
+- Convention de commit : `feat(sprint-N): description` / `fix(sprint-N): description`.
