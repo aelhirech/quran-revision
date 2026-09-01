@@ -3,6 +3,7 @@ import 'dart:math';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
+import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 
@@ -11,12 +12,6 @@ const int _wordLimit = 150;
 
 /// Minimum de lignes Mushaf Madinah par rakaa pour qu'une subdivision ait du sens.
 const double _minLinesPerSlot = 5.0;
-
-/// Identité d'une unité pour la contrainte "pas deux fois la même plage
-/// de versets dans une même prière" (S6-B assouplie : la sourate peut
-/// revenir, tant que la plage exacte diffère).
-String _unitKey(RevisionUnit u) =>
-    '${u.sourate.id}_${u.verseStart}_${u.verseEnd}';
 
 /// Résultat de [RevisionEngine.selectDayUnits] — quelles unités composent le
 /// plan du jour, avant toute répartition en rakaas. Consommé à la fois par
@@ -51,18 +46,8 @@ class RevisionEngine {
         ));
       } else {
         final chunks = (rangeWords / _wordLimit).ceil();
-        final versesPerChunk = (sel.verseCount / chunks).ceil();
-        for (int i = 0; i < chunks; i++) {
-          final start = sel.verseStart + i * versesPerChunk;
-          final end = (start + versesPerChunk - 1).clamp(sel.verseStart, sel.verseEnd);
-          if (start > sel.verseEnd) break;
-          units.add(RevisionUnit(
-            sourate: sel.sourate,
-            verseStart: start,
-            verseEnd: end,
-            isWhole: false,
-          ));
-        }
+        units.addAll(
+            _splitRange(sel.sourate, sel.verseStart, sel.verseEnd, chunks));
       }
     }
     return units;
@@ -157,66 +142,20 @@ class RevisionEngine {
   }) {
     final totalSuratRakaas =
         prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
-
-    final expandedUnits = _expandToRakaas(units, totalSuratRakaas);
-    // Mutable copy for no-repeat swap.
-    final todayUnits = expandedUnits.toList();
+    final pool = _UnitPool(_expandToRakaas(units, totalSuratRakaas));
 
     final plan = <PrayerPlan>[];
-    int unitIndex = 0;
     for (final prayer in prayersAlone) {
+      pool.startPrayer();
       final rakaas = <RakaaAssignment>[];
-      final usedInPrayer = <String>{};
       for (int r = 1; r <= prayer.rakaas; r++) {
-        final canHaveSurat = r <= prayer.suratRakaas;
-        if (!canHaveSurat) {
+        if (r > prayer.suratRakaas) {
           // Rakaa silencieuse (au-delà du nombre de rakaas récitées à voix haute) —
           // c'est la seule situation où une rakaa reste vide.
           rakaas.add(RakaaAssignment(rakaaNumber: r));
           continue;
         }
-        // 1. Cherche la prochaine unité non encore consommée aujourd'hui et pas
-        //    déjà assignée dans cette prière (même exacte plage de versets).
-        int found = -1;
-        for (int k = unitIndex; k < todayUnits.length; k++) {
-          if (!usedInPrayer.contains(_unitKey(todayUnits[k]))) {
-            found = k;
-            break;
-          }
-        }
-        if (found != -1) {
-          // Swap to bring the non-duplicate forward. This may reorder units
-          // across prayers; within-prayer uniqueness takes priority over cycle order.
-          if (found != unitIndex) {
-            final tmp = todayUnits[unitIndex];
-            todayUnits[unitIndex] = todayUnits[found];
-            todayUnits[found] = tmp;
-          }
-          final unit = todayUnits[unitIndex];
-          rakaas.add(RakaaAssignment(rakaaNumber: r, unit: unit));
-          usedInPrayer.add(_unitKey(unit));
-          unitIndex++;
-          continue;
-        }
-        // 2. Plus rien de neuf à consommer : réutilise une unité déjà assignée
-        //    ailleurs aujourd'hui mais pas encore dans cette prière — mieux
-        //    qu'une rakaa vide, et ce n'est pas une répétition dans la prière.
-        RevisionUnit? reuse;
-        for (final u in todayUnits) {
-          if (!usedInPrayer.contains(_unitKey(u))) {
-            reuse = u;
-            break;
-          }
-        }
-        // 3. Dernier recours : tout a déjà été récité dans cette prière —
-        //    on répète plutôt que de laisser la rakaa vide.
-        reuse ??= todayUnits.isNotEmpty ? todayUnits.first : null;
-        if (reuse != null) {
-          rakaas.add(RakaaAssignment(rakaaNumber: r, unit: reuse));
-          usedInPrayer.add(_unitKey(reuse));
-        } else {
-          rakaas.add(RakaaAssignment(rakaaNumber: r));
-        }
+        rakaas.add(RakaaAssignment(rakaaNumber: r, unit: pool.next()));
       }
       plan.add(PrayerPlan(prayer: prayer, rakaas: rakaas));
     }
@@ -262,53 +201,66 @@ class RevisionEngine {
   /// Subdivise les unités pour remplir [targetCount] rakaas.
   ///
   /// Règles :
-  /// 1. Un verset seul ou une sous-unité < 3 lignes n'est pas subdivisé davantage.
+  /// 1. Un verset seul ou une sous-unité < [_minLinesPerSlot] lignes n'est pas subdivisé davantage.
   /// 2. Si après expansion on a encore moins d'unités que de rakaas,
   ///    les unités sont répétées cycliquement (plutôt que laisser des rakaas vides).
   static List<RevisionUnit> _expandToRakaas(
       List<RevisionUnit> units, int targetCount) {
     if (units.isEmpty || units.length >= targetCount) return units;
 
-    final result = <RevisionUnit>[];
+    // Répartit targetCount rakaas entre les unités, le plus également
+    // possible, et matérialise chacune dans la foulée (une seule passe).
+    final materialized = <RevisionUnit>[];
     int slotsLeft = targetCount;
     int unitsLeft = units.length;
-
     for (final unit in units) {
       final slots = (slotsLeft / unitsLeft).round().clamp(1, slotsLeft);
       slotsLeft -= slots;
       unitsLeft--;
-
-      final canSplit = slots > 1 &&
-          unit.verseCount > 1 &&
-          unit.estimatedLines / slots >= _minLinesPerSlot;
-
-      if (!canSplit) {
-        result.add(unit);
-      } else {
-        final versesPerSlot = (unit.verseCount / slots).ceil();
-        for (int i = 0; i < slots; i++) {
-          final start = unit.verseStart + i * versesPerSlot;
-          if (start > unit.verseEnd) break;
-          final end = (start + versesPerSlot - 1).clamp(unit.verseStart, unit.verseEnd);
-          result.add(RevisionUnit(
-            sourate: unit.sourate,
-            verseStart: start,
-            verseEnd: end,
-            isWhole: false,
-          ));
-        }
-      }
+      materialized.addAll(_materialize(unit, slots));
     }
+    return _padCyclically(materialized, targetCount);
+  }
 
-    // Répétition cyclique si le nombre de rakaas dépasse les unités disponibles.
-    if (result.isNotEmpty && result.length < targetCount) {
-      final base = [...result];
-      while (result.length < targetCount) {
-        result.add(base[result.length % base.length]);
-      }
+  /// Découpe [unit] en [slots] plages de versets contiguës, ou la garde
+  /// entière si la subdivision n'a pas de sens (verset unique, ou moins de
+  /// [_minLinesPerSlot] lignes par plage résultante).
+  static List<RevisionUnit> _materialize(RevisionUnit unit, int slots) {
+    final canSplit = slots > 1 &&
+        unit.verseCount > 1 &&
+        unit.estimatedLines / slots >= _minLinesPerSlot;
+    if (!canSplit) return [unit];
+    return _splitRange(unit.sourate, unit.verseStart, unit.verseEnd, slots);
+  }
+
+  /// Découpe la plage [start]–[end] de [sourate] en [count] sous-plages
+  /// contiguës (la dernière bornée à [end]) — logique partagée par
+  /// [buildUnits] (découpage par limite de mots) et [_materialize]
+  /// (subdivision en rakaas).
+  static List<RevisionUnit> _splitRange(
+      Sourate sourate, int start, int end, int count) {
+    final versesPerPart = ((end - start + 1) / count).ceil();
+    final result = <RevisionUnit>[];
+    for (int i = 0; i < count; i++) {
+      final s = start + i * versesPerPart;
+      if (s > end) break;
+      final e = (s + versesPerPart - 1).clamp(start, end);
+      result.add(RevisionUnit(
+        sourate: sourate,
+        verseStart: s,
+        verseEnd: e,
+        isWhole: false,
+      ));
     }
-
     return result;
+  }
+
+  /// Répète cycliquement [units] jusqu'à atteindre [targetCount] — jamais de
+  /// rakaa vide faute d'unité fraîche à proposer (répétition cyclique).
+  static List<RevisionUnit> _padCyclically(
+      List<RevisionUnit> units, int targetCount) {
+    if (units.isEmpty || units.length >= targetCount) return units;
+    return List.generate(targetCount, (i) => units[i % units.length]);
   }
 
   static int advanceCycle({
@@ -317,5 +269,53 @@ class RevisionEngine {
     required int cycleTotal,
   }) {
     return (currentPosition + unitsCompleted) % cycleTotal;
+  }
+}
+
+/// Distribue une liste d'unités déjà expansées (une par rakaa cible) rakaa
+/// par rakaa, en respectant la règle "pas deux fois la même plage dans une
+/// même prière" (S6-B assouplie) à trois niveaux de priorité :
+/// 1. la prochaine unité pas encore consommée aujourd'hui et pas déjà
+///    utilisée dans cette prière ;
+/// 2. à défaut, une unité déjà consommée ailleurs aujourd'hui mais pas
+///    encore dans cette prière ;
+/// 3. en dernier recours, on répète — jamais de rakaa vide pour cette raison.
+///
+/// Le pool possède lui-même l'ensemble "déjà utilisé dans cette prière" —
+/// [startPrayer] le réinitialise, [next] le met à jour — pour qu'aucun
+/// appelant ne puisse casser la règle en oubliant de le faire.
+class _UnitPool {
+  _UnitPool(List<RevisionUnit> units) : _units = units.toList();
+
+  final List<RevisionUnit> _units;
+  int _consumed = 0;
+  Set<RevisionUnit> _usedInPrayer = {};
+
+  void startPrayer() => _usedInPrayer = {};
+
+  RevisionUnit? next() {
+    if (_units.isEmpty) return null;
+
+    for (int k = _consumed; k < _units.length; k++) {
+      if (!_usedInPrayer.contains(_units[k])) {
+        if (k != _consumed) {
+          final tmp = _units[_consumed];
+          _units[_consumed] = _units[k];
+          _units[k] = tmp;
+        }
+        final unit = _units[_consumed++];
+        _usedInPrayer.add(unit);
+        return unit;
+      }
+    }
+    for (final u in _units) {
+      if (!_usedInPrayer.contains(u)) {
+        _usedInPrayer.add(u);
+        return u;
+      }
+    }
+    final unit = _units.first;
+    _usedInPrayer.add(unit);
+    return unit;
   }
 }
