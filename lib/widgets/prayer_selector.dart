@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_rules.dart';
 import '../core/prayer_l10n.dart';
 import '../core/strings.dart';
 import '../models/prayer.dart';
@@ -117,7 +118,7 @@ class PrayerSelector extends StatelessWidget {
               ),
               _stepBtn(
                 icon: Icons.add,
-                enabled: tahiyyatCount < 5,
+                enabled: tahiyyatCount < AppRules.maxTahiyyatCount,
                 color: isActive ? cs.onPrimary : cs.onSurface,
                 onTap: () => onTahiyyatCountChanged(tahiyyatCount + 1),
               ),

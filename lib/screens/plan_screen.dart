@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_rules.dart';
 import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
@@ -468,7 +469,7 @@ class _StreakBadge extends StatelessWidget {
     String message;
     if (streak == 1) {
       message = S.premierJour;
-    } else if (streak == 7 || streak == 30 || streak == 100) {
+    } else if (AppRules.streakMilestones.contains(streak)) {
       message = S.nouveauPalier;
     } else {
       message = S.streakJours(streak);
@@ -558,7 +559,13 @@ class _CommitmentSheetState extends State<_CommitmentSheet> {
             OutlinedButton.icon(
               onPressed: () => setState(() {
                 _showPartial = true;
-                _partialN = (widget.totalRakaas / 2).round().clamp(1, widget.totalRakaas);
+                // clamp(1, totalRakaas) exigerait totalRakaas >= 1 : un plan
+                // sans aucune unité assignée (aucune sourate sélectionnée,
+                // cf. RevisionEngine) donnerait un intervalle 1..0 invalide.
+                final maxRakaas = widget.totalRakaas > 0 ? widget.totalRakaas : 1;
+                _partialN = (widget.totalRakaas * AppRules.defaultPartialFraction)
+                    .round()
+                    .clamp(1, maxRakaas);
               }),
               icon: const Icon(Icons.remove_circle_outline),
               label: Text(S.unePart,
