@@ -9,9 +9,7 @@ import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
 import '../services/ayah_facts_service.dart';
-import '../services/verse_service.dart';
 import '../state/app_state.dart';
-import '../widgets/arabic_verse_text.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/primary_cta_button.dart';
 
@@ -204,15 +202,6 @@ class _PlanScreenState extends State<PlanScreen> {
                   tooltip: S.modifierPlan,
                   onPressed: () => _confirmChangePlan(context),
                 ),
-              IconButton(
-                icon: const Icon(Icons.mosque_outlined),
-                tooltip: S.focusMosquee,
-                onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(
-                    builder: (_) => _FocusMosqueeScreen(session: widget.session),
-                  ),
-                ),
-              ),
             ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(4),
@@ -679,89 +668,5 @@ class _CommitmentSheetState extends State<_CommitmentSheet> {
         ],
       ),
     ).animate().slideY(begin: 0.2, duration: 300.ms, curve: Curves.easeOut);
-  }
-}
-
-// ─── Mode focus mosquée ───────────────────────────────────────────────────────
-
-class _FocusMosqueeScreen extends StatelessWidget {
-  final DailySession session;
-  const _FocusMosqueeScreen({required this.session});
-
-  List<RevisionUnit> get _uniqueUnits {
-    final seen = <String>{};
-    final result = <RevisionUnit>[];
-    for (final pp in session.plan) {
-      for (final r in pp.rakaas) {
-        if (r.unit != null && seen.add(r.unit!.label)) {
-          result.add(r.unit!);
-        }
-      }
-    }
-    return result;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final units = _uniqueUnits;
-    final riwaya = context.watch<AppState>().riwaya;
-    return Scaffold(
-      backgroundColor: const Color(0xFF0E1410),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
-              itemCount: units.length,
-              separatorBuilder: (_, _) => Divider(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  height: 32),
-              itemBuilder: (_, i) {
-                final unit = units[i];
-                final verses = VerseService.versesForUnit(unit, riwaya: riwaya);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      unit.sourate.nameAr,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
-                          fontSize: 13,
-                          letterSpacing: 0.5),
-                    ),
-                    const SizedBox(height: 14),
-                    ArabicVerseText(
-                      text: verses.join('  '),
-                      fontSize: 24,
-                      height: 2.2,
-                      color: const Color(0xFFF2F7F3),
-                    ),
-                  ],
-                );
-              },
-            ),
-            Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, size: 18),
-                  label: Text(S.quitterFocus),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF86E0A8),
-                    foregroundColor: const Color(0xFF0E1410),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

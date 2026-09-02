@@ -171,10 +171,6 @@ class S {
   static String get combienRakaas => _t('Combien de rakaas ?', 'How many rakaas?');
   static String get valider => _t('Valider', 'Confirm');
 
-  // Mode focus mosquée
-  static String get focusMosquee => _t('Mode mosquée', 'Mosque mode');
-  static String get quitterFocus => _t('Quitter', 'Exit');
-
   // Notifications
   static String get notifMatinTitle => _t('Révision du Coran 🕌', 'Quran Revision 🕌');
   static String get notifMatinBody => _t('Planifie ta révision du jour', 'Plan your daily revision');
