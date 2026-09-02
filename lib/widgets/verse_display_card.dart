@@ -41,6 +41,8 @@ class VerseDisplayCard extends StatelessWidget {
       );
     }
 
+    if (verses.isEmpty) return const SizedBox.shrink();
+
     final lastVerseKey = verses.keys.last;
     return GestureDetector(
       onTap: onToggle,
