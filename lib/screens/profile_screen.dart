@@ -332,28 +332,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(S.reviserEn,
                     style: TextStyle(color: cs.onPrimaryContainer)),
                 const SizedBox(width: 8),
-                _paceByLines
-                    ? PresetDropdown(
-                        value: _targetLinesPerDay,
-                        presets: linesPerDayPresets,
-                        labelBuilder: S.lignesParJourValeur,
-                        customDialogTitle: S.lignesCustomTitle,
-                        customSuffix: S.lignesSuffix,
-                        color: cs.onPrimaryContainer,
-                        dropdownColor: cs.primaryContainer,
-                        onChanged: (v) =>
-                            setState(() => _targetLinesPerDay = v),
-                      )
-                    : PresetDropdown(
-                        value: _revisionDays,
-                        presets: durationPresets,
-                        labelBuilder: S.joursDuration,
-                        customDialogTitle: S.dureeCustomTitle,
-                        customSuffix: S.joursSuffix,
-                        color: cs.onPrimaryContainer,
-                        dropdownColor: cs.primaryContainer,
-                        onChanged: (v) => setState(() => _revisionDays = v),
-                      ),
+                // Non-interactif : le rythme s'édite uniquement via le
+                // bouton "Rythme" de l'AppBar (_showDurationDialog) — deux
+                // façons d'éditer le même réglage sur cette page créait une
+                // redondance non harmonisée (retour TestFlight 2026-09-01).
+                Text(
+                  _paceByLines
+                      ? S.lignesParJourValeur(_targetLinesPerDay)
+                      : S.joursDuration(_revisionDays),
+                  style: TextStyle(
+                      color: cs.onPrimaryContainer, fontWeight: FontWeight.w600),
+                ),
                 const Spacer(),
                 TextButton.icon(
                   onPressed: () => setState(() {

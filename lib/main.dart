@@ -10,6 +10,7 @@ import 'services/hafs_service.dart';
 import 'services/hizb_metadata_service.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
+import 'services/surah_metadata_service.dart';
 import 'services/warsh_service.dart';
 import 'state/app_state.dart';
 
@@ -36,20 +37,31 @@ Future<void> _initHizb() async {
   }
 }
 
+/// Purement cosmétique (affichage de la Bismillah) — même garde qu'`_initHizb`.
+Future<void> _initSurahMeta() async {
+  try {
+    await SurahMetadataService.initialize();
+  } catch (_) {
+    // SurahMetadataService.bismillahPre retombe sur false si jamais initialisé.
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.initialize();
   // Chargements d'assets indépendants — démarrés en parallèle.
   final hafsF = HafsService.initialize();
   final hizbF = _initHizb();
+  final surahMetaF = _initSurahMeta();
   final warshAvailableF = _initWarsh();
   await hafsF;
   await hizbF;
+  await surahMetaF;
   final warshAvailable = await warshAvailableF;
 
   // Migration one-shot des installations pré-parcours-par-riwaya (config,
-  // cycle, sessions, pauses, cases cochées) vers le parcours Hafs — doit
-  // tourner avant toute lecture ci-dessous.
+  // cycle, pauses) vers le parcours Hafs — doit tourner avant toute lecture
+  // ci-dessous.
   await StorageService.migrateLegacyTrackData();
 
   // La riwaya active doit être connue avant de charger le reste : chaque
@@ -64,16 +76,12 @@ void main() async {
   final localeF = StorageService.loadLocale();
   final cyclePositionF = StorageService.loadCyclePosition(riwaya);
   final pauseDatesF = StorageService.loadPauseDates(riwaya);
-  // loadCheckedRakaas purge elle-même la clé si sa date ne correspond plus
-  // à aujourd'hui — pas besoin de dupliquer cette vérification ici.
-  final checkedRakaasF = StorageService.loadCheckedRakaas(riwaya);
   final hasSeenTourF = StorageService.hasSeenTour();
 
   final config = await configF;
   final locale = await localeF;
   final cyclePosition = await cyclePositionF;
   final pauseDates = await pauseDatesF;
-  final checkedRakaas = await checkedRakaasF;
   final hasSeenTour = await hasSeenTourF;
   S.locale = locale;
   runApp(QuranRevisionApp(
@@ -82,7 +90,6 @@ void main() async {
     warshAvailable: warshAvailable,
     initialCyclePosition: cyclePosition,
     initialPauseDates: pauseDates,
-    initialCheckedRakaas: checkedRakaas,
     initialHasSeenTour: hasSeenTour,
   ));
 }
@@ -93,7 +100,6 @@ class QuranRevisionApp extends StatelessWidget {
   final bool warshAvailable;
   final int initialCyclePosition;
   final Set<String> initialPauseDates;
-  final Map<int, Set<int>> initialCheckedRakaas;
   final bool initialHasSeenTour;
 
   const QuranRevisionApp({
@@ -103,7 +109,6 @@ class QuranRevisionApp extends StatelessWidget {
     this.warshAvailable = true,
     this.initialCyclePosition = 0,
     this.initialPauseDates = const {},
-    this.initialCheckedRakaas = const {},
     this.initialHasSeenTour = false,
   });
 
@@ -118,7 +123,6 @@ class QuranRevisionApp extends StatelessWidget {
         initialHasSeenTour: initialHasSeenTour,
         initialCyclePosition: initialCyclePosition,
         initialPauseDates: initialPauseDates,
-        initialCheckedRakaas: initialCheckedRakaas,
       ),
       child: const _AppRoot(),
     );

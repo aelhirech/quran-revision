@@ -3,9 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../models/sourate_selection.dart';
+import '../services/surah_metadata_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
 import '../widgets/arabic_verse_text.dart';
+import '../widgets/bismillah_line.dart';
 import '../widgets/ornamental_divider.dart';
 
 /// Lecture plein texte d'une sourate (ou d'une plage de versets sélectionnée),
@@ -45,6 +47,8 @@ class SurahReaderScreen extends StatelessWidget {
             const SizedBox(height: 12),
             const OrnamentalDivider(),
             const SizedBox(height: 20),
+            if (selection.verseStart == 1 && SurahMetadataService.bismillahPre(s.id))
+              const BismillahLine(),
             ArabicVerseText(
               text: verses.join('  '),
               fontSize: 24,

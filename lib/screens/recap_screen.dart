@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/riwaya.dart';
@@ -51,7 +50,7 @@ class _RecapScreenState extends State<RecapScreen> {
     // Démarrage en parallèle, await typé sur chacun — évite les casts dynamiques
     final streakF = AyahFactsService.currentStreak(pauseDates: pauseDates, riwaya: riwaya);
     final totalF = AyahFactsService.totalActiveDays(riwaya: riwaya);
-    final countsF = AyahFactsService.recentDayVerseCounts(limit: 14, riwaya: riwaya);
+    final statsF = AyahFactsService.recentDayVerseStats(limit: 14, riwaya: riwaya);
     final progressF = AyahFactsService.loadMainLearningProgress(
         riwaya: riwaya, sourates: state.sourates);
     // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
@@ -59,20 +58,18 @@ class _RecapScreenState extends State<RecapScreen> {
     final freshnessF = state.refreshFreshness(notify: false);
     final streak = await streakF;
     final total = await totalF;
-    final counts = await countsF;
+    final stats = await statsF;
     final progress = await progressF;
     await freshnessF;
 
-    // Dénominateur en échelle "versets" (comme le numérateur, désormais issu
-    // d'ayah_facts) — total des versets sélectionnés pour la révision, pas le
-    // nombre d'unités du cycle (échelles différentes).
-    final totalVerses = state.config?.totalSelectedVerses ?? 0;
+    // totalUnits = versets proposés ce jour-là (pas le total du cycle) —
+    // sinon le % quotidien reste écrasé près de 0 (bug retour TestFlight).
     final sessions = [
-      for (final entry in counts.entries)
+      for (final entry in stats.entries)
         SessionRecord(
           date: DateTime.parse(entry.key),
-          unitsCompleted: entry.value,
-          totalUnits: totalVerses,
+          unitsCompleted: entry.value.done,
+          totalUnits: entry.value.total,
           prayers: const [],
         ),
     ]..sort((a, b) => b.date.compareTo(a.date));
@@ -96,15 +93,7 @@ class _RecapScreenState extends State<RecapScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final units = RevisionEngine.buildUnits(state.config!.selections);
-    final total = units.length;
-    final pos = state.cyclePosition % (total == 0 ? 1 : total);
-    final progress = total == 0 ? 0.0 : pos / total;
-    final daysElapsed =
-        DateTime.now().difference(state.config!.startDate).inDays;
-    final effectiveDays = state.adaptiveCycleDays ??
-        state.config!.effectiveDays(state.config!.totalSelectedVerses);
-    final daysRemaining = (effectiveDays - daysElapsed).clamp(0, 9999);
+    final cycle = state.cycleSummary;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -126,11 +115,12 @@ class _RecapScreenState extends State<RecapScreen> {
                 ),
                 StreakCard(streak: _streak, totalDays: _totalDays),
                 const SizedBox(height: 16),
-                _cycleCard(cs, progress, pos, total, daysRemaining),
+                _cycleCard(
+                    cs, cycle.progress, cycle.pos, cycle.total, cycle.daysRemaining),
                 const SizedBox(height: 16),
                 _repartitionCard(cs, state),
                 const SizedBox(height: 16),
-                _statsRow(cs, state, units.length),
+                _statsRow(cs, state, cycle.total),
                 const SizedBox(height: 16),
                 HistoryCard(sessions: _sessions),
                 const SizedBox(height: 16),

@@ -7,14 +7,11 @@ import '../models/learning_progress.dart';
 import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
-import '../models/student_profile.dart';
 import '../services/ayah_facts_service.dart';
-import '../services/student_service.dart';
 import '../state/app_state.dart';
 import '../widgets/daily_verse_info_card.dart';
 import '../widgets/learning_progress_card.dart';
 import '../widgets/sourate_picker_sheet.dart';
-import '../widgets/student_profile_bar.dart';
 import 'learn_surah_screen.dart';
 
 class LearnScreen extends StatefulWidget {
@@ -26,8 +23,6 @@ class LearnScreen extends StatefulWidget {
 
 class _LearnScreenState extends State<LearnScreen> {
   List<LearningProgress> _inProgress = [];
-  List<StudentProfile> _students = [];
-  String? _activeStudentId; // null = profil principal
   bool _loading = true;
   Riwaya? _lastRiwaya;
 
@@ -45,17 +40,14 @@ class _LearnScreenState extends State<LearnScreen> {
     _lastRiwaya = riwaya;
     // Le premier appel suit juste initState (déjà couvert par _load() ci-
     // dessus) — seul un changement de riwaya *après* le montage doit
-    // recharger. La progression des profils élèves n'est pas concernée
-    // (un seul parcours, non séparé par riwaya, voir StudentService).
-    if (!isFirstCall && _activeStudentId == null) _reload();
+    // recharger.
+    if (!isFirstCall) _reload();
   }
 
   Future<void> _load() async {
-    final students = await StudentService.loadProfiles();
     final items = await _loadProgress();
     if (mounted) {
       setState(() {
-        _students = students;
         _inProgress = items;
         _loading = false;
       });
@@ -63,12 +55,9 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   Future<List<LearningProgress>> _loadProgress() async {
-    if (_activeStudentId == null) {
-      final state = context.read<AppState>();
-      return AyahFactsService.loadMainLearningProgress(
-          riwaya: state.riwaya, sourates: state.sourates);
-    }
-    return StudentService.loadProgress(_activeStudentId!);
+    final state = context.read<AppState>();
+    return AyahFactsService.loadMainLearningProgress(
+        riwaya: state.riwaya, sourates: state.sourates);
   }
 
   Future<void> _reload() async {
@@ -76,92 +65,14 @@ class _LearnScreenState extends State<LearnScreen> {
     if (mounted) setState(() => _inProgress = items);
   }
 
-  Future<void> _switchProfile(String? id) async {
-    setState(() {
-      _activeStudentId = id;
-      _loading = true;
-    });
-    final items = await _loadProgress();
-    if (mounted) setState(() { _inProgress = items; _loading = false; });
-  }
-
-  Future<void> _addStudent() async {
-    final name = await _showNameDialog();
-    if (name == null || name.trim().isEmpty) return;
-    final profile = await StudentService.addProfile(name.trim());
-    if (mounted) setState(() => _students = [..._students, profile]);
-    await _switchProfile(profile.id);
-  }
-
-  Future<void> _deleteStudent(StudentProfile p) async {
-    final cs = Theme.of(context).colorScheme;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(S.supprimerEleve),
-        content: Text('${S.supprimerEleveConfirm} ${p.name} ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(S.annuler),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: cs.error),
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(S.supprimer),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await StudentService.removeProfile(p.id);
-    final students = await StudentService.loadProfiles();
-    if (!mounted) return;
-    setState(() => _students = students);
-    if (_activeStudentId == p.id) await _switchProfile(null);
-  }
-
-  Future<String?> _showNameDialog() async {
-    final controller = TextEditingController();
-    try {
-      return await showDialog<String>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text(S.nomEleve),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(hintText: S.ajouterEleveHint),
-            textCapitalization: TextCapitalization.words,
-            onSubmitted: (v) => Navigator.pop(context, v),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(S.annuler)),
-            FilledButton(
-                onPressed: () => Navigator.pop(context, controller.text),
-                child: Text(S.ajouter)),
-          ],
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
-  }
-
   Future<void> _openSourate(LearningProgress p) async {
     final result = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-        builder: (_) => LearnSurahScreen(
-          progress: p,
-          onChanged: _reload,
-          studentId: _activeStudentId,
-        ),
+        builder: (_) => LearnSurahScreen(progress: p, onChanged: _reload),
       ),
     );
-    if (result == 'add_to_revision' && mounted && _activeStudentId == null) {
+    if (result == 'add_to_revision' && mounted) {
       _addToRevision(p.sourate);
     }
     _reload();
@@ -193,15 +104,10 @@ class _LearnScreenState extends State<LearnScreen> {
 
   Future<void> _startNewSourate() async {
     final inProgressIds = _inProgress.map((p) => p.sourate.id).toSet();
-    final learnedIds = _activeStudentId == null
-        ? (context.read<AppState>().config?.selections
-                .map((s) => s.sourate.id)
-                .toSet() ??
-            {})
-        : <int>{};
-    final available = context
-        .read<AppState>()
-        .sourates
+    final state = context.read<AppState>();
+    final learnedIds =
+        state.config?.selections.map((s) => s.sourate.id).toSet() ?? {};
+    final available = state.sourates
         .where((s) => !inProgressIds.contains(s.id) && !learnedIds.contains(s.id))
         .toList();
     if (available.isEmpty) return;
@@ -215,13 +121,11 @@ class _LearnScreenState extends State<LearnScreen> {
     if (picked == null) return;
 
     final p = LearningProgress.start(picked);
-    if (_activeStudentId != null) {
-      await StudentService.upsertProgress(_activeStudentId!, p);
-    }
-    // Profil principal : rien à persister tant qu'aucun verset n'est encore
-    // marqué appris (ayah_facts n'a pas de notion de "sourate démarrée à 0
-    // verset") — l'écran de pratique s'ouvre quand même sur `p` en mémoire ;
-    // `learnVerse` écrira le premier fait au premier verset marqué.
+    // Verset 1 visé (reach=0) persisté dès le démarrage, pas seulement au
+    // premier verset réellement appris — sinon la sourate disparaît de "en
+    // cours" si l'utilisateur quitte l'écran de pratique avant de marquer un
+    // premier bloc (retour TestFlight du 2026-09-01).
+    await AyahFactsService.startLearning(picked.id, state.riwaya);
     await _reload();
     if (mounted) _openSourate(p);
   }
@@ -246,11 +150,7 @@ class _LearnScreenState extends State<LearnScreen> {
       ),
     );
     if (confirmed == true) {
-      if (_activeStudentId == null) {
-        await AyahFactsService.deleteLearnFacts(p.sourate.id, riwaya);
-      } else {
-        await StudentService.removeProgress(_activeStudentId!, p.sourate.id);
-      }
+      await AyahFactsService.deleteLearnFacts(p.sourate.id, riwaya);
       await _reload();
     }
   }
@@ -260,41 +160,17 @@ class _LearnScreenState extends State<LearnScreen> {
     // Watch pour rebuildler quand la locale change (titre et strings)
     context.watch<AppState>();
     final cs = Theme.of(context).colorScheme;
-    final studentName = _activeStudentId == null
-        ? null
-        : _students.where((s) => s.id == _activeStudentId).firstOrNull?.name;
 
     return Scaffold(
       backgroundColor: cs.surface,
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: Text(studentName != null
-                ? '${S.apprentissage} · $studentName'
-                : S.apprentissage),
+            title: Text(S.apprentissage),
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             centerTitle: false,
           ),
-          SliverToBoxAdapter(
-            child: StudentProfileBar(
-              profiles: _students,
-              activeId: _activeStudentId,
-              onSelect: _switchProfile,
-              onAdd: _addStudent,
-              onDelete: _deleteStudent,
-            ),
-          ),
-          if (_students.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 16, 0),
-                child: Text(S.longPressEleveHint,
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurfaceVariant.withValues(alpha: 0.55))),
-              ),
-            ),
           const SliverToBoxAdapter(child: SizedBox(height: 12)),
           if (_loading)
             const SliverFillRemaining(
@@ -304,10 +180,8 @@ class _LearnScreenState extends State<LearnScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  if (_activeStudentId == null) ...[
-                    const DailyVerseInfoCard(),
-                    const SizedBox(height: 20),
-                  ],
+                  const DailyVerseInfoCard(),
+                  const SizedBox(height: 20),
                   if (_inProgress.isEmpty)
                     _emptyState(cs)
                   else ...[

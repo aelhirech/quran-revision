@@ -9,9 +9,7 @@ import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
 import '../services/ayah_facts_service.dart';
-import '../services/verse_service.dart';
 import '../state/app_state.dart';
-import '../widgets/arabic_verse_text.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/primary_cta_button.dart';
 
@@ -38,8 +36,42 @@ class PlanScreen extends StatefulWidget {
 }
 
 class _PlanScreenState extends State<PlanScreen> {
-  Map<int, Set<int>> _checkedOf(BuildContext context) =>
-      context.watch<AppState>().checkedRakaas;
+  // Chargé une fois puis tenu à jour localement par [_toggle] — pas de
+  // `context.watch`, donc pas réactif à une écriture `ayah_facts` faite
+  // ailleurs pour aujourd'hui. Sûr aujourd'hui car DayPlanTab n'affiche
+  // jamais PlanScreen en même temps qu'un autre écran écrivant `reach`
+  // (CheckOutScreen ne s'ouvre que sur un jour STRICTEMENT antérieur —
+  // `AyahFactsService.pendingDate` — jamais aujourd'hui ; HomeScreen n'est
+  // affiché que quand `todaySession == null`, donc jamais en même temps que
+  // PlanScreen) — à revoir si un futur écran gagne la capacité d'écrire
+  // `reach` pour aujourd'hui pendant que PlanScreen reste monté.
+  Map<RevisionUnit, bool>? _reached;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final reached =
+        await context.read<AppState>().reachStatusFor(_allCoveredUnits);
+    if (!mounted) return;
+    setState(() => _reached = reached);
+  }
+
+  Map<int, Set<int>> _checkedByPrayer() {
+    final reached = _reached ?? const {};
+    final result = <int, Set<int>>{};
+    for (int pi = 0; pi < widget.session.plan.length; pi++) {
+      final pp = widget.session.plan[pi];
+      result[pi] = {
+        for (final r in pp.rakaas)
+          if (r.unit != null && reached[r.unit] == true) r.rakaaNumber,
+      };
+    }
+    return result;
+  }
 
   bool _allDoneOf(Map<int, Set<int>> checkedByPrayer) {
     for (int pi = 0; pi < widget.session.plan.length; pi++) {
@@ -124,14 +156,30 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
-  void _toggle(int prayerIndex, int rakaaNumber) {
-    context.read<AppState>().toggleChecked(prayerIndex, rakaaNumber);
+  Future<void> _toggle(int prayerIndex, int rakaaNumber) async {
+    final pp = widget.session.plan[prayerIndex];
+    final unit = pp.rakaas.firstWhere((r) => r.rakaaNumber == rakaaNumber).unit;
+    if (unit == null) return;
+    final newReach = !((_reached ?? const {})[unit] ?? false);
+    final appState = context.read<AppState>();
+    // Coche affichée avant l'écriture disque (comme l'ancien
+    // `toggleChecked`) pour que le tap reste instantané — `setReach` est une
+    // affectation directe (pas de lecture-modification), la valeur locale
+    // est donc déjà celle qui sera écrite.
+    setState(() => _reached = {...?_reached, unit: newReach});
+    await appState.toggleTodayUnitReach(unit, newReach);
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final checkedByPrayer = _checkedOf(context);
+    if (_reached == null) {
+      return Scaffold(
+        backgroundColor: cs.surface,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    final checkedByPrayer = _checkedByPrayer();
     final allDone = _allDoneOf(checkedByPrayer);
     final checkedCount = _checkedCountOf(checkedByPrayer);
     final progress = _totalRakaasWithUnit == 0
@@ -147,23 +195,13 @@ class _PlanScreenState extends State<PlanScreen> {
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             pinned: true,
-            leading: widget.onChangePlan != null
-                ? IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    tooltip: S.modifierPlan,
-                    onPressed: () => _confirmChangePlan(context),
-                  )
-                : null,
             actions: [
-              IconButton(
-                icon: const Icon(Icons.mosque_outlined),
-                tooltip: S.focusMosquee,
-                onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(
-                    builder: (_) => _FocusMosqueeScreen(session: widget.session),
-                  ),
+              if (widget.onChangePlan != null)
+                IconButton(
+                  icon: const Icon(Icons.tune),
+                  tooltip: S.modifierPlan,
+                  onPressed: () => _confirmChangePlan(context),
                 ),
-              ),
             ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(4),
@@ -630,89 +668,5 @@ class _CommitmentSheetState extends State<_CommitmentSheet> {
         ],
       ),
     ).animate().slideY(begin: 0.2, duration: 300.ms, curve: Curves.easeOut);
-  }
-}
-
-// ─── Mode focus mosquée ───────────────────────────────────────────────────────
-
-class _FocusMosqueeScreen extends StatelessWidget {
-  final DailySession session;
-  const _FocusMosqueeScreen({required this.session});
-
-  List<RevisionUnit> get _uniqueUnits {
-    final seen = <String>{};
-    final result = <RevisionUnit>[];
-    for (final pp in session.plan) {
-      for (final r in pp.rakaas) {
-        if (r.unit != null && seen.add(r.unit!.label)) {
-          result.add(r.unit!);
-        }
-      }
-    }
-    return result;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final units = _uniqueUnits;
-    final riwaya = context.watch<AppState>().riwaya;
-    return Scaffold(
-      backgroundColor: const Color(0xFF0E1410),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
-              itemCount: units.length,
-              separatorBuilder: (_, _) => Divider(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  height: 32),
-              itemBuilder: (_, i) {
-                final unit = units[i];
-                final verses = VerseService.versesForUnit(unit, riwaya: riwaya);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      unit.sourate.nameAr,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
-                          fontSize: 13,
-                          letterSpacing: 0.5),
-                    ),
-                    const SizedBox(height: 14),
-                    ArabicVerseText(
-                      text: verses.join('  '),
-                      fontSize: 24,
-                      height: 2.2,
-                      color: const Color(0xFFF2F7F3),
-                    ),
-                  ],
-                );
-              },
-            ),
-            Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, size: 18),
-                  label: Text(S.quitterFocus),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF86E0A8),
-                    foregroundColor: const Color(0xFF0E1410),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
