@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/hadith_data.dart';
-import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/prayer.dart';
 import '../models/riwaya.dart';
@@ -105,15 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final units = RevisionEngine.buildUnits(state.config!.selections);
-    final cycleTotal = units.length;
-    final pos = state.cyclePosition % (cycleTotal == 0 ? 1 : cycleTotal);
-    final progress = cycleTotal == 0 ? 0.0 : pos / cycleTotal;
-    final daysElapsed =
-        DateTime.now().difference(state.config!.startDate).inDays;
-    final effectiveDays = state.adaptiveCycleDays ??
-        state.config!.effectiveDays(state.config!.totalSelectedVerses);
-    final daysRemaining = (effectiveDays - daysElapsed).clamp(0, 9999);
+    final cycle = state.cycleSummary;
 
     final canCommit = _effectivePrayers.isNotEmpty;
 
@@ -148,10 +139,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
                 CycleProgressCard(
-                  progress: progress,
-                  pos: pos,
-                  total: cycleTotal,
-                  daysRemaining: daysRemaining,
+                  progress: cycle.progress,
+                  pos: cycle.pos,
+                  total: cycle.total,
+                  daysRemaining: cycle.daysRemaining,
                   streak: _streak,
                 ),
                 const SizedBox(height: 16),

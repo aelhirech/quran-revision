@@ -38,8 +38,42 @@ class PlanScreen extends StatefulWidget {
 }
 
 class _PlanScreenState extends State<PlanScreen> {
-  Map<int, Set<int>> _checkedOf(BuildContext context) =>
-      context.watch<AppState>().checkedRakaas;
+  // Chargé une fois puis tenu à jour localement par [_toggle] — pas de
+  // `context.watch`, donc pas réactif à une écriture `ayah_facts` faite
+  // ailleurs pour aujourd'hui. Sûr aujourd'hui car DayPlanTab n'affiche
+  // jamais PlanScreen en même temps qu'un autre écran écrivant `reach`
+  // (CheckOutScreen ne s'ouvre que sur un jour STRICTEMENT antérieur —
+  // `AyahFactsService.pendingDate` — jamais aujourd'hui ; HomeScreen n'est
+  // affiché que quand `todaySession == null`, donc jamais en même temps que
+  // PlanScreen) — à revoir si un futur écran gagne la capacité d'écrire
+  // `reach` pour aujourd'hui pendant que PlanScreen reste monté.
+  Map<RevisionUnit, bool>? _reached;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final reached =
+        await context.read<AppState>().reachStatusFor(_allCoveredUnits);
+    if (!mounted) return;
+    setState(() => _reached = reached);
+  }
+
+  Map<int, Set<int>> _checkedByPrayer() {
+    final reached = _reached ?? const {};
+    final result = <int, Set<int>>{};
+    for (int pi = 0; pi < widget.session.plan.length; pi++) {
+      final pp = widget.session.plan[pi];
+      result[pi] = {
+        for (final r in pp.rakaas)
+          if (r.unit != null && reached[r.unit] == true) r.rakaaNumber,
+      };
+    }
+    return result;
+  }
 
   bool _allDoneOf(Map<int, Set<int>> checkedByPrayer) {
     for (int pi = 0; pi < widget.session.plan.length; pi++) {
@@ -124,14 +158,30 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
-  void _toggle(int prayerIndex, int rakaaNumber) {
-    context.read<AppState>().toggleChecked(prayerIndex, rakaaNumber);
+  Future<void> _toggle(int prayerIndex, int rakaaNumber) async {
+    final pp = widget.session.plan[prayerIndex];
+    final unit = pp.rakaas.firstWhere((r) => r.rakaaNumber == rakaaNumber).unit;
+    if (unit == null) return;
+    final newReach = !((_reached ?? const {})[unit] ?? false);
+    final appState = context.read<AppState>();
+    // Coche affichée avant l'écriture disque (comme l'ancien
+    // `toggleChecked`) pour que le tap reste instantané — `setReach` est une
+    // affectation directe (pas de lecture-modification), la valeur locale
+    // est donc déjà celle qui sera écrite.
+    setState(() => _reached = {...?_reached, unit: newReach});
+    await appState.toggleTodayUnitReach(unit, newReach);
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final checkedByPrayer = _checkedOf(context);
+    if (_reached == null) {
+      return Scaffold(
+        backgroundColor: cs.surface,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    final checkedByPrayer = _checkedByPrayer();
     final allDone = _allDoneOf(checkedByPrayer);
     final checkedCount = _checkedCountOf(checkedByPrayer);
     final progress = _totalRakaasWithUnit == 0

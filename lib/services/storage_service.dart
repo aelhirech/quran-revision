@@ -12,18 +12,77 @@ class StorageService {
   static const _keyNotifEnabled = 'notif_enabled';
   static const _keyPauseDates = 'pause_dates';
   static const _keyRiwaya = 'riwaya';
-  static const _keyCheckedRakaas = 'today_checked_rakaas';
   static const _keyTourSeen = 'onboarding_tour_seen';
   static const _keyLastSessionPrayers = 'last_session_prayers';
   static const _keyActivePrayers = 'active_round_prayers';
 
-  /// Hafs et Warsh sont deux parcours indépendants (config, cycle, pauses,
-  /// cases cochées) — ces clés sont donc préfixées par riwaya. Langue/riwaya-
+  /// Hafs et Warsh sont deux parcours indépendants (config, cycle, pauses)
+  /// — ces clés sont donc préfixées par riwaya. Langue/riwaya-
   /// active/notifications/tour-vu restent des préférences globales, non
   /// préfixées. Depuis Phase 6 Sprint 2, le plan du jour n'est plus persisté
   /// ici (`previewSession`/`todaySession` ont disparu) — les lignes
   /// `ayah_facts` du jour en sont la seule source, voir `AyahFactsService`.
   static String _track(String base, Riwaya riwaya) => riwayaKey(base, riwaya);
+
+  /// Motif partagé par [saveActivePrayers]/[saveLastSessionPrayers] :
+  /// {date, payload} en JSON, sous la clé préfixée riwaya.
+  static Future<void> _saveDated(
+      String key, Riwaya riwaya, DateTime date, Object payload) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_track(key, riwaya), jsonEncode({
+      'date': date.toIso8601String().substring(0, 10),
+      'payload': payload,
+    }));
+  }
+
+  /// Contrepartie de [_saveDated]. Si [purgeIfStale], une entrée dont la
+  /// date ne correspond pas à aujourd'hui est traitée comme absente (et la
+  /// clé est supprimée) — voir [loadActivePrayers], qui en a besoin,
+  /// contrairement à [loadLastSessionPrayers] qui garde sa propre date quel
+  /// que soit son âge. `date` est parsée ici (dans le même try/catch que le
+  /// décodage JSON) pour qu'une date corrompue dégrade proprement en `null`
+  /// plutôt que de laisser un `DateTime.parse` non protégé chez l'appelant.
+  static Future<({DateTime date, dynamic payload})?> _loadDated(
+      String key, Riwaya riwaya,
+      {bool purgeIfStale = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final trackedKey = _track(key, riwaya);
+    final raw = prefs.getString(trackedKey);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final date = DateTime.parse(decoded['date'] as String);
+      if (purgeIfStale &&
+          date.toIso8601String().substring(0, 10) !=
+              DateTime.now().toIso8601String().substring(0, 10)) {
+        await prefs.remove(trackedKey);
+        return null;
+      }
+      return (date: date, payload: decoded['payload']);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static List<String> _encodePrayers(List<Prayer> prayers) =>
+      prayers.map((p) => p.name).toList();
+
+  static List<Prayer> _decodePrayers(Object? raw) {
+    try {
+      return ((raw as List?) ?? [])
+          .map((name) {
+            try {
+              return Prayer.values.byName(name as String);
+            } catch (_) {
+              return null;
+            }
+          })
+          .whereType<Prayer>()
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
 
   static Future<void> saveConfig(UserConfig config, Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
@@ -78,86 +137,24 @@ class StorageService {
   /// `ayah_facts`, plus persisté comme objet) si l'app redémarre avant la
   /// fin de la manche, sans perdre la sélection de prières (Phase 6 Sprint
   /// 2 ; remplace l'ancien `previewSession`/`todaySession`, voir cadrage).
-  /// Même garde de fraîcheur par date que [loadCheckedRakaas].
+  /// La date est stockée à côté et comparée à aujourd'hui au chargement :
+  /// une sélection qui date d'un jour précédent (manche jamais clôturée puis
+  /// minuit passé) est traitée comme absente et la clé purgée.
   static Future<void> saveActivePrayers(
-      List<Prayer> prayers, Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_track(_keyActivePrayers, riwaya), jsonEncode({
-      'date': DateTime.now().toIso8601String().substring(0, 10),
-      'prayers': prayers.map((p) => p.name).toList(),
-    }));
-  }
+          List<Prayer> prayers, Riwaya riwaya) =>
+      _saveDated(_keyActivePrayers, riwaya, DateTime.now(),
+          _encodePrayers(prayers));
 
   static Future<List<Prayer>?> loadActivePrayers(Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_track(_keyActivePrayers, riwaya));
-    if (raw == null) return null;
-    try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final today = DateTime.now().toIso8601String().substring(0, 10);
-      if (decoded['date'] != today) {
-        await clearActivePrayers(riwaya);
-        return null;
-      }
-      return (decoded['prayers'] as List)
-          .map((name) {
-            try {
-              return Prayer.values.byName(name as String);
-            } catch (_) {
-              return null;
-            }
-          })
-          .whereType<Prayer>()
-          .toList();
-    } catch (_) {
-      return null;
-    }
+    final entry =
+        await _loadDated(_keyActivePrayers, riwaya, purgeIfStale: true);
+    if (entry == null) return null;
+    return _decodePrayers(entry.payload);
   }
 
   static Future<void> clearActivePrayers(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_track(_keyActivePrayers, riwaya));
-  }
-
-  /// Rakaas cochées dans la session du jour, par index de prière — permet de
-  /// survivre à un redémarrage de l'app sans perdre la progression déjà cochée.
-  /// La date est stockée à côté : si elle ne correspond plus à aujourd'hui
-  /// (session jamais explicitement clôturée puis minuit passé), le chargement
-  /// la traite comme absente et purge la clé — même logique que
-  /// [loadActivePrayers].
-  static Future<void> saveCheckedRakaas(
-      Map<int, Set<int>> checked, Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = checked.map((k, v) => MapEntry(k.toString(), v.toList()));
-    await prefs.setString(_track(_keyCheckedRakaas, riwaya), jsonEncode({
-      'date': DateTime.now().toIso8601String().substring(0, 10),
-      'checked': encoded,
-    }));
-  }
-
-  static Future<Map<int, Set<int>>> loadCheckedRakaas(Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = _track(_keyCheckedRakaas, riwaya);
-    final raw = prefs.getString(key);
-    if (raw == null) return {};
-    try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final today = DateTime.now().toIso8601String().substring(0, 10);
-      if (decoded['date'] != today) {
-        await clearCheckedRakaas(riwaya);
-        return {};
-      }
-      final checked = decoded['checked'] as Map<String, dynamic>;
-      return checked.map((k, v) =>
-          MapEntry(int.parse(k), (v as List).cast<int>().toSet()));
-    } catch (_) {
-      return {};
-    }
-  }
-
-  static Future<void> clearCheckedRakaas(Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_track(_keyCheckedRakaas, riwaya));
   }
 
   /// Dernière sélection de prières d'une session complétée normalement (pas
@@ -166,35 +163,15 @@ class StorageService {
   /// `ayah_facts` n'a pas de notion de prière, une table de faits par verset
   /// n'a pas à en porter une) : petite persistance UI dédiée, à part.
   static Future<void> saveLastSessionPrayers(
-      DateTime date, List<Prayer> prayers, Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_track(_keyLastSessionPrayers, riwaya), jsonEncode({
-      'date': date.toIso8601String().substring(0, 10),
-      'prayers': prayers.map((p) => p.name).toList(),
-    }));
-  }
+          DateTime date, List<Prayer> prayers, Riwaya riwaya) =>
+      _saveDated(
+          _keyLastSessionPrayers, riwaya, date, _encodePrayers(prayers));
 
   static Future<({DateTime date, List<Prayer> prayers})?> loadLastSessionPrayers(
       Riwaya riwaya) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_track(_keyLastSessionPrayers, riwaya));
-    if (raw == null) return null;
-    try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final prayers = (decoded['prayers'] as List)
-          .map((name) {
-            try {
-              return Prayer.values.byName(name as String);
-            } catch (_) {
-              return null;
-            }
-          })
-          .whereType<Prayer>()
-          .toList();
-      return (date: DateTime.parse(decoded['date'] as String), prayers: prayers);
-    } catch (_) {
-      return null;
-    }
+    final entry = await _loadDated(_keyLastSessionPrayers, riwaya);
+    if (entry == null) return null;
+    return (date: entry.date, prayers: _decodePrayers(entry.payload));
   }
 
   static Future<void> savePauseDates(Set<String> dates, Riwaya riwaya) async {
@@ -239,7 +216,6 @@ class StorageService {
       prefs.remove(_track(_keyConfig, riwaya)),
       prefs.remove(_track(_keyCyclePosition, riwaya)),
       prefs.remove(_track(_keyPauseDates, riwaya)),
-      prefs.remove(_track(_keyCheckedRakaas, riwaya)),
       prefs.remove(_track(_keyLastSessionPrayers, riwaya)),
       prefs.remove(_track(_keyActivePrayers, riwaya)),
     ]);
@@ -266,11 +242,6 @@ class StorageService {
       await prefs.setStringList(_track(_keyPauseDates, Riwaya.hafs),
           prefs.getStringList(_keyPauseDates)!);
       await prefs.remove(_keyPauseDates);
-    }
-    if (prefs.containsKey(_keyCheckedRakaas)) {
-      await prefs.setString(_track(_keyCheckedRakaas, Riwaya.hafs),
-          prefs.getString(_keyCheckedRakaas)!);
-      await prefs.remove(_keyCheckedRakaas);
     }
   }
 }

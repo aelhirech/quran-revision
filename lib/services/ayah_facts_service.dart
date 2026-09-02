@@ -455,6 +455,24 @@ class AyahFactsService {
     return total > 0 && total == reached;
   }
 
+  /// Versets `reach = 1` du jour, par sourate — une seule requête (même
+  /// principe de regroupement en Dart que [dayFacts]/[learnedVersesBySourate])
+  /// pour qu'`AppState.reachStatusFor` n'ait pas besoin d'une requête
+  /// [isRangeReached] par unité affichée dans PlanScreen.
+  static Future<Map<int, Set<int>>> reachedVersesToday(
+      String date, Riwaya riwaya) async {
+    final db = await _open();
+    final rows = await db.query('ayah_facts',
+        columns: ['surah_id', 'ayah_id'],
+        where: 'date = ? AND riwaya = ? AND type = ? AND reach = 1',
+        whereArgs: [date, riwaya.name, AyahFactType.revise.name]);
+    final result = <int, Set<int>>{};
+    for (final row in rows) {
+      result.putIfAbsent(row['surah_id'] as int, () => {}).add(row['ayah_id'] as int);
+    }
+    return result;
+  }
+
   /// `true` s'il reste au moins une ligne pour cette plage ce jour-là.
   /// Sert à AppState.checkOut à distinguer "retiré au check-in" (aucune
   /// ligne — à ignorer, pas un blocage) de "pas encore fait" (des lignes

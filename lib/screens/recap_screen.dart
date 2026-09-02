@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/riwaya.dart';
@@ -94,15 +93,7 @@ class _RecapScreenState extends State<RecapScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final units = RevisionEngine.buildUnits(state.config!.selections);
-    final total = units.length;
-    final pos = state.cyclePosition % (total == 0 ? 1 : total);
-    final progress = total == 0 ? 0.0 : pos / total;
-    final daysElapsed =
-        DateTime.now().difference(state.config!.startDate).inDays;
-    final effectiveDays = state.adaptiveCycleDays ??
-        state.config!.effectiveDays(state.config!.totalSelectedVerses);
-    final daysRemaining = (effectiveDays - daysElapsed).clamp(0, 9999);
+    final cycle = state.cycleSummary;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -124,11 +115,12 @@ class _RecapScreenState extends State<RecapScreen> {
                 ),
                 StreakCard(streak: _streak, totalDays: _totalDays),
                 const SizedBox(height: 16),
-                _cycleCard(cs, progress, pos, total, daysRemaining),
+                _cycleCard(
+                    cs, cycle.progress, cycle.pos, cycle.total, cycle.daysRemaining),
                 const SizedBox(height: 16),
                 _repartitionCard(cs, state),
                 const SizedBox(height: 16),
-                _statsRow(cs, state, units.length),
+                _statsRow(cs, state, cycle.total),
                 const SizedBox(height: 16),
                 HistoryCard(sessions: _sessions),
                 const SizedBox(height: 16),

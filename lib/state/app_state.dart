@@ -36,9 +36,6 @@ class AppState extends ChangeNotifier {
   final bool warshAvailable;
   bool _hasSeenTour;
   List<Sourate> _sourates;
-  // Rakaas cochées dans la session du jour (prayerIndex → n° de rakaas),
-  // persistées pour ne pas perdre la progression au redémarrage de l'app.
-  Map<int, Set<int>> _checkedRakaas;
   // Durée de cycle calculée depuis l'historique (mode adaptatif uniquement)
   int? _adaptiveCycleDays;
   // Fraîcheur par sourate (sourateId → niveau)
@@ -57,7 +54,6 @@ class AppState extends ChangeNotifier {
     bool initialHasSeenTour = false,
     int initialCyclePosition = 0,
     Set<String> initialPauseDates = const {},
-    Map<int, Set<int>> initialCheckedRakaas = const {},
   })  : _locale = locale,
         // `riwaya` must stay a public named arg for callers — `this._riwaya`
         // would make the constructor arg private.
@@ -66,8 +62,7 @@ class AppState extends ChangeNotifier {
         _hasSeenTour = initialHasSeenTour,
         _sourates = _souratesFor(riwaya),
         _cyclePosition = initialCyclePosition,
-        _pauseDates = Set.from(initialPauseDates),
-        _checkedRakaas = initialCheckedRakaas.map((k, v) => MapEntry(k, Set.from(v))) {
+        _pauseDates = Set.from(initialPauseDates) {
     S.locale = locale;
   }
 
@@ -84,7 +79,6 @@ class AppState extends ChangeNotifier {
   String? get pendingDate => _pendingDate;
   bool get justCheckedIn => _justCheckedIn;
   Set<String> get pauseDates => Set.unmodifiable(_pauseDates);
-  Map<int, Set<int>> get checkedRakaas => _checkedRakaas;
   String get locale => _locale;
   Riwaya get riwaya => _riwaya;
   bool get hasSeenTour => _hasSeenTour;
@@ -158,11 +152,9 @@ class AppState extends ChangeNotifier {
     final configF = StorageService.loadConfig(_riwaya);
     final cyclePositionF = StorageService.loadCyclePosition(_riwaya);
     final pauseDatesF = StorageService.loadPauseDates(_riwaya);
-    final checkedRakaasF = StorageService.loadCheckedRakaas(_riwaya);
     _config = await configF;
     _cyclePosition = await cyclePositionF;
     _pauseDates = await pauseDatesF;
-    _checkedRakaas = await checkedRakaasF;
     _sourates = _souratesFor(_riwaya);
     _adaptiveCycleDays = null;
     _todaySession = null;
@@ -187,7 +179,6 @@ class AppState extends ChangeNotifier {
       _cyclePosition = 0;
       _todaySession = null;
       await StorageService.saveCyclePosition(0, _riwaya);
-      await _resetCheckedRakaas();
     }
     notifyListeners();
   }
@@ -227,25 +218,7 @@ class AppState extends ChangeNotifier {
   Future<void> clearTodaySession() async {
     _todaySession = null;
     await StorageService.clearActivePrayers(_riwaya);
-    await _resetCheckedRakaas();
     notifyListeners();
-  }
-
-  Future<void> _resetCheckedRakaas() async {
-    _checkedRakaas = {};
-    await StorageService.clearCheckedRakaas(_riwaya);
-  }
-
-  /// Coche/décoche une rakaa de la session du jour en cours et persiste
-  /// immédiatement — évite de perdre la progression si l'app est relancée
-  /// avant que la session soit marquée complète. `notifyListeners` se déclenche
-  /// avant l'écriture disque pour que la coche s'affiche sans attendre le
-  /// round-trip SharedPreferences.
-  Future<void> toggleChecked(int prayerIndex, int rakaaNumber) async {
-    final set = _checkedRakaas.putIfAbsent(prayerIndex, () => {});
-    if (!set.remove(rakaaNumber)) set.add(rakaaNumber);
-    notifyListeners();
-    await StorageService.saveCheckedRakaas(_checkedRakaas, _riwaya);
   }
 
   /// Recalcule la durée adaptive depuis l'historique. [totalVerses] et
@@ -284,7 +257,6 @@ class AppState extends ChangeNotifier {
     _pendingDate = null;
     _justCheckedIn = false;
     _pauseDates = {};
-    _checkedRakaas = {};
     await StorageService.clearConfigOnly(_riwaya);
     notifyListeners();
   }
@@ -362,6 +334,39 @@ class AppState extends ChangeNotifier {
   List<RevisionUnit> previewTodayUnits() {
     if (_config == null) return const [];
     return _selectionFor(_todayStr).units;
+  }
+
+  /// Position/total du cycle en cours (nombre d'unités RevisionEngine) et
+  /// jours restants avant la date cible, à afficher (bandeau HomeScreen,
+  /// carte cycle RecapScreen) — dérivés de la même [_selectionFor] que le
+  /// plan du jour (`DailySession`, PlanScreen), pour que les 3 écrans ne
+  /// recalculent plus chacun leur propre `RevisionEngine.buildUnits(...)`
+  /// (source de divergence silencieuse, retour TestFlight 2026-09-01 sur
+  /// les chiffres du récapitulatif). `daysRemaining` ici peut tomber à 0
+  /// ("objectif atteint") contrairement à celui de `DaySelection`/
+  /// `DailySession`, qui reste toujours >= 1 pour ne jamais diviser par
+  /// zéro dans le moteur quotidien (voir `RevisionEngine.dailyTarget`) —
+  /// deux usages distincts (affichage vs moteur), donc deux valeurs
+  /// distinctes malgré la même origine. Nommé `cycleSummary` (pas
+  /// `cycleProgress`) pour ne pas entrer en collision avec
+  /// `DailySession.cycleProgress` (un `double`, sémantique différente).
+  ({int pos, int total, double progress, int daysRemaining}) get cycleSummary {
+    final config = _config;
+    if (config == null) {
+      return (pos: 0, total: 0, progress: 0.0, daysRemaining: 0);
+    }
+    final selection = _selectionFor(_todayStr);
+    final total = selection.cycleTotal;
+    final pos = selection.cyclePosition;
+    final daysElapsed = DateTime.now().difference(config.startDate).inDays;
+    final effectiveDays =
+        adaptiveCycleDays ?? config.effectiveDays(config.totalSelectedVerses);
+    return (
+      pos: pos,
+      total: total,
+      progress: total == 0 ? 0.0 : pos / total,
+      daysRemaining: (effectiveDays - daysElapsed).clamp(0, 9999),
+    );
   }
 
   /// Point d'entrée du moteur quotidien — à appeler à l'ouverture/reprise de
@@ -449,6 +454,33 @@ class AppState extends ChangeNotifier {
     await AyahFactsService.setReachForUnits(_todayStr, _riwaya, units, true);
   }
 
+  /// Bascule "fait/pas fait" pour une rakaa de PlanScreen — remplace
+  /// l'ancien état en mémoire/SharedPreferences (`_checkedRakaas`) par une
+  /// écriture directe dans `ayah_facts` pour aujourd'hui (voir [setUnitReach]
+  /// pour une date arbitraire). Si [unit] est assigné à plusieurs rakaas de
+  /// la manche (pénurie de matière, cf. `RevisionEngine._padCyclically`),
+  /// cocher l'une coche automatiquement les autres — `reach` est une vérité
+  /// par verset/jour, pas par rakaa, comportement voulu.
+  Future<void> toggleTodayUnitReach(RevisionUnit unit, bool reach) =>
+      setUnitReach(_todayStr, unit, reach);
+
+  /// Statut `reach` d'aujourd'hui pour chaque unité unique de [units] — une
+  /// seule requête ([AyahFactsService.reachedVersesToday]), le résultat
+  /// exact par plage étant recalculé en Dart (pas par sourate comme
+  /// [dayUnitsWithStatus], qui agrégerait à tort deux plages distinctes de la
+  /// même sourate assignées à des rakaas différents). Consommé par
+  /// PlanScreen pour l'état "coché" de chaque rakaa.
+  Future<Map<RevisionUnit, bool>> reachStatusFor(
+      Iterable<RevisionUnit> units) async {
+    final reachedByVerse =
+        await AyahFactsService.reachedVersesToday(_todayStr, _riwaya);
+    return {
+      for (final unit in units.toSet())
+        unit: List.generate(unit.verseCount, (i) => unit.verseStart + i)
+            .every((v) => reachedByVerse[unit.sourate.id]?.contains(v) ?? false),
+    };
+  }
+
   /// Bascule "à retravailler" pour un verset précis — écran détail du
   /// check-out, granularité verset (pas la sourate entière).
   Future<void> setVerseCold(String date, int surahId, int ayahId, bool cold) async {
@@ -500,7 +532,6 @@ class AppState extends ChangeNotifier {
       refreshAdaptiveCycle(_config!.totalSelectedVerses, notify: false),
       refreshFreshness(notify: false),
       StorageService.clearActivePrayers(_riwaya),
-      _resetCheckedRakaas(),
       advanceCycle(unitsCompleted, selection.cycleTotal, notify: false),
     ]);
     notifyListeners(); // seul notify de toute l'opération
