@@ -2,29 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/strings.dart';
-import '../models/revision_unit.dart';
+import '../models/sourate.dart';
 import '../services/surah_metadata_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
-import 'arabic_verse_text.dart';
 import 'bismillah_line.dart';
+import 'verse_row.dart';
 
+/// Vue Coran partagée entre Plan du jour, Récap et Apprendre — un seul
+/// mécanisme pour "afficher le Coran entre ayah_start et ayah_end", plutôt
+/// que la logique quasi identique dupliquée dans 3 écrans (feuille de
+/// versets d'une rakaa, écran de lecture d'une sourate, bloc de mémorisation).
 class VerseBottomSheet extends StatelessWidget {
-  final RevisionUnit unit;
-  final int rakaaNumber;
+  final Sourate sourate;
+  final int ayahStart;
+  final int ayahEnd;
 
   const VerseBottomSheet({
     super.key,
-    required this.unit,
-    required this.rakaaNumber,
+    required this.sourate,
+    required this.ayahStart,
+    required this.ayahEnd,
   });
 
-  static void show(BuildContext context, RevisionUnit unit, int rakaaNumber) {
+  static void show(BuildContext context, Sourate sourate, int ayahStart, int ayahEnd) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => VerseBottomSheet(unit: unit, rakaaNumber: rakaaNumber),
+      builder: (_) => VerseBottomSheet(
+        sourate: sourate,
+        ayahStart: ayahStart,
+        ayahEnd: ayahEnd,
+      ),
     );
   }
 
@@ -32,8 +42,10 @@ class VerseBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final riwaya = context.watch<AppState>().riwaya;
-    final verses = VerseService.versesForUnit(unit, riwaya: riwaya);
-    final surahNameAr = unit.sourate.nameAr;
+    final verses = [
+      for (var v = ayahStart; v <= ayahEnd; v++)
+        VerseService.getVerse(sourate.id, v, riwaya: riwaya),
+    ];
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -47,14 +59,15 @@ class VerseBottomSheet extends StatelessWidget {
         child: Column(
           children: [
             _handle(cs),
-            _header(cs, surahNameAr),
+            _header(cs),
             Expanded(
               child: ListView.separated(
                 controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 itemCount: verses.length,
                 separatorBuilder: (context, index) => const Divider(height: 24),
-                itemBuilder: (_, i) => _verseRow(text: verses[i]),
+                itemBuilder: (_, i) =>
+                    VerseRow(number: ayahStart + i, text: verses[i]),
               ),
             ),
           ],
@@ -75,19 +88,19 @@ class VerseBottomSheet extends StatelessWidget {
         ),
       );
 
-  Widget _header(ColorScheme cs, String surahNameAr) {
+  Widget _header(ColorScheme cs) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
       child: Column(
         children: [
           Text(
-            surahNameAr,
+            sourate.nameAr,
             style: GoogleFonts.scheherazadeNew(fontSize: 28, height: 1.8),
             textDirection: TextDirection.rtl,
           ),
           const SizedBox(height: 4),
           Text(
-            '${unit.sourate.nameFr}  ·  ${S.versetsDeRakaa}  (${unit.verseStart}–${unit.verseEnd})',
+            '${sourate.nameFr}  ·  ${S.blocRange(ayahStart, ayahEnd)}',
             style: TextStyle(
               fontSize: 12,
               color: cs.onSurfaceVariant,
@@ -95,15 +108,11 @@ class VerseBottomSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          if (unit.verseStart == 1 && SurahMetadataService.bismillahPre(unit.sourate.id))
+          if (ayahStart == 1 && SurahMetadataService.bismillahPre(sourate.id))
             const BismillahLine(),
           Divider(color: cs.outlineVariant),
         ],
       ),
     );
-  }
-
-  Widget _verseRow({required String text}) {
-    return ArabicVerseText(text: text, fontSize: 22);
   }
 }

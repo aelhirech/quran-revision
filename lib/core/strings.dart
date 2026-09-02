@@ -179,6 +179,7 @@ class S {
 
   // Versets
   static String get versetsDeRakaa => _t('Versets de la rakaa', 'Verses for this rakaa');
+  static String get voirLeTexte => _t('Voir le texte', 'View text');
   static String verset(int n) => _t('Verset $n', 'Verse $n');
 
   // Hadiths

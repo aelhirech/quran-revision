@@ -7,12 +7,14 @@ class ProfileInfoCard extends StatelessWidget {
   final UserConfig config;
   final int elapsed;
   final int remaining;
+  final int memorisees;
 
   const ProfileInfoCard({
     super.key,
     required this.config,
     required this.elapsed,
     required this.remaining,
+    required this.memorisees,
   });
 
   @override
@@ -42,7 +44,7 @@ class ProfileInfoCard extends StatelessWidget {
                 S.joursRestantsLabel, S.joursDuration(remaining), 160),
             const Divider(height: 24),
             _row(cs, Icons.menu_book_outlined,
-                S.souratesMemoriees, '${config.selections.length}', 240),
+                S.souratesMemoriees, '$memorisees', 240),
           ],
         ),
       ),

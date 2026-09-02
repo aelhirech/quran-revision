@@ -5,6 +5,7 @@ import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import 'index_badge.dart';
+import 'verse_bottom_sheet.dart';
 
 class LearningProgressCard extends StatelessWidget {
   final LearningProgress progress;
@@ -93,7 +94,12 @@ class LearningProgressCard extends StatelessWidget {
                       Text(S.versetN(progress.nextVerse, s.verses),
                           style: TextStyle(
                               color: palette.textMuted, fontSize: 12)),
-                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 18),
+                      tooltip: S.voirLeTexte,
+                      onPressed: () =>
+                          VerseBottomSheet.show(context, s, 1, s.verses),
+                    ),
                     Icon(Icons.chevron_right, color: palette.textMuted),
                   ],
                 ),

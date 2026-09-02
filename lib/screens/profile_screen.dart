@@ -3,9 +3,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
+import '../models/learning_progress.dart';
+import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
+import '../services/ayah_facts_service.dart';
 import '../state/app_state.dart';
 import '../widgets/preset_dropdown.dart';
 import '../widgets/profile_info_card.dart';
@@ -25,16 +28,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _paceByLines = false;
   int _targetLinesPerDay = 15;
   String _search = '';
+  int _memorisees = 0;
+  Riwaya? _lastRiwaya;
+
+  Future<void> _loadMemorisees() async {
+    final state = context.read<AppState>();
+    final progress = await AyahFactsService.loadMainLearningProgress(
+        riwaya: state.riwaya, sourates: state.sourates);
+    if (!mounted) return;
+    setState(() => _memorisees = progress.memorisedCount);
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final config = context.read<AppState>().config;
+    final state = context.read<AppState>();
+    final config = state.config;
     if (config != null && !_editing) {
       _selectedIds = config.selections.map((s) => s.sourate.id).toSet();
       _revisionDays = config.revisionDays;
       _paceByLines = config.paceByLines;
       _targetLinesPerDay = config.targetLinesPerDay;
+    }
+    // Hafs/Warsh ont chacun leur propre progression d'apprentissage — sans ce
+    // suivi, changer de riwaya depuis SettingsCard (même écran, ProfileScreen
+    // ne quitte jamais l'IndexedStack) laisserait "sourates mémorisées"
+    // afficher le compte de l'ancienne riwaya. Même pattern que RecapScreen.
+    if (state.riwaya != _lastRiwaya) {
+      _lastRiwaya = state.riwaya;
+      _loadMemorisees();
     }
   }
 
@@ -198,7 +220,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       sliver: SliverList(
         delegate: SliverChildListDelegate([
           ProfileInfoCard(
-              config: config, elapsed: daysElapsed, remaining: daysRemaining),
+              config: config,
+              elapsed: daysElapsed,
+              remaining: daysRemaining,
+              memorisees: _memorisees),
           const SizedBox(height: 16),
           const SettingsCard(),
           const SizedBox(height: 16),

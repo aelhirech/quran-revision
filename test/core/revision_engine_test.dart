@@ -259,4 +259,55 @@ void main() {
       expect(rakaas[1].unit!.verseEnd, 10);
     });
   });
+
+  // Extrait de PlanScreen._coverageForFirstRakaas (sprint "simplify-ayah-facts",
+  // 2026-09-02) vers le moteur pur — verrouille le comportement au moment du
+  // déplacement (règle test/CLAUDE.md : pas de changement de RevisionEngine
+  // sans filet de sécurité).
+  group('RevisionEngine.coverageForFirstRakaas — "une part faite" (déclaration manuelle)', () {
+    test('n rakaas répétant la même unité (pénurie) → 1 seule unité distincte comptée', () {
+      final units = RevisionEngine.buildUnits(
+          [SourateSelection.whole(_sourate(1, 1, 5))]);
+      final plan = RevisionEngine.distributeToRakaas(
+        units: units,
+        prayersAlone: [Prayer.witr, Prayer.fajr], // 5 rakaas à voix haute
+      );
+      final coverage = RevisionEngine.coverageForFirstRakaas(plan, 3);
+      expect(coverage.units, 1);
+      expect(coverage.coveredUnits.length, 3);
+      expect(coverage.coveredUnits.every((u) => u.sourate.id == 1), isTrue);
+    });
+
+    test('s\'arrête exactement à n même en traversant plusieurs prières', () {
+      final units = RevisionEngine.buildUnits([
+        SourateSelection.whole(_sourate(1, 1, 5)),
+        SourateSelection.whole(_sourate(2, 1, 5)),
+      ]);
+      final plan = RevisionEngine.distributeToRakaas(
+        units: units,
+        // Fajr : 2 rakaas à voix haute (sourates 1 et 2) ; Dhouhr : 2 de plus.
+        prayersAlone: [Prayer.fajr, Prayer.dhuhr],
+      );
+      final coverage = RevisionEngine.coverageForFirstRakaas(plan, 3);
+      expect(coverage.coveredUnits.length, 3);
+      // Les 2 premières rakaas (Fajr, sourates 1+2) + la 1ère de Dhouhr.
+      expect(coverage.coveredUnits[0].sourate.id, 1);
+      expect(coverage.coveredUnits[1].sourate.id, 2);
+    });
+
+    test('les rakaas silencieuses (unit == null) ne comptent pas dans n', () {
+      final units = RevisionEngine.buildUnits(
+          [SourateSelection.whole(_sourate(1, 1, 5))]);
+      final plan = RevisionEngine.distributeToRakaas(
+        units: units,
+        // Dhouhr : rakaas=4, suratRakaas=2 → r3/r4 silencieuses, avant Fajr.
+        prayersAlone: [Prayer.dhuhr, Prayer.fajr],
+      );
+      // n=3 force à traverser les 2 rakaas silencieuses de Dhouhr (r3, r4)
+      // pour atteindre la 1ère rakaa réelle de Fajr — si le skip comptait à
+      // tort les silencieuses dans n, on n'obtiendrait que 2 unités ici.
+      final coverage = RevisionEngine.coverageForFirstRakaas(plan, 3);
+      expect(coverage.coveredUnits.length, 3);
+    });
+  });
 }

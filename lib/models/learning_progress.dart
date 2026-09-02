@@ -52,3 +52,10 @@ class LearningProgress {
         startDate: DateTime.now(),
       );
 }
+
+/// Dérivé partagé entre `ProfileScreen`/`RecapScreen` — les deux comptent le
+/// nombre de sourates réellement mémorisées depuis la même liste, plutôt que
+/// de répéter chacun leur `.where((p) => p.isComplete).length`.
+extension LearningProgressListX on List<LearningProgress> {
+  int get memorisedCount => where((p) => p.isComplete).length;
+}

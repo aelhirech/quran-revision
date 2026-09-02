@@ -33,8 +33,17 @@ class NotificationService {
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
+    // App mobile-only (iOS/Android) — le champ windows n'est là que parce que
+    // le plugin exige un InitializationSettings valide pour toute plateforme
+    // pour laquelle le support est compilé (dossier windows/ généré par
+    // défaut), sinon `initialize()` lève sur desktop. Jamais utilisé en prod.
+    const windows = WindowsInitializationSettings(
+      appName: 'Quran Revision',
+      appUserModelId: 'com.quranrevision.quranRevision',
+      guid: '5a7b7078-2ab6-4255-914b-ac0bcc546697',
+    );
     await _plugin.initialize(
-      settings: const InitializationSettings(android: android, iOS: ios),
+      settings: const InitializationSettings(android: android, iOS: ios, windows: windows),
     );
   }
 

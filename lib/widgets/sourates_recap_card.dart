@@ -4,8 +4,8 @@ import '../core/app_colors.dart';
 import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/sourate_selection.dart';
-import '../screens/surah_reader_screen.dart';
 import 'freshness_badge.dart';
+import 'verse_bottom_sheet.dart';
 
 class SouratesRecapCard extends StatelessWidget {
   final List<SourateSelection> selections;
@@ -69,12 +69,14 @@ class SouratesRecapCard extends StatelessWidget {
                           : '${sel.verseStart}–${sel.verseEnd} (${sel.verseCount} ${S.versetsLabel})',
                       style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
                     ),
-                    const Icon(Icons.chevron_right, size: 18),
+                    IconButton(
+                      icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 18),
+                      tooltip: S.voirLeTexte,
+                      onPressed: () => VerseBottomSheet.show(
+                          context, s, sel.verseStart, sel.verseEnd),
+                    ),
                   ],
                 ),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => SurahReaderScreen(selection: sel),
-                )),
               )
                   .animate()
                   .fadeIn(delay: Duration(milliseconds: 300 + e.key * 40))

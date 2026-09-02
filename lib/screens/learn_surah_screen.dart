@@ -124,9 +124,9 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
     final riwaya = context.watch<AppState>().riwaya;
     final s = _progress.sourate;
     final block = _currentBlock;
-    final blockVerseText = block
-        .map((v) => VerseService.getVerse(s.id, v, riwaya: riwaya))
-        .join('\n\n');
+    final blockVerses = {
+      for (final v in block) v: VerseService.getVerse(s.id, v, riwaya: riwaya),
+    };
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -153,11 +153,10 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
                 if (!_progress.isComplete) _blockSizeSelector(cs),
                 const SizedBox(height: 16),
                 VerseDisplayCard(
-                  verseText: blockVerseText,
+                  verses: blockVerses,
                   visible: _verseVisible,
                   isComplete: _progress.isComplete,
                   onToggle: () => setState(() => _verseVisible = !_verseVisible),
-                  blockSize: block.length,
                 ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.06),
                 const SizedBox(height: 20),
                 if (_progress.isComplete) _addToRevisionButton(cs) else _actionRow(cs, block.length),

@@ -270,6 +270,28 @@ class RevisionEngine {
   }) {
     return (currentPosition + unitsCompleted) % cycleTotal;
   }
+
+  /// Unités (échelle attendue par [advanceCycle]) et unités réellement
+  /// couvertes par les [n] premières rakaas de [plan] (dans l'ordre) —
+  /// utilisé pour la déclaration manuelle "une part fait" de `PlanScreen`, où
+  /// l'utilisateur pense en rakaas récitées, pas en unités de cycle.
+  static ({int units, List<RevisionUnit> coveredUnits}) coverageForFirstRakaas(
+      List<PrayerPlan> plan, int n) {
+    final seenLabels = <String>{};
+    final coveredUnits = <RevisionUnit>[];
+    int counted = 0;
+    for (final pp in plan) {
+      for (final r in pp.rakaas) {
+        if (r.unit == null) continue;
+        if (counted >= n) break;
+        counted++;
+        seenLabels.add(r.unit!.label);
+        coveredUnits.add(r.unit!);
+      }
+      if (counted >= n) break;
+    }
+    return (units: seenLabels.length, coveredUnits: coveredUnits);
+  }
 }
 
 /// Distribue une liste d'unités déjà expansées (une par rakaa cible) rakaa

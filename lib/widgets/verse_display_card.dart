@@ -1,24 +1,22 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
-import 'arabic_verse_text.dart';
 import 'ornamental_divider.dart';
+import 'verse_row.dart';
 
 class VerseDisplayCard extends StatelessWidget {
-  final String verseText;
+  // Numéro de verset → texte, dans l'ordre d'affichage.
+  final Map<int, String> verses;
   final bool visible;
   final bool isComplete;
   final VoidCallback onToggle;
-  // Nombre de versets affichés — ajuste le texte d'invite.
-  final int blockSize;
 
   const VerseDisplayCard({
     super.key,
-    required this.verseText,
+    required this.verses,
     required this.visible,
     required this.isComplete,
     required this.onToggle,
-    this.blockSize = 1,
   });
 
   @override
@@ -43,6 +41,7 @@ class VerseDisplayCard extends StatelessWidget {
       );
     }
 
+    final lastVerseKey = verses.keys.last;
     return GestureDetector(
       onTap: onToggle,
       child: AnimatedContainer(
@@ -56,17 +55,17 @@ class VerseDisplayCard extends StatelessWidget {
         ),
         child: visible
             ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ArabicVerseText(
-                    text: verseText,
-                    textAlign: TextAlign.center,
-                    fontSize: 28,
-                    color: palette.textPrimary,
-                  ),
+                  for (final entry in verses.entries) ...[
+                    VerseRow(number: entry.key, text: entry.value, fontSize: 26),
+                    if (entry.key != lastVerseKey) const SizedBox(height: 14),
+                  ],
                   const SizedBox(height: 14),
                   const OrnamentalDivider(lineWidth: 30),
                   const SizedBox(height: 10),
                   Text(S.masquerVerset,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                           color: palette.textMuted,
                           fontStyle: FontStyle.italic,
@@ -84,7 +83,7 @@ class VerseDisplayCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           fontSize: 15)),
                   const SizedBox(height: 4),
-                  Text(S.appuyerPourReveler(blockSize),
+                  Text(S.appuyerPourReveler(verses.length),
                       style: TextStyle(
                           color: palette.textMuted,
                           fontStyle: FontStyle.italic,

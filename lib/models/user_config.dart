@@ -29,8 +29,6 @@ class UserConfig {
     this.riwaya = Riwaya.hafs,
   });
 
-  List<Sourate> get learnedSourates => selections.map((s) => s.sourate).toList();
-
   int get totalSelectedVerses =>
       selections.fold(0, (sum, s) => sum + s.verseCount);
 

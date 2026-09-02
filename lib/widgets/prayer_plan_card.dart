@@ -9,6 +9,7 @@ import '../models/daily_session.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
 import '../widgets/verse_bottom_sheet.dart';
+import 'freshness_badge.dart';
 import 'index_badge.dart';
 
 class PrayerPlanCard extends StatelessWidget {
@@ -116,8 +117,8 @@ class PrayerPlanCard extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 17),
                 tooltip: S.versetsDeRakaa,
-                onPressed: () =>
-                    VerseBottomSheet.show(context, r.unit!, r.rakaaNumber),
+                onPressed: () => VerseBottomSheet.show(
+                    context, r.unit!.sourate, r.unit!.verseStart, r.unit!.verseEnd),
               ),
           ],
         ),
@@ -144,22 +145,8 @@ class PrayerPlanCard extends StatelessWidget {
                   color: palette.textMuted, fontStyle: FontStyle.italic, fontSize: 11),
             ),
           if (showCount && showBadge) const SizedBox(width: 8),
-          if (showBadge) _freshnessBadge(freshness!, palette),
+          if (showBadge) FreshnessBadge(level: freshness!),
         ],
-      ),
-    );
-  }
-
-  Widget _freshnessBadge(FreshnessLevel level, AppPalette palette) {
-    final label = level == FreshnessLevel.frozen ? S.fraicheurGelee : S.fraicheurFroide;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 10, color: palette.goldDark),
       ),
     );
   }

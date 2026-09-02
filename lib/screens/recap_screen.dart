@@ -70,7 +70,6 @@ class _RecapScreenState extends State<RecapScreen> {
           date: DateTime.parse(entry.key),
           unitsCompleted: entry.value.done,
           totalUnits: entry.value.total,
-          prayers: const [],
         ),
     ]..sort((a, b) => b.date.compareTo(a.date));
 
@@ -205,7 +204,7 @@ class _RecapScreenState extends State<RecapScreen> {
 
   Widget _repartitionCard(ColorScheme cs, AppState state) {
     final enRevision = state.config!.selections.length;
-    final memorisees = _learningProgress.where((p) => p.isComplete).length;
+    final memorisees = _learningProgress.memorisedCount;
     final enCours = _learningProgress.where((p) => !p.isComplete).length;
 
     return Container(

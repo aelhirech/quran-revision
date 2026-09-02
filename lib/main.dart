@@ -1,5 +1,9 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'core/app_theme.dart';
 import 'core/strings.dart';
 import 'models/riwaya.dart';
@@ -48,6 +52,16 @@ Future<void> _initSurahMeta() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // `sqflite` (package:sqflite) n'a pas d'implémentation native Windows (app
+  // mobile-only par conception, aucun dossier linux/ dans ce projet donc pas
+  // de cible Linux à couvrir) — bascule vers l'implémentation FFI desktop,
+  // même pattern que celui déjà utilisé par les tests (voir
+  // test/services/ayah_facts_service_test.dart). Web reste non supporté
+  // (backlog docs/CHANGELOG.md, faute de sqflite_common_ffi_web).
+  if (!kIsWeb && Platform.isWindows) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
   await NotificationService.initialize();
   // Chargements d'assets indépendants — démarrés en parallèle.
   final hafsF = HafsService.initialize();

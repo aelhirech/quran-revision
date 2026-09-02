@@ -36,6 +36,20 @@ Projet solo, un seul développeur, Provider comme unique gestion d'état.
 - Le code minimal qui fait marcher la fonctionnalité proprement, pas plus. Une règle métier utilisée une seule fois ne se généralise pas.
 - Avant d'ajouter une dépendance dans `pubspec.yaml`, vérifier qu'elle n'est pas déjà couverte par l'existant.
 
+## Ne jamais dupliquer une logique quasi identique
+
+Avant d'écrire un nouveau mécanisme (widget, service, requête, calcul) pour un besoin, chercher
+(grep/lecture du code existant, ou agent `Explore`) si un mécanisme quasi identique répond déjà à
+un besoin quasi identique ailleurs dans le code — réutiliser ou étendre plutôt que réimplémenter
+en parallèle. S'applique à tout agent qui explore ou modifie ce dépôt (recherche de code avant
+d'implémenter une feature, audit, revue avant de clore une tâche), pas seulement à un domaine
+précis — deux précédents réels l'ont révélée dans des domaines différents :
+- `AppState._checkedRakaas` dupliquait ce qu'`ayah_facts.reach` savait déjà faire (sprint
+  "simplify-ayah-facts", 2026-09-02 — voir § « Modèle de données central » ci-dessous).
+- Trois écrans (Plan du jour, Récap, Apprendre) réimplémentaient chacun une boucle d'affichage
+  d'une plage de versets coraniques, avant unification derrière `VerseBottomSheet`/`VerseRow`
+  (sprint 2026-09-02 — voir `docs/DOCUMENTATION_TECHNIQUE.md` §8.6).
+
 ## Règles d'architecture à ne jamais casser
 - `lib/core/` : zéro import Flutter, zéro I/O, Dart pur.
 - `lib/services/` : stateless, jamais de `notifyListeners`.
@@ -61,6 +75,7 @@ Projet solo, un seul développeur, Provider comme unique gestion d'état.
 - Le code correspond-il à ce que `docs/DOCUMENTATION_TECHNIQUE.md`/`docs/CHANGELOG.md` prétendent ? Ces fichiers sont maintenus à la main et peuvent dériver du dépôt réel (exemple vécu le 2026-08-20 : une section documentait des fonctionnalités et un test de régression qui n'étaient pas encore commités). Corriger l'un ou l'autre plutôt que de laisser la doc mentir.
 - Un changement dans `revision_engine.dart` ou `freshness_engine.dart` respecte-t-il les règles métier déjà actées (répétition cyclique sans rakaa vide, no-repeat sourate par prière, cycle adaptatif, mode lignes/jour vs durée) ?
 - Un changement visuel respecte-t-il la direction artistique Mus'haf/Tahajjud (clair papier crème/vert/or, sombre Tahajjud, suivi via `ThemeMode.system`) plutôt que d'introduire un style isolé ?
+- Le mécanisme que je viens d'écrire fait-il double emploi avec un mécanisme quasi identique déjà présent ailleurs (même requête, même boucle d'affichage, même calcul) ? Voir § « Ne jamais dupliquer une logique quasi identique » — factoriser avant de clore plutôt que laisser deux implémentations diverger silencieusement.
 
 ## Ne jamais oublier
 - Mettre à jour le Backlog de `docs/CHANGELOG.md` (retirer les items traités, ajouter les nouvelles idées) à la fin de chaque sprint/tâche notable — c'est le seul backlog persistant du projet, pas de ticket externe. L'historique de ce qui a été livré vit dans `git log`, pas dans ce fichier (nettoyé en ce sens le 2026-09-01, ne garde plus que Backlog + décisions transversales). Mettre à jour `docs/DOCUMENTATION_TECHNIQUE.md` en plus si le sprint touche `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajoute/supprime un écran/service.

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/app_rules.dart';
 import '../core/freshness_engine.dart';
+import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
@@ -104,27 +105,6 @@ class _PlanScreenState extends State<PlanScreen> {
             if (r.unit != null) r.unit!,
       ];
 
-  /// Unités (échelle attendue par `advanceCycle`) et unités réellement
-  /// couvertes par les [n] premières rakaas du plan (dans l'ordre) — utilisé
-  /// pour la déclaration manuelle "une part fait", où l'utilisateur pense en
-  /// rakaas récitées, pas en unités de cycle.
-  ({int units, List<RevisionUnit> coveredUnits}) _coverageForFirstRakaas(int n) {
-    final seenLabels = <String>{};
-    final coveredUnits = <RevisionUnit>[];
-    int counted = 0;
-    for (final pp in widget.session.plan) {
-      for (final r in pp.rakaas) {
-        if (r.unit == null) continue;
-        if (counted >= n) break;
-        counted++;
-        seenLabels.add(r.unit!.label);
-        coveredUnits.add(r.unit!);
-      }
-      if (counted >= n) break;
-    }
-    return (units: seenLabels.length, coveredUnits: coveredUnits);
-  }
-
   Future<void> _confirmChangePlan(BuildContext context) async {
     // Commitment modal — l'utilisateur doit déclarer ce qu'il a fait.
     await showModalBottomSheet<void>(
@@ -143,7 +123,8 @@ class _PlanScreenState extends State<PlanScreen> {
         },
         onPartFait: (n) async {
           Navigator.pop(context);
-          final coverage = _coverageForFirstRakaas(n);
+          final coverage =
+              RevisionEngine.coverageForFirstRakaas(widget.session.plan, n);
           if (mounted) {
             await widget.onComplete!(coverage.units, coverage.coveredUnits);
           }
