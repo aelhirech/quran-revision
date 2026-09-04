@@ -1,39 +1,57 @@
-// SRS léger — calcule la "fraîcheur" d'une sourate depuis sa dernière révision.
-// Module pur : pas de Flutter, pas d'I/O.
+// SRS léger — classe la "fraîcheur" d'une sourate/sélection depuis
+// l'historique de révision au grain verset. Module pur : pas de Flutter,
+// pas d'I/O.
 
 enum FreshnessLevel {
-  hot,    // révisé récemment (< 7 jours)
-  cold,   // commence à refroidir (7–13 jours)
-  frozen, // à risque d'être oublié (14+ jours, ou jamais révisé)
+  neverRevised, // aucun verset de la plage jamais révisé
+  partiallyRecent, // au moins un verset révisé ≤30j ET au moins un qui ne l'est pas (jamais ou >30j)
+  recent, // tous les versets de la plage révisés il y a ≤30j
+  oneMonth, // aucun verset récent ; le plus récemment révisé l'a été il y a >30j
+  threeMonths, // ... >90j
+  sixMonths, // ... >180j
+  oneYear, // ... >365j
 }
 
 class FreshnessEngine {
-  static const int _coldAfterDays   = 7;
-  static const int _frozenAfterDays = 14;
+  static const int _recentAfterDays = 30;
+  static const int _threeMonthsAfterDays = 90;
+  static const int _sixMonthsAfterDays = 180;
+  static const int _oneYearAfterDays = 365;
 
-  /// Calcule le niveau de fraîcheur d'une sourate.
-  /// [lastRevised] : null si jamais révisé → frozen d'office.
-  /// [today] : injecté pour rester testable (jamais DateTime.now() ici).
-  static FreshnessLevel compute(DateTime? lastRevised, DateTime today) {
-    if (lastRevised == null) return FreshnessLevel.frozen;
-    final days = today.difference(lastRevised).inDays;
-    if (days < _coldAfterDays)   return FreshnessLevel.hot;
-    if (days < _frozenAfterDays) return FreshnessLevel.cold;
-    return FreshnessLevel.frozen;
-  }
+  /// Classifie la fraîcheur d'une plage de versets [verseStart]..[verseEnd]
+  /// (bornes incluses, plage exacte de la sourate/sélection — jamais
+  /// `1..sourate.verses`) à partir des dates de dernière révision par
+  /// verset ([lastRevisionByAyah] : `ayah_id` → date, absence = jamais
+  /// révisé). [today] toujours injecté (jamais `DateTime.now()` ici) pour
+  /// rester testable.
+  static FreshnessLevel computeForRange({
+    required Map<int, DateTime> lastRevisionByAyah,
+    required int verseStart,
+    required int verseEnd,
+    required DateTime today,
+  }) {
+    assert(verseEnd >= verseStart);
+    final total = verseEnd - verseStart + 1;
+    var recentCount = 0;
+    DateTime? mostRecent;
+    for (var ayah = verseStart; ayah <= verseEnd; ayah++) {
+      final date = lastRevisionByAyah[ayah];
+      if (date == null) continue;
+      if (mostRecent == null || date.isAfter(mostRecent)) mostRecent = date;
+      if (today.difference(date).inDays <= _recentAfterDays) recentCount++;
+    }
 
-  /// Calcule la fraîcheur pour un ensemble de clés (sourates, ou versets une
-  /// fois la Phase 6 étendue au niveau verset) en un seul passage. Générique
-  /// sur la clé : K=int pour une fraîcheur par sourate (usage actuel), tout
-  /// autre type de clé (ex. un identifiant composite par verset) fonctionne
-  /// à l'identique.
-  static Map<K, FreshnessLevel> computeAll<K>(
-    Map<K, DateTime> lastRevisionDates,
-    DateTime today,
-  ) {
-    return {
-      for (final entry in lastRevisionDates.entries)
-        entry.key: compute(entry.value, today),
-    };
+    if (mostRecent == null) return FreshnessLevel.neverRevised;
+    if (recentCount == total) return FreshnessLevel.recent;
+    if (recentCount > 0) return FreshnessLevel.partiallyRecent;
+
+    // Aucun verset récent, mais au moins un déjà révisé (mostRecent != null) :
+    // palier basé sur la date la plus récente parmi les versets déjà
+    // révisés (le moins pire, pas le pire).
+    final days = today.difference(mostRecent).inDays;
+    if (days > _oneYearAfterDays) return FreshnessLevel.oneYear;
+    if (days > _sixMonthsAfterDays) return FreshnessLevel.sixMonths;
+    if (days > _threeMonthsAfterDays) return FreshnessLevel.threeMonths;
+    return FreshnessLevel.oneMonth;
   }
 }

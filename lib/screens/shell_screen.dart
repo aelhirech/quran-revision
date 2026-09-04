@@ -26,7 +26,18 @@ class _ShellScreenState extends State<ShellScreen> {
     super.initState();
     // Point d'entrée du moteur quotidien (Phase 6 Sprint 2) — à chaque
     // ouverture/reprise de l'app (voir cadrage "Moteur quotidien").
-    context.read<AppState>().ensureDayPlan();
+    final state = context.read<AppState>();
+    state.ensureDayPlan();
+    // `freshnessFor` (Phase 8 Sprint 1) retourne toujours un niveau concret,
+    // jamais `null` — tant qu'aucun refresh n'a eu lieu, `_lastRevisionByAyah`
+    // est vide et toute sourate lirait à tort "jamais révisée" (badge rouge)
+    // plutôt que de rester simplement non affichée comme avant. Sans cet
+    // appel, ce chargement ne partait implicitement que de `RecapScreen`
+    // (un onglet non lié), avec un risque réel de notifier après le plan du
+    // jour et donc de flasher un badge erroné le temps que les deux requêtes
+    // se résolvent — le démarrer ici, en parallèle, réduit la fenêtre de
+    // course plutôt que de la laisser dépendre d'un écran sans rapport.
+    state.refreshFreshness(notify: false);
     _maybeStartTour();
   }
 

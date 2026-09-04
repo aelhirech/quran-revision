@@ -21,7 +21,7 @@ class AyahFactsService {
   static Future<Database> _open() async {
     _db ??= await openDatabase(
       p.join(await getDatabasesPath(), 'history.db'),
-      version: 4,
+      version: 5,
       onCreate: (db, _) async {
         await _createAyahFacts(db);
       },
@@ -34,6 +34,28 @@ class AyahFactsService {
           await db.execute('DROP TABLE IF EXISTS sessions');
           await db.execute('DROP TABLE IF EXISTS sourate_sessions');
           await _createAyahFacts(db);
+        }
+        // `oldVersion >= 4` est nécessaire, pas juste `oldVersion < 5` seul :
+        // sqflite n'appelle `onUpgrade` qu'une seule fois par ouverture, avec
+        // l'`oldVersion` d'origine — un appareil encore sur schéma < 4 passe
+        // par les deux blocs `if` dans le même appel. Le bloc `< 4` ci-dessus
+        // vient alors de créer `ayah_facts` via `_createAyahFacts`, qui
+        // produit déjà `needs_work` (jamais `cold`) : ré-exécuter l'`ALTER
+        // TABLE ADD COLUMN` planterait ("duplicate column name"), et le
+        // backfill lèverait "no such column: cold". Cette migration ne doit
+        // tourner que sur un appareil qui avait réellement la colonne `cold`
+        // en base (bug trouvé en revue de code Phase 8 Sprint 1).
+        if (oldVersion >= 4 && oldVersion < 5) {
+          // Renommage `cold` → `needs_work` (collision de vocabulaire avec
+          // le concept "freshness" introduit ce sprint, sans rapport entre
+          // les deux — voir docs/CHANGELOG.md). ADD COLUMN + backfill plutôt
+          // que RENAME COLUMN : reste compatible avec les versions de SQLite
+          // embarquées sur d'anciens appareils Android (RENAME COLUMN
+          // nécessite SQLite ≥ 3.25, pas garanti partout). L'ancienne colonne
+          // `cold` reste en base, orpheline mais inoffensive.
+          await db.execute(
+              'ALTER TABLE ayah_facts ADD COLUMN needs_work INTEGER NOT NULL DEFAULT 0');
+          await db.execute('UPDATE ayah_facts SET needs_work = cold');
         }
       },
     );
@@ -50,7 +72,7 @@ class AyahFactsService {
         ayah_id     INTEGER NOT NULL,
         type        TEXT NOT NULL,
         reach       INTEGER NOT NULL DEFAULT 0,
-        cold        INTEGER NOT NULL DEFAULT 0,
+        needs_work  INTEGER NOT NULL DEFAULT 0,
         checked_out INTEGER NOT NULL DEFAULT 0
       )
     ''');
@@ -72,21 +94,26 @@ class AyahFactsService {
 
   // --- Révision ---
 
-  /// Dernière date de révision par sourate (un verset révisé vaut pour toute
-  /// sa sourate) — remplace `HistoryService.lastRevisionDates`, même contrat
-  /// consommé par `AppState.refreshFreshness`.
-  static Future<Map<int, DateTime>> lastRevisionDatesPerSourate(
+  /// Dernière date de révision par verset (`MAX(date)` groupé par sourate +
+  /// verset, versets jamais révisés absents du résultat) — alimente
+  /// `FreshnessEngine.computeForRange` via `AppState.refreshFreshness`. Un
+  /// `MAX` par sourate (ancien besoin de `lastRevisionDatesPerSourate`,
+  /// supprimée) se dérive trivialement de ce résultat si nécessaire.
+  static Future<Map<int, Map<int, DateTime>>> lastRevisionDatesPerVerse(
       {required Riwaya riwaya}) async {
     final db = await _open();
     final rows = await db.rawQuery(
-      'SELECT surah_id, MAX(date) as last_date FROM ayah_facts '
-      'WHERE riwaya = ? AND type = ? AND reach = 1 GROUP BY surah_id',
+      'SELECT surah_id, ayah_id, MAX(date) as last_date FROM ayah_facts '
+      'WHERE riwaya = ? AND type = ? AND reach = 1 GROUP BY surah_id, ayah_id',
       [riwaya.name, AyahFactType.revise.name],
     );
-    return {
-      for (final row in rows)
-        row['surah_id'] as int: DateTime.parse(row['last_date'] as String),
-    };
+    final result = <int, Map<int, DateTime>>{};
+    for (final row in rows) {
+      final surahId = row['surah_id'] as int;
+      result.putIfAbsent(surahId, () => {})[row['ayah_id'] as int] =
+          DateTime.parse(row['last_date'] as String);
+    }
+    return result;
   }
 
   static Future<int> currentStreak(
@@ -332,7 +359,7 @@ class AyahFactsService {
   /// checked_out = 0`, pas encore confirmées. Utilisé à la fois par le
   /// moteur quotidien (plan initial) et par le check-in (ajout manuel d'une
   /// sourate/portion) : même écriture. [ConflictAlgorithm.ignore] — pas
-  /// `replace` — la rend idempotente SANS écraser un `reach`/`cold` déjà
+  /// `replace` — la rend idempotente SANS écraser un `reach`/`needs_work` déjà
   /// posé sur un verset qui y figurait déjà (ex. deux appels concurrents à
   /// `ensureDayPlan`, ou un ré-ajout d'un verset déjà coché) ; `replace`
   /// remettrait silencieusement ces colonnes à leurs valeurs par défaut.
@@ -427,12 +454,12 @@ class AyahFactsService {
         ]);
   }
 
-  /// Bascule `cold` ("à retravailler") pour un verset précis — écran détail
-  /// du check-out, granularité verset (pas la sourate entière).
-  static Future<void> setCold(String date, Riwaya riwaya, int surahId,
-      int ayahId, bool cold) async {
+  /// Bascule `needs_work` ("à retravailler") pour un verset précis — écran
+  /// détail du check-out, granularité verset (pas la sourate entière).
+  static Future<void> setNeedsWork(String date, Riwaya riwaya, int surahId,
+      int ayahId, bool needsWork) async {
     final db = await _open();
-    await db.update('ayah_facts', {'cold': cold ? 1 : 0},
+    await db.update('ayah_facts', {'needs_work': needsWork ? 1 : 0},
         where: 'date = ? AND riwaya = ? AND surah_id = ? AND ayah_id = ? AND type = ?',
         whereArgs: [date, riwaya.name, surahId, ayahId, AyahFactType.revise.name]);
   }
@@ -490,11 +517,11 @@ class AyahFactsService {
   }
 
   /// Scelle une journée : `checked_out = 1` pour toutes ses lignes de
-  /// révision. `reach`/`cold` doivent déjà être à jour (voir
-  /// [setReach]/[setCold], appliqués au fil des interactions du check-out) —
-  /// chaque bascule précédente est déjà durablement écrite, un simple UPDATE
-  /// suffit donc ici, pas besoin d'empaqueter reach+cold+checked_out dans une
-  /// même transaction.
+  /// révision. `reach`/`needs_work` doivent déjà être à jour (voir
+  /// [setReach]/[setNeedsWork], appliqués au fil des interactions du
+  /// check-out) — chaque bascule précédente est déjà durablement écrite, un
+  /// simple UPDATE suffit donc ici, pas besoin d'empaqueter
+  /// reach+needs_work+checked_out dans une même transaction.
   static Future<void> sealDay(String date, Riwaya riwaya) async {
     final db = await _open();
     await db.update('ayah_facts', {'checked_out': 1},
@@ -510,7 +537,7 @@ class AyahFactsService {
       String date, Riwaya riwaya) async {
     final db = await _open();
     final rows = await db.query('ayah_facts',
-        columns: ['surah_id', 'ayah_id', 'reach', 'cold'],
+        columns: ['surah_id', 'ayah_id', 'reach', 'needs_work'],
         where: 'date = ? AND riwaya = ? AND type = ?',
         whereArgs: [date, riwaya.name, AyahFactType.revise.name],
         orderBy: 'surah_id, ayah_id');
@@ -525,9 +552,9 @@ class AyahFactsService {
           verseStart: entry.value.map((r) => r['ayah_id'] as int).reduce(min),
           verseEnd: entry.value.map((r) => r['ayah_id'] as int).reduce(max),
           reach: entry.value.every((r) => (r['reach'] as int) == 1),
-          coldVerses: {
+          needsWorkVerses: {
             for (final r in entry.value)
-              if ((r['cold'] as int) == 1) r['ayah_id'] as int,
+              if ((r['needs_work'] as int) == 1) r['ayah_id'] as int,
           },
         ),
     ];
@@ -541,13 +568,13 @@ class DayFactGroup {
   final int verseStart;
   final int verseEnd;
   final bool reach; // true seulement si toute la plage est reach=1
-  final Set<int> coldVerses;
+  final Set<int> needsWorkVerses;
 
   const DayFactGroup({
     required this.surahId,
     required this.verseStart,
     required this.verseEnd,
     required this.reach,
-    required this.coldVerses,
+    required this.needsWorkVerses,
   });
 }

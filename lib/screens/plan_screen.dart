@@ -22,7 +22,7 @@ class PlanScreen extends StatefulWidget {
   final DailySession session;
   final Future<void> Function(int unitsCompleted, List<RevisionUnit> coveredUnits)? onComplete;
   final VoidCallback? onChangePlan;
-  final FreshnessLevel? Function(int sourateId)? freshnessOf;
+  final FreshnessLevel Function(int sourateId, int verseStart, int verseEnd)? freshnessOf;
 
   const PlanScreen({
     super.key,

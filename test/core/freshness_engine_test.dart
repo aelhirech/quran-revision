@@ -4,44 +4,128 @@ import 'package:quran_revision/core/freshness_engine.dart';
 void main() {
   final today = DateTime(2026, 8, 30);
 
-  group('FreshnessEngine.compute', () {
-    test('jamais révisé → frozen', () {
-      expect(FreshnessEngine.compute(null, today), FreshnessLevel.frozen);
+  group('FreshnessEngine.computeForRange', () {
+    test('aucun verset de la plage jamais révisé → neverRevised', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: const {},
+        verseStart: 1,
+        verseEnd: 5,
+        today: today,
+      );
+      expect(level, FreshnessLevel.neverRevised);
     });
 
-    test('révisé il y a moins de 7 jours → hot', () {
-      final last = today.subtract(const Duration(days: 3));
-      expect(FreshnessEngine.compute(last, today), FreshnessLevel.hot);
+    test('tous les versets révisés il y a ≤30j → recent', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {
+          1: today.subtract(const Duration(days: 1)),
+          2: today.subtract(const Duration(days: 30)),
+          3: today.subtract(const Duration(days: 5)),
+        },
+        verseStart: 1,
+        verseEnd: 3,
+        today: today,
+      );
+      expect(level, FreshnessLevel.recent);
     });
 
-    test('révisé il y a 7 à 13 jours → cold', () {
-      final last = today.subtract(const Duration(days: 10));
-      expect(FreshnessEngine.compute(last, today), FreshnessLevel.cold);
+    test('un verset récent et un jamais révisé → partiallyRecent', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {1: today.subtract(const Duration(days: 2))},
+        verseStart: 1,
+        verseEnd: 2, // verset 2 jamais révisé
+        today: today,
+      );
+      expect(level, FreshnessLevel.partiallyRecent);
     });
 
-    test('révisé il y a 14 jours ou plus → frozen', () {
-      final last = today.subtract(const Duration(days: 14));
-      expect(FreshnessEngine.compute(last, today), FreshnessLevel.frozen);
-    });
-  });
-
-  group('FreshnessEngine.computeAll — générique sur la clé', () {
-    test('clé int (sourate) — comportement inchangé', () {
-      final dates = <int, DateTime>{
-        1: today.subtract(const Duration(days: 1)),
-        2: today.subtract(const Duration(days: 20)),
-      };
-      final result = FreshnessEngine.computeAll<int>(dates, today);
-      expect(result[1], FreshnessLevel.hot);
-      expect(result[2], FreshnessLevel.frozen);
+    test('un verset récent et un vieux (>30j) → partiallyRecent', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {
+          1: today.subtract(const Duration(days: 2)),
+          2: today.subtract(const Duration(days: 100)),
+        },
+        verseStart: 1,
+        verseEnd: 2,
+        today: today,
+      );
+      expect(level, FreshnessLevel.partiallyRecent);
     });
 
-    test('clé String composite (verset) — fonctionne à l\'identique', () {
-      final dates = <String, DateTime>{
-        '2:255': today.subtract(const Duration(days: 10)),
-      };
-      final result = FreshnessEngine.computeAll<String>(dates, today);
-      expect(result['2:255'], FreshnessLevel.cold);
+    test('aucun verset récent, le plus récent révisé il y a >30j → oneMonth', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {1: today.subtract(const Duration(days: 45))},
+        verseStart: 1,
+        verseEnd: 1,
+        today: today,
+      );
+      expect(level, FreshnessLevel.oneMonth);
+    });
+
+    test('plus récent révisé il y a >90j → threeMonths', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {1: today.subtract(const Duration(days: 91))},
+        verseStart: 1,
+        verseEnd: 1,
+        today: today,
+      );
+      expect(level, FreshnessLevel.threeMonths);
+    });
+
+    test('plus récent révisé il y a >180j → sixMonths', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {1: today.subtract(const Duration(days: 181))},
+        verseStart: 1,
+        verseEnd: 1,
+        today: today,
+      );
+      expect(level, FreshnessLevel.sixMonths);
+    });
+
+    test('plus récent révisé il y a >365j → oneYear', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {1: today.subtract(const Duration(days: 400))},
+        verseStart: 1,
+        verseEnd: 1,
+        today: today,
+      );
+      expect(level, FreshnessLevel.oneYear);
+    });
+
+    test('palier choisi sur le verset le plus récent, pas le plus ancien (le moins pire)', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {
+          1: today.subtract(const Duration(days: 400)), // >1an
+          2: today.subtract(const Duration(days: 40)), // >30j seulement
+        },
+        verseStart: 1,
+        verseEnd: 2,
+        today: today,
+      );
+      expect(level, FreshnessLevel.oneMonth);
+    });
+
+    test('exactement 30j compte comme récent (borne incluse)', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {1: today.subtract(const Duration(days: 30))},
+        verseStart: 1,
+        verseEnd: 1,
+        today: today,
+      );
+      expect(level, FreshnessLevel.recent);
+    });
+
+    test('versets hors de lastRevisionByAyah ignorés (autre sourate)', () {
+      final level = FreshnessEngine.computeForRange(
+        lastRevisionByAyah: {
+          1: today.subtract(const Duration(days: 1)),
+          99: today.subtract(const Duration(days: 400)), // hors plage, sans effet
+        },
+        verseStart: 1,
+        verseEnd: 1,
+        today: today,
+      );
+      expect(level, FreshnessLevel.recent);
     });
   });
 }

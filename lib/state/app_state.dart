@@ -38,13 +38,13 @@ class AppState extends ChangeNotifier {
   List<Sourate> _sourates;
   // Durée de cycle calculée depuis l'historique (mode adaptatif uniquement)
   int? _adaptiveCycleDays;
-  // Fraîcheur par sourate (sourateId → niveau)
-  Map<int, FreshnessLevel> _freshness = {};
-  // Date de dernière révision par sourate — même source que `_freshness`
-  // (voir `refreshFreshness`), conservée pour l'afficher en texte discret
-  // ("il y a 3 mois") dans le check-in/check-out plutôt qu'un badge chaud/
-  // froid coloré (décidé à la maquette Sprint 1).
-  Map<int, DateTime> _lastRevisionDates = {};
+  // Dernière date de révision par verset (surahId → ayahId → date), grain le
+  // plus fin disponible — voir `refreshFreshness`/`freshnessFor`.
+  // FreshnessEngine.computeForRange classe à la demande sur la plage exacte
+  // demandée (sourate entière ou sélection partielle), pas de Map précalculée
+  // par sourate : la plage change selon l'appelant (RecapCard = sélection,
+  // PlanScreen/check-in = unité du jour, potentiellement subdivisée).
+  Map<int, Map<int, DateTime>> _lastRevisionByAyah = {};
 
   AppState(
     this._config, {
@@ -99,11 +99,16 @@ class AppState extends ChangeNotifier {
   int? get adaptiveCycleDays =>
       _config?.adaptiveCycle == true ? _adaptiveCycleDays : null;
 
-  /// Retourne le niveau de fraîcheur d'une sourate. Null = jamais calculé.
-  FreshnessLevel? freshnessFor(int sourateId) => _freshness[sourateId];
-
-  /// Date de dernière révision d'une sourate. Null = jamais révisée.
-  DateTime? lastRevisionFor(int sourateId) => _lastRevisionDates[sourateId];
+  /// Niveau de fraîcheur d'une sourate/sélection sur sa plage exacte de
+  /// versets [verseStart]..[verseEnd] (pas `1..sourate.verses`) — voir
+  /// `FreshnessEngine.computeForRange`.
+  FreshnessLevel freshnessFor(int sourateId, int verseStart, int verseEnd) =>
+      FreshnessEngine.computeForRange(
+        lastRevisionByAyah: _lastRevisionByAyah[sourateId] ?? const {},
+        verseStart: verseStart,
+        verseEnd: verseEnd,
+        today: DateTime.now(),
+      );
 
   String get _todayStr =>
       DateTime.now().toIso8601String().substring(0, 10);
@@ -206,12 +211,11 @@ class AppState extends ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  /// Recalcule la fraîcheur depuis l'historique des révisions par sourate.
-  /// Appelé quand une session démarre et après chaque session complétée.
+  /// Recharge les dernières dates de révision par verset depuis l'historique
+  /// — voir [freshnessFor]. Appelé quand une session démarre et après chaque
+  /// session complétée.
   Future<void> refreshFreshness({bool notify = true}) async {
-    final dates = await AyahFactsService.lastRevisionDatesPerSourate(riwaya: _riwaya);
-    _lastRevisionDates = dates;
-    _freshness = FreshnessEngine.computeAll(dates, DateTime.now());
+    _lastRevisionByAyah = await AyahFactsService.lastRevisionDatesPerVerse(riwaya: _riwaya);
     if (notify) notifyListeners();
   }
 
@@ -297,17 +301,18 @@ class AppState extends ChangeNotifier {
   }
 
   /// Comme [dayUnits], avec les versets flagués "à retravailler" de chaque
-  /// unité (`coldVerses`) — c'est cette version que consomme CheckOutScreen.
-  /// Ne renvoie plus `reach` (Sprint 7) : CheckOutScreen affiche tout comme
-  /// "fait" par défaut, indépendamment de la valeur persistée (voir
-  /// Backlog "Check-out : reach fait par défaut", 2026-09-04) — le `reach`
-  /// en base ne sert plus qu'à [checkOut] lui-même.
-  Future<List<({RevisionUnit unit, Set<int> coldVerses})>> dayUnitsWithStatus(
+  /// unité (`needsWorkVerses`) — c'est cette version que consomme
+  /// CheckOutScreen. Ne renvoie plus `reach` (Sprint 7) : CheckOutScreen
+  /// affiche tout comme "fait" par défaut, indépendamment de la valeur
+  /// persistée (voir Backlog "Check-out : reach fait par défaut",
+  /// 2026-09-04) — le `reach` en base ne sert plus qu'à [checkOut] lui-même.
+  Future<List<({RevisionUnit unit, Set<int> needsWorkVerses})>> dayUnitsWithStatus(
       {String? date}) async {
     final groups = await AyahFactsService.dayFacts(date ?? _todayStr, _riwaya);
     return [
       for (final g in groups)
-        if (_unitFor(g) case final unit?) (unit: unit, coldVerses: g.coldVerses),
+        if (_unitFor(g) case final unit?)
+          (unit: unit, needsWorkVerses: g.needsWorkVerses),
     ];
   }
 
@@ -495,8 +500,9 @@ class AppState extends ChangeNotifier {
 
   /// Bascule "à retravailler" pour un verset précis — écran détail du
   /// check-out, granularité verset (pas la sourate entière).
-  Future<void> setVerseCold(String date, int surahId, int ayahId, bool cold) async {
-    await AyahFactsService.setCold(date, _riwaya, surahId, ayahId, cold);
+  Future<void> setVerseNeedsWork(
+      String date, int surahId, int ayahId, bool needsWork) async {
+    await AyahFactsService.setNeedsWork(date, _riwaya, surahId, ayahId, needsWork);
     notifyListeners();
   }
 

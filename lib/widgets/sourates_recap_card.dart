@@ -9,7 +9,7 @@ import 'verse_bottom_sheet.dart';
 
 class SouratesRecapCard extends StatelessWidget {
   final List<SourateSelection> selections;
-  final FreshnessLevel? Function(int sourateId)? freshnessOf;
+  final FreshnessLevel Function(int sourateId, int verseStart, int verseEnd)? freshnessOf;
 
   const SouratesRecapCard({
     super.key,
@@ -44,7 +44,7 @@ class SouratesRecapCard extends StatelessWidget {
             ...selections.asMap().entries.map((e) {
               final sel = e.value;
               final s = sel.sourate;
-              final freshness = freshnessOf?.call(s.id);
+              final freshness = freshnessOf?.call(s.id, sel.verseStart, sel.verseEnd);
               return ListTile(
                 dense: true,
                 leading: CircleAvatar(
