@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:quran_revision/core/revision_engine.dart';
 import 'package:quran_revision/models/revision_unit.dart';
 import 'package:quran_revision/models/riwaya.dart';
 import 'package:quran_revision/models/sourate.dart';
@@ -152,5 +153,150 @@ void main() {
     expect(state.cyclePosition, 2,
         reason:
             '201 et 203 comptent (202 est ignorée, pas bloquante) : le cycle avance de 2, pas 1');
+  });
+
+  test(
+      'check-out "fait par défaut" (comportement CheckOutScreen sans exception) '
+      'avance le cycle jour après jour — régression bug "cycle figé, même '
+      'sourate en boucle" (backlog 2026-09-04)', () async {
+    final config = UserConfig(
+      selections: [
+        SourateSelection.whole(_sourate(401)),
+        SourateSelection.whole(_sourate(402)),
+        SourateSelection.whole(_sourate(403)),
+      ],
+      revisionDays: 30,
+      startDate: DateTime.now().subtract(const Duration(days: 5)),
+      shuffleEnabled: false,
+    );
+    final state = AppState(config, riwaya: Riwaya.hafs);
+    final proposedSourateIds = <int>[];
+
+    var day = DateTime.now().subtract(const Duration(days: 3));
+    for (var i = 0; i < 3; i++) {
+      final dateStr = _isoDate(day);
+      final selection = RevisionEngine.selectDayUnits(
+          config: config, cyclePosition: state.cyclePosition, today: day);
+      expect(selection.units, hasLength(1),
+          reason: 'revisionDays=30 pour 3 unités : dailyTarget doit rester à 1/jour');
+      proposedSourateIds.add(selection.units.single.sourate.id);
+
+      await AyahFactsService.proposeUnits(dateStr, Riwaya.hafs, selection.units);
+      // Simule CheckOutScreen : clôture sans rien décocher → tout est
+      // confirmé "fait" avant d'appeler checkOut (voir _close()).
+      await state.markUnitsReached(selection.units, date: dateStr);
+      await state.checkOut(dateStr);
+
+      expect(state.cyclePosition, (i + 1) % 3,
+          reason: 'sans le fix (reach jamais écrit), cyclePosition resterait '
+              'gelé à 0 pour toujours — le modulo 3 au dernier tour est le '
+              'bouclage normal du cycle (3 unités/3 jours), pas le bug');
+      day = day.add(const Duration(days: 1));
+    }
+
+    expect(proposedSourateIds.toSet(), hasLength(3),
+        reason: '3 sourates distinctes proposées sur 3 jours — avant le fix, '
+            'cyclePosition figé aurait reproposé la sourate 401 les 3 jours '
+            '(symptôme backlog : "ça propose toujours la même sourate")');
+  });
+
+  test(
+      'check-out avec une exception décochée : cyclePosition n\'avance que '
+      'jusqu\'à l\'exception, dayUnits() reconstruit fidèlement depuis '
+      'ayah_facts (plusieurs unités le même jour)', () async {
+    // IDs 111/112 (pas 501/502 comme les autres tests de ce fichier) :
+    // AppState.dayUnits() résout chaque surah_id via _sourateById() sur la
+    // vraie liste des 114 sourates (HafsService) — un id hors plage 1..114
+    // ne serait jamais retrouvé et l'unité serait silencieusement filtrée.
+    final config = UserConfig(
+      selections: [
+        SourateSelection.whole(_sourate(111)),
+        SourateSelection.whole(_sourate(112)),
+      ],
+      revisionDays: 30,
+      startDate: DateTime.now().subtract(const Duration(days: 5)),
+      shuffleEnabled: false,
+      paceByLines: true,
+      // 50 mots ≈ 5.9 lignes/sourate : les 2 unités tiennent dans le même jour.
+      targetLinesPerDay: 10,
+    );
+    final state = AppState(config, riwaya: Riwaya.hafs);
+    // Date dédiée (-20j), non partagée avec les autres tests de ce fichier,
+    // pour ne pas mélanger des lignes ayah_facts d'un autre scénario.
+    final day = _isoDate(DateTime.now().subtract(const Duration(days: 20)));
+
+    final selection = RevisionEngine.selectDayUnits(
+        config: config, cyclePosition: 0, today: DateTime.parse(day));
+    expect(selection.units, hasLength(2));
+
+    await AyahFactsService.proposeUnits(day, Riwaya.hafs, selection.units);
+
+    final rebuilt = await state.dayUnits(date: day);
+    expect(rebuilt.toSet(), selection.units.toSet(),
+        reason:
+            'dayUnits() doit reconstruire exactement les unités proposées depuis ayah_facts');
+
+    // Simule CheckOutScreen : l'utilisateur décoche la 2e unité (exception)
+    // — seule la 1re reste confirmée "fait" à la clôture.
+    await state.markUnitsReached([selection.units.first], date: day);
+    await state.checkOut(day);
+
+    expect(state.cyclePosition, 1,
+        reason: 'la 2e unité reste reach=0 (exception décochée) : le '
+            'comptage s\'arrête à la 1re, cyclePosition n\'avance que de 1 '
+            'malgré 2 unités proposées ce jour-là');
+  });
+
+  test(
+      'check-out : décocher une unité déjà reach=1 (rakaa cochée plus tôt '
+      'dans PlanScreen, avant que le jour ne devienne "en attente") repasse '
+      'bien reach=0 — régression trouvée en revue de code (annuler une '
+      'progression ne doit jamais rester un no-op silencieux)', () async {
+    final config = UserConfig(
+      selections: [
+        SourateSelection.whole(_sourate(103)),
+        SourateSelection.whole(_sourate(104)),
+      ],
+      revisionDays: 30,
+      startDate: DateTime.now().subtract(const Duration(days: 5)),
+      shuffleEnabled: false,
+      paceByLines: true,
+      targetLinesPerDay: 10,
+    );
+    final state = AppState(config, riwaya: Riwaya.hafs);
+    final day = _isoDate(DateTime.now().subtract(const Duration(days: 25)));
+
+    final selection = RevisionEngine.selectDayUnits(
+        config: config, cyclePosition: 0, today: DateTime.parse(day));
+    expect(selection.units, hasLength(2));
+
+    await AyahFactsService.proposeUnits(day, Riwaya.hafs, selection.units);
+    // Simule : les 2 unités ont déjà été cochées dans PlanScreen plus tôt
+    // ce jour-là (reach=1 pour les 2), avant que le jour ne soit resté non
+    // scellé et ne devienne "en attente".
+    await state.markUnitsReached(selection.units, date: day);
+    expect(
+        await AyahFactsService.isRangeReached(day, Riwaya.hafs,
+            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd),
+        isTrue);
+
+    // Dans CheckOutScreen, l'utilisateur décoche la 2e unité (il constate
+    // qu'elle n'a en fait pas été faite) : la 1re reste confirmée, la 2e
+    // doit explicitement repasser à reach=0 (pas juste "ne pas être
+    // reconfirmée" — elle était déjà à 1).
+    await state.markUnitsReached([selection.units.first], date: day);
+    await state.markUnitsReached([selection.units[1]], date: day, reach: false);
+
+    expect(
+        await AyahFactsService.isRangeReached(day, Riwaya.hafs,
+            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd),
+        isFalse,
+        reason: 'décocher une unité déjà reach=1 doit explicitement écrire '
+            'reach=0, pas laisser l\'ancienne valeur en place');
+
+    await state.checkOut(day);
+    expect(state.cyclePosition, 1,
+        reason: 'la 2e unité repassée à reach=0 ne doit plus compter, même '
+            'si elle avait été cochée plus tôt dans la journée');
   });
 }

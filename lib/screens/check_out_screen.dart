@@ -22,7 +22,10 @@ class CheckOutScreen extends StatefulWidget {
 }
 
 class _CheckOutScreenState extends State<CheckOutScreen> {
-  List<({RevisionUnit unit, bool reach, Set<int> coldVerses})>? _items;
+  List<({RevisionUnit unit, Set<int> coldVerses})>? _items;
+  // Unités décochées par l'utilisateur (exceptions) — tout le reste est
+  // "fait" par défaut, écrit en base seulement à la clôture ([_close]).
+  final Set<RevisionUnit> _unchecked = {};
   int _step = 1;
   bool _addToday = false;
   bool _sealing = false;
@@ -43,9 +46,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     setState(() => _items = items);
   }
 
-  Future<void> _toggleReach(RevisionUnit unit, bool reach) async {
-    await context.read<AppState>().setUnitReach(widget.date, unit, reach);
-    await _load();
+  void _toggleReach(RevisionUnit unit) {
+    setState(() {
+      if (!_unchecked.add(unit)) _unchecked.remove(unit);
+    });
   }
 
   Future<void> _openDetail(
@@ -62,6 +66,23 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     setState(() => _sealing = true);
     try {
       final state = context.read<AppState>();
+      // Le check-out est "fait par défaut" : les unités restées cochées
+      // sont confirmées reach=1. Les exceptions décochées repassent
+      // explicitement à reach=0 — nécessaire même si `proposeUnits` les a
+      // déjà écrites à 0, car une unité peut avoir reach=1 depuis plus tôt
+      // dans la journée (rakaa cochée dans PlanScreen avant que le jour ne
+      // devienne "en attente") : annuler une progression doit repasser
+      // reach à 0, jamais rester un no-op silencieux (voir CLAUDE.md § «
+      // Modèle de données central »).
+      final stillChecked = <RevisionUnit>[];
+      final uncheckedNow = <RevisionUnit>[];
+      for (final it in _items!) {
+        (_unchecked.contains(it.unit) ? uncheckedNow : stillChecked).add(it.unit);
+      }
+      await Future.wait([
+        state.markUnitsReached(stillChecked, date: widget.date),
+        state.markUnitsReached(uncheckedNow, date: widget.date, reach: false),
+      ]);
       final cycleWrapped = await state.checkOut(widget.date);
       // Le jour en attente est scellé. Écart d'1 jour : pas de choix
       // proposé, on enchaîne directement sur aujourd'hui comme avant.
@@ -109,8 +130,8 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                 for (final it in items)
                                   _CheckOutRow(
                                     unit: it.unit,
-                                    reach: it.reach,
-                                    onToggle: () => _toggleReach(it.unit, !it.reach),
+                                    reach: !_unchecked.contains(it.unit),
+                                    onToggle: () => _toggleReach(it.unit),
                                     onDetail: () => _openDetail(it.unit, it.coldVerses),
                                   ),
                               ],

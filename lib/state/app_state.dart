@@ -296,16 +296,18 @@ class AppState extends ChangeNotifier {
     return groups.map(_unitFor).whereType<RevisionUnit>().toList();
   }
 
-  /// Comme [dayUnits], avec le statut check-out de chaque unité (`reach` —
-  /// coché "fait" ou non, `coldVerses` — versets flagués "à retravailler")
-  /// — c'est cette version que consomme CheckOutScreen.
-  Future<List<({RevisionUnit unit, bool reach, Set<int> coldVerses})>>
-      dayUnitsWithStatus({String? date}) async {
+  /// Comme [dayUnits], avec les versets flagués "à retravailler" de chaque
+  /// unité (`coldVerses`) — c'est cette version que consomme CheckOutScreen.
+  /// Ne renvoie plus `reach` (Sprint 7) : CheckOutScreen affiche tout comme
+  /// "fait" par défaut, indépendamment de la valeur persistée (voir
+  /// Backlog "Check-out : reach fait par défaut", 2026-09-04) — le `reach`
+  /// en base ne sert plus qu'à [checkOut] lui-même.
+  Future<List<({RevisionUnit unit, Set<int> coldVerses})>> dayUnitsWithStatus(
+      {String? date}) async {
     final groups = await AyahFactsService.dayFacts(date ?? _todayStr, _riwaya);
     return [
       for (final g in groups)
-        if (_unitFor(g) case final unit?)
-          (unit: unit, reach: g.reach, coldVerses: g.coldVerses),
+        if (_unitFor(g) case final unit?) (unit: unit, coldVerses: g.coldVerses),
     ];
   }
 
@@ -448,10 +450,20 @@ class AppState extends ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  /// Marque `reach=1` pour les unités couvertes par une manche PlanScreen
-  /// complétée — n'avance plus `cyclePosition` (voir [checkOut]).
-  Future<void> markUnitsReached(List<RevisionUnit> units) async {
-    await AyahFactsService.setReachForUnits(_todayStr, _riwaya, units, true);
+  /// Marque `reach` (par défaut `true`) en batch pour [units] — soit une
+  /// manche PlanScreen complétée (date implicite : aujourd'hui, `reach`
+  /// toujours vrai), soit la clôture d'un CheckOutScreen ([date] explicite) :
+  /// `reach: true` pour confirmer "fait par défaut", `reach: false` pour
+  /// annuler explicitement une unité déjà à `reach=1` (ex. cochée par erreur
+  /// plus tôt dans PlanScreen) — voir CLAUDE.md § « Modèle de données
+  /// central » : annuler une progression repasse `reach` à 0, jamais un
+  /// simple no-op. N'avance jamais `cyclePosition` elle-même (voir
+  /// [checkOut]) ; pas de `notifyListeners` ici, laissé aux appelants qui
+  /// enchaînent d'autres écritures avant de notifier une seule fois pour
+  /// toute l'opération.
+  Future<void> markUnitsReached(List<RevisionUnit> units,
+      {String? date, bool reach = true}) async {
+    await AyahFactsService.setReachForUnits(date ?? _todayStr, _riwaya, units, reach);
   }
 
   /// Bascule "fait/pas fait" pour une rakaa de PlanScreen — remplace
