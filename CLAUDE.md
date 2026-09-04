@@ -6,7 +6,18 @@ Instructions de travail pour ce dépôt. Complète `docs/DOCUMENTATION_TECHNIQUE
 
 ## Déclencheurs de sprint
 
-Deux phrases suffisent pour piloter tout le cycle défini dans le Sprint Workflow du `CLAUDE.md` parent (`d:\Prog\CLAUDE.md`) — pas besoin de redétailler les étapes à chaque fois.
+Trois phrases suffisent pour piloter tout le cycle défini dans le Sprint Workflow du `CLAUDE.md` parent (`d:\Prog\CLAUDE.md`) — pas besoin de redétailler les étapes à chaque fois.
+
+### « Début de scoping » (+ description de ce qu'on veut)
+Phase de cadrage — **zéro code, zéro branche**. Le but n'est pas un résumé oral mais une **mise à jour écrite du Backlog de `docs/CHANGELOG.md`** : transformer le besoin décrit dans le prompt (+ ce qui traîne déjà au Backlog) en items réellement implémentables, découpés en sprints, avant de passer en mode exécution (« Début de sprint », qui lui a pour but de coder, pas de challenger). Ne pas enchaîner directement sur l'implémentation à la fin de cette phase : s'arrêter sur le Backlog mis à jour et attendre le déclencheur « Début de sprint ».
+1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` + le Backlog actuel de `docs/CHANGELOG.md` et `docs/DOCUMENTATION_TECHNIQUE.md`— le besoin du prompt recoupe souvent un item déjà présent (même vague, même mal placé en priorité) : partir de cet existant plutôt que de le dupliquer en un nouvel item parallèle.
+2. Reformuler le besoin (prompt + item(s) de backlog concernés) avec ses propres mots pour vérifier la compréhension — si la reformulation ne colle pas à ce que l'utilisateur a en tête, le dire avant d'aller plus loin plutôt que de deviner.
+3. Challenger activement : y a-t-il plus simple ? Le besoin est-il déjà couvert par un mécanisme existant (voir § « Ne jamais dupliquer une logique quasi identique » ci-dessous) ? Le périmètre est-il en train de gonfler au-delà du besoin réel ? Si l'ensemble dépasse un seul sprint, découper en plusieurs sprint avec un ensemble et des priorité P1 P2 P3 etc scoppés indépendamment plutôt qu'un sprint P1 fourre-tout.
+4. Lister les zones grises et les trancher avec l'utilisateur (`AskUserQuestion` si le choix est structurant) plutôt que de supposer en silence : cas limites, dépendances entre sous-tâches, impact sur `RevisionEngine`/`FreshnessEngine`/`AppState`/un écran existant.
+5. Écrire le résultat dans le Backlog de `docs/CHANGELOG.md` :
+   - **Items retenus pour les sprints de la prochaines phases** : réécrire la ligne (priorité + note) avec assez de détail pour être implémentée sans nouvelle clarification — périmètre exact, ce qui est explicitement exclu, ordre si plusieurs sprints s'enchaînent. Remplace l'entrée vague existante plutôt que de s'ajouter à côté.
+   - **Items évoqués mais écartés de la prochaine phase** (trop complexes, dépendent d'un autre chantier, faible valeur) : gardés dans le Backlog avec la raison de l'écart explicitée dans la note — jamais retirés silencieusement.
+6. Faire valider explicitement ce Backlog mis à jour par l'utilisateur avant de déclencher « Début de sprint » sur l'item retenu.
 
 ### « Début de sprint » (+ description de ce qu'on fait)
 1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` + `docs/CHANGELOG.md` 
