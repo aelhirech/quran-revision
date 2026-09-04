@@ -14,7 +14,7 @@ class AyahFact {
   final int ayahId;
   final AyahFactType type;
   final bool reach;
-  final bool cold;
+  final bool needsWork;
   final bool checkedOut;
 
   const AyahFact({
@@ -25,7 +25,7 @@ class AyahFact {
     required this.ayahId,
     required this.type,
     this.reach = false,
-    this.cold = false,
+    this.needsWork = false,
     this.checkedOut = false,
   });
 
@@ -37,7 +37,7 @@ class AyahFact {
         'ayah_id': ayahId,
         'type': type.name,
         'reach': reach ? 1 : 0,
-        'cold': cold ? 1 : 0,
+        'needs_work': needsWork ? 1 : 0,
         'checked_out': checkedOut ? 1 : 0,
       };
 
@@ -49,7 +49,7 @@ class AyahFact {
         ayahId: m['ayah_id'] as int,
         type: AyahFactType.values.byName(m['type'] as String),
         reach: (m['reach'] as int) != 0,
-        cold: (m['cold'] as int) != 0,
+        needsWork: (m['needs_work'] as int) != 0,
         checkedOut: (m['checked_out'] as int) != 0,
       );
 }

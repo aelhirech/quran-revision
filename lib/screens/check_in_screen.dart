@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import '../models/sourate.dart';
 import '../state/app_state.dart';
+import '../widgets/freshness_badge.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/verse_chip.dart';
 
@@ -72,6 +74,15 @@ class _CheckInScreenState extends State<CheckInScreen> {
     final state = context.watch<AppState>();
     final palette = context.palette;
     final units = _units;
+    // Une seule classification par unité pour tout le build — évite de
+    // rappeler FreshnessEngine.computeForRange jusqu'à 3x pour la même unité
+    // (liste principale + filtre et rendu de la section "À prioriser").
+    final freshnessByUnit = units == null
+        ? const <RevisionUnit, FreshnessLevel>{}
+        : {
+            for (final u in units)
+              u: state.freshnessFor(u.sourate.id, u.verseStart, u.verseEnd),
+          };
 
     return Scaffold(
       backgroundColor: palette.cream,
@@ -85,14 +96,13 @@ class _CheckInScreenState extends State<CheckInScreen> {
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                       children: [
-                        ..._watchSection(palette, state, units),
+                        ..._watchSection(palette, freshnessByUnit, units),
                         _sectionLabel(palette, S.checkInVueDuJour),
                         const SizedBox(height: 8),
                         for (final unit in units)
                           _UnitRow(
                             unit: unit,
-                            lastLabel: S.lastRevisionLabel(
-                                state.lastRevisionFor(unit.sourate.id), DateTime.now()),
+                            lastLabel: freshnessDiscreetLabel(freshnessByUnit[unit]!),
                             onTap: () => _openDetail(unit),
                             onRemove: () => _remove(unit),
                           ),
@@ -138,10 +148,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
         ),
       );
 
-  List<Widget> _watchSection(AppPalette palette, AppState state, List<RevisionUnit> units) {
-    final watch = units
-        .where((u) => S.needsAttention(state.lastRevisionFor(u.sourate.id), DateTime.now()))
-        .toList();
+  List<Widget> _watchSection(AppPalette palette,
+      Map<RevisionUnit, FreshnessLevel> freshnessByUnit, List<RevisionUnit> units) {
+    final watch =
+        units.where((u) => freshnessNeedsAttention(freshnessByUnit[u]!)).toList();
     if (watch.isEmpty) return const [];
     return [
       Container(
@@ -165,9 +175,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                   children: [
                     Text(u.sourate.nameFr,
                         style: TextStyle(fontSize: 12.5, color: palette.textPrimary)),
-                    Text(
-                        S.lastRevisionLabel(
-                            state.lastRevisionFor(u.sourate.id), DateTime.now()),
+                    Text(freshnessDiscreetLabel(freshnessByUnit[u]!),
                         style: TextStyle(fontSize: 11, color: palette.danger)),
                   ],
                 ),

@@ -1,8 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:quran_revision/core/revision_engine.dart';
 import 'package:quran_revision/models/revision_unit.dart';
 import 'package:quran_revision/models/riwaya.dart';
@@ -13,12 +10,14 @@ import 'package:quran_revision/services/ayah_facts_service.dart';
 import 'package:quran_revision/services/hafs_service.dart';
 import 'package:quran_revision/state/app_state.dart';
 
+import '../services/test_helpers.dart';
+
 // verses/words assez petits pour que RevisionEngine ne découpe pas la
 // sourate en plusieurs unités (seuil de découpe à 150 mots, voir
 // RevisionEngine._wordLimit) — une sourate = une unité, comme attendu par
-// les assertions ci-dessous.
-Sourate _sourate(int id) =>
-    Sourate(id: id, nameAr: 'س$id', nameFr: 'S$id', verses: 10, words: 50);
+// les assertions ci-dessous. Passe explicitement par des paramètres réduits
+// plutôt que les défauts de `testSourate` (50/500 — dépasserait ce seuil).
+Sourate _sourate(int id) => testSourate(id, verses: 10, words: 50);
 
 String _isoDate(DateTime d) => d.toIso8601String().substring(0, 10);
 
@@ -33,21 +32,17 @@ UserConfig _config() => UserConfig(
     );
 
 void main() {
-  // Même setup que test/services/ayah_facts_service_test.dart : ffi pour
-  // sqflite (pas de plugin plateforme en `flutter test`), pointé vers un
-  // répertoire temporaire propre à CE fichier pour ne jamais partager
-  // history.db avec un autre fichier de test tournant en parallèle (voir
-  // le commentaire détaillé dans ayah_facts_service_test.dart). AppState
-  // construit `_sourates` depuis HafsService dès son constructeur —
+  // Même setup que test/services/ayah_facts_service_test.dart (voir
+  // `initFfiTestDb`, factorisé Phase 8 Sprint 1) : ffi pour sqflite (pas de
+  // plugin plateforme en `flutter test`), pointé vers un répertoire
+  // temporaire propre à CE fichier pour ne jamais partager history.db avec
+  // un autre fichier de test tournant en parallèle. AppState construit
+  // `_sourates` depuis HafsService dès son constructeur —
   // TestWidgetsFlutterBinding donne accès à rootBundle pour charger le vrai
   // asset hafs.json en test.
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-    final tempDir =
-        await Directory.systemTemp.createTemp('qr_test_app_state_checkin_');
-    await databaseFactory.setDatabasesPath(tempDir.path);
+    await initFfiTestDb('qr_test_app_state_checkin_');
     await HafsService.initialize();
   });
 

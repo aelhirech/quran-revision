@@ -17,7 +17,7 @@ class PrayerPlanCard extends StatelessWidget {
   final PrayerPlan pp;
   final Set<int> checked;
   final void Function(int rakaaNumber) onToggle;
-  final FreshnessLevel? Function(int sourateId)? freshnessOf;
+  final FreshnessLevel Function(int sourateId, int verseStart, int verseEnd)? freshnessOf;
 
   const PrayerPlanCard({
     super.key,
@@ -109,7 +109,12 @@ class PrayerPlanCard extends StatelessWidget {
                           ))
                       : Text(S.alFatihaSeul,
                           style: TextStyle(color: palette.textMuted, fontSize: 13)),
-                  if (hasUnit) _subtitle(palette, r.unit!, freshnessOf?.call(r.unit!.sourate.id)),
+                  if (hasUnit)
+                    _subtitle(
+                        palette,
+                        r.unit!,
+                        freshnessOf?.call(
+                            r.unit!.sourate.id, r.unit!.verseStart, r.unit!.verseEnd)),
                 ],
               ),
             ),
@@ -129,8 +134,7 @@ class PrayerPlanCard extends StatelessWidget {
   /// Sous-titre d'une rakaa : compte de versets et/ou badge de fraîcheur.
   Widget _subtitle(AppPalette palette, RevisionUnit unit, FreshnessLevel? freshness) {
     final showCount = !unit.isWhole;
-    final showBadge = freshness == FreshnessLevel.cold ||
-        freshness == FreshnessLevel.frozen;
+    final showBadge = freshness != null && freshnessShowsBadge(freshness);
 
     if (!showCount && !showBadge) return const SizedBox.shrink();
 
@@ -145,7 +149,7 @@ class PrayerPlanCard extends StatelessWidget {
                   color: palette.textMuted, fontStyle: FontStyle.italic, fontSize: 11),
             ),
           if (showCount && showBadge) const SizedBox(width: 8),
-          if (showBadge) FreshnessBadge(level: freshness!),
+          if (showBadge) FreshnessBadge(level: freshness),
         ],
       ),
     );

@@ -265,10 +265,25 @@ class S {
   static String get memorisees => _t('Mémorisées', 'Memorized');
   static String get repartitionSourates => _t('Répartition', 'Breakdown');
 
-  // Fraîcheur sourate (SRS léger)
-  static String get fraicheurFroide => _t('Froide', 'Cold');
-  static String get fraicheurGelee => _t('Très froide', 'Fading');
+  // Fraîcheur (SRS léger, grain verset) — badge court (FreshnessBadge)
+  static String get fraicheurJamais => _t('Jamais', 'Never');
+  static String get fraicheurPartielle => _t('Partielle', 'Partial');
   static String get fraicheurRecente => _t('Récente', 'Recent');
+  static String get fraicheur1Mois => _t('1 mois', '1 month');
+  static String get fraicheur3Mois => _t('3 mois', '3 months');
+  static String get fraicheur6Mois => _t('6 mois', '6 months');
+  static String get fraicheur1An => _t('1 an', '1 year');
+
+  // Fraîcheur — texte discret (check-in/check-out, même donnée que le badge
+  // ci-dessus, rendu différent — décision maquette Sprint 1 conservée)
+  static String get fraicheurJamaisLabel => _t('Jamais révisée', 'Never revised');
+  static String get fraicheurPartielleLabel =>
+      _t('Partiellement récente', 'Partially recent');
+  static String get fraicheurRecenteLabel => _t('Révisée récemment', 'Recently revised');
+  static String get fraicheur1MoisLabel => _t('Il y a plus d\'un mois', 'Over a month ago');
+  static String get fraicheur3MoisLabel => _t('Il y a plus de 3 mois', 'Over 3 months ago');
+  static String get fraicheur6MoisLabel => _t('Il y a plus de 6 mois', 'Over 6 months ago');
+  static String get fraicheur1AnLabel => _t('Il y a plus d\'un an', 'Over a year ago');
 
   // Apprentissage multi-versets
   static String get versetsParBloc => _t('Versets par bloc', 'Verses per block');
@@ -398,22 +413,4 @@ class S {
       _t('Valider aussi aujourd\'hui', 'Confirm today too');
   static String get checkOutTerminerSans => _t('Terminer sans aujourd\'hui', 'Finish without today');
 
-  /// Légende "dernière révision" — texte discret plutôt qu'un badge
-  /// chaud/froid coloré (décidé à la maquette Sprint 1, voir CHANGELOG).
-  static const _staleSinceDays = 180;
-
-  static String lastRevisionLabel(DateTime? lastRevised, DateTime today) {
-    if (lastRevised == null) return _t('Jamais révisée', 'Never revised');
-    final days = today.difference(lastRevised).inDays;
-    if (days >= 365) return _t('Il y a plus d\'un an', 'Over a year ago');
-    if (days >= _staleSinceDays) return _t('Il y a plus de 6 mois', 'Over 6 months ago');
-    if (days >= 90) return _t('Il y a plus de 3 mois', 'Over 3 months ago');
-    return _t('Révisée récemment', 'Recently revised');
-  }
-
-  /// À surveiller au check-in (section "À prioriser") — même seuil que le
-  /// palier "plus de 6 mois" de [lastRevisionLabel], pas un second seuil
-  /// indépendant à maintenir en synchro manuellement.
-  static bool needsAttention(DateTime? lastRevised, DateTime today) =>
-      lastRevised == null || today.difference(lastRevised).inDays >= _staleSinceDays;
 }

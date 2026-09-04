@@ -22,7 +22,7 @@ class CheckOutScreen extends StatefulWidget {
 }
 
 class _CheckOutScreenState extends State<CheckOutScreen> {
-  List<({RevisionUnit unit, Set<int> coldVerses})>? _items;
+  List<({RevisionUnit unit, Set<int> needsWorkVerses})>? _items;
   // Unités décochées par l'utilisateur (exceptions) — tout le reste est
   // "fait" par défaut, écrit en base seulement à la clôture ([_close]).
   final Set<RevisionUnit> _unchecked = {};
@@ -53,10 +53,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   }
 
   Future<void> _openDetail(
-      RevisionUnit unit, Set<int> coldVerses) async {
+      RevisionUnit unit, Set<int> needsWorkVerses) async {
     await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) =>
-          _CheckOutDetailScreen(date: widget.date, unit: unit, initialCold: coldVerses),
+      builder: (_) => _CheckOutDetailScreen(
+          date: widget.date, unit: unit, initialNeedsWork: needsWorkVerses),
     ));
     await _load();
   }
@@ -132,7 +132,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                     unit: it.unit,
                                     reach: !_unchecked.contains(it.unit),
                                     onToggle: () => _toggleReach(it.unit),
-                                    onDetail: () => _openDetail(it.unit, it.coldVerses),
+                                    onDetail: () => _openDetail(it.unit, it.needsWorkVerses),
                                   ),
                               ],
                             ),
@@ -419,12 +419,12 @@ class _CheckOutRow extends StatelessWidget {
 class _CheckOutDetailScreen extends StatefulWidget {
   final String date;
   final RevisionUnit unit;
-  final Set<int> initialCold;
+  final Set<int> initialNeedsWork;
 
   const _CheckOutDetailScreen({
     required this.date,
     required this.unit,
-    required this.initialCold,
+    required this.initialNeedsWork,
   });
 
   @override
@@ -432,22 +432,22 @@ class _CheckOutDetailScreen extends StatefulWidget {
 }
 
 class _CheckOutDetailScreenState extends State<_CheckOutDetailScreen> {
-  late Set<int> _cold;
+  late Set<int> _needsWork;
 
   @override
   void initState() {
     super.initState();
-    _cold = {...widget.initialCold};
+    _needsWork = {...widget.initialNeedsWork};
   }
 
   Future<void> _toggle(int verse) async {
-    final flagged = !_cold.contains(verse);
+    final flagged = !_needsWork.contains(verse);
     await context
         .read<AppState>()
-        .setVerseCold(widget.date, widget.unit.sourate.id, verse, flagged);
+        .setVerseNeedsWork(widget.date, widget.unit.sourate.id, verse, flagged);
     if (!mounted) return;
     setState(() {
-      flagged ? _cold.add(verse) : _cold.remove(verse);
+      flagged ? _needsWork.add(verse) : _needsWork.remove(verse);
     });
   }
 
@@ -482,9 +482,9 @@ class _CheckOutDetailScreenState extends State<_CheckOutDetailScreen> {
                 for (int v = unit.verseStart; v <= unit.verseEnd; v++)
                   VerseChip(
                     onTap: () => _toggle(v),
-                    borderColor: _cold.contains(v) ? palette.gold : palette.cardBorder,
-                    fillColor: _cold.contains(v) ? palette.gold : null,
-                    child: _cold.contains(v)
+                    borderColor: _needsWork.contains(v) ? palette.gold : palette.cardBorder,
+                    fillColor: _needsWork.contains(v) ? palette.gold : null,
+                    child: _needsWork.contains(v)
                         ? Icon(Icons.bookmark, size: 14, color: palette.onPrimary)
                         : Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
                   ),

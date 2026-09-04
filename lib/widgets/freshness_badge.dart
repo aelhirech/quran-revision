@@ -8,27 +8,101 @@ import '../core/strings.dart';
 /// la fraîcheur plutôt que d'afficher le badge lui-même.
 Color freshnessColor(FreshnessLevel level, AppPalette palette) {
   switch (level) {
-    case FreshnessLevel.hot:
+    case FreshnessLevel.recent:
       return palette.primary;
-    case FreshnessLevel.cold:
+    case FreshnessLevel.partiallyRecent:
+    case FreshnessLevel.oneMonth:
+    case FreshnessLevel.threeMonths:
       return palette.gold;
-    case FreshnessLevel.frozen:
+    case FreshnessLevel.sixMonths:
+    case FreshnessLevel.oneYear:
+    case FreshnessLevel.neverRevised:
       return palette.danger;
   }
 }
 
+/// Label court (badge pilule).
 String freshnessLabel(FreshnessLevel level) {
   switch (level) {
-    case FreshnessLevel.hot:
+    case FreshnessLevel.neverRevised:
+      return S.fraicheurJamais;
+    case FreshnessLevel.partiallyRecent:
+      return S.fraicheurPartielle;
+    case FreshnessLevel.recent:
       return S.fraicheurRecente;
-    case FreshnessLevel.cold:
-      return S.fraicheurFroide;
-    case FreshnessLevel.frozen:
-      return S.fraicheurGelee;
+    case FreshnessLevel.oneMonth:
+      return S.fraicheur1Mois;
+    case FreshnessLevel.threeMonths:
+      return S.fraicheur3Mois;
+    case FreshnessLevel.sixMonths:
+      return S.fraicheur6Mois;
+    case FreshnessLevel.oneYear:
+      return S.fraicheur1An;
   }
 }
 
-/// Badge pilule affichant le niveau de fraîcheur d'une sourate (label + couleur).
+/// Label discret (phrase complète) — même donnée que [freshnessLabel], rendu
+/// différent : texte discret en check-in/check-out plutôt qu'un badge coloré
+/// (décision maquette Sprint 1 conservée).
+String freshnessDiscreetLabel(FreshnessLevel level) {
+  switch (level) {
+    case FreshnessLevel.neverRevised:
+      return S.fraicheurJamaisLabel;
+    case FreshnessLevel.partiallyRecent:
+      return S.fraicheurPartielleLabel;
+    case FreshnessLevel.recent:
+      return S.fraicheurRecenteLabel;
+    case FreshnessLevel.oneMonth:
+      return S.fraicheur1MoisLabel;
+    case FreshnessLevel.threeMonths:
+      return S.fraicheur3MoisLabel;
+    case FreshnessLevel.sixMonths:
+      return S.fraicheur6MoisLabel;
+    case FreshnessLevel.oneYear:
+      return S.fraicheur1AnLabel;
+  }
+}
+
+/// À surveiller au check-in (section "À prioriser") — jamais révisée ou
+/// clairement à l'abandon (6 mois+), pas les paliers intermédiaires. Switch
+/// exhaustif (pas un `==`/`||`) comme [freshnessColor]/[freshnessLabel] —
+/// ajouter un niveau à [FreshnessLevel] doit casser la compilation ici aussi,
+/// pas retomber silencieusement sur `false`.
+bool freshnessNeedsAttention(FreshnessLevel level) {
+  switch (level) {
+    case FreshnessLevel.neverRevised:
+    case FreshnessLevel.sixMonths:
+    case FreshnessLevel.oneYear:
+      return true;
+    case FreshnessLevel.partiallyRecent:
+    case FreshnessLevel.recent:
+    case FreshnessLevel.oneMonth:
+    case FreshnessLevel.threeMonths:
+      return false;
+  }
+}
+
+/// Sous-titre de rakaa (`PrayerPlanCard`) : tout sauf "récente" — seuil plus
+/// permissif que [freshnessNeedsAttention] (contexte UI différent : ce badge
+/// signale "pas complètement à jour" en continu dans PlanScreen, la section
+/// "À prioriser" du check-in ne remonte que les cas sévères). Switch exhaustif
+/// pour la même raison que ci-dessus.
+bool freshnessShowsBadge(FreshnessLevel level) {
+  switch (level) {
+    case FreshnessLevel.recent:
+      return false;
+    case FreshnessLevel.neverRevised:
+    case FreshnessLevel.partiallyRecent:
+    case FreshnessLevel.oneMonth:
+    case FreshnessLevel.threeMonths:
+    case FreshnessLevel.sixMonths:
+    case FreshnessLevel.oneYear:
+      return true;
+  }
+}
+
+/// Badge pilule affichant le niveau de fraîcheur d'une sourate/sélection
+/// (label + couleur).
 class FreshnessBadge extends StatelessWidget {
   final FreshnessLevel level;
 
