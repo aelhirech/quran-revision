@@ -26,8 +26,8 @@ Phase de cadrage — **zéro code, zéro branche**. Le but n'est pas un résumé
 
 ### « Fin de sprint »
 Exécuter dans l'ordre, sans redemander de confirmation entre chaque étape **sauf pour le push final** :
-1. `/simplify` — sur-ingénierie, réutilisation, cleanups.
-2. `/code-review` — bugs de correction.
+1. `/simplify` — sur-ingénierie, réutilisation, cleanups. **Sauter cette étape si le sprint est structurellement trivial** (bump de version, renommage de string, changement de config sans logique) : rien à simplifier dans ce genre de diff, la passe ne consomme des tokens que pour un résultat vide.
+2. `/code-review medium` — bugs de correction. **Toujours préciser le niveau explicitement** : sans niveau, la commande réutilise silencieusement le dernier niveau tapé dans la session, qui peut dériver vers `high`/`max` sans qu'on s'en aperçoive. Monter à `/code-review high` si le sprint touche `RevisionEngine`, `FreshnessEngine`, ou `AppState`.
 3. Appliquer les fixes remontés par les deux passes.
 4. Mettre à jour `docs/CHANGELOG.md` (retirer du Backlog les items traités par ce sprint, ajouter les nouvelles idées identifiées, noter une décision transversale seulement si elle sera utile à un futur sprint — pas un résumé de ce qui a été livré, le commit s'en charge), et `docs/DOCUMENTATION_TECHNIQUE.md` si le sprint a touché `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajouté/supprimé un écran/service.
 5. Commit sur la feature branch (feature(sprint-N):)
