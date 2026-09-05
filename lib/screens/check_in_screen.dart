@@ -7,9 +7,12 @@ import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import '../models/sourate.dart';
 import '../state/app_state.dart';
+import '../widgets/check_hero.dart';
 import '../widgets/freshness_badge.dart';
 import '../widgets/primary_cta_button.dart';
+import '../widgets/unit_range_label.dart';
 import '../widgets/verse_chip.dart';
+import '../widgets/verse_chips_scaffold.dart';
 
 /// Popup affiché une fois par jour généré (voir `AppState.justCheckedIn`) :
 /// montre/édite les unités déjà écrites par le moteur quotidien dans
@@ -91,7 +94,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
           : SafeArea(
               child: Column(
                 children: [
-                  _hero(palette, units.fold(0, (s, u) => s + u.verseCount)),
+                  _hero(units.fold(0, (s, u) => s + u.verseCount)),
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -118,34 +121,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
     );
   }
 
-  Widget _hero(AppPalette palette, int totalVerses) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
-        decoration: BoxDecoration(
-          color: palette.primary,
-          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Text(S.checkInEyebrow,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2.5,
-                    color: palette.onPrimary.withValues(alpha: 0.65))),
-            const SizedBox(height: 10),
-            Text(S.checkInTitle,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w600, color: palette.onPrimary)),
-            const SizedBox(height: 8),
-            Text(S.checkInVersesProposed(totalVerses),
-                style: TextStyle(
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic,
-                    color: palette.onPrimary.withValues(alpha: 0.82))),
-          ],
-        ),
+  Widget _hero(int totalVerses) => CheckHero(
+        eyebrow: S.checkInEyebrow,
+        title: S.checkInTitle,
+        badge: S.checkInVersesProposed(totalVerses),
       );
 
   List<Widget> _watchSection(AppPalette palette,
@@ -269,25 +248,7 @@ class _UnitRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text.rich(
-                      TextSpan(
-                        style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: palette.textPrimary),
-                        children: [
-                          TextSpan(text: unit.sourate.nameFr),
-                          TextSpan(
-                            text: '  ·  v.${unit.verseStart}–${unit.verseEnd}',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w400,
-                                fontStyle: FontStyle.italic,
-                                fontSize: 11.5,
-                                color: palette.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
+                    UnitRangeLabel(unit: unit, nameColor: palette.textPrimary),
                     const SizedBox(height: 1),
                     Text(lastLabel, style: TextStyle(fontSize: 11, color: palette.textMuted)),
                   ],
@@ -434,50 +395,24 @@ class _CheckInDetailScreenState extends State<_CheckInDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    return Scaffold(
-      backgroundColor: palette.cream,
-      appBar: AppBar(
-        backgroundColor: palette.cream,
-        title: Text('${_unit.sourate.nameFr} · v.${_unit.verseStart}–${_unit.verseEnd}',
-            style: TextStyle(fontSize: 15, color: palette.textPrimary)),
-        iconTheme: IconThemeData(color: palette.textPrimary),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(S.checkInVersetsInclus.toUpperCase(),
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.4,
-                    color: palette.textMuted)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (int v = _unit.verseStart; v <= _unit.verseEnd; v++)
-                  VerseChip(
-                    borderColor: palette.cardBorder,
-                    child: Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
-                  ),
-                if (_unit.verseEnd < _unit.sourate.verses)
-                  VerseChip(
-                    borderColor: palette.gold.withValues(alpha: 0.7),
-                    onTap: _extend,
-                    child: Icon(Icons.add, size: 14, color: palette.textPrimary),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(S.checkInExtendHint,
-                style: TextStyle(
-                    fontSize: 11, fontStyle: FontStyle.italic, color: palette.textMuted)),
-          ],
-        ),
-      ),
+    return VerseChipsScaffold(
+      title: '${_unit.sourate.nameFr} · v.${_unit.verseStart}–${_unit.verseEnd}',
+      headerLabel: S.checkInVersetsInclus,
+      chips: [
+        for (int v = _unit.verseStart; v <= _unit.verseEnd; v++)
+          VerseChip(
+            borderColor: palette.cardBorder,
+            child: Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
+          ),
+        if (_unit.verseEnd < _unit.sourate.verses)
+          VerseChip(
+            borderColor: palette.gold.withValues(alpha: 0.7),
+            onTap: _extend,
+            child: Icon(Icons.add, size: 14, color: palette.textPrimary),
+          ),
+      ],
+      footer: Text(S.checkInExtendHint,
+          style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: palette.textMuted)),
     );
   }
 }
