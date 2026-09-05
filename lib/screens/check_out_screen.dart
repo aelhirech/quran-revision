@@ -5,9 +5,12 @@ import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import '../state/app_state.dart';
+import '../widgets/check_hero.dart';
 import '../widgets/cycle_milestone_dialog.dart';
 import '../widgets/primary_cta_button.dart';
+import '../widgets/unit_range_label.dart';
 import '../widgets/verse_chip.dart';
+import '../widgets/verse_chips_scaffold.dart';
 
 /// Popup de rattrapage : scelle un jour de révision non encore clôturé
 /// (`checked_out = 0`) — c'est le seul moment où `cyclePosition` avance
@@ -154,42 +157,11 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
         ? S.checkOutPartieOptionnelle
         : (_isMultiDay ? S.checkOutIlYaNJours(gapDays) : S.checkOutHier);
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-      decoration: BoxDecoration(
-        color: palette.primary,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          Text(_isMultiDay ? S.checkOutRattrapageEyebrow : S.checkOutEyebrow,
-              style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.5,
-                  color: palette.onPrimary.withValues(alpha: 0.65))),
-          if (_isMultiDay) ...[
-            const SizedBox(height: 10),
-            _stepDots(palette, showPart2),
-          ],
-          const SizedBox(height: 10),
-          Text(title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 21, fontWeight: FontWeight.w600, color: palette.onPrimary)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
-            decoration: BoxDecoration(
-              border: Border.all(color: palette.onPrimary.withValues(alpha: 0.5)),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(badge,
-                style: TextStyle(fontSize: 10, color: palette.onPrimary.withValues(alpha: 0.82))),
-          ),
-        ],
-      ),
+    return CheckHero(
+      eyebrow: _isMultiDay ? S.checkOutRattrapageEyebrow : S.checkOutEyebrow,
+      extra: _isMultiDay ? _stepDots(palette, showPart2) : null,
+      title: title,
+      badge: badge,
     );
   }
 
@@ -371,24 +343,9 @@ class _CheckOutRow extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                              color: reach ? palette.textPrimary : palette.textMuted),
-                          children: [
-                            TextSpan(text: unit.sourate.nameFr),
-                            TextSpan(
-                              text: '  ·  v.${unit.verseStart}–${unit.verseEnd}',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w400,
-                                  fontStyle: FontStyle.italic,
-                                  fontSize: 11.5,
-                                  color: palette.textMuted),
-                            ),
-                          ],
-                        ),
+                      child: UnitRangeLabel(
+                        unit: unit,
+                        nameColor: reach ? palette.textPrimary : palette.textMuted,
                       ),
                     ),
                   ],
@@ -455,44 +412,20 @@ class _CheckOutDetailScreenState extends State<_CheckOutDetailScreen> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final unit = widget.unit;
-    return Scaffold(
-      backgroundColor: palette.cream,
-      appBar: AppBar(
-        backgroundColor: palette.cream,
-        title: Text('${unit.sourate.nameFr} · v.${unit.verseStart}–${unit.verseEnd}',
-            style: TextStyle(fontSize: 15, color: palette.textPrimary)),
-        iconTheme: IconThemeData(color: palette.textPrimary),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(S.checkOutARetravailler.toUpperCase(),
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.4,
-                    color: palette.textMuted)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (int v = unit.verseStart; v <= unit.verseEnd; v++)
-                  VerseChip(
-                    onTap: () => _toggle(v),
-                    borderColor: _needsWork.contains(v) ? palette.gold : palette.cardBorder,
-                    fillColor: _needsWork.contains(v) ? palette.gold : null,
-                    child: _needsWork.contains(v)
-                        ? Icon(Icons.bookmark, size: 14, color: palette.onPrimary)
-                        : Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return VerseChipsScaffold(
+      title: '${unit.sourate.nameFr} · v.${unit.verseStart}–${unit.verseEnd}',
+      headerLabel: S.checkOutARetravailler,
+      chips: [
+        for (int v = unit.verseStart; v <= unit.verseEnd; v++)
+          VerseChip(
+            onTap: () => _toggle(v),
+            borderColor: _needsWork.contains(v) ? palette.gold : palette.cardBorder,
+            fillColor: _needsWork.contains(v) ? palette.gold : null,
+            child: _needsWork.contains(v)
+                ? Icon(Icons.bookmark, size: 14, color: palette.onPrimary)
+                : Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
+          ),
+      ],
     );
   }
 }
