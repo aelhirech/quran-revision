@@ -13,6 +13,7 @@ import 'screens/shell_screen.dart';
 import 'services/hafs_service.dart';
 import 'services/hizb_metadata_service.dart';
 import 'services/notification_service.dart';
+import 'services/page_metadata_service.dart';
 import 'services/storage_service.dart';
 import 'services/surah_metadata_service.dart';
 import 'services/warsh_service.dart';
@@ -65,10 +66,12 @@ void main() async {
   await NotificationService.initialize();
   // Chargements d'assets indépendants — démarrés en parallèle.
   final hafsF = HafsService.initialize();
+  final pageMetadataF = PageMetadataService.initialize();
   final hizbF = _initHizb();
   final surahMetaF = _initSurahMeta();
   final warshAvailableF = _initWarsh();
   await hafsF;
+  await pageMetadataF;
   await hizbF;
   await surahMetaF;
   final warshAvailable = await warshAvailableF;

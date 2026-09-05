@@ -24,9 +24,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _editing = false;
   Set<int> _selectedIds = {};
-  int _revisionDays = 30;
-  bool _paceByLines = false;
-  int _targetLinesPerDay = 15;
+  int _pagesPerDay = 1;
   String _search = '';
   int _memorisees = 0;
   Riwaya? _lastRiwaya;
@@ -46,9 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final config = state.config;
     if (config != null && !_editing) {
       _selectedIds = config.selections.map((s) => s.sourate.id).toSet();
-      _revisionDays = config.revisionDays;
-      _paceByLines = config.paceByLines;
-      _targetLinesPerDay = config.targetLinesPerDay;
+      _pagesPerDay = config.pagesPerDay;
     }
     // Hafs/Warsh ont chacun leur propre progression d'apprentissage — sans ce
     // suivi, changer de riwaya depuis SettingsCard (même écran, ProfileScreen
@@ -81,21 +77,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .toList();
     await state.saveConfig(UserConfig(
       selections: selections,
-      revisionDays: _revisionDays,
+      pagesPerDay: _pagesPerDay,
       startDate: state.config?.startDate ?? DateTime.now(),
       shuffleEnabled: state.config?.shuffleEnabled ?? true,
       adaptiveCycle: state.config?.adaptiveCycle ?? false,
-      paceByLines: _paceByLines,
-      targetLinesPerDay: _targetLinesPerDay,
       riwaya: state.riwaya,
     ));
     if (mounted) setState(() => _editing = false);
   }
 
   Future<void> _showDurationDialog() async {
-    bool tempPaceByLines = _paceByLines;
-    int tempDays = _revisionDays;
-    int tempLines = _targetLinesPerDay;
+    int tempPages = _pagesPerDay;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
@@ -105,33 +97,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment(value: false, label: Text(S.rythmeParDuree)),
-                  ButtonSegment(value: true, label: Text(S.rythmeParLignes)),
-                ],
-                selected: {tempPaceByLines},
-                onSelectionChanged: (s) =>
-                    setS(() => tempPaceByLines = s.first),
+              PresetDropdown(
+                value: tempPages,
+                presets: pagesPerDayPresets,
+                labelBuilder: (n) => '$n ${S.pagesParJourValeur}',
+                customDialogTitle: S.pagesCustomTitle,
+                customSuffix: S.pagesSuffix,
+                onChanged: (v) => setS(() => tempPages = v),
               ),
-              const SizedBox(height: 16),
-              tempPaceByLines
-                  ? PresetDropdown(
-                      value: tempLines,
-                      presets: linesPerDayPresets,
-                      labelBuilder: S.lignesParJourValeur,
-                      customDialogTitle: S.lignesCustomTitle,
-                      customSuffix: S.lignesSuffix,
-                      onChanged: (v) => setS(() => tempLines = v),
-                    )
-                  : PresetDropdown(
-                      value: tempDays,
-                      presets: durationPresets,
-                      labelBuilder: S.joursDuration,
-                      customDialogTitle: S.dureeCustomTitle,
-                      customSuffix: S.joursSuffix,
-                      onChanged: (v) => setS(() => tempDays = v),
-                    ),
             ],
           ),
           actions: [
@@ -148,15 +121,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (confirmed != true || !mounted) return;
     final state = context.read<AppState>();
     await state.saveConfig(state.config!.copyWith(
-      revisionDays: tempDays,
-      paceByLines: tempPaceByLines,
-      targetLinesPerDay: tempLines,
+      pagesPerDay: tempPages,
     ));
     if (!mounted) return;
     setState(() {
-      _revisionDays = tempDays;
-      _paceByLines = tempPaceByLines;
-      _targetLinesPerDay = tempLines;
+      _pagesPerDay = tempPages;
     });
   }
 
@@ -213,7 +182,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _viewBody(ColorScheme cs, AppState state) {
     final config = state.config!;
     final daysElapsed = DateTime.now().difference(config.startDate).inDays;
-    final daysRemaining = (config.revisionDays - daysElapsed).clamp(0, 9999);
 
     return SliverPadding(
       padding: const EdgeInsets.all(16),
@@ -222,7 +190,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ProfileInfoCard(
               config: config,
               elapsed: daysElapsed,
-              remaining: daysRemaining,
               memorisees: _memorisees),
           const SizedBox(height: 16),
           const SettingsCard(),
@@ -362,9 +329,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // façons d'éditer le même réglage sur cette page créait une
                 // redondance non harmonisée (retour TestFlight 2026-09-01).
                 Text(
-                  _paceByLines
-                      ? S.lignesParJourValeur(_targetLinesPerDay)
-                      : S.joursDuration(_revisionDays),
+                  '$_pagesPerDay ${S.pagesParJourValeur}',
                   style: TextStyle(
                       color: cs.onPrimaryContainer, fontWeight: FontWeight.w600),
                 ),

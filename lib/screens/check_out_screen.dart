@@ -32,6 +32,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   int _step = 1;
   bool _addToday = false;
   bool _sealing = false;
+  // Mis en cache au premier accès plutôt que recréé à chaque rebuild de
+  // `_part2Body` — un simple `setState` (ex. le Switch "ajouter aujourd'hui")
+  // recréerait sinon inutilement le Future et rejouerait le chargement.
+  Future<List<RevisionUnit>>? _previewFuture;
 
   bool get _isMultiDay =>
       DateTime.now().difference(DateTime.parse(widget.date)).inDays > 1;
@@ -43,8 +47,9 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   }
 
   Future<void> _load() async {
-    final items =
-        await context.read<AppState>().dayUnitsWithStatus(date: widget.date);
+    final items = await context.read<AppState>().dayUnitsWithStatus(
+      date: widget.date,
+    );
     if (!mounted) return;
     setState(() => _items = items);
   }
@@ -55,12 +60,16 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     });
   }
 
-  Future<void> _openDetail(
-      RevisionUnit unit, Set<int> needsWorkVerses) async {
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => _CheckOutDetailScreen(
-          date: widget.date, unit: unit, initialNeedsWork: needsWorkVerses),
-    ));
+  Future<void> _openDetail(RevisionUnit unit, Set<int> needsWorkVerses) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _CheckOutDetailScreen(
+          date: widget.date,
+          unit: unit,
+          initialNeedsWork: needsWorkVerses,
+        ),
+      ),
+    );
     await _load();
   }
 
@@ -80,7 +89,9 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       final stillChecked = <RevisionUnit>[];
       final uncheckedNow = <RevisionUnit>[];
       for (final it in _items!) {
-        (_unchecked.contains(it.unit) ? uncheckedNow : stillChecked).add(it.unit);
+        (_unchecked.contains(it.unit) ? uncheckedNow : stillChecked).add(
+          it.unit,
+        );
       }
       await Future.wait([
         state.markUnitsReached(stillChecked, date: widget.date),
@@ -135,7 +146,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                     unit: it.unit,
                                     reach: !_unchecked.contains(it.unit),
                                     onToggle: () => _toggleReach(it.unit),
-                                    onDetail: () => _openDetail(it.unit, it.needsWorkVerses),
+                                    onDetail: () => _openDetail(
+                                      it.unit,
+                                      it.needsWorkVerses,
+                                    ),
                                   ),
                               ],
                             ),
@@ -149,7 +163,9 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   }
 
   Widget _hero(AppPalette palette, bool showPart2) {
-    final gapDays = DateTime.now().difference(DateTime.parse(widget.date)).inDays;
+    final gapDays = DateTime.now()
+        .difference(DateTime.parse(widget.date))
+        .inDays;
     final title = showPart2
         ? S.checkOutTitreAujourdhui
         : (_isMultiDay ? S.checkOutTitreEnAttente : S.checkOutTitreHier);
@@ -167,17 +183,19 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
 
   Widget _stepDots(AppPalette palette, bool showPart2) {
     Widget dot(bool active, String label) => Container(
-          width: 22,
-          height: 22,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: active ? palette.gold : Colors.transparent,
-            border: Border.all(color: palette.gold),
-          ),
-          child: Text(label,
-              style: TextStyle(fontSize: 11, color: palette.onPrimary)),
-        );
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: active ? palette.gold : Colors.transparent,
+        border: Border.all(color: palette.gold),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11, color: palette.onPrimary),
+      ),
+    );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -189,81 +207,115 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   }
 
   Widget _part2Body(AppPalette palette) {
-    final preview = context.read<AppState>().previewTodayUnits();
+    _previewFuture ??= context.read<AppState>().previewTodayUnits();
+    return FutureBuilder<List<RevisionUnit>>(
+      future: _previewFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text(S.checkOutAjouterErreur));
+        }
+        final preview = snapshot.data ?? [];
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: palette.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.cardBorder),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(S.checkOutAjouterAujourdhui,
-                        style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: palette.textPrimary)),
-                    const SizedBox(height: 2),
-                    Text(S.checkOutAjouterDesc,
-                        style: TextStyle(fontSize: 11, color: palette.textMuted)),
-                  ],
-                ),
-              ),
-              Switch(
-                value: _addToday,
-                onChanged: (v) => setState(() => _addToday = v),
-                activeThumbColor: palette.primary,
-              ),
-            ],
-          ),
-        ),
-        if (_addToday) ...[
-          const SizedBox(height: 10),
-          for (final unit in preview)
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          children: [
             Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: palette.surfaceCardSolid,
+                color: palette.surfaceCard,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: palette.cardBorder),
               ),
               child: Row(
                 children: [
-                  Text(unit.sourate.nameAr,
-                      style: GoogleFonts.amiri(fontSize: 15, color: palette.goldDark)),
-                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(unit.sourate.nameFr,
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: palette.textPrimary)),
-                        Text('v.${unit.verseStart}–${unit.verseEnd}',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontStyle: FontStyle.italic,
-                                color: palette.textMuted)),
+                        Text(
+                          S.checkOutAjouterAujourdhui,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: palette.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          S.checkOutAjouterDesc,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: palette.textMuted,
+                          ),
+                        ),
                       ],
                     ),
+                  ),
+                  Switch(
+                    value: _addToday,
+                    onChanged: (v) => setState(() => _addToday = v),
+                    activeThumbColor: palette.primary,
                   ),
                 ],
               ),
             ),
-        ],
-      ],
+            if (_addToday) ...[
+              const SizedBox(height: 10),
+              for (final unit in preview)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: palette.surfaceCardSolid,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: palette.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        unit.sourate.nameAr,
+                        style: GoogleFonts.amiri(
+                          fontSize: 15,
+                          color: palette.goldDark,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              unit.sourate.nameFr,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: palette.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              'v.${unit.verseStart}–${unit.verseEnd}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                                color: palette.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -317,13 +369,19 @@ class _CheckOutRow extends StatelessWidget {
           children: [
             InkWell(
               onTap: onToggle,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: palette.surfaceCardSolid,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -335,17 +393,24 @@ class _CheckOutRow extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                         color: reach ? palette.primary : Colors.transparent,
                         border: Border.all(
-                            color: reach ? palette.primary : palette.cardBorder),
+                          color: reach ? palette.primary : palette.cardBorder,
+                        ),
                       ),
                       child: reach
-                          ? Icon(Icons.check, size: 15, color: palette.onPrimary)
+                          ? Icon(
+                              Icons.check,
+                              size: 15,
+                              color: palette.onPrimary,
+                            )
                           : null,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: UnitRangeLabel(
                         unit: unit,
-                        nameColor: reach ? palette.textPrimary : palette.textMuted,
+                        nameColor: reach
+                            ? palette.textPrimary
+                            : palette.textMuted,
                       ),
                     ),
                   ],
@@ -354,14 +419,17 @@ class _CheckOutRow extends StatelessWidget {
             ),
             InkWell(
               onTap: onDetail,
-              borderRadius:
-                  const BorderRadius.vertical(bottom: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
                 child: Row(
                   children: [
-                    Text(S.checkOutVoirVersets(unit.verseCount),
-                        style: TextStyle(fontSize: 11.5, color: palette.goldDark)),
+                    Text(
+                      S.checkOutVoirVersets(unit.verseCount),
+                      style: TextStyle(fontSize: 11.5, color: palette.goldDark),
+                    ),
                   ],
                 ),
               ),
@@ -399,9 +467,12 @@ class _CheckOutDetailScreenState extends State<_CheckOutDetailScreen> {
 
   Future<void> _toggle(int verse) async {
     final flagged = !_needsWork.contains(verse);
-    await context
-        .read<AppState>()
-        .setVerseNeedsWork(widget.date, widget.unit.sourate.id, verse, flagged);
+    await context.read<AppState>().setVerseNeedsWork(
+      widget.date,
+      widget.unit.sourate.id,
+      verse,
+      flagged,
+    );
     if (!mounted) return;
     setState(() {
       flagged ? _needsWork.add(verse) : _needsWork.remove(verse);
@@ -419,11 +490,16 @@ class _CheckOutDetailScreenState extends State<_CheckOutDetailScreen> {
         for (int v = unit.verseStart; v <= unit.verseEnd; v++)
           VerseChip(
             onTap: () => _toggle(v),
-            borderColor: _needsWork.contains(v) ? palette.gold : palette.cardBorder,
+            borderColor: _needsWork.contains(v)
+                ? palette.gold
+                : palette.cardBorder,
             fillColor: _needsWork.contains(v) ? palette.gold : null,
             child: _needsWork.contains(v)
                 ? Icon(Icons.bookmark, size: 14, color: palette.onPrimary)
-                : Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
+                : Text(
+                    '$v',
+                    style: TextStyle(fontSize: 11, color: palette.textMuted),
+                  ),
           ),
       ],
     );

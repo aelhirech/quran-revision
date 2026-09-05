@@ -41,9 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
 
   final Map<int, SourateSelection> _selections = {};
-  int _revisionDays = 30;
-  bool _paceByLines = false;
-  int _targetLinesPerDay = 15;
+  int _pagesPerDay = 1;
   bool _groupByHizb = true;
   String _search = '';
   late Riwaya _riwaya = widget.presetRiwaya ?? Riwaya.hafs;
@@ -208,10 +206,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_selections.isEmpty) return;
     final config = UserConfig(
       selections: _selections.values.toList(),
-      revisionDays: _revisionDays,
+      pagesPerDay: _pagesPerDay,
       startDate: DateTime.now(),
-      paceByLines: _paceByLines,
-      targetLinesPerDay: _targetLinesPerDay,
       riwaya: _riwaya,
     );
     await context.read<AppState>().saveConfig(config);
@@ -264,13 +260,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             onNext: _selections.isEmpty ? null : _nextPage,
           ),
           _RhythmPage(
-            revisionDays: _revisionDays,
-            onRevisionDaysChanged: (v) => setState(() => _revisionDays = v),
-            paceByLines: _paceByLines,
-            onPaceByLinesChanged: (v) => setState(() => _paceByLines = v),
-            targetLinesPerDay: _targetLinesPerDay,
-            onTargetLinesPerDayChanged: (v) =>
-                setState(() => _targetLinesPerDay = v),
+            pagesPerDay: _pagesPerDay,
+            onPagesPerDayChanged: (v) => setState(() => _pagesPerDay = v),
             onBack: _prevPage,
             onNext: _nextPage,
           ),
@@ -602,22 +593,14 @@ class _SelectionPage extends StatelessWidget {
 // ─── Page 2 : Rythme / objectif ──────────────────────────────────────────────
 
 class _RhythmPage extends StatelessWidget {
-  final int revisionDays;
-  final ValueChanged<int> onRevisionDaysChanged;
-  final bool paceByLines;
-  final ValueChanged<bool> onPaceByLinesChanged;
-  final int targetLinesPerDay;
-  final ValueChanged<int> onTargetLinesPerDayChanged;
+  final int pagesPerDay;
+  final ValueChanged<int> onPagesPerDayChanged;
   final VoidCallback onBack;
   final VoidCallback onNext;
 
   const _RhythmPage({
-    required this.revisionDays,
-    required this.onRevisionDaysChanged,
-    required this.paceByLines,
-    required this.onPaceByLinesChanged,
-    required this.targetLinesPerDay,
-    required this.onTargetLinesPerDayChanged,
+    required this.pagesPerDay,
+    required this.onPagesPerDayChanged,
     required this.onBack,
     required this.onNext,
   });
@@ -639,65 +622,20 @@ class _RhythmPage extends StatelessWidget {
               onBack: onBack,
             ),
             const SizedBox(height: 24),
-            if (!paceByLines) ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  PillChip(
-                    label: S.rythmeTranquille,
-                    selected: revisionDays == 90,
-                    onTap: () => onRevisionDaysChanged(90),
-                  ),
-                  PillChip(
-                    label: S.rythmeRegulier,
-                    selected: revisionDays == 30,
-                    onTap: () => onRevisionDaysChanged(30),
-                  ),
-                  PillChip(
-                    label: S.rythmeIntensif,
-                    selected: revisionDays == 14,
-                    onTap: () => onRevisionDaysChanged(14),
-                  ),
-                ],
-              ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.06),
-              const SizedBox(height: 16),
-            ],
             _RecapCard(
               icon: Icons.calendar_today_outlined,
               label: S.cycleObjectif,
-              trailing: paceByLines
-                  ? PresetDropdown(
-                      value: targetLinesPerDay,
-                      presets: linesPerDayPresets,
-                      labelBuilder: S.lignesParJourValeur,
-                      customDialogTitle: S.lignesCustomTitle,
-                      customSuffix: S.lignesSuffix,
-                      color: cs.onSurface,
-                      onChanged: onTargetLinesPerDayChanged,
-                    )
-                  : PresetDropdown(
-                      value: revisionDays,
-                      presets: durationPresets,
-                      labelBuilder: S.joursDuration,
-                      customDialogTitle: S.dureeCustomTitle,
-                      customSuffix: S.joursSuffix,
-                      color: cs.onSurface,
-                      onChanged: onRevisionDaysChanged,
-                    ),
+              trailing: PresetDropdown(
+                value: pagesPerDay,
+                presets: pagesPerDayPresets,
+                labelBuilder: (n) => '$n ${S.pagesParJourValeur}',
+                customDialogTitle: S.pagesCustomTitle,
+                customSuffix: S.pagesSuffix,
+                color: cs.onSurface,
+                onChanged: onPagesPerDayChanged,
+              ),
             ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment(value: false, label: Text(S.rythmeParDuree)),
-                  ButtonSegment(value: true, label: Text(S.rythmeParLignes)),
-                ],
-                selected: {paceByLines},
-                onSelectionChanged: (s) => onPaceByLinesChanged(s.first),
-              ),
-            ),
             const Spacer(),
             SizedBox(
               width: double.infinity,

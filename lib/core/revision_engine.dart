@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'dart:math' as math;
 
 import '../models/daily_session.dart';
 import '../models/prayer.dart';
@@ -7,133 +7,261 @@ import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 
-/// ~1 page Mushaf Madinah (128 mots/page × ~1,17 pages par unité)
-const int _wordLimit = 150;
-
-/// Minimum de lignes Mushaf Madinah par rakaa pour qu'une subdivision ait du sens.
-const double _minLinesPerSlot = 5.0;
-
-/// Résultat de [RevisionEngine.selectDayUnits] — quelles unités composent le
+/// Résultat de [RevisionEngine.buildDayUnits] — quelles unités composent le
 /// plan du jour, avant toute répartition en rakaas. Consommé à la fois par
 /// [RevisionEngine.buildDayPlan] (répartition immédiate) et par le moteur
 /// quotidien (Phase 6 Sprint 2, qui écrit ces unités dans `ayah_facts` sans
 /// les répartir par prière).
 class DaySelection {
-  final List<RevisionUnit> units;
+  /// Une entrée = une seule position de cycle. La plupart du temps un
+  /// groupe = 1 sourate = 1 unité, mais plusieurs courtes sourates qui
+  /// partagent la même page réelle du mushaf forment un seul groupe de
+  /// plusieurs unités (voir cadrage "regroupement par page partagée",
+  /// 2026-09-05) : `AppState.checkOut` doit avancer `cyclePosition` par
+  /// groupe complété, jamais par unité individuelle, sous peine de
+  /// désynchroniser `cyclePosition` de `cycleTotal` (qui compte des groupes).
+  final List<List<RevisionUnit>> groups;
   final int cyclePosition; // position normalisée (mod cycleTotal)
   final int cycleTotal;
-  final int daysRemaining;
 
   const DaySelection({
-    required this.units,
+    required this.groups,
     required this.cyclePosition,
     required this.cycleTotal,
-    required this.daysRemaining,
   });
+
+  /// Vue aplatie de [groups] — pour tout consommateur (proposition dans
+  /// `ayah_facts`, répartition en rakaas, aperçu check-out) à qui la
+  /// frontière entre groupes ne dit rien.
+  List<RevisionUnit> get units => [for (final g in groups) ...g];
 }
 
+/// Une sourate sélectionnée qui tient sur exactement 1 page réelle du
+/// mushaf, avec le numéro de cette page — sert à [_groupSelectionsByPage] à
+/// détecter quelles sourates sélectionnées partagent une même page.
+class _SinglePageSelection {
+  final SourateSelection selection;
+  final int page;
+  const _SinglePageSelection(this.selection, this.page);
+}
+
+/// Regroupe les sourates sélectionnées qui tiennent chacune sur exactement 1
+/// page et partagent ce même numéro de page mushaf — l'utilisateur reçoit
+/// toutes les sourates de la page en une fois plutôt qu'étalées sur plusieurs
+/// jours artificiellement (ex. Al-Kawthar/Al-Ma'un/Quraysh, souvent sur la
+/// même page). Ne regroupe jamais une sourate non sélectionnée par
+/// l'utilisateur (choix de cadrage 2026-09-05). Fonction pure, indépendante
+/// du budget pagesPerDay/de la position de cycle — testable isolément.
+List<List<SourateSelection>> _groupSelectionsByPage(
+  List<SourateSelection> surahList,
+  Map<int, Map<int, int>> pageMetadata,
+) {
+  _SinglePageSelection? singlePageOf(SourateSelection selection) {
+    final pages = pageMetadata[selection.sourate.id]?.values.toSet();
+    if (pages == null || pages.length != 1) return null;
+    return _SinglePageSelection(selection, pages.first);
+  }
+
+  final singlePage = surahList.map(singlePageOf).toList();
+  final Map<int, List<int>> pageToIndices = {};
+  for (int i = 0; i < surahList.length; i++) {
+    final entry = singlePage[i];
+    if (entry != null) pageToIndices.putIfAbsent(entry.page, () => []).add(i);
+  }
+
+  final Set<int> grouped = {};
+  final List<List<SourateSelection>> groups = [];
+  for (int i = 0; i < surahList.length; i++) {
+    if (grouped.contains(i)) continue;
+    final entry = singlePage[i];
+    final indices = (entry != null ? pageToIndices[entry.page] : null) ?? [i];
+    groups.add([for (final idx in indices) surahList[idx]]);
+    grouped.addAll(indices);
+  }
+  return groups;
+}
+
+/// Seuil en-dessous duquel une sous-plage issue de la subdivision d'une unité
+/// pour remplir des rakaas n'a plus de sens (voir [RevisionEngine._materialize]).
+const double _minLinesPerSlot = 5.0;
+
 class RevisionEngine {
-  static List<RevisionUnit> buildUnits(List<SourateSelection> selections) {
-    final units = <RevisionUnit>[];
-    for (final sel in selections) {
-      final rangeWords = sel.estimatedWords;
-      if (rangeWords <= _wordLimit) {
-        units.add(RevisionUnit(
-          sourate: sel.sourate,
-          verseStart: sel.verseStart,
-          verseEnd: sel.verseEnd,
-          isWhole: sel.isWhole,
-        ));
-      } else {
-        final chunks = (rangeWords / _wordLimit).ceil();
-        units.addAll(
-            _splitRange(sel.sourate, sel.verseStart, sel.verseEnd, chunks));
-      }
-    }
-    return units;
-  }
-
-  static int dailyTarget({
-    required int cyclePosition,
-    required int cycleTotal,
-    required int daysRemaining,
-  }) {
-    final unitsLeft = cycleTotal - cyclePosition;
-    if (unitsLeft <= 0 || daysRemaining <= 0) return cycleTotal;
-    return (unitsLeft / daysRemaining).ceil();
-  }
-
-  /// Nombre d'unités (à partir de [pos], cycliquement) dont la somme des
-  /// lignes Mushaf estimées atteint [targetLines] — mode "rythme par
-  /// lignes/jour", alternative à [dailyTarget] qui se base sur les jours
-  /// restants.
-  static int _unitsForLines(
-      List<RevisionUnit> units, int pos, int cycleTotal, int targetLines) {
-    if (cycleTotal == 0) return 0;
-    if (targetLines <= 0) return 1;
-    double acc = 0;
-    int count = 0;
-    for (int i = 0; i < cycleTotal; i++) {
-      acc += units[(pos + i) % cycleTotal].estimatedLines;
-      count++;
-      if (acc >= targetLines) break;
-    }
-    return count;
-  }
-
-  /// Détermine quelles unités composent le plan du jour (rythme par durée ou
-  /// par lignes/jour) — sans les répartir en rakaas. Étapes 1-2 de l'ancien
-  /// `buildDayPlan` monolithique, extraites pour être réutilisables par le
-  /// moteur quotidien (Phase 6 Sprint 2) indépendamment de l'affichage
-  /// prière-par-prière.
-  static DaySelection selectDayUnits({
+  /// Détermine quelles unités composent le plan du jour basé sur un budget de
+  /// pages/jour. Étapes 1-2 de l'ancien `buildDayPlan` monolithique,
+  /// extraites pour être réutilisables par le moteur quotidien
+  /// indépendamment de l'affichage prière-par-prière. [pageMetadata] (numéro
+  /// de page mushaf par sourate/ayah) est un paramètre requis plutôt qu'un
+  /// chargement interne — `lib/core/` reste Dart pur, zéro I/O (voir
+  /// CLAUDE.md) ; l'appelant le fournit via `PageMetadataService`
+  /// (`lib/services/`), qui charge et met en cache les vraies métadonnées.
+  static Future<DaySelection> buildDayUnits({
     required UserConfig config,
     required int cyclePosition,
     required DateTime today,
-    int? effectiveDaysOverride,
-  }) {
-    final rawUnits = buildUnits(config.selections);
-    final units = config.shuffleEnabled
-        ? ([...rawUnits]..shuffle(Random(config.startDate.millisecondsSinceEpoch)))
-        : rawUnits;
-    final cycleTotal = units.length;
+    required Map<int, Map<int, int>> pageMetadata,
+  }) async {
+    final selections = config.selections;
+    final int pagesPerDay = config.pagesPerDay;
+    final bool shuffleEnabled = config.shuffleEnabled;
 
-    final totalVerses = config.totalSelectedVerses;
-    final daysElapsed = today.difference(config.startDate).inDays;
-    // >= 1 : une config corrompue/personnalisée à 0 jour ne doit pas faire
-    // planter clamp(1, effectiveDays) (nécessite lowerLimit <= upperLimit).
-    final effectiveDays =
-        (effectiveDaysOverride ?? config.effectiveDays(totalVerses)).clamp(1, 1 << 30);
-    final daysRemaining = (effectiveDays - daysElapsed).clamp(1, effectiveDays);
+    // Créer la liste des sourates sélectionnées (potentiellement mélangée)
+    final List<SourateSelection> surahList = List.from(selections);
+    if (shuffleEnabled) {
+      surahList.shuffle(math.Random(config.startDate.millisecondsSinceEpoch));
+    }
 
     // Aucune sourate sélectionnée : rien à faire avancer dans le cycle
-    // (dailyTarget/_unitsForLines savent déjà gérer cycleTotal == 0).
-    final pos = cycleTotal == 0 ? 0 : cyclePosition % cycleTotal;
-    final unitsToAssign = config.paceByLines
-        ? _unitsForLines(units, pos, cycleTotal, config.targetLinesPerDay)
-            .clamp(0, cycleTotal)
-        : dailyTarget(
-            cyclePosition: pos,
-            cycleTotal: cycleTotal,
-            daysRemaining: daysRemaining,
-          ).clamp(0, cycleTotal);
-    final baseUnits = <RevisionUnit>[];
-    for (int i = 0; i < unitsToAssign; i++) {
-      baseUnits.add(units[(pos + i) % cycleTotal]);
+    if (surahList.isEmpty) {
+      return const DaySelection(
+        groups: [],
+        cyclePosition: 0,
+        cycleTotal: 0,
+      );
+    }
+
+    final List<List<SourateSelection>> groups =
+        _groupSelectionsByPage(surahList, pageMetadata);
+    final int groupCount = groups.length;
+
+    // Calculer la position actuelle dans le cycle (gérer le dépassement) —
+    // indexe les groupes, pas les sourates individuelles.
+    final int pos = cyclePosition % groupCount;
+
+    // Accumuler les groupes du jour basé sur le budget de pages
+    final List<List<RevisionUnit>> todayGroups = <List<RevisionUnit>>[];
+    int remainingPages = pagesPerDay;
+
+    // Parcourir les groupes en commençant par la position actuelle, en
+    // enveloppant (retour à l'index 0) si le budget du jour n'est pas épuisé
+    // avant la fin de la liste — sinon un budget pagesPerDay non multiple du
+    // nombre de pages restantes gaspillerait le reliquat près de la fin du
+    // cycle au lieu de continuer depuis le début de la sélection (bug trouvé
+    // en revue de code). Borné à `groupCount` tours pour ne jamais reproposer
+    // deux fois le même groupe le même jour (budget excédant toute la
+    // sélection).
+    for (int step = 0; step < groupCount && remainingPages > 0; step++) {
+      final int i = (pos + step) % groupCount;
+      final List<SourateSelection> group = groups[i];
+
+      if (group.length > 1) {
+        // Page partagée entre plusieurs sourates : atomique, coûte 1 page,
+        // jamais découpée (par construction chaque membre tient déjà sur
+        // cette unique page).
+        todayGroups.add([
+          for (final selection in group)
+            RevisionUnit(
+              sourate: selection.sourate,
+              verseStart: selection.verseStart,
+              verseEnd: selection.verseEnd,
+              isWhole: selection.isWhole,
+            ),
+        ]);
+        remainingPages -= 1;
+        continue;
+      }
+
+      final SourateSelection selection = group.single;
+      final Sourate sourate = selection.sourate;
+      final Map<int, int>? surahPagesMap = pageMetadata[sourate.id];
+      if (surahPagesMap == null || surahPagesMap.isEmpty) {
+        // Pas de métadonnées disponibles pour cette sourate : passer à la suivante
+        continue;
+      }
+
+      // Nombre de pages RÉELLES distinctes occupées par cette sourate — les
+      // valeurs de la map sont des numéros de page absolus du mushaf (ex.
+      // 601), pas un compte de pages : `reduce(math.max)` retournerait ce
+      // numéro absolu et rendrait la branche "tient en entier" quasi
+      // inatteignable pour un budget pagesPerDay réaliste (bug trouvé en
+      // écrivant les tests de régression du sprint pages/jour).
+      final int totalPages = surahPagesMap.values.toSet().length;
+
+      if (remainingPages >= totalPages) {
+        // La sourate entière tient dans le budget restant
+        todayGroups.add([
+          RevisionUnit(
+            sourate: sourate,
+            verseStart: selection.verseStart,
+            verseEnd: selection.verseEnd,
+            isWhole: selection.isWhole,
+          ),
+        ]);
+        remainingPages -= totalPages;
+      } else {
+        // Seulement une partie de la sourate tient dans le budget restant
+        // Nous devons calculer quels versets correspondent à remainingPages
+
+        // Créer une map inverse : page -> liste des ayahs
+        final Map<int, List<int>> pageToAyahs = <int, List<int>>{};
+        surahPagesMap.forEach((int ayah, int page) {
+          pageToAyahs.putIfAbsent(page, () => []).add(ayah);
+        });
+
+        // Prendre les 'remainingPages' premières pages
+        final List<int> takenPages = pageToAyahs.keys.toList()..sort();
+        final pagesToKeep = takenPages.take(remainingPages);
+
+        final List<int> ayahsInPages = [
+          for (final page in pagesToKeep) ...pageToAyahs[page]!,
+        ];
+
+        if (ayahsInPages.isNotEmpty) {
+          todayGroups.add([
+            RevisionUnit(
+              sourate: sourate,
+              verseStart: ayahsInPages.reduce(math.min),
+              verseEnd: ayahsInPages.reduce(math.max),
+              isWhole: false,
+            ),
+          ]);
+        }
+
+        // Le reste de la sourate sera traité demain (on sort de la boucle)
+        break;
+      }
     }
 
     return DaySelection(
-      units: baseUnits,
+      groups: todayGroups,
       cyclePosition: pos,
-      cycleTotal: cycleTotal,
-      daysRemaining: daysRemaining,
+      cycleTotal: groupCount,
+    );
+  }
+
+  /// Construit le plan complet du jour (sélection + répartition en rakaas)
+  /// en un seul appel — composition pure de [buildDayUnits] +
+  /// [distributeToRakaas], sans effet de bord.
+  static Future<DailySession> buildDayPlan({
+    required UserConfig config,
+    required List<Prayer> prayersAlone,
+    required int cyclePosition,
+    required DateTime today,
+    required Map<int, Map<int, int>> pageMetadata,
+  }) async {
+    final selection = await buildDayUnits(
+      config: config,
+      cyclePosition: cyclePosition,
+      today: today,
+      pageMetadata: pageMetadata,
+    );
+    final plan = distributeToRakaas(
+      units: selection.units,
+      prayersAlone: prayersAlone,
+    );
+    return DailySession(
+      date: today,
+      prayersAlone: prayersAlone,
+      plan: plan,
+      totalUnits: selection.units.length,
+      cyclePosition: selection.cyclePosition,
+      cycleTotal: selection.cycleTotal,
     );
   }
 
   /// Répartit des unités déjà choisies dans les rakaas des prières données —
   /// étapes 3-4 de l'ancien `buildDayPlan` monolithique. Pure : ne dépend que
   /// de ses arguments, réutilisable que les unités viennent de
-  /// [selectDayUnits] (flux existant) ou des lignes `ayah_facts` déjà
+  /// [buildDayUnits] (nouveau flux) ou des lignes `ayah_facts` déjà
   /// validées au check-in (Phase 6 Sprint 2 — PlanScreen ne génère plus son
   /// propre plan, il répartit celui déjà confirmé).
   static List<PrayerPlan> distributeToRakaas({
@@ -161,41 +289,6 @@ class RevisionEngine {
     }
 
     return plan;
-  }
-
-  /// Construit le plan complet du jour (sélection + répartition en rakaas)
-  /// en un seul appel — composition pure de [selectDayUnits] +
-  /// [distributeToRakaas], sans effet de bord. Depuis Phase 6 Sprint 2, plus
-  /// aucun appelant de l'app ne l'utilise directement (le moteur quotidien et
-  /// PlanScreen appellent les deux étapes séparément, voir `AppState`) —
-  /// conservée comme fonction pure testée (`test/core/revision_engine_test.dart`)
-  /// plutôt que supprimée avec sa couverture de régression.
-  static DailySession buildDayPlan({
-    required UserConfig config,
-    required List<Prayer> prayersAlone,
-    required int cyclePosition,
-    required DateTime today,
-    int? effectiveDaysOverride,
-  }) {
-    final selection = selectDayUnits(
-      config: config,
-      cyclePosition: cyclePosition,
-      today: today,
-      effectiveDaysOverride: effectiveDaysOverride,
-    );
-    final plan = distributeToRakaas(
-      units: selection.units,
-      prayersAlone: prayersAlone,
-    );
-    return DailySession(
-      date: today,
-      prayersAlone: prayersAlone,
-      plan: plan,
-      totalUnits: selection.units.length,
-      cyclePosition: selection.cyclePosition,
-      cycleTotal: selection.cycleTotal,
-      daysRemaining: selection.daysRemaining,
-    );
   }
 
   /// Subdivise les unités pour remplir [targetCount] rakaas.

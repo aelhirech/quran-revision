@@ -9,7 +9,6 @@ class CycleProgressCard extends StatelessWidget {
   final double progress;
   final int pos;
   final int total;
-  final int daysRemaining;
   final int streak;
 
   const CycleProgressCard({
@@ -17,7 +16,6 @@ class CycleProgressCard extends StatelessWidget {
     required this.progress,
     required this.pos,
     required this.total,
-    required this.daysRemaining,
     required this.streak,
   });
 
@@ -62,8 +60,7 @@ class CycleProgressCard extends StatelessWidget {
           InkWell(
             onTap: () => _showUnitesInfo(context),
             child: Text(
-              '$pos / $total ${S.unitesLabel} · '
-              '${daysRemaining > 0 ? '$daysRemaining ${S.joursRestants}' : S.objectifAtteint}',
+              '$pos / $total ${S.unitesLabel}',
               style: GoogleFonts.lora(
                   color: onPrimary.withValues(alpha: 0.75),
                   fontStyle: FontStyle.italic,

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quran_revision/core/revision_engine.dart';
 import 'package:quran_revision/models/prayer.dart';
+import 'package:quran_revision/models/riwaya.dart';
 import 'package:quran_revision/models/sourate.dart';
 import 'package:quran_revision/models/sourate_selection.dart';
 import 'package:quran_revision/models/user_config.dart';
@@ -9,8 +10,390 @@ Sourate _sourate(int id, int verses, int words) =>
     Sourate(id: id, nameAr: 'س$id', nameFr: 'S$id', verses: verses, words: words);
 
 void main() {
-  group('RevisionEngine.buildDayPlan — rythme par durée (par défaut)', () {
-    test('un seul unité/jour reste possible quand le cycle est long', () {
+  group('RevisionEngine.buildDayUnits — nouveau moteur pages/jour', () {
+    test('une sourate entière tient dans le budget journalier', () async {
+      // Sourate 1 = 7 versets, 1 page (d'après les données de test)
+      final selections = [
+        SourateSelection.whole(_sourate(1, 7, 50)) // 7 versets
+      ];
+      final config = UserConfig(
+        selections: selections,
+        pagesPerDay: 2, // Budget de 2 pages/jour
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+
+      // Mock page metadata: surah 1 has all 7 verses on page 1
+      final mockPageMetadata = {
+        1: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1}
+      };
+
+      final selection = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      expect(selection.units.length, 1);
+      expect(selection.units.first.sourate.id, 1);
+      expect(selection.units.first.verseStart, 1);
+      expect(selection.units.first.verseEnd, 7);
+      expect(selection.units.first.isWhole, isTrue);
+      expect(selection.cycleTotal, 1);
+      expect(selection.cyclePosition, 0);
+    });
+
+    test('deux sourates tiennent dans le budget journalier', () async {
+      // Sourate 1 = 1 page, Sourate 2 = 1 page (d'après les données de test)
+      final selections = [
+        SourateSelection.whole(_sourate(1, 7, 50)), // 1 page
+        SourateSelection.whole(_sourate(2, 7, 50)), // 1 page
+      ];
+      final config = UserConfig(
+        selections: selections,
+        pagesPerDay: 2, // Budget de 2 pages/jour
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+
+      // Pages GLOBALEMENT distinctes (1 et 2) — comme dans le vrai mushaf, où
+      // un numéro de page n'appartient qu'à une seule sourate à la fois.
+      // Deux sourates réutilisant le même numéro de page seraient regroupées
+      // en un seul slot de cycle (voir "regroupement par page partagée",
+      // cadrage 2026-09-05) : pas le comportement testé ici.
+      final mockPageMetadata = {
+        1: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1},
+        2: {1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2}
+      };
+
+      final selection = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      expect(selection.units.length, 2);
+      expect(selection.units[0].sourate.id, 1);
+      expect(selection.units[0].verseStart, 1);
+      expect(selection.units[0].verseEnd, 7);
+      expect(selection.units[0].isWhole, isTrue);
+      expect(selection.units[1].sourate.id, 2);
+      expect(selection.units[1].verseStart, 1);
+      expect(selection.units[1].verseEnd, 7);
+      expect(selection.units[1].isWhole, isTrue);
+      expect(selection.cycleTotal, 2);
+      expect(selection.cyclePosition, 0);
+    });
+
+    test('une sourate dépasse le budget et est découpée par pages', () async {
+      // Pour ce test, créons une sourate qui dépasse clairement le budget
+      // Disons que la sourate 1 occupe 2 pages mais nous n'avons que 1 page de budget
+      final selections = [
+        SourateSelection.whole(_sourate(1, 7, 50)) // 7 versets
+      ];
+      final config = UserConfig(
+        selections: selections,
+        pagesPerDay: 1, // Budget de 1 page/jour
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+
+      // Mock page metadata: surah 1 spans 2 pages (4 verses on page 1, 3 verses on page 2)
+      final mockPageMetadata = {
+        1: {1: 1, 2: 1, 3: 1, 4: 1, 5: 2, 6: 2, 7: 2}
+      };
+
+      final selection = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      // Avec 1 page de budget et la sourate ayant 4 versets sur la page 1, on prend 4 versets
+      expect(selection.units.length, 1);
+      expect(selection.units.first.sourate.id, 1);
+      expect(selection.units.first.verseStart, 1);
+      expect(selection.units.first.verseEnd, 4);
+      expect(selection.units.first.isWhole, isFalse);
+    });
+
+    test('le shuffle fonctionne au niveau des sourates', () async {
+      final selections = List.generate(
+          5, (i) => SourateSelection.whole(_sourate(i + 1, 7, 50)));
+      final config = UserConfig(
+        selections: selections,
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: true,
+      );
+
+      // Mock page metadata: all surahs have 1 verse per page for simplicity
+      final mockPageMetadata = <int, Map<int, int>>{};
+      for (var i = 0; i < 5; i++) {
+        final surahId = i + 1;
+        final versesMap = <int, int>{};
+        for (var j = 0; j < 7; j++) {
+          final verseNum = j + 1;
+          // Simple mapping: verse N is on page N
+          versesMap[verseNum] = verseNum;
+        }
+        mockPageMetadata[surahId] = versesMap;
+      }
+
+      // Deux appels avec la même configuration doivent produire le même ordre
+      final selection1 = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+      final selection2 = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      expect(selection1.units.length, selection2.units.length);
+      expect(
+        selection1.units.map((u) => u.sourate.id).toList(),
+        selection2.units.map((u) => u.sourate.id).toList(),
+      );
+    });
+
+    test('la position dans le cycle est respectée', () async {
+      final selections = [
+        SourateSelection.whole(_sourate(1, 7, 50)), // index 0
+        SourateSelection.whole(_sourate(2, 7, 50)), // index 1
+        SourateSelection.whole(_sourate(3, 7, 50)), // index 2
+      ];
+      final config = UserConfig(
+        selections: selections,
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+
+      // Chaque sourate tient sur 1 page, mais avec un numéro de page
+      // GLOBALEMENT distinct (1/2/3) — sinon les 3 seraient regroupées en un
+      // seul slot de cycle (voir "regroupement par page partagée").
+      final mockPageMetadata = {
+        1: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1},
+        2: {1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2},
+        3: {1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3},
+      };
+
+      // Position 0 : doit prendre la sourate 1
+      final selection0 = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      // Position 1 : doit prendre la sourate 2
+      final selection1 = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 1,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      // Position 2 : doit prendre la sourate 3
+      final selection2 = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 2,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      expect(selection0.units.first.sourate.id, 1);
+      expect(selection1.units.first.sourate.id, 2);
+      expect(selection2.units.first.sourate.id, 3);
+
+      // Tous ont cycleTotal = 3
+      expect(selection0.cycleTotal, 3);
+      expect(selection1.cycleTotal, 3);
+      expect(selection2.cycleTotal, 3);
+    });
+
+    test('le cycle boucle correctement', () async {
+      final selections = [
+        SourateSelection.whole(_sourate(1, 7, 50)), // index 0
+        SourateSelection.whole(_sourate(2, 7, 50)), // index 1
+      ];
+      final config = UserConfig(
+        selections: selections,
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+
+      // Chaque sourate tient sur 1 page, mais avec un numéro de page
+      // GLOBALEMENT distinct (1/2) — sinon les 2 seraient regroupées en un
+      // seul slot de cycle (voir "regroupement par page partagée").
+      final mockPageMetadata = {
+        1: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1},
+        2: {1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2},
+      };
+
+      // Position 0 : sourate 1
+      final selection0 = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      // Position 1 : sourate 2
+      final selection1 = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 1,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      // Position 2 : doit boucler à la sourate 0 (2 % 2 = 0)
+      final selection2 = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 2,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      expect(selection0.units.first.sourate.id, 1);
+      expect(selection1.units.first.sourate.id, 2);
+      expect(selection2.units.first.sourate.id, 1); // Bouclé à l'index 0
+
+      expect(selection0.cycleTotal, 2);
+      expect(selection1.cycleTotal, 2);
+      expect(selection2.cycleTotal, 2);
+    });
+
+    test('aucune sourate sélectionnée retourne une sélection vide', () async {
+      final config = UserConfig(
+        selections: [],
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+      final selection = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: const {},
+      );
+
+      expect(selection.units.isEmpty, isTrue);
+      expect(selection.cycleTotal, 0);
+      expect(selection.cyclePosition, 0);
+    });
+
+    test(
+        'plusieurs sourates sélectionnées qui tiennent chacune sur 1 page et '
+        'partagent le même numéro de page réelle sont regroupées en un seul '
+        'slot de cycle (cadrage "regroupement par page partagée", '
+        '2026-09-05, ex. Al-Kawthar/Al-Ma\'un/Quraysh sur la même page)',
+        () async {
+      final selections = [
+        SourateSelection.whole(_sourate(106, 4, 20)),
+        SourateSelection.whole(_sourate(107, 7, 20)),
+        SourateSelection.whole(_sourate(108, 3, 20)),
+        // Sourate non voisine, sur sa propre page : ne doit jamais être
+        // absorbée dans le groupe des 3 premières.
+        SourateSelection.whole(_sourate(2, 5, 50)),
+      ];
+      final config = UserConfig(
+        selections: selections,
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+      final mockPageMetadata = {
+        106: {1: 602, 2: 602, 3: 602, 4: 602},
+        107: {1: 602, 2: 602, 3: 602, 4: 602, 5: 602, 6: 602, 7: 602},
+        108: {1: 602, 2: 602, 3: 602},
+        2: {1: 3, 2: 3, 3: 4, 4: 4, 5: 4},
+      };
+
+      final selection = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      expect(selection.units.map((u) => u.sourate.id).toList(), [106, 107, 108],
+          reason: 'les 3 sourates de la page 602 sont proposées ensemble, '
+              'jamais étalées sur plusieurs jours');
+      expect(selection.groups, hasLength(1),
+          reason: 'un seul groupe de 3 unités — une seule position de cycle');
+      expect(selection.groups.single, hasLength(3));
+      expect(selection.cycleTotal, 2,
+          reason: '2 slots au total : le groupe de la page 602, et la '
+              'sourate 2 (page différente) — pas 4 sourates individuelles');
+
+      // Position 1 (après le groupe) : doit prendre la sourate 2, seule.
+      final next = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 1,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+      expect(next.units.map((u) => u.sourate.id).toList(), [2]);
+    });
+
+    test(
+        'une sourate non sélectionnée ne rejoint jamais un groupe de page '
+        'partagée, même si elle tient sur la même page réelle qu\'une '
+        'sourate sélectionnée (tranché au cadrage 2026-09-05)', () async {
+      // Seules 106 et 108 sont sélectionnées ; 107 (même page) ne l'est pas.
+      final selections = [
+        SourateSelection.whole(_sourate(106, 4, 20)),
+        SourateSelection.whole(_sourate(108, 3, 20)),
+      ];
+      final config = UserConfig(
+        selections: selections,
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+      final mockPageMetadata = {
+        106: {1: 602, 2: 602, 3: 602, 4: 602},
+        107: {1: 602, 2: 602, 3: 602, 4: 602, 5: 602, 6: 602, 7: 602},
+        108: {1: 602, 2: 602, 3: 602},
+      };
+
+      final selection = await RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: 0,
+        today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
+      );
+
+      expect(selection.units.map((u) => u.sourate.id).toList(), [106, 108],
+          reason: '107 (non sélectionnée) absente du plan malgré la page partagée');
+      expect(selection.groups, hasLength(1));
+      expect(selection.groups.single, hasLength(2));
+      expect(selection.cycleTotal, 1);
+    });
+  });
+
+  // Ancien tests conservés pour régression mais mis à jour pour utiliser le nouveau moteur
+  group('RevisionEngine.buildDayPlan — compatibilité avec le nouveau moteur', () {
+    test('un seul unité/jour reste possible quand le cycle est long', () async {
       final selections = [
         SourateSelection.whole(_sourate(1, 5, 50)),
         SourateSelection.whole(_sourate(2, 5, 50)),
@@ -18,15 +401,25 @@ void main() {
       ];
       final config = UserConfig(
         selections: selections,
-        revisionDays: 30,
+        pagesPerDay: 1, // Approximation : 1 page par unité de 5 versets/50 mots
         startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
         shuffleEnabled: false,
       );
-      final session = RevisionEngine.buildDayPlan(
+      // Chaque sourate mockée sur 2 pages distinctes : avec pagesPerDay=1,
+      // la 1re dépasse toujours le budget → toujours exactement 1 unité
+      // (partielle) proposée, quelle que soit la sourate en position de cycle.
+      final mockPageMetadata = {
+        1: {1: 1, 2: 1, 3: 2, 4: 2, 5: 2},
+        2: {1: 3, 2: 3, 3: 4, 4: 4, 5: 4},
+        3: {1: 5, 2: 5, 3: 6, 4: 6, 5: 6},
+      };
+      final session = await RevisionEngine.buildDayPlan(
         config: config,
         prayersAlone: [Prayer.fajr],
         cyclePosition: 0,
         today: DateTime(2026, 1, 1),
+        pageMetadata: mockPageMetadata,
       );
       // Avec 3 unités et 30 jours restants, la cible du jour est 1 unité —
       // elle est répétée dans toutes les rakaas récitées de la prière.
@@ -39,275 +432,25 @@ void main() {
     });
   });
 
-  group('RevisionEngine.buildDayPlan — rythme par lignes/jour', () {
-    test('assemble plusieurs unités/jour pour atteindre le seuil de lignes', () {
-      // ~8,5 mots/ligne : chaque sourate ci-dessous fait ~5 lignes.
-      final selections = [
-        SourateSelection.whole(_sourate(1, 5, 42)),
-        SourateSelection.whole(_sourate(2, 5, 42)),
-        SourateSelection.whole(_sourate(3, 5, 42)),
-        SourateSelection.whole(_sourate(4, 5, 42)),
-      ];
-      final config = UserConfig(
-        selections: selections,
-        revisionDays: 30,
-        startDate: DateTime(2026, 1, 1),
-        shuffleEnabled: false,
-        paceByLines: true,
-        targetLinesPerDay: 12,
-      );
-      final session = RevisionEngine.buildDayPlan(
-        config: config,
-        // 2 prières pour avoir assez de rakaas à voix haute (4) et laisser
-        // les 3 unités du jour apparaître quelque part dans le plan.
-        prayersAlone: [Prayer.fajr, Prayer.dhuhr],
-        cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
-      );
-      // ~5 lignes/unité, seuil 12 → il faut 3 unités pour dépasser le seuil.
-      expect(session.totalUnits, 3);
-      final surats = session.plan
-          .expand((p) => p.rakaas)
-          .where((r) => r.unit != null)
-          .map((r) => r.unit!.sourate.id)
-          .toSet();
-      expect(surats, {1, 2, 3});
-    });
-
-    test('avance dans le cycle cycliquement à partir de cyclePosition', () {
-      final selections = [
-        SourateSelection.whole(_sourate(1, 5, 42)),
-        SourateSelection.whole(_sourate(2, 5, 42)),
-        SourateSelection.whole(_sourate(3, 5, 42)),
-      ];
-      final config = UserConfig(
-        selections: selections,
-        revisionDays: 30,
-        startDate: DateTime(2026, 1, 1),
-        shuffleEnabled: false,
-        paceByLines: true,
-        targetLinesPerDay: 100, // au-delà du total dispo → tout le cycle
-      );
-      final session = RevisionEngine.buildDayPlan(
-        config: config,
-        prayersAlone: [Prayer.fajr],
-        cyclePosition: 1,
-        today: DateTime(2026, 1, 1),
-      );
-      expect(session.totalUnits, 3);
-    });
-  });
-
   group('RevisionEngine.buildDayPlan — cas limites', () {
-    test('aucune sourate sélectionnée ne fait pas planter (division par zéro)', () {
+    test('aucune sourate sélectionnée ne fait pas planter (division par zéro)', () async {
       final config = UserConfig(
         selections: const [],
-        revisionDays: 30,
+        pagesPerDay: 1,
         startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
       );
-      final session = RevisionEngine.buildDayPlan(
+      final session = await RevisionEngine.buildDayPlan(
         config: config,
         prayersAlone: [Prayer.fajr],
         cyclePosition: 0,
         today: DateTime(2026, 1, 1),
+        pageMetadata: const {},
       );
       expect(session.totalUnits, 0);
       expect(session.cycleTotal, 0);
       // Toutes les rakaas restent "Al-Fatiha seule" (aucune unité à assigner).
       expect(session.plan.first.rakaas.every((r) => r.unit == null), isTrue);
-    });
-  });
-
-  // Ci-dessous : tests de régression écrits avant refonte de RevisionEngine
-  // (règle test/CLAUDE.md) pour verrouiller des comportements jusqu'ici non
-  // couverts — voir docs/DOCUMENTATION_TECHNIQUE.md §11 "ne couvre pas".
-
-  group('RevisionEngine.buildUnits — découpage par limite de mots (150)', () {
-    test('une sélection > 150 mots est découpée en chunks contigus sans trou ni recouvrement', () {
-      final sel = SourateSelection.whole(_sourate(1, 40, 320));
-      final units = RevisionEngine.buildUnits([sel]);
-
-      expect(units.length, 3);
-      expect(units.map((u) => [u.verseStart, u.verseEnd]).toList(), [
-        [1, 14],
-        [15, 28],
-        [29, 40],
-      ]);
-      expect(units.every((u) => u.isWhole), isFalse);
-      // Couverture exacte de la plage d'origine, sans trou ni chevauchement.
-      for (int i = 0; i < units.length - 1; i++) {
-        expect(units[i + 1].verseStart, units[i].verseEnd + 1);
-      }
-      expect(units.first.verseStart, 1);
-      expect(units.last.verseEnd, 40);
-    });
-
-    test('une sélection <= 150 mots reste une unité entière', () {
-      final sel = SourateSelection.whole(_sourate(1, 10, 100));
-      final units = RevisionEngine.buildUnits([sel]);
-      expect(units.length, 1);
-      expect(units.single.isWhole, isTrue);
-    });
-  });
-
-  group('RevisionEngine.selectDayUnits — shuffle déterministe', () {
-    test('même config (même startDate) → même ordre à chaque appel', () {
-      final selections = List.generate(
-          8, (i) => SourateSelection.whole(_sourate(i + 1, 5, 50)));
-      final config = UserConfig(
-        selections: selections,
-        revisionDays: 30,
-        startDate: DateTime(2026, 3, 4),
-        shuffleEnabled: true,
-      );
-      final a = RevisionEngine.selectDayUnits(
-          config: config, cyclePosition: 0, today: DateTime(2026, 3, 5));
-      final b = RevisionEngine.selectDayUnits(
-          config: config, cyclePosition: 0, today: DateTime(2026, 3, 5));
-
-      expect(a.cycleTotal, b.cycleTotal);
-      expect(a.daysRemaining, b.daysRemaining);
-      expect(
-        a.units.map((u) => u.sourate.id).toList(),
-        b.units.map((u) => u.sourate.id).toList(),
-      );
-    });
-  });
-
-  group('RevisionEngine.distributeToRakaas — jamais de rakaa vide malgré la pénurie', () {
-    test('1 seule unité disponible pour 5 rakaas à voix haute réparties sur 2 prières', () {
-      final units = RevisionEngine.buildUnits(
-          [SourateSelection.whole(_sourate(1, 1, 5))]);
-      final plan = RevisionEngine.distributeToRakaas(
-        units: units,
-        prayersAlone: [Prayer.witr, Prayer.fajr], // suratRakaas 3 + 2 = 5
-      );
-      final suratRakaas = plan
-          .expand((p) => p.rakaas.take(p.prayer.suratRakaas))
-          .toList();
-      expect(suratRakaas.length, 5);
-      expect(suratRakaas.every((r) => r.unit != null), isTrue);
-      expect(suratRakaas.every((r) => r.unit!.sourate.id == 1), isTrue);
-    });
-  });
-
-  group('RevisionEngine.distributeToRakaas — no-repeat sourate par prière (S6-B)', () {
-    test('assez d\'unités distinctes → chaque rakaa d\'une même prière a une sourate différente', () {
-      final units = RevisionEngine.buildUnits([
-        SourateSelection.whole(_sourate(1, 1, 5)),
-        SourateSelection.whole(_sourate(2, 1, 5)),
-      ]);
-      final plan = RevisionEngine.distributeToRakaas(
-        units: units,
-        prayersAlone: [Prayer.fajr], // suratRakaas = 2
-      );
-      final ids = plan.first.rakaas
-          .where((r) => r.unit != null)
-          .map((r) => r.unit!.sourate.id)
-          .toList();
-      expect(ids.toSet(), {1, 2});
-      expect(ids.length, ids.toSet().length);
-    });
-
-    test('rakaas au-delà de suratRakaas restent "Al-Fatiha seule" (silencieuses)', () {
-      final units = RevisionEngine.buildUnits([
-        SourateSelection.whole(_sourate(1, 1, 5)),
-        SourateSelection.whole(_sourate(2, 1, 5)),
-        SourateSelection.whole(_sourate(3, 1, 5)),
-      ]);
-      final plan = RevisionEngine.distributeToRakaas(
-        units: units,
-        prayersAlone: [Prayer.dhuhr], // rakaas=4, suratRakaas=2
-      );
-      final rakaas = plan.first.rakaas;
-      expect(rakaas.length, 4);
-      expect(rakaas[0].unit, isNotNull);
-      expect(rakaas[1].unit, isNotNull);
-      expect(rakaas[2].unit, isNull);
-      expect(rakaas[3].unit, isNull);
-    });
-  });
-
-  group('RevisionEngine.distributeToRakaas — subdivision en rakaas (_expandToRakaas)', () {
-    test('assez de lignes/slot (>= 5) → la sourate est subdivisée en plages contiguës', () {
-      // 10 versets, 100 mots → ~11.76 lignes ; 2 slots → ~5.88 lignes/slot (>= 5).
-      final units = RevisionEngine.buildUnits(
-          [SourateSelection.whole(_sourate(1, 10, 100))]);
-      final plan = RevisionEngine.distributeToRakaas(
-        units: units,
-        prayersAlone: [Prayer.fajr], // suratRakaas = 2, seule prière
-      );
-      final rakaas = plan.first.rakaas;
-      expect(rakaas[0].unit!.verseStart, 1);
-      expect(rakaas[0].unit!.verseEnd, 5);
-      expect(rakaas[1].unit!.verseStart, 6);
-      expect(rakaas[1].unit!.verseEnd, 10);
-    });
-
-    test('pas assez de lignes/slot (< 5) → la sourate n\'est pas subdivisée, elle est répétée entière', () {
-      // 10 versets, 60 mots → ~7.06 lignes ; 2 slots → ~3.53 lignes/slot (< 5).
-      final units = RevisionEngine.buildUnits(
-          [SourateSelection.whole(_sourate(1, 10, 60))]);
-      final plan = RevisionEngine.distributeToRakaas(
-        units: units,
-        prayersAlone: [Prayer.fajr],
-      );
-      final rakaas = plan.first.rakaas;
-      expect(rakaas[0].unit!.verseStart, 1);
-      expect(rakaas[0].unit!.verseEnd, 10);
-      expect(rakaas[1].unit!.verseStart, 1);
-      expect(rakaas[1].unit!.verseEnd, 10);
-    });
-  });
-
-  // Extrait de PlanScreen._coverageForFirstRakaas (sprint "simplify-ayah-facts",
-  // 2026-09-02) vers le moteur pur — verrouille le comportement au moment du
-  // déplacement (règle test/CLAUDE.md : pas de changement de RevisionEngine
-  // sans filet de sécurité).
-  group('RevisionEngine.coverageForFirstRakaas — "une part faite" (déclaration manuelle)', () {
-    test('n rakaas répétant la même unité (pénurie) → 1 seule unité distincte comptée', () {
-      final units = RevisionEngine.buildUnits(
-          [SourateSelection.whole(_sourate(1, 1, 5))]);
-      final plan = RevisionEngine.distributeToRakaas(
-        units: units,
-        prayersAlone: [Prayer.witr, Prayer.fajr], // 5 rakaas à voix haute
-      );
-      final coverage = RevisionEngine.coverageForFirstRakaas(plan, 3);
-      expect(coverage.units, 1);
-      expect(coverage.coveredUnits.length, 3);
-      expect(coverage.coveredUnits.every((u) => u.sourate.id == 1), isTrue);
-    });
-
-    test('s\'arrête exactement à n même en traversant plusieurs prières', () {
-      final units = RevisionEngine.buildUnits([
-        SourateSelection.whole(_sourate(1, 1, 5)),
-        SourateSelection.whole(_sourate(2, 1, 5)),
-      ]);
-      final plan = RevisionEngine.distributeToRakaas(
-        units: units,
-        // Fajr : 2 rakaas à voix haute (sourates 1 et 2) ; Dhouhr : 2 de plus.
-        prayersAlone: [Prayer.fajr, Prayer.dhuhr],
-      );
-      final coverage = RevisionEngine.coverageForFirstRakaas(plan, 3);
-      expect(coverage.coveredUnits.length, 3);
-      // Les 2 premières rakaas (Fajr, sourates 1+2) + la 1ère de Dhouhr.
-      expect(coverage.coveredUnits[0].sourate.id, 1);
-      expect(coverage.coveredUnits[1].sourate.id, 2);
-    });
-
-    test('les rakaas silencieuses (unit == null) ne comptent pas dans n', () {
-      final units = RevisionEngine.buildUnits(
-          [SourateSelection.whole(_sourate(1, 1, 5))]);
-      final plan = RevisionEngine.distributeToRakaas(
-        units: units,
-        // Dhouhr : rakaas=4, suratRakaas=2 → r3/r4 silencieuses, avant Fajr.
-        prayersAlone: [Prayer.dhuhr, Prayer.fajr],
-      );
-      // n=3 force à traverser les 2 rakaas silencieuses de Dhouhr (r3, r4)
-      // pour atteindre la 1ère rakaa réelle de Fajr — si le skip comptait à
-      // tort les silencieuses dans n, on n'obtiendrait que 2 unités ici.
-      final coverage = RevisionEngine.coverageForFirstRakaas(plan, 3);
-      expect(coverage.coveredUnits.length, 3);
     });
   });
 }

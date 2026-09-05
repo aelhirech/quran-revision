@@ -6,14 +6,12 @@ import '../models/user_config.dart';
 class ProfileInfoCard extends StatelessWidget {
   final UserConfig config;
   final int elapsed;
-  final int remaining;
   final int memorisees;
 
   const ProfileInfoCard({
     super.key,
     required this.config,
     required this.elapsed,
-    required this.remaining,
     required this.memorisees,
   });
 
@@ -31,20 +29,15 @@ class ProfileInfoCard extends StatelessWidget {
             _row(
                 cs,
                 Icons.calendar_today_outlined,
-                config.paceByLines ? S.rythmeLabel : S.dureeObjectif,
-                config.paceByLines
-                    ? S.lignesParJourValeur(config.targetLinesPerDay)
-                    : S.joursDuration(config.revisionDays),
+                S.surahParJour,
+                '${config.pagesPerDay} ${S.pagesJourAbbr}',
                 0),
             const Divider(height: 24),
             _row(cs, Icons.today_outlined,
                 S.joursEcoules, S.joursDuration(elapsed), 80),
             const Divider(height: 24),
-            _row(cs, Icons.timer_outlined,
-                S.joursRestantsLabel, S.joursDuration(remaining), 160),
-            const Divider(height: 24),
             _row(cs, Icons.menu_book_outlined,
-                S.souratesMemoriees, '$memorisees', 240),
+                S.souratesMemoriees, '$memorisees', 160),
           ],
         ),
       ),
