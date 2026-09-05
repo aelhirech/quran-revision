@@ -67,6 +67,8 @@ flutter:
     - assets/quran/hafs.json
     - assets/quran/warsh.json
     - assets/quran/metadata/quran-metadata-hizb.json
+    - assets/quran/metadata/quran-metadata-page-hafs.json
+    - assets/quran/metadata/quran-metadata-page-warsh.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

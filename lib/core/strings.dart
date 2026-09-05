@@ -20,8 +20,6 @@ class S {
   static String get voirPlanDuJour => _t('Voir le plan du jour', 'See daily plan');
   static String get revisionEnCours => _t('Révision en cours', 'Revision in progress');
   static String get cycleEnCours => _t('Cycle en cours', 'Current cycle');
-  static String get joursRestants => _t('jours restants', 'days remaining');
-  static String get objectifAtteint => _t('Objectif atteint !', 'Goal reached!');
   static String get complete => _t('complété', 'complete');
 
   // Plan screen
@@ -29,8 +27,6 @@ class S {
   static String get modifierPlan => _t('Modifier le plan', 'Edit plan');
   static String get alFatihaSeul => _t('Al-Fatiha (pas de sourate)', 'Al-Fatiha (no surah)');
   static String get versets => _t('versets', 'verses');
-  static String get dansLesTemps => _t('✓ Dans les temps', '✓ On track');
-  static String get prendsAvance => _t("⚠ Prends de l'avance", '⚠ Get ahead');
 
   // Recap
   static String get cycleActuel => _t('CYCLE ACTUEL', 'CURRENT CYCLE');
@@ -41,10 +37,8 @@ class S {
   static String get rakaasLabel => _t('rakaas', 'rakaas');
 
   // Profile
-  static String get dureeObjectif => _t('Durée objectif', 'Target duration');
   static String get rythmeLabel => _t('Rythme', 'Pace');
   static String get joursEcoules => _t('Jours écoulés', 'Days elapsed');
-  static String get joursRestantsLabel => _t('Jours restants', 'Days remaining');
   static String get souratesMemoriees => _t('Sourates mémorisées', 'Memorized surahs');
   static String get reinitialiser => _t('Réinitialiser la configuration', 'Reset configuration');
   static String get reinitDesc => _t('Repart de zéro avec une nouvelle sélection', 'Start over with a new selection');
@@ -137,6 +131,11 @@ class S {
   static String get rythmeTranquille => _t('Tranquille · 90j', 'Relaxed · 90d');
   static String get rythmeRegulier => _t('Régulier · 30j', 'Steady · 30d');
   static String get rythmeIntensif => _t('Intensif · 14j', 'Intensive · 14d');
+  static String get surahParJour => _t('Sourate(s) par jour', 'Surah(s) per day');
+  static String get pagesJourAbbr => _t('p/j', 'p/j');
+  static String get pagesParJourValeur => _t('pages/jour', 'pages/day');
+  static String get pagesCustomTitle => _t('Pages par jour personnalisées', 'Custom pages per day');
+  static String get pagesSuffix => _t('pages', 'pages');
 
   // Onboarding wizard — rappels
   static String get etapeRappels => _t('Rappels', 'Reminders');
@@ -186,9 +185,6 @@ class S {
   static String get hadithDuJourLabel => _t('Hadith du jour', 'Hadith of the day');
 
   static String _t(String fr, String en) => locale == 'fr' ? fr : en;
-
-  static String joursRestantsMsg(int n) =>
-      locale == 'fr' ? '$n jours restants pour finir le cycle' : '$n days remaining to finish the cycle';
 
   static String unitesRakaas(int u, int r) =>
       locale == 'fr' ? '$u unités · $r rakaas' : '$u units · $r rakaas';
@@ -412,5 +408,7 @@ class S {
   static String get checkOutValiderAujourdhui =>
       _t('Valider aussi aujourd\'hui', 'Confirm today too');
   static String get checkOutTerminerSans => _t('Terminer sans aujourd\'hui', 'Finish without today');
+  static String get checkOutAjouterErreur =>
+      _t('Impossible de charger l\'aperçu du jour', 'Could not load today\'s preview');
 
 }

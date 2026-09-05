@@ -12,6 +12,7 @@ import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../services/ayah_facts_service.dart';
 import '../services/hafs_service.dart';
+import '../services/page_metadata_service.dart';
 import '../services/storage_service.dart';
 import '../services/warsh_service.dart';
 
@@ -317,8 +318,8 @@ class AppState extends ChangeNotifier {
   }
 
   /// Sélection du jour, pure (aucune écriture) — encapsule l'appel à
-  /// `RevisionEngine.selectDayUnits` avec les mêmes paramètres partout
-  /// (position gelée, jour ancré à minuit, cycle adaptatif) pour que
+  /// `RevisionEngine.buildDayUnits` avec les mêmes paramètres partout
+  /// (position gelée, jour ancré à minuit) pour que
   /// [ensureDayPlan]/[buildTodaySession]/[checkOut]/[previewTodayUnits] ne
   /// puissent pas diverger entre eux. [today] est TOUJOURS ancré à minuit
   /// (`DateTime.parse` d'une date `YYYY-MM-DD`), jamais `DateTime.now()` :
@@ -326,11 +327,11 @@ class AppState extends ChangeNotifier {
   /// génération du plan ou plus tard au check-out, sinon `daysElapsed`
   /// dérive avec l'heure de la journée et les deux appels ne comptent plus
   /// les mêmes unités (bug trouvé en revue de code).
-  DaySelection _selectionFor(String date) => RevisionEngine.selectDayUnits(
+  Future<DaySelection> _selectionForAsync(String date) async => RevisionEngine.buildDayUnits(
         config: _config!,
         cyclePosition: _cyclePosition,
         today: DateTime.parse(date),
-        effectiveDaysOverride: adaptiveCycleDays,
+        pageMetadata: PageMetadataService.pageMetadataFor(_riwaya),
       );
 
   /// Aperçu pur (aucune écriture) de ce que le moteur quotidien proposerait
@@ -338,42 +339,20 @@ class AppState extends ChangeNotifier {
   /// 2, "ajouter aussi aujourd'hui") pour montrer un aperçu avant de sceller.
   /// Même appel que [ensureDayPlan] fait réellement, exposé ici pour que les
   /// écrans n'importent jamais `RevisionEngine` directement.
-  List<RevisionUnit> previewTodayUnits() {
+  Future<List<RevisionUnit>> previewTodayUnits() async {
     if (_config == null) return const [];
-    return _selectionFor(_todayStr).units;
+    return (await _selectionForAsync(_todayStr)).units;
   }
 
-  /// Position/total du cycle en cours (nombre d'unités RevisionEngine) et
-  /// jours restants avant la date cible, à afficher (bandeau HomeScreen,
-  /// carte cycle RecapScreen) — dérivés de la même [_selectionFor] que le
-  /// plan du jour (`DailySession`, PlanScreen), pour que les 3 écrans ne
-  /// recalculent plus chacun leur propre `RevisionEngine.buildUnits(...)`
-  /// (source de divergence silencieuse, retour TestFlight 2026-09-01 sur
-  /// les chiffres du récapitulatif). `daysRemaining` ici peut tomber à 0
-  /// ("objectif atteint") contrairement à celui de `DaySelection`/
-  /// `DailySession`, qui reste toujours >= 1 pour ne jamais diviser par
-  /// zéro dans le moteur quotidien (voir `RevisionEngine.dailyTarget`) —
-  /// deux usages distincts (affichage vs moteur), donc deux valeurs
-  /// distinctes malgré la même origine. Nommé `cycleSummary` (pas
-  /// `cycleProgress`) pour ne pas entrer en collision avec
-  /// `DailySession.cycleProgress` (un `double`, sémantique différente).
-  ({int pos, int total, double progress, int daysRemaining}) get cycleSummary {
-    final config = _config;
-    if (config == null) {
-      return (pos: 0, total: 0, progress: 0.0, daysRemaining: 0);
-    }
-    final selection = _selectionFor(_todayStr);
-    final total = selection.cycleTotal;
-    final pos = selection.cyclePosition;
-    final daysElapsed = DateTime.now().difference(config.startDate).inDays;
-    final effectiveDays =
-        adaptiveCycleDays ?? config.effectiveDays(config.totalSelectedVerses);
-    return (
-      pos: pos,
-      total: total,
-      progress: total == 0 ? 0.0 : pos / total,
-      daysRemaining: (effectiveDays - daysElapsed).clamp(0, 9999),
-    );
+  /// Position/total du cycle en cours (nombre de groupes `RevisionEngine`),
+  /// à afficher (bandeau HomeScreen, carte cycle RecapScreen) — dérivés de la
+  /// même [_selectionForAsync] que le plan du jour (`DailySession`,
+  /// PlanScreen), pour que les 3 écrans ne recalculent plus chacun leur
+  /// propre `RevisionEngine.buildDayUnits(...)` (source de divergence
+  /// silencieuse, retour TestFlight 2026-09-01 sur les chiffres du
+  /// récapitulatif).
+  Future<DaySelection> getDaySelectionForToday() async {
+    return await _selectionForAsync(_todayStr);
   }
 
   /// Point d'entrée du moteur quotidien — à appeler à l'ouverture/reprise de
@@ -390,7 +369,7 @@ class AppState extends ChangeNotifier {
       final existing = await AyahFactsService.dayFacts(today, _riwaya);
       if (existing.isEmpty) {
         await AyahFactsService.proposeUnits(
-            today, _riwaya, _selectionFor(today).units);
+            today, _riwaya, (await _selectionForAsync(today)).units);
         _justCheckedIn = true;
       }
       // Reprend la manche en cours si l'app a redémarré après un début de
@@ -438,7 +417,7 @@ class AppState extends ChangeNotifier {
   Future<void> buildTodaySession(List<Prayer> prayersAlone,
       {bool notify = true}) async {
     if (_config == null || prayersAlone.isEmpty) return;
-    final selection = _selectionFor(_todayStr);
+    final selection = await _selectionForAsync(_todayStr);
     final units = await dayUnits();
     final plan =
         RevisionEngine.distributeToRakaas(units: units, prayersAlone: prayersAlone);
@@ -449,7 +428,6 @@ class AppState extends ChangeNotifier {
       totalUnits: units.length,
       cyclePosition: selection.cyclePosition,
       cycleTotal: selection.cycleTotal,
-      daysRemaining: selection.daysRemaining,
     );
     await StorageService.saveActivePrayers(prayersAlone, _riwaya);
     if (notify) notifyListeners();
@@ -515,32 +493,47 @@ class AppState extends ChangeNotifier {
 
   /// Scelle la journée [date] (check-out) : verrouille ses lignes et fait
   /// avancer le cycle une seule fois pour toute la journée, à partir des
-  /// unités proposées par le moteur qui ont effectivement `reach=1` (dans
+  /// GROUPES proposés par le moteur qui ont effectivement `reach=1` (dans
   /// l'ordre — même logique que la déclaration partielle historique de
   /// PlanScreen : un ajout hors-sélection au check-in alimente l'historique/
   /// la fraîcheur mais ne fait pas avancer `cyclePosition` au-delà de ce que
   /// le moteur avait initialement proposé ce jour-là — le cadrage n'a pas
   /// tranché de règle plus précise pour les ajouts hors-cycle, voir
-  /// CHANGELOG). Une unité entièrement retirée au check-in ([removeFromDayPlan])
+  /// CHANGELOG). `cyclePosition` avance par GROUPE complété
+  /// (`DaySelection.groups`), pas par unité individuelle : plusieurs courtes
+  /// sourates qui partagent la même page réelle du mushaf forment un seul
+  /// groupe/une seule position de cycle (voir cadrage "regroupement par page
+  /// partagée", 2026-09-05) — les compter une par une désynchroniserait
+  /// `cyclePosition` de `cycleTotal` (qui compte des groupes). Au sein d'un
+  /// groupe, une unité entièrement retirée au check-in ([removeFromDayPlan])
   /// n'a plus aucune ligne en base : elle est ignorée (ni comptée ni
-  /// bloquante), sans quoi elle romprait à tort le comptage des unités
-  /// suivantes réellement faites (bug trouvé en revue de code). Retourne
+  /// bloquante) — seule une unité *présente* mais non faite bloque le groupe
+  /// (et arrête le comptage des groupes suivants), sans quoi elle romprait à
+  /// tort le comptage des groupes suivants réellement complétés (bug trouvé
+  /// en revue de code). Un groupe dont TOUTES les unités ont été retirées est
+  /// lui-même ignoré (ni compté ni bloquant), pour la même raison. Retourne
   /// `true` si le cycle vient de boucler (milestone à afficher côté écran).
   Future<bool> checkOut(String date) async {
     if (_config == null) return false;
-    final selection = _selectionFor(date);
-    int unitsCompleted = 0;
-    for (final unit in selection.units) {
-      final exists = await AyahFactsService.rangeExists(
-          date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
-      if (!exists) continue; // retirée au check-in — ne bloque pas le comptage
-      final reached = await AyahFactsService.isRangeReached(
-          date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
-      if (!reached) break;
-      unitsCompleted++;
+    final selection = await _selectionForAsync(date);
+    int groupsCompleted = 0;
+    outer:
+    for (final group in selection.groups) {
+      bool anyExists = false;
+      for (final unit in group) {
+        final exists = await AyahFactsService.rangeExists(
+            date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
+        if (!exists) continue; // retirée au check-in — ne bloque pas le groupe
+        anyExists = true;
+        final reached = await AyahFactsService.isRangeReached(
+            date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
+        if (!reached) break outer; // unité présente mais pas faite — le groupe (et la suite) bloque
+      }
+      if (!anyExists) continue; // groupe entièrement retiré — ni compté ni bloquant
+      groupsCompleted++;
     }
     final cycleWraps = selection.cycleTotal > 0 &&
-        (_cyclePosition + unitsCompleted) >= selection.cycleTotal;
+        (_cyclePosition + groupsCompleted) >= selection.cycleTotal;
     _pendingDate = null;
     _todaySession = null;
     // Écritures indépendantes (table ayah_facts, prefs, cycle) — lancées en
@@ -550,7 +543,7 @@ class AppState extends ChangeNotifier {
       refreshAdaptiveCycle(_config!.totalSelectedVerses, notify: false),
       refreshFreshness(notify: false),
       StorageService.clearActivePrayers(_riwaya),
-      advanceCycle(unitsCompleted, selection.cycleTotal, notify: false),
+      advanceCycle(groupsCompleted, selection.cycleTotal, notify: false),
     ]);
     notifyListeners(); // seul notify de toute l'opération
     return cycleWraps;

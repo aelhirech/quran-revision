@@ -22,7 +22,6 @@ class DailySession {
   final int totalUnits;
   final int cyclePosition;
   final int cycleTotal;
-  final int daysRemaining;
 
   const DailySession({
     required this.date,
@@ -31,17 +30,10 @@ class DailySession {
     required this.totalUnits,
     required this.cyclePosition,
     required this.cycleTotal,
-    required this.daysRemaining,
   });
 
   int get totalRakaas =>
       prayersAlone.fold(0, (sum, p) => sum + p.rakaas);
 
   double get cycleProgress => cycleTotal == 0 ? 0 : cyclePosition / cycleTotal;
-
-  bool get isOnTrack {
-    if (daysRemaining <= 0) return false;
-    final needed = (cycleTotal - cyclePosition) / daysRemaining;
-    return totalUnits >= needed;
-  }
 }

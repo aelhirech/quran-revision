@@ -196,7 +196,7 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
             ),
           ),
-          SliverToBoxAdapter(child: _summaryBar(cs)),
+          SliverToBoxAdapter(child: _summaryBar()),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
             sliver: SliverList(
@@ -276,9 +276,8 @@ class _PlanScreenState extends State<PlanScreen> {
             delay: 100.ms);
   }
 
-  Widget _summaryBar(ColorScheme cs) {
+  Widget _summaryBar() {
     final session = widget.session;
-    final isOnTrack = session.isOnTrack;
     final palette = context.palette;
     final cycleEnd =
         (session.cyclePosition + session.totalUnits).clamp(0, session.cycleTotal);
@@ -294,26 +293,12 @@ class _PlanScreenState extends State<PlanScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                S.unitesRakaas(session.totalUnits, session.totalRakaas),
-                style: TextStyle(
-                    color: palette.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13),
-              ),
-              Text(
-                isOnTrack ? S.dansLesTemps : S.prendsAvance,
-                style: TextStyle(
-                  color: isOnTrack ? palette.primary : cs.tertiary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
+          Text(
+            S.unitesRakaas(session.totalUnits, session.totalRakaas),
+            style: TextStyle(
+                color: palette.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13),
           ),
           const SizedBox(height: 8),
           Row(

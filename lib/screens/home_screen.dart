@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/hadith_data.dart';
+import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/prayer.dart';
 import '../models/riwaya.dart';
@@ -34,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Prayer>? _lastPrayers;
   bool _isYesterday = false;
   Riwaya? _lastRiwaya;
+  DaySelection? _daySelection;
 
   /// Liste effective : prières sélectionnées + tahiyyatMasjid répété n fois.
   /// Les doublons sont intentionnels — chaque entrée à la mosquée est une prière séparée.
@@ -59,9 +61,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadHistory() async {
     final state = context.read<AppState>();
-    final streak = await AyahFactsService.currentStreak(
+    // Lectures indépendantes démarrées en parallèle — un seul aller-retour
+    // au lieu de plusieurs en série (même principe qu'ailleurs, voir
+    // recap_screen.dart._load).
+    final streakF = AyahFactsService.currentStreak(
         pauseDates: state.pauseDates, riwaya: state.riwaya);
-    final last = await StorageService.loadLastSessionPrayers(state.riwaya);
+    final lastF = StorageService.loadLastSessionPrayers(state.riwaya);
+    final daySelectionF = state.getDaySelectionForToday();
+    final streak = await streakF;
+    final last = await lastF;
+    final daySelection = await daySelectionF;
     if (!mounted) return;
 
     List<Prayer>? lastPrayers;
@@ -79,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _streak = streak;
       _lastPrayers = lastPrayers;
       _isYesterday = isYesterday;
+      _daySelection = daySelection;
     });
   }
 
@@ -103,8 +113,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (state.config == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
-    final cycle = state.cycleSummary;
 
     final canCommit = _effectivePrayers.isNotEmpty;
 
@@ -139,10 +147,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
                 CycleProgressCard(
-                  progress: cycle.progress,
-                  pos: cycle.pos,
-                  total: cycle.total,
-                  daysRemaining: cycle.daysRemaining,
+                  progress: (_daySelection?.cycleTotal ?? 0) > 0
+                      ? _daySelection!.cyclePosition / _daySelection!.cycleTotal
+                      : 0.0,
+                  pos: _daySelection?.cyclePosition ?? 0,
+                  total: _daySelection?.cycleTotal ?? 0,
                   streak: _streak,
                 ),
                 const SizedBox(height: 16),

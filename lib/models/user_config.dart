@@ -5,65 +5,51 @@ import 'sourate_selection.dart';
 
 /// Valeurs prédéfinies proposées dans les dropdowns de rythme (profil +
 /// onboarding) — un "Personnalisé…" permet toujours de saisir une valeur libre.
-const List<int> durationPresets = [7, 14, 21, 30, 60, 90, 180, 365];
-const List<int> linesPerDayPresets = [5, 10, 15, 20, 30, 40, 60];
+const List<int> pagesPerDayPresets = [1, 2, 3, 4, 5];
 
 class UserConfig {
   final List<SourateSelection> selections;
-  final int revisionDays;
+  final int pagesPerDay;
   final DateTime startDate;
   final bool shuffleEnabled;
   final bool adaptiveCycle;
-  final bool paceByLines;
-  final int targetLinesPerDay;
   final Riwaya riwaya;
 
   const UserConfig({
     required this.selections,
-    required this.revisionDays,
+    required this.pagesPerDay,
     required this.startDate,
     this.shuffleEnabled = true,
     this.adaptiveCycle = false,
-    this.paceByLines = false,
-    this.targetLinesPerDay = 15,
     this.riwaya = Riwaya.hafs,
   });
 
   int get totalSelectedVerses =>
       selections.fold(0, (sum, s) => sum + s.verseCount);
 
-  // Révision intelligente uniquement — le cycle est toujours basé sur revisionDays.
-  int effectiveDays(int totalVerses) => revisionDays;
-
   UserConfig copyWith({
     List<SourateSelection>? selections,
-    int? revisionDays,
+    int? pagesPerDay,
     DateTime? startDate,
     bool? shuffleEnabled,
     bool? adaptiveCycle,
-    bool? paceByLines,
-    int? targetLinesPerDay,
     Riwaya? riwaya,
   }) =>
       UserConfig(
         selections: selections ?? this.selections,
-        revisionDays: revisionDays ?? this.revisionDays,
+        pagesPerDay: pagesPerDay ?? this.pagesPerDay,
         startDate: startDate ?? this.startDate,
         shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
         adaptiveCycle: adaptiveCycle ?? this.adaptiveCycle,
-        paceByLines: paceByLines ?? this.paceByLines,
-        targetLinesPerDay: targetLinesPerDay ?? this.targetLinesPerDay,
         riwaya: riwaya ?? this.riwaya,
       );
 
   Map<String, dynamic> toJson() => {
         'selections': selections.map((s) => s.toJson()).toList(),
-        'revisionDays': revisionDays,
+        'pagesPerDay': pagesPerDay,
         'startDate': startDate.toIso8601String(),
         'shuffleEnabled': shuffleEnabled,
         'adaptiveCycle': adaptiveCycle,
-        'paceByLines': paceByLines,
-        'targetLinesPerDay': targetLinesPerDay,
         'riwaya': riwaya.name,
       };
 
@@ -82,13 +68,11 @@ class UserConfig {
       }
       return UserConfig(
         selections: selections,
-        revisionDays: j['revisionDays'] as int? ?? 30,
+        pagesPerDay: j['pagesPerDay'] as int? ?? 1,
         startDate:
             DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
         shuffleEnabled: j['shuffleEnabled'] as bool? ?? true,
         adaptiveCycle: j['adaptiveCycle'] as bool? ?? false,
-        paceByLines: j['paceByLines'] as bool? ?? false,
-        targetLinesPerDay: j['targetLinesPerDay'] as int? ?? 15,
         riwaya: Riwaya.values.firstWhere(
             (r) => r.name == j['riwaya'],
             orElse: () => Riwaya.hafs),
@@ -99,7 +83,7 @@ class UserConfig {
         return true;
       }());
       return UserConfig(
-          selections: const [], revisionDays: 30, startDate: DateTime.now());
+          selections: const [], pagesPerDay: 1, startDate: DateTime.now());
     }
   }
 }
