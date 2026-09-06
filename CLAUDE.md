@@ -1,23 +1,35 @@
 # CLAUDE.md — quran-revision
 
-Instructions de travail pour ce dépôt. Complète `docs/DOCUMENTATION_TECHNIQUE.md` (architecture, moteurs métier, écrans — comment le code fonctionne) et `docs/CHANGELOG.md` (backlog + décisions transversales utiles aux futurs sprints — plus un historique de livraison, voir `git log` pour ça) — ne les remplace pas.
+Instructions de travail pour ce dépôt. Complète `docs/DOCUMENTATION_TECHNIQUE.md` (architecture, moteurs métier, écrans — comment le code fonctionne), `docs/USER_STORIES.md` (cadrage business : user stories actives + leurs critères d'acceptation, alimenté par le skill `quran-blueprint` puis complété par `quran-scoping`) et `docs/CHANGELOG.md` (backlog technique prêt-à-implémenter + décisions transversales utiles aux futurs sprints — plus un historique de livraison, voir `git log` pour ça) — ne les remplace pas.
 
 > Ce projet utilisait un fichier `context/CONTEXT.md` comme fichier de continuité unique, scindé le 2026-08-22 en `docs/DOCUMENTATION_TECHNIQUE.md` + `docs/CHANGELOG.md`. Le « Sprint Workflow » défini dans le `CLAUDE.md` parent (`d:\Prog\CLAUDE.md`, partagé entre projets) se déclenche sur la présence d'un fichier `context/CONTEXT.md` — pour ce projet, considérer que `docs/CHANGELOG.md` en tient lieu, mais uniquement pour l'étape « Backlog » (retirer les items traités, ajouter les nouvelles idées) : depuis le 2026-09-01, ce fichier ne journalise plus les livraisons sprint par sprint (rôle repris par `git log`/les messages de commit) et ne garde que le Backlog + quelques décisions transversales utiles à qui reprend un item.
 
 ## Déclencheurs de sprint
 
-Trois phrases suffisent pour piloter tout le cycle défini dans le Sprint Workflow du `CLAUDE.md` parent (`d:\Prog\CLAUDE.md`) — pas besoin de redétailler les étapes à chaque fois.
+Quatre phrases suffisent pour piloter tout le cycle défini dans le Sprint Workflow du `CLAUDE.md` parent (`d:\Prog\CLAUDE.md`) — pas besoin de redétailler les étapes à chaque fois. Le Sprint Workflow parent se déclenche historiquement sur « Début de scoping » ; ici ce trigger est scindé en deux (« Début de blueprint » puis « Début de scoping », voir ci-dessous) avant d'enchaîner sur « Début de sprint ».
 
-### « Début de scoping » (+ description de ce qu'on veut)
-Phase de cadrage — **zéro code, zéro branche**. Le but n'est pas un résumé oral mais une **mise à jour écrite du Backlog de `docs/CHANGELOG.md`** : transformer le besoin décrit dans le prompt (+ ce qui traîne déjà au Backlog) en items réellement implémentables, découpés en sprints, avant de passer en mode exécution (« Début de sprint », qui lui a pour but de coder, pas de challenger). Ne pas enchaîner directement sur l'implémentation à la fin de cette phase : s'arrêter sur le Backlog mis à jour et attendre le déclencheur « Début de sprint ».
-1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` + le Backlog actuel de `docs/CHANGELOG.md` et `docs/DOCUMENTATION_TECHNIQUE.md`— le besoin du prompt recoupe souvent un item déjà présent (même vague, même mal placé en priorité) : partir de cet existant plutôt que de le dupliquer en un nouvel item parallèle.
-2. Reformuler le besoin (prompt + item(s) de backlog concernés) avec ses propres mots pour vérifier la compréhension — si la reformulation ne colle pas à ce que l'utilisateur a en tête, le dire avant d'aller plus loin plutôt que de deviner.
-3. Challenger activement : y a-t-il plus simple ? Le besoin est-il déjà couvert par un mécanisme existant (voir § « Ne jamais dupliquer une logique quasi identique » ci-dessous) ? Le périmètre est-il en train de gonfler au-delà du besoin réel ? Si l'ensemble dépasse un seul sprint, découper en plusieurs sprint avec un ensemble et des priorité P1 P2 P3 etc scoppés indépendamment plutôt qu'un sprint P1 fourre-tout.
-4. Lister les zones grises et les trancher avec l'utilisateur (`AskUserQuestion` si le choix est structurant) plutôt que de supposer en silence : cas limites, dépendances entre sous-tâches, impact sur `RevisionEngine`/`FreshnessEngine`/`AppState`/un écran existant.
-5. Écrire le résultat dans le Backlog de `docs/CHANGELOG.md` :
-   - **Items retenus pour les sprints de la prochaines phases** : réécrire la ligne (priorité + note) avec assez de détail pour être implémentée sans nouvelle clarification — périmètre exact, ce qui est explicitement exclu, ordre si plusieurs sprints s'enchaînent. Remplace l'entrée vague existante plutôt que de s'ajouter à côté.
-   - **Items évoqués mais écartés de la prochaine phase** (trop complexes, dépendent d'un autre chantier, faible valeur) : gardés dans le Backlog avec la raison de l'écart explicitée dans la note — jamais retirés silencieusement.
-6. Faire valider explicitement ce Backlog mis à jour par l'utilisateur avant de déclencher « Début de sprint » sur l'item retenu.
+### « Début de blueprint » (+ description du besoin) — skill `quran-blueprint`
+Phase de cadrage business — **zéro code, zéro branche, zéro écriture dans le Backlog technique**.
+Transforme le besoin décrit dans le prompt (+ ce qui traîne déjà dans `docs/USER_STORIES.md`) en
+user stories testables (statement + critères d'acceptation), plafonnées à ~10 stories actives,
+ajustées plutôt qu'empilées. S'arrête sur `docs/USER_STORIES.md` mis à jour et validé par
+l'utilisateur — n'enchaîne jamais sur le scoping technique ni sur l'implémentation dans la même
+phase. Détail complet des étapes : `SKILL.md` du plugin `quran-blueprint`.
+
+### « Début de scoping » (+ ID de story ou "backlog") — skill `quran-scoping`
+Phase d'analyse technique — **zéro code, zéro branche**. Prend une ou plusieurs user stories de
+`docs/USER_STORIES.md` (état "à scoper"), deep-dive dans le code pour identifier fichiers UI/
+variables/tables concernés, tranche "variable ou nouvelle table" selon le modèle `ayah_facts` et
+les règles d'architecture du projet (sur-ingénierie, duplication — voir sections dédiées
+ci-dessous), ajuste les critères d'acceptation si le code révèle un cas non prévu, puis écrit
+l'item prêt-à-implémenter dans le Backlog de `docs/CHANGELOG.md` (remplace une entrée vague
+existante plutôt que de s'ajouter à côté ; un besoin écarté reste dans le Backlog avec sa raison,
+jamais retiré silencieusement). Ne remet jamais en cause le besoin business déjà tranché par le
+blueprint. **Ne dispense pas des étapes `/simplify`/`/code-review` de fin de sprint** — le scoping
+réduit ce qu'elles remontent, il ne les remplace pas (une analyse avant écriture du code ne peut
+pas attraper les erreurs qui n'apparaissent qu'à l'implémentation). S'arrête sur le Backlog mis à
+jour et attend le déclencheur « Début de sprint ». Détail complet : `SKILL.md` du plugin
+`quran-scoping`.
 
 ### « Début de sprint » (+ description de ce qu'on fait)
 1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` + `docs/CHANGELOG.md` 
@@ -36,9 +48,9 @@ Exécuter dans l'ordre, sans redemander de confirmation entre chaque étape **sa
 8. **Avant de merger et pusher `main` : demander confirmation explicite.** Depuis le 2026-08-29, CI/CD Codemagic connectée à ce dépôt (`codemagic.yaml`, workflow `ios-testflight`) : un `git push` sur `main` déclenche automatiquement build + signing + **publication TestFlight**. La confirmation est donc requise pour une vraie raison opérationnelle (déclenchement automatique d'une distribution externe), pas seulement par prudence générale. Toutes les autres étapes ci-dessus peuvent s'enchaîner sans interruption ; celle-ci non.
 
 ## Au début de chaque session
-1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` et `docs/CHANGELOG.md` en entier.
+1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` et `docs/CHANGELOG.md` en entier ; lire aussi `docs/USER_STORIES.md` s'il existe et que le travail touche un blueprint/scoping en cours.
 2. Si le travail touche `test/`, lire aussi `test/CLAUDE.md`.
-3. Ne pas prendre `docs/DOCUMENTATION_TECHNIQUE.md`/`docs/CHANGELOG.md` pour argent comptant : ce sont des fichiers maintenus à la main, ils dérivent du code réel avec le temps (voir "Vérifier l'harmonie" ci-dessous).
+3. Ne pas prendre `docs/DOCUMENTATION_TECHNIQUE.md`/`docs/USER_STORIES.md`/`docs/CHANGELOG.md` pour argent comptant : ce sont des fichiers maintenus à la main, ils dérivent du code réel avec le temps (voir "Vérifier l'harmonie" ci-dessous).
 
 ## Ne jamais sur-ingénierer
 Projet solo, un seul développeur, Provider comme unique gestion d'état.
@@ -89,7 +101,8 @@ précis — deux précédents réels l'ont révélée dans des domaines différe
 - Le mécanisme que je viens d'écrire fait-il double emploi avec un mécanisme quasi identique déjà présent ailleurs (même requête, même boucle d'affichage, même calcul) ? Voir § « Ne jamais dupliquer une logique quasi identique » — factoriser avant de clore plutôt que laisser deux implémentations diverger silencieusement.
 
 ## Ne jamais oublier
-- Mettre à jour le Backlog de `docs/CHANGELOG.md` (retirer les items traités, ajouter les nouvelles idées) à la fin de chaque sprint/tâche notable — c'est le seul backlog persistant du projet, pas de ticket externe. L'historique de ce qui a été livré vit dans `git log`, pas dans ce fichier (nettoyé en ce sens le 2026-09-01, ne garde plus que Backlog + décisions transversales). Mettre à jour `docs/DOCUMENTATION_TECHNIQUE.md` en plus si le sprint touche `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajoute/supprime un écran/service.
+- Mettre à jour le Backlog de `docs/CHANGELOG.md` (retirer les items traités, ajouter les nouvelles idées) à la fin de chaque sprint/tâche notable — c'est le seul backlog technique persistant du projet, pas de ticket externe. L'historique de ce qui a été livré vit dans `git log`, pas dans ce fichier (nettoyé en ce sens le 2026-09-01, ne garde plus que Backlog + décisions transversales). Mettre à jour `docs/DOCUMENTATION_TECHNIQUE.md` en plus si le sprint touche `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajoute/supprime un écran/service.
+- Quand un sprint clôt une story issue de `docs/USER_STORIES.md`, passer son état à "terminée" puis l'archiver (section "Archivées" du fichier) — ne pas la laisser traîner à l'état "en sprint".
 - `docs/CHANGELOG.md` est le **seul** fichier de backlog du projet — pas de fichier séparé (`README.md` racine et `bakclog-developper.txt` supprimés le 2026-08-29, fusionnés dans ce fichier). Toujours utiliser le chemin complet `docs/CHANGELOG.md` (pas `CHANGELOG.md` seul) pour éviter de recréer un fichier fantôme à la racine.
 - Si une règle métier change dans `RevisionEngine`/`FreshnessEngine` sans test de régression associé, le signaler explicitement à l'utilisateur plutôt que de laisser passer silencieusement (voir `test/CLAUDE.md`, couverture quasi nulle aujourd'hui).
 - Convention de commit : `feature/sprint-N: description` / `fix/sprint-N: description`.
