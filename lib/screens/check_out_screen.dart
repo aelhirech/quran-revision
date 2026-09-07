@@ -9,6 +9,7 @@ import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
 import '../widgets/cycle_milestone_dialog.dart';
 import '../widgets/primary_cta_button.dart';
+import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/unit_range_label.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_chips_scaffold.dart';
@@ -176,6 +177,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                       it.needsWorkVerses,
                                     ),
                                   ),
+                                _addRevisedButton(palette),
                                 ..._learnSection(palette),
                               ],
                             ),
@@ -207,9 +209,66 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     );
   }
 
+  /// « J'ai révisé une sourate en plus » — le pendant du décochage : le
+  /// check-out confirme ce qui a réellement été fait, en moins **comme en
+  /// plus**. La sourate rejoint le plan de ce jour-là et son "fait par
+  /// défaut" la confirmera à la clôture ; comme tout ajout hors-sélection,
+  /// elle alimente historique et fraîcheur sans faire avancer le cycle
+  /// au-delà de ce que le moteur avait proposé (voir `AppState.checkOut`).
+  Widget _addRevisedButton(AppPalette palette) => Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: InkWell(
+          onTap: _addRevisedSourate,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: palette.gold.withValues(alpha: 0.7)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add, size: 16, color: palette.textPrimary),
+                const SizedBox(width: 8),
+                Text(S.checkOutReviseEnPlus,
+                    style: TextStyle(fontSize: 13, color: palette.textPrimary)),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Future<void> _addRevisedSourate() async {
+    final state = context.read<AppState>();
+    final present = _items!.map((it) => it.unit.sourate.id).toSet();
+    final candidates =
+        state.sourates.where((s) => !present.contains(s.id)).toList();
+    final picked = await showModalBottomSheet<Sourate>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SouratePickerSheet(
+          sourates: candidates, title: S.checkOutSourateEnPlusTitre),
+    );
+    if (picked == null || !mounted) return;
+    await state.addToDayPlan(
+      RevisionUnit(
+          sourate: picked, verseStart: 1, verseEnd: picked.verses, isWhole: true),
+      date: widget.date,
+    );
+    await _load();
+  }
+
+  Future<void> _addLearnedVerse() async {
+    await context.read<AppState>().extendLearningForDate(widget.date);
+    await _load();
+  }
+
   /// Volet apprentissage (Phase 9) : les versets proposés à la mémorisation
   /// ce jour-là, cochés par défaut. Décocher un verset le laisse `reach = 0`
-  /// — il repassera dans la proposition du lendemain.
+  /// — il repassera dans la proposition du lendemain. Le chip « + » déclare
+  /// un verset appris **en plus** de ce qui était prévu.
   List<Widget> _learnSection(AppPalette palette) {
     final learn = _learnPlan;
     if (learn == null || learn.ayahIds.isEmpty) return const [];
@@ -257,10 +316,21 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                 ? palette.textMuted
                                 : palette.goldDark)),
                   ),
+                if (learn.ayahIds.length < learn.sourate.verses)
+                  VerseChip(
+                    borderColor: palette.gold.withValues(alpha: 0.7),
+                    onTap: _addLearnedVerse,
+                    child: Icon(Icons.add, size: 14, color: palette.textPrimary),
+                  ),
               ],
             ),
             const SizedBox(height: 8),
             Text(S.checkOutApprentissageDesc,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: palette.textMuted)),
+            Text(S.checkOutApprisEnPlusHint,
                 style: TextStyle(
                     fontSize: 11,
                     fontStyle: FontStyle.italic,

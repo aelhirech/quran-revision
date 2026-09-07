@@ -4,6 +4,7 @@ import 'package:quran_revision/models/ayah_fact.dart';
 import 'package:quran_revision/models/learning_progress.dart';
 import 'package:quran_revision/models/riwaya.dart';
 import 'package:quran_revision/models/sourate.dart';
+import 'package:quran_revision/models/revision_unit.dart';
 import 'package:quran_revision/models/sourate_selection.dart';
 import 'package:quran_revision/models/user_config.dart';
 import 'package:quran_revision/services/ayah_facts_service.dart';
@@ -184,6 +185,58 @@ void main() {
             'est généré — sinon le refus serait annulé à chaque ouverture');
 
     await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
+  });
+
+  test(
+      'check-out : déclarer un verset appris EN PLUS étend la portion du jour',
+      () async {
+    final today = _isoDate(DateTime.now());
+    final state = newState();
+    await state.setLearningForToday(kawthar(state), 1);
+    expect((await state.learningPlanFor(today))!.ayahIds, [1]);
+
+    await state.extendLearningForDate(today);
+    expect((await state.learningPlanFor(today))!.ayahIds, [1, 2],
+        reason: 'le "+" ajoute le prochain verset non encore acquis');
+
+    // Borné à la sourate : Al-Kawthar fait 3 versets, un 4e appel n'ajoute rien.
+    await state.extendLearningForDate(today);
+    await state.extendLearningForDate(today);
+    expect((await state.learningPlanFor(today))!.ayahIds, [1, 2, 3]);
+
+    await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
+  });
+
+  test(
+      'check-out : déclarer une sourate révisée EN PLUS l\'ajoute au jour sans '
+      'faire avancer le cycle au-delà de ce que le moteur avait proposé',
+      () async {
+    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 2)));
+    final state = newState();
+    final extra = state.sourates.firstWhere((s) => s.id == 112);
+
+    // Un jour en attente, avec la seule unité proposée par le moteur faite.
+    await AyahFactsService.proposeUnits(yesterday, Riwaya.hafs,
+        [RevisionUnit(sourate: state.sourates.firstWhere((s) => s.id == 60), verseStart: 1, verseEnd: 5, isWhole: false)]);
+    await state.addToDayPlan(
+        RevisionUnit(
+            sourate: extra, verseStart: 1, verseEnd: extra.verses, isWhole: true),
+        date: yesterday);
+
+    final units = await state.dayUnits(date: yesterday);
+    expect(units.map((u) => u.sourate.id), contains(112),
+        reason: 'la sourate déclarée en plus rejoint le plan de ce jour-là');
+
+    await state.markUnitsReached(units, date: yesterday);
+    final before = state.cyclePosition;
+    await state.checkOut(yesterday);
+    // Deux unités faites ce jour-là (celle du moteur + celle déclarée en
+    // plus), mais un seul groupe proposé par le moteur : le cycle n'avance
+    // que d'une position. L'ajout hors-sélection alimente historique et
+    // fraîcheur sans gonfler la progression (règle `AppState.checkOut`).
+    expect(state.cyclePosition, before + 1,
+        reason: 'seul le groupe proposé par le moteur compte — la sourate '
+            'déclarée en plus n\'ajoute pas une position de cycle');
   });
 
   test('un verset décoché au check-out reste "à continuer" (reach=0)', () async {

@@ -413,6 +413,15 @@ class S {
   static String get checkOutAjouterErreur =>
       _t('Impossible de charger l\'aperçu du jour', 'Could not load today\'s preview');
 
+  // Check-out — « j'ai fait plus que prévu » (Phase 9)
+  static String get checkOutReviseEnPlus =>
+      _t("J'ai révisé une sourate en plus", 'I revised one more surah');
+  static String get checkOutSourateEnPlusTitre =>
+      _t('Ajouter une sourate révisée', 'Add a revised surah');
+  static String get checkOutApprisEnPlusHint => _t(
+      'Le "+" ajoute un verset appris en plus aujourd\'hui.',
+      'The "+" adds one more verse memorized today.');
+
   // Check-out — volet apprentissage (Phase 9)
   static String get checkOutApprentissage =>
       _t('Ce que tu as appris', 'What you memorized');

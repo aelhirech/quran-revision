@@ -501,8 +501,34 @@ class AppState extends ChangeNotifier {
   }
 
   /// Ajoute une sourate/portion au plan du jour depuis le check-in.
-  Future<void> addToDayPlan(RevisionUnit unit) async {
-    await AyahFactsService.proposeUnits(_todayStr, _riwaya, [unit]);
+  /// [date] par défaut aujourd'hui (check-in). Le check-out la passe
+  /// explicitement pour déclarer une sourate **révisée en plus** ce jour-là :
+  /// même écriture, l'unité rejoint simplement le plan d'une journée passée,
+  /// où le "fait par défaut" du check-out la confirmera à la clôture. Comme
+  /// tout ajout hors-sélection, elle alimente historique et fraîcheur mais
+  /// ne fait pas avancer `cyclePosition` au-delà de ce que le moteur avait
+  /// proposé (voir [checkOut]).
+  Future<void> addToDayPlan(RevisionUnit unit, {String? date}) async {
+    await AyahFactsService.proposeUnits(date ?? _todayStr, _riwaya, [unit]);
+    notifyListeners();
+  }
+
+  /// Check-out : déclarer un verset **appris en plus** le jour [date] —
+  /// ajoute le prochain verset non encore acquis de la sourate en cours
+  /// d'apprentissage à la portion de ce jour. Sans effet s'il n'y a pas de
+  /// portion ce jour-là, ou si la sourate est déjà entièrement mémorisée.
+  Future<void> extendLearningForDate(String date) async {
+    final plan = await learningPlanFor(date);
+    if (plan == null) return;
+    final learned = await AyahFactsService.learnedVersesForSourate(
+        riwaya: _riwaya, surahId: plan.sourate.id);
+    final taken = {...learned, ...plan.ayahIds};
+    for (int v = 1; v <= plan.sourate.verses; v++) {
+      if (taken.contains(v)) continue;
+      await AyahFactsService.proposeLearnVerses(
+          date, _riwaya, plan.sourate.id, [v]);
+      break;
+    }
     notifyListeners();
   }
 

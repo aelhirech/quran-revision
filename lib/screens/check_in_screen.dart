@@ -149,7 +149,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => SouratePickerSheet(sourates: available),
+      builder: (_) => SouratePickerSheet(
+          sourates: available, title: S.checkInChoisirSourate),
     );
     if (picked == null || !mounted) return;
     await _setLearning(picked,
