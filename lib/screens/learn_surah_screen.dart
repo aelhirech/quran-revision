@@ -18,12 +18,10 @@ import '../widgets/verse_display_card.dart';
 
 class LearnSurahScreen extends StatefulWidget {
   final LearningProgress progress;
-  final VoidCallback onChanged;
 
   const LearnSurahScreen({
     super.key,
     required this.progress,
-    required this.onChanged,
   });
 
   @override
@@ -52,16 +50,9 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
 
   int get _currentVerse => _progress.nextVerse;
 
-  // N prochains versets non appris, capés à _selectedBlockSize.
-  List<int> get _currentBlock {
-    final result = <int>[];
-    for (int v = 1;
-        v <= _progress.sourate.verses && result.length < _selectedBlockSize;
-        v++) {
-      if (!_progress.learnedVerses.contains(v)) result.add(v);
-    }
-    return result;
-  }
+  // N prochains versets non appris, capés à _selectedBlockSize — même règle
+  // que la proposition du jour (voir `LearningProgress.nextBlock`).
+  List<int> get _currentBlock => _progress.nextBlock(_selectedBlockSize);
 
   Future<void> _markBlockLearned() async {
     HapticFeedback.mediumImpact();
@@ -80,10 +71,11 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
       _progress = updated;
       _verseVisible = false;
     });
-    widget.onChanged();
-    if (updated.isComplete && mounted) {
-      _showCompletedDialog();
-    }
+    // Sourate terminée : plus de bouton « Ajouter à la révision » depuis la
+    // Phase 9 — le passage en révision est automatique (voir
+    // `AppState.handOffLearnedSurahs`, déclenché au check-out et au retour
+    // sur le Récap).
+    if (updated.isComplete && mounted) Navigator.pop(context, true);
   }
 
   Future<void> _unmarkVerse(int verse) async {
@@ -92,30 +84,6 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
         _progress.sourate.id, verse, context.read<AppState>().riwaya);
     if (!mounted) return;
     setState(() => _progress = updated);
-    widget.onChanged();
-  }
-
-  void _showCompletedDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(S.sourateCompleted),
-        content: Text(S.ajouterDesc),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(S.annuler),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context, 'add_to_revision');
-            },
-            child: Text(S.ajouterAlaRevision),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -159,7 +127,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
                   onToggle: () => setState(() => _verseVisible = !_verseVisible),
                 ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.06),
                 const SizedBox(height: 20),
-                if (_progress.isComplete) _addToRevisionButton(cs) else _actionRow(cs, block.length),
+                if (!_progress.isComplete) _actionRow(cs, block.length),
                 const SizedBox(height: 32),
                 if (_progress.learnedCount > 0) _learnedList(cs, s),
                 const SizedBox(height: 28),
@@ -270,14 +238,6 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.06);
-  }
-
-  Widget _addToRevisionButton(ColorScheme cs) {
-    return PrimaryCtaButton(
-      label: S.ajouterAlaRevision,
-      icon: Icons.add,
-      onPressed: () => Navigator.pop(context, 'add_to_revision'),
-    ).animate().fadeIn(delay: 150.ms);
   }
 
   Widget _actionRow(ColorScheme cs, int blockLength) {

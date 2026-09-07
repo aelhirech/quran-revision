@@ -12,9 +12,11 @@ import '../services/ayah_facts_service.dart';
 import '../state/app_state.dart';
 import '../widgets/dome_progress_card.dart';
 import '../widgets/history_card.dart';
+import '../widgets/learning_progress_card.dart';
 import '../widgets/ornamental_divider.dart';
 import '../widgets/sourates_recap_card.dart';
 import '../widgets/streak_card.dart';
+import 'learn_surah_screen.dart';
 
 class RecapScreen extends StatefulWidget {
   const RecapScreen({super.key});
@@ -53,8 +55,7 @@ class _RecapScreenState extends State<RecapScreen> {
     final streakF = AyahFactsService.currentStreak(pauseDates: pauseDates, riwaya: riwaya);
     final totalF = AyahFactsService.totalActiveDays(riwaya: riwaya);
     final statsF = AyahFactsService.recentDayVerseStats(limit: 14, riwaya: riwaya);
-    final progressF = AyahFactsService.loadMainLearningProgress(
-        riwaya: riwaya, sourates: state.sourates);
+    final progressF = state.learningProgressList();
     // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
     // sans être passé par un plan du jour cette session.
     final freshnessF = state.refreshFreshness(notify: false);
@@ -131,6 +132,7 @@ class _RecapScreenState extends State<RecapScreen> {
                 const SizedBox(height: 16),
                 HistoryCard(sessions: _sessions),
                 const SizedBox(height: 16),
+                ..._learningSection(cs),
                 SouratesRecapCard(
                   selections: state.config!.selections,
                   freshnessOf: state.freshnessFor,
@@ -141,6 +143,76 @@ class _RecapScreenState extends State<RecapScreen> {
         ],
       ),
     );
+  }
+
+  /// Sourates en cours de mémorisation (Phase 9 — reprend le contenu de
+  /// l'onglet « Apprendre », supprimé) : le Récap est désormais la vue
+  /// d'ensemble unique révision + apprentissage. Démarrer une sourate se
+  /// fait au check-in ; ici on suit sa progression et on pratique verset par
+  /// verset (`LearnSurahScreen`).
+  List<Widget> _learningSection(ColorScheme cs) {
+    final inProgress = _learningProgress.where((p) => !p.isComplete).toList();
+    if (inProgress.isEmpty) return const [];
+    return [
+      Text(S.enCoursDApprentissage,
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 14, color: cs.onSurface))
+          .animate()
+          .fadeIn(),
+      const SizedBox(height: 12),
+      for (final (i, p) in inProgress.indexed)
+        LearningProgressCard(
+          progress: p,
+          index: i,
+          onTap: () => _openSourate(p),
+          onDismiss: () => _deleteLearning(p),
+        ),
+      const SizedBox(height: 16),
+    ];
+  }
+
+  Future<void> _openSourate(LearningProgress p) async {
+    // `LearnSurahScreen` se referme de lui-même en renvoyant `true` quand le
+    // dernier verset vient d'être appris — on ne sonde la bascule
+    // apprentissage → révision que dans ce cas, pas à chaque aller-retour.
+    final completed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => LearnSurahScreen(progress: p)),
+    );
+    if (!mounted) return;
+    if (completed == true) {
+      final handed = await context.read<AppState>().handOffLearnedSurahs();
+      if (!mounted) return;
+      for (final s in handed) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(S.sourateApprise(s.nameFr))));
+      }
+    }
+    await _load(context.read<AppState>().pauseDates);
+  }
+
+  Future<void> _deleteLearning(LearningProgress p) async {
+    final state = context.read<AppState>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(S.supprimerApprentissage),
+        content: Text("Supprimer l'apprentissage de ${p.sourate.nameFr} ?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(S.annuler)),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: context.palette.danger),
+            child: Text(S.supprimer),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await AyahFactsService.deleteLearnFacts(p.sourate.id, state.riwaya);
+    if (mounted) await _load(state.pauseDates);
   }
 
   Widget _cycleCard(ColorScheme cs, double progress, int pos, int total) {

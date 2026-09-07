@@ -5,7 +5,14 @@ import '../models/sourate.dart';
 class SouratePickerSheet extends StatefulWidget {
   final List<Sourate> sourates;
 
-  const SouratePickerSheet({super.key, required this.sourates});
+  /// Titre de la feuille — le picker sert à trois gestes différents
+  /// (démarrer une mémorisation, choisir la sourate à apprendre aujourd'hui,
+  /// déclarer une sourate révisée en plus au check-out) ; laisser
+  /// « Commencer une sourate » codé en dur mentait dans deux cas sur trois.
+  final String? title;
+
+  const SouratePickerSheet(
+      {super.key, required this.sourates, this.title});
 
   @override
   State<SouratePickerSheet> createState() => _SouratePickerSheetState();
@@ -41,7 +48,7 @@ class _SouratePickerSheetState extends State<SouratePickerSheet> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(S.commencerSourate,
+            child: Text(widget.title ?? S.commencerSourate,
                 style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
           ),
           Padding(

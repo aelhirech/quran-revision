@@ -6,7 +6,6 @@ import '../core/strings.dart';
 import '../state/app_state.dart';
 import '../widgets/day_plan_tab.dart';
 import '../widgets/spotlight_tour.dart';
-import 'learn_screen.dart';
 import 'recap_screen.dart';
 import 'profile_screen.dart';
 
@@ -62,23 +61,13 @@ class _ShellScreenState extends State<ShellScreen> {
         ),
         TourStep(
           targetKey: TourKeys.navBar,
-          title: S.tourApprendreTitle,
-          body: S.tourApprendreBody,
-        ),
-        TourStep(
-          targetKey: TourKeys.navBar,
           title: S.tourRecapTitle,
           body: S.tourRecapBody,
         ),
         TourStep(
           targetKey: TourKeys.navBar,
-          title: S.tourProfilTitle,
-          body: S.tourProfilBody,
-        ),
-        TourStep(
-          targetKey: TourKeys.prayerSelector,
-          title: S.tourPrieresTitle,
-          body: S.tourPrieresBody,
+          title: S.tourReglagesTitle,
+          body: S.tourReglagesBody,
         ),
         TourStep(
           targetKey: TourKeys.voirPlanButton,
@@ -93,12 +82,7 @@ class _ShellScreenState extends State<ShellScreen> {
       NavigationDestination(
         icon: const Icon(Icons.mosque_outlined),
         selectedIcon: const Icon(Icons.mosque),
-        label: S.reviser,
-      ),
-      NavigationDestination(
-        icon: const Icon(Icons.auto_stories_outlined),
-        selectedIcon: const Icon(Icons.auto_stories),
-        label: S.apprendre,
+        label: S.planDuJour,
       ),
       NavigationDestination(
         icon: const Icon(Icons.bar_chart_outlined),
@@ -106,9 +90,9 @@ class _ShellScreenState extends State<ShellScreen> {
         label: S.recap,
       ),
       NavigationDestination(
-        icon: const Icon(Icons.person_outline),
-        selectedIcon: const Icon(Icons.person),
-        label: S.profil,
+        icon: const Icon(Icons.settings_outlined),
+        selectedIcon: const Icon(Icons.settings),
+        label: S.reglages,
       ),
     ];
   }
@@ -123,7 +107,6 @@ class _ShellScreenState extends State<ShellScreen> {
             index: _index,
             children: const [
               DayPlanTab(),
-              LearnScreen(),
               RecapScreen(),
               ProfileScreen(),
             ],

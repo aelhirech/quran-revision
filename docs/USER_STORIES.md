@@ -9,6 +9,8 @@ Les critères d'acceptation sont volontairement de haut niveau (le comportement 
 **Principe de regroupement** : on rassemble au maximum une fonctionnalité secondaire dans l'epic qu'elle sert (ex. les rappels matin/soir n'existent que pour soutenir le rituel Illuminer ma journée avec le Coran/Cloturer ma journée, donc ils vivent dans la même story plutôt que d'avoir la leur ; le choix de riwaya est un réglage parmi d'autres, donc il vit dans la story « Personnalisation »). 
 On ne split une fonctionnalité en story séparée que si elle porte assez de valeur business à elle seule pour mériter son propre suivi — c'est le cas du rituel check-in/check-out par rapport au calcul du plan lui-même, qui aurait pu rester une seule story mais dont la mécanique de confirmation quotidienne est un pilier du produit à part entière.
 
+**Fichier maintenu à la main** (comme `docs/DOCUMENTATION_TECHNIQUE.md` et `docs/CHANGELOG.md`) : chaque story porte un **état** — `à scoper` → `en sprint` → `terminée`, et une story terminée descend dans « Archivées » avec le sprint qui l'a livrée, plutôt que de rester dans la liste active (règle `CLAUDE.md` du projet). La liste active peut légitimement être vide juste après un blueprint entièrement livré : le prochain « Début de blueprint » la remplit.
+
 ## Résumé business de l'app
 
 Quran Revision est une app mobile (iOS/Android, + web pour prévisualisation uniquement) à utilisateur unique : tout est local sur l'appareil, avec un data model pour préparer le backend. Elle s'adresse à quelqu'un qui a déjà mémorisé (ou est en train de mémoriser) des sourates du Coran et qui veut les garder fraîches dans sa mémoire sans effort d'organisation manuelle.
@@ -17,7 +19,20 @@ Le cœur du produit est une boucle quotidienne : après que l'utilisateur est co
 
 Autour de cette boucle, l'app entretient la motivation (streak de régularité, vue d'ensemble de progression) et alerte discrètement sur ce qui commence à s'effriter dans la mémoire (fraîcheur par verset, pas juste par sourate). L'app fonctionne dans les deux riwayas les plus courantes (Hafs et Warsh) comme deux parcours de mémorisation totalement indépendants, permet à l'utilisateur de défini heure de rappel matin et heure de rappel soir et s'adapte à la langue de l'utilisateur. Il y 3 pages, Plan du jour, recap, réglage
 
+---
+
+## Stories actives
+
+_Aucune._ Le blueprint du 2026-09-06 a été entièrement livré par la Phase 9 Sprint 1 (2026-09-07). Le prochain « Début de blueprint » remplira cette section.
+
+---
+
+## Archivées
+
+Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
 ### US-1 — Premier lancement et prise en main de l'app
+**État** : terminée — onboarding (langue, riwaya, sourates, rythme) déjà en place ; Phase 9 Sprint 1 ramène le tour guidé à 3 onglets et rend le démarrage d'un apprentissage accessible dès le check-in (critère 3).
 
 **Statement** : En tant que nouvel utilisateur, je veux configurer mes préférences de base (langue, riwaya, sourates à réviser, rythme) et comprendre comment utiliser l'app au premier lancement, afin de pouvoir m'en servir seul dès la fin de l'onboarding, sans blocage ni confusion sur les gestes de base 
 
@@ -30,6 +45,7 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 ---
 
 ### US-2 — Plan quotidien réparti dans la journées grâce aux prières
+**État** : terminée — moteur pages/jour (Phase 8 Sprint 3) + répartition en rakaas ; Phase 9 Sprint 1 y ajoute la rakaa d'apprentissage en dernière position.
 
 **Statement** : En tant qu'utilisateur, je veux qu'un plan de révision soit calculé automatiquement chaque jour à partir de ma sélection de sourates et de mon rythme (pages/jour), et réparti dans les rakaas de mes prières individuelles, afin de réviser sans avoir à décider moi-même quoi réviser ni comment le répartir.
 
@@ -42,6 +58,7 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 ---
 
 ### US-3 — Rituel quotidien check-in / check-out, avec ses rappels
+**État** : terminée — check-in/check-out (Phase 6 Sprint 2) + rappels matin/soir ; Phase 9 Sprint 1 en fait le rituel unique déclenché par « Illuminer ma journée avec le Coran » et ajoute le volet « j'ai fait plus que prévu ».
 
 **Statement** : En tant qu'utilisateur, je veux confirmer le matin ce que je compte réviser
 aujourd'hui puis confirmer le soir ce que j'ai réellement fait — avec un rappel matin et un rappel le soir pour ne pas l'oublier même sans ouvrir l'app de moi-même —, afin que ma progression reflète
@@ -67,6 +84,7 @@ mon activité réelle plutôt qu'un plan simplement proposé et jamais vérifié
 ---
 
 ### US-4 — Apprentissage de nouvelles sourates 
+**État** : terminée — Phase 9 Sprint 1 : choix de la sourate au check-in, versets récités dans la dernière rakaa, confirmation verset par verset au check-out, bascule automatique en révision une fois mémorisée, suivi verset par verset conservé dans Récap.
 
 **Statement** : En tant qu'utilisateur qui n'a pas encore mémorisé une sourate, je veux pouvoir la
 mémoriser verset par verset dans l'app et suivre ma progression, afin qu'elle rejoigne ensuite mon
@@ -86,6 +104,7 @@ cycle de révision une fois acquise.
 ---
 
 ### US-5 — Prise en compte de la fraîcheur de mémorisation
+**État** : terminée — `FreshnessEngine` au grain verset (Phase 8 Sprint 1), badges + section « À prioriser » du check-in.
 
 **Statement** : En tant qu'utilisateur, je veux voir en un coup d'œil quelles sourates (ou
 portions de sourates) commencent à s'effriter dans ma mémoire faute de révision récente, afin de
@@ -105,6 +124,7 @@ savoir où porter mon attention au-delà du simple cycle automatique.
 ---
 
 ### US-6 — Maintient de la Régularité et motivation
+**État** : terminée — `StreakEngine` + jours de pause (Phase 6), affiché sur Plan du jour et Récap.
 
 **Statement** : En tant qu'utilisateur, je veux voir depuis combien de jours consécutifs je suis
 régulier dans ma révision, afin de rester motivé à maintenir cette régularité.
@@ -120,6 +140,7 @@ régulier dans ma révision, afin de rester motivé à maintenir cette régulari
 ---
 
 ### US-7 — Récapitulatif et vue d'ensemble de la progression
+**État** : terminée — `RecapScreen` ; Phase 9 Sprint 1 y intègre l'apprentissage en cours (critère 1 du résumé business : une seule vue d'ensemble révision + apprentissage).
 
 **Statement** : En tant qu'utilisateur, je veux une vue d'ensemble de ma progression (où j'en
 suis dans mon apprentissage et ma révision, quelles sourates sont couvertes, avec quel niveau de fraîcheur), afin de comprendre mon avancement global.
@@ -137,6 +158,7 @@ suis dans mon apprentissage et ma révision, quelles sourates sont couvertes, av
 ---
 
 ### US-8 — Personnalisation et réglages
+**État** : terminée — Réglages (langue, riwaya, sourates, rythme, heures de rappel, thème système) livrés avant ce sprint ; Phase 9 Sprint 1 renomme l'onglet « Profil » en « Réglages » et unifie le changement de rythme avec le check-in.
 
 **Statement** : En tant qu'utilisateur, je veux pouvoir ajuster à tout moment ma langue, ma  riwaya (Hafs/Warsh), ma sélection de sourates, mon rythme de révision, mes heures de rappel, afin que l'app continue de correspondre à mes besoins après l'onboarding initial.
 

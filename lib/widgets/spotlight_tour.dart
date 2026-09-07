@@ -7,7 +7,6 @@ import '../core/strings.dart';
 /// à faire remonter de GlobalKey à travers les constructeurs.
 class TourKeys {
   static final navBar = GlobalKey();
-  static final prayerSelector = GlobalKey();
   static final voirPlanButton = GlobalKey();
 }
 

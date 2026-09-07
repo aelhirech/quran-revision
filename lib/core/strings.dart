@@ -4,20 +4,17 @@ class S {
   static String locale = 'fr'; // 'fr' ou 'en'
 
   static String get appTitle => _t('Révision du Coran', 'Quran Revision');
-  static String get reviser => _t('Réviser', 'Revise');
+  static String get planDuJour => _t('Plan du jour', "Today's plan");
+  static String get reglages => _t('Réglages', 'Settings');
   static String get reviserAujourdhui => _t("Réviser aujourd'hui", "Today's revision");
   static String get recap => _t('Récap', 'Recap');
-  static String get profil => _t('Profil', 'Profile');
   static String get recapitulatif => _t('Récapitulatif', 'Summary');
-  static String get monProfil => _t('Mon profil', 'My Profile');
 
   // Home
-  static String get priereSeul => _t('Prières récitées seul', 'Prayers performed alone');
   static String get priereObligatoires => _t('Obligatoires', 'Obligatory');
   static String get priereSureratoires => _t('Surérogatoires', 'Supererogatory');
   static String get priereMasjid => _t('Mosquée', 'Mosque');
   static String get tahiyyatCount => _t('Fois en mosquée', 'Mosque entries');
-  static String get voirPlanDuJour => _t('Voir le plan du jour', 'See daily plan');
   static String get revisionEnCours => _t('Révision en cours', 'Revision in progress');
   static String get cycleEnCours => _t('Cycle en cours', 'Current cycle');
   static String get complete => _t('complété', 'complete');
@@ -90,8 +87,8 @@ class S {
   static String get homeEpigraph => 'وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا';
   static String get introTitle => _t('Révise le Coran chaque jour', 'Revise the Quran every day');
   static String get introLine1 => _t(
-    'Dis à l\'app quelles prières tu fais seul, et elle répartit tes sourates sur chaque rakaa.',
-    'Tell the app which prayers you perform alone, and it distributes your surahs across each rakaa.',
+    'Dis à l\'app dans quelles prières tu récites — seul ou en imam — et elle répartit tes sourates sur chaque rakaa.',
+    'Tell the app in which prayers you recite — alone or leading as imam — and it spreads your surahs across each rakaa.',
   );
   static String get introLine2 => _t(
     'Choisis les sourates à réviser, fixe un objectif, et l\'app s\'occupe du reste.',
@@ -201,34 +198,21 @@ class S {
       locale == 'fr' ? '$n lignes/jour' : '$n lines/day';
 
   // Apprentissage
-  static String get apprendre => _t('Apprendre', 'Learn');
-  static String get apprentissage => _t('Apprentissage', 'Learning');
   static String get enCoursDApprentissage => _t("En cours d'apprentissage", 'In progress');
   static String get commencerSourate => _t('Commencer une sourate', 'Start a surah');
-  static String get aucuneSourateEnCours => _t('Aucune sourate en cours', 'No surah in progress');
-  static String get aucuneSourateDesc => _t('Choisis une sourate à mémoriser', 'Choose a surah to memorize');
   static String get versetSuivant => _t('Verset suivant', 'Next verse');
   static String get versetPrecedent => _t('Verset précédent', 'Previous verse');
   static String get marquerAppris => _t('Marquer comme appris', 'Mark as learned');
   static String get versetAppris => _t('Appris ✓', 'Learned ✓');
   static String get afficherVerset => _t('Afficher le verset', 'Show verse');
   static String get masquerVerset => _t('Masquer', 'Hide');
-  static String get ajouterAlaRevision => _t('Ajouter à la révision', 'Add to revision');
   static String get sourateCompleted => _t('Sourate complétée ! 🎉', 'Surah completed! 🎉');
-  static String get ajouterDesc => _t('Tu peux maintenant ajouter cette sourate à ta liste de révision.', 'You can now add this surah to your revision list.');
   static String get supprimerApprentissage => _t("Supprimer l'apprentissage", 'Remove learning');
   static String versetN(int n, int total) => _t('Verset $n / $total', 'Verse $n / $total');
   static String versetsAppris(int n, int total) => _t('$n / $total versets appris', '$n / $total verses learned');
   static String get versetsApprisLabel => _t('Versets appris', 'Learned verses');
   static String get longPressDesapprendre => _t('Maintiens un verset pour le désapprendre', 'Long-press a verse to unlearn it');
-  static String get versetParJourTitle => _t('1 verset par jour', '1 verse per day');
-  static String get versetParJourDesc => _t("Mémorise un verset chaque jour et l'app suit ta progression", 'Memorize one verse each day and the app tracks your progress');
-  static String get dejaInRevision => _t('est déjà dans ta révision', 'is already in your revision');
-  static String get ajouteARevision => _t('ajoutée à la révision ✓', 'added to revision ✓');
   static String get supprimer => _t('Supprimer', 'Delete');
-
-  // Hints interactions cachées
-  static String get swipeSupprimer => _t('← Glisse une carte pour la supprimer', '← Swipe a card to delete it');
 
   // Explication "unités"
   static String get unitesExplTitle => _t("C'est quoi une unité ?", 'What is a unit?');
@@ -335,33 +319,23 @@ class S {
 
   static String get tourNavTitle => _t('Bienvenue !', 'Welcome!');
   static String get tourNavBody => _t(
-    "Ton app a 4 sections : Réviser (ici), Apprendre, Récap et Profil.",
-    'Your app has 4 sections: Revise (here), Learn, Recap and Profile.',
-  );
-  static String get tourApprendreTitle => _t('Apprendre', 'Learn');
-  static String get tourApprendreBody => _t(
-    'Mémorise verset par verset avec un mode caché/révélé, à ton rythme.',
-    'Memorize verse by verse with a hide/reveal mode, at your own pace.',
+    'Ton app a 3 sections : Plan du jour (ici), Récap et Réglages.',
+    "Your app has 3 sections: Today's plan (here), Recap and Settings.",
   );
   static String get tourRecapTitle => _t('Récap', 'Recap');
   static String get tourRecapBody => _t(
-    'Suis ta progression et repère les sourates qui commencent à refroidir.',
-    'Track your progress and spot the surahs that are starting to cool down.',
+    'Suis ta progression, ton apprentissage en cours, et repère les sourates qui commencent à refroidir.',
+    'Track your progress, your ongoing memorization, and spot the surahs that are starting to cool down.',
   );
-  static String get tourProfilTitle => _t('Profil', 'Profile');
-  static String get tourProfilBody => _t(
+  static String get tourReglagesTitle => _t('Réglages', 'Settings');
+  static String get tourReglagesBody => _t(
     'Ajuste ton rythme ou tes sourates sélectionnées à tout moment.',
     'Adjust your pace or selected surahs at any time.',
   );
-  static String get tourPrieresTitle => _t('Tes prières', 'Your prayers');
-  static String get tourPrieresBody => _t(
-    "Choisis les prières où tu récites seul aujourd'hui.",
-    'Choose the prayers you recite alone today.',
-  );
   static String get tourVoirPlanTitle => _t('Ton plan du jour', 'Your daily plan');
   static String get tourVoirPlanBody => _t(
-    "Puis appuie ici pour générer et voir ce que tu as à réviser.",
-    'Then tap here to generate and see what you have to revise.',
+    'Appuie ici chaque jour : tu confirmes ton rythme et tes prières, puis ton plan se répartit dans tes rakaas.',
+    'Tap here every day: confirm your pace and your prayers, then your plan is spread across your rakaas.',
   );
 
   // Check-in / check-out (Phase 6 Sprint 2)
@@ -373,9 +347,35 @@ class S {
   static String get checkInAPrioriser => _t('À prioriser', 'To prioritize');
   static String get checkInVueDuJour => _t('Vue du jour', 'Today\'s view');
   static String get checkInAjouterSourate => _t('Ajouter une sourate', 'Add a surah');
-  static String get checkInAjouterDesc =>
-      _t('Même hors de ta sélection en cours.', 'Even outside your current selection.');
-  static String get checkInValider => _t('Valider le check-in', 'Confirm check-in');
+
+  // « Illuminer ma journée » (Phase 9) — rythme, apprentissage et prières
+  // confirmés dans le même check-in que la liste de révision.
+  static String get illuminerMaJournee =>
+      _t('Illuminer ma journée avec le Coran', 'Light up my day with the Quran');
+  static String get illuminerSousTitre => _t(
+      'Confirme ton rythme, ce que tu apprends et tes prières du jour.',
+      "Confirm your pace, what you're learning and today's prayers.");
+  static String get checkInRythme => _t('Mon rythme', 'My pace');
+  static String checkInPagesParJour(int n) =>
+      _t('$n page${n > 1 ? 's' : ''} / jour', '$n page${n > 1 ? 's' : ''} / day');
+  static String get checkInApprentissage =>
+      _t("Ce que j'apprends aujourd'hui", "What I'm learning today");
+  static String get checkInApprentissageDesc => _t(
+      'Ces versets seront récités dans ta dernière rakaa.',
+      'These verses will be recited in your last rakaa.');
+  static String get checkInChoisirSourate =>
+      _t('Choisir une sourate à apprendre', 'Choose a surah to learn');
+  static String get checkInAucunApprentissage =>
+      _t("Je n'apprends rien aujourd'hui", "I'm not learning anything today");
+  static String checkInVersetsAApprendre(int n) =>
+      _t('$n verset${n > 1 ? 's' : ''}', '$n verse${n > 1 ? 's' : ''}');
+  static String get checkInPrieres => _t('Mes prières du jour', "Today's prayers");
+  static String get checkInPrieresDesc => _t(
+      "Celles où c'est toi qui récites — seul ou en imam.",
+      "The ones where you recite — alone or leading as imam.");
+  static String get checkInPrieresManquantes =>
+      _t('Choisis au moins une prière', 'Pick at least one prayer');
+  static String get checkInLancerPlan => _t('Voir mon plan du jour', 'See my daily plan');
   static String get checkInVersetsInclus =>
       _t('Versets inclus aujourd\'hui', 'Verses included today');
   static String get checkInExtendHint => _t(
@@ -411,4 +411,25 @@ class S {
   static String get checkOutAjouterErreur =>
       _t('Impossible de charger l\'aperçu du jour', 'Could not load today\'s preview');
 
+  // Check-out — « j'ai fait plus que prévu » (Phase 9)
+  static String get checkOutReviseEnPlus =>
+      _t("J'ai révisé une sourate en plus", 'I revised one more surah');
+  static String get checkOutSourateEnPlusTitre =>
+      _t('Ajouter une sourate révisée', 'Add a revised surah');
+  static String get checkOutApprisEnPlusHint => _t(
+      'Le "+" ajoute un verset appris en plus aujourd\'hui.',
+      'The "+" adds one more verse memorized today.');
+
+  // Check-out — volet apprentissage (Phase 9)
+  static String get checkOutApprentissage =>
+      _t('Ce que tu as appris', 'What you memorized');
+  static String get checkOutApprentissageDesc => _t(
+      'Décoche un verset à continuer d\'apprendre : il sera reproposé demain.',
+      'Uncheck a verse to keep learning: it will be proposed again tomorrow.');
+  static String sourateApprise(String name) =>
+      _t('$name est mémorisée — elle rejoint ta révision ✓',
+          '$name is memorized — it joins your revision ✓');
+
+  // Plan du jour — rakaa d'apprentissage
+  static String get rakaaApprentissage => _t('Apprentissage', 'Learning');
 }

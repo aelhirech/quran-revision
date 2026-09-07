@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/strings.dart';
+import '../models/prayer.dart';
 import '../models/revision_unit.dart';
 import '../screens/check_in_screen.dart';
 import '../screens/check_out_screen.dart';
@@ -10,18 +11,21 @@ import '../services/storage_service.dart';
 import '../state/app_state.dart';
 import '../widgets/manual_session_sheet.dart';
 
-/// Gère la logique de routing du tab "Réviser" :
+/// Gère la logique de routing de l'onglet "Plan du jour" :
 ///   - Jour en attente (non scellé) → popup CheckOutScreen (rattrapage)
-///   - Plan du jour généré, pas encore vu → popup CheckInScreen
 ///   - Prières choisies pour la manche → PlanScreen (répartition en rakaas)
-///   - Sinon                          → HomeScreen (choix des prières)
+///   - Sinon                          → HomeScreen (« Illuminer ma journée »)
 ///
 /// Depuis Phase 6 Sprint 2, PlanScreen ne génère plus son propre plan : il
 /// répartit les unités déjà validées au check-in (voir cadrage, "Moteur
-/// quotidien — source unique de vérité"). Check-in et check-out sont tous
-/// deux des popups poussés en plein écran (`Navigator.push`), jamais des
-/// corps d'onglet directement — CheckOutScreen appelle `Navigator.pop()` en
-/// se fermant, ça ne fonctionnerait pas s'il était rendu en place.
+/// quotidien — source unique de vérité"). Depuis la Phase 9, le check-in
+/// n'est plus poussé automatiquement à l'ouverture de l'app mais déclenché
+/// par le bouton « Illuminer ma journée avec le Coran » ; il renvoie les
+/// prières du jour, à partir desquelles la répartition en rakaas est faite.
+/// Check-in et check-out restent des popups poussés en plein écran
+/// (`Navigator.push`), jamais des corps d'onglet directement — CheckOutScreen
+/// appelle `Navigator.pop()` en se fermant, ça ne fonctionnerait pas s'il
+/// était rendu en place.
 class DayPlanTab extends StatefulWidget {
   const DayPlanTab({super.key});
 
@@ -30,7 +34,6 @@ class DayPlanTab extends StatefulWidget {
 }
 
 class _DayPlanTabState extends State<DayPlanTab> {
-  bool _checkInShown = false;
   bool _checkOutShown = false;
 
   /// Manche PlanScreen complétée : marque les unités couvertes comme
@@ -102,22 +105,20 @@ class _DayPlanTabState extends State<DayPlanTab> {
     });
   }
 
-  void _maybeShowCheckIn(AppState state) {
-    if (!state.justCheckedIn || _checkInShown) return;
-    _checkInShown = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      await Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(
-          fullscreenDialog: true,
-          builder: (_) => const CheckInScreen(),
-        ),
-      );
-      _checkInShown = false;
-      // Que le popup ait été validé ou fermé (retour), pas de sens à le
-      // réafficher pour le même plan généré aujourd'hui.
-      if (mounted) await context.read<AppState>().acknowledgeCheckIn();
-    });
+  /// « Illuminer ma journée » : ouvre le check-in et, s'il est validé,
+  /// répartit le plan du jour dans les rakaas des prières choisies. Fermer
+  /// le popup sans valider (retour arrière) ne construit aucune manche —
+  /// les ajustements faits dedans (rythme, sourates, apprentissage) sont
+  /// déjà persistés dans `ayah_facts`/la config de toute façon.
+  Future<void> _openCheckIn(AppState state) async {
+    final prayers = await Navigator.of(context, rootNavigator: true).push<List<Prayer>>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const CheckInScreen(),
+      ),
+    );
+    if (prayers == null || prayers.isEmpty || !mounted) return;
+    await state.buildTodaySession(prayers);
   }
 
   @override
@@ -132,8 +133,6 @@ class _DayPlanTabState extends State<DayPlanTab> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    _maybeShowCheckIn(state);
-
     if (state.todaySession != null) {
       return PlanScreen(
         key: ValueKey(state.todaySession),
@@ -146,7 +145,7 @@ class _DayPlanTabState extends State<DayPlanTab> {
     }
 
     return HomeScreen(
-      onVoirPlan: (prayersAlone) => state.buildTodaySession(prayersAlone),
+      onIlluminer: () => _openCheckIn(state),
       onSaisirManuel: () => _showManualSheet(context, state),
     );
   }

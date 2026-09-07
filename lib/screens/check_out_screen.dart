@@ -4,13 +4,18 @@ import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
+import '../models/sourate.dart';
+import '../models/sourate_selection.dart';
 import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
 import '../widgets/cycle_milestone_dialog.dart';
+import '../widgets/outlined_action_button.dart';
 import '../widgets/primary_cta_button.dart';
+import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/unit_range_label.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_chips_scaffold.dart';
+import '../widgets/verse_range_picker.dart';
 
 /// Popup de rattrapage : scelle un jour de révision non encore clôturé
 /// (`checked_out = 0`) — c'est le seul moment où `cyclePosition` avance
@@ -29,6 +34,12 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   // Unités décochées par l'utilisateur (exceptions) — tout le reste est
   // "fait" par défaut, écrit en base seulement à la clôture ([_close]).
   final Set<RevisionUnit> _unchecked = {};
+  // Portion à apprendre proposée ce jour-là (Phase 9), et les versets que
+  // l'utilisateur déclare NE PAS avoir acquis — même patron d'exception que
+  // `_unchecked` côté révision : tout est "appris" par défaut, décocher
+  // signale un verset à continuer d'apprendre (il sera reproposé).
+  ({Sourate sourate, List<int> ayahIds})? _learnPlan;
+  final Set<int> _notLearned = {};
   int _step = 1;
   bool _addToday = false;
   bool _sealing = false;
@@ -47,11 +58,16 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   }
 
   Future<void> _load() async {
-    final items = await context.read<AppState>().dayUnitsWithStatus(
-      date: widget.date,
-    );
+    final state = context.read<AppState>();
+    final itemsF = state.dayUnitsWithStatus(date: widget.date);
+    final learnF = state.learningPlanFor(widget.date);
+    final items = await itemsF;
+    final learn = await learnF;
     if (!mounted) return;
-    setState(() => _items = items);
+    setState(() {
+      _items = items;
+      _learnPlan = learn;
+    });
   }
 
   void _toggleReach(RevisionUnit unit) {
@@ -93,9 +109,22 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
           it.unit,
         );
       }
+      // Même patron pour la portion à apprendre : les versets restés cochés
+      // sont confirmés acquis, ceux décochés repassent explicitement à
+      // `reach = 0` (ils seront reproposés) plutôt que de rester tels quels.
+      final learn = _learnPlan;
       await Future.wait([
         state.markUnitsReached(stillChecked, date: widget.date),
         state.markUnitsReached(uncheckedNow, date: widget.date, reach: false),
+        if (learn != null) ...[
+          state.markLearnVerses(
+              widget.date,
+              learn.sourate.id,
+              [for (final v in learn.ayahIds) if (!_notLearned.contains(v)) v],
+              true),
+          state.markLearnVerses(
+              widget.date, learn.sourate.id, _notLearned.toList(), false),
+        ],
       ]);
       final cycleWrapped = await state.checkOut(widget.date);
       // Le jour en attente est scellé. Écart d'1 jour : pas de choix
@@ -151,6 +180,12 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                       it.needsWorkVerses,
                                     ),
                                   ),
+                                const SizedBox(height: 14),
+                                OutlinedActionButton(
+                                    icon: Icons.add,
+                                    label: S.checkOutReviseEnPlus,
+                                    onTap: _addRevisedSourate),
+                                ..._learnSection(palette),
                               ],
                             ),
                     ),
@@ -179,6 +214,131 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       title: title,
       badge: badge,
     );
+  }
+
+  /// « J'ai révisé une sourate en plus » — le pendant du décochage : le
+  /// check-out confirme ce qui a réellement été fait, en moins **comme en
+  /// plus**. La sourate rejoint le plan de ce jour-là et son "fait par
+  /// défaut" la confirmera à la clôture ; comme tout ajout hors-sélection,
+  /// elle alimente historique et fraîcheur sans faire avancer le cycle
+  /// au-delà de ce que le moteur avait proposé (voir `AppState.checkOut`).
+  /// Choix de la sourate puis de la **portion** réellement révisée
+  /// (`VerseRangePicker`, le même sélecteur que l'onboarding) — on peut
+  /// n'avoir fait qu'une partie de la sourate en plus. Fermer le sélecteur
+  /// de plage sans confirmer annule l'ajout : la sourate n'a été
+  /// présélectionnée que pour pouvoir l'ouvrir.
+  Future<void> _addRevisedSourate() async {
+    final state = context.read<AppState>();
+    final present = _items!.map((it) => it.unit.sourate.id).toSet();
+    final candidates =
+        state.sourates.where((s) => !present.contains(s.id)).toList();
+    final picked = await showModalBottomSheet<Sourate>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SouratePickerSheet(
+          sourates: candidates, title: S.checkOutSourateEnPlusTitre),
+    );
+    if (picked == null || !mounted) return;
+    final range = await showModalBottomSheet<SourateSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => VerseRangePicker(
+          sourate: picked, current: SourateSelection.whole(picked)),
+    );
+    if (range == null || !mounted) return;
+    await state.addToDayPlan(
+      RevisionUnit(
+        sourate: picked,
+        verseStart: range.verseStart,
+        verseEnd: range.verseEnd,
+        isWhole: range.isWhole,
+      ),
+      date: widget.date,
+    );
+    await _load();
+  }
+
+  Future<void> _addLearnedVerse() async {
+    await context.read<AppState>().extendLearningForDate(widget.date);
+    await _load();
+  }
+
+  /// Volet apprentissage (Phase 9) : les versets proposés à la mémorisation
+  /// ce jour-là, cochés par défaut. Décocher un verset le laisse `reach = 0`
+  /// — il repassera dans la proposition du lendemain. Le chip « + » déclare
+  /// un verset appris **en plus** de ce qui était prévu.
+  List<Widget> _learnSection(AppPalette palette) {
+    final learn = _learnPlan;
+    if (learn == null || learn.ayahIds.isEmpty) return const [];
+    return [
+      const SizedBox(height: 18),
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: palette.surfaceCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: palette.cardBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(S.checkOutApprentissage.toUpperCase(),
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.4,
+                    color: palette.textMuted)),
+            const SizedBox(height: 6),
+            Text('${learn.sourate.nameFr} · ${learn.sourate.nameAr}',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: palette.textPrimary)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final v in learn.ayahIds)
+                  VerseChip(
+                    borderColor: _notLearned.contains(v)
+                        ? palette.cardBorder
+                        : palette.gold.withValues(alpha: 0.8),
+                    onTap: () => setState(() {
+                      if (!_notLearned.add(v)) _notLearned.remove(v);
+                    }),
+                    child: Text('$v',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: _notLearned.contains(v)
+                                ? palette.textMuted
+                                : palette.goldDark)),
+                  ),
+                if (learn.ayahIds.length < learn.sourate.verses)
+                  VerseChip(
+                    borderColor: palette.gold.withValues(alpha: 0.7),
+                    onTap: _addLearnedVerse,
+                    child: Icon(Icons.add, size: 14, color: palette.textPrimary),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(S.checkOutApprentissageDesc,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: palette.textMuted)),
+            Text(S.checkOutApprisEnPlusHint,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: palette.textMuted)),
+          ],
+        ),
+      ),
+    ];
   }
 
   Widget _stepDots(AppPalette palette, bool showPart2) {
