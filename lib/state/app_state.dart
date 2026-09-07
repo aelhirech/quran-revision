@@ -691,23 +691,6 @@ class AppState extends ChangeNotifier {
         type: AyahFactType.learn);
   }
 
-  /// Ajoute une sourate à la sélection de révision **sans** remettre le
-  /// cycle à zéro, contrairement à [saveConfig] : une sourate qui vient
-  /// d'être entièrement mémorisée rejoint le cycle en cours, elle n'invalide
-  /// pas la position déjà atteinte dans les autres sourates. Privée et sans
-  /// `notifyListeners` : son unique appelant ([handOffLearnedSurahs])
-  /// contrôle lui-même quand notifier, pour rester à un seul notify par
-  /// opération logique quand le check-out l'enchaîne.
-  Future<void> _addSelectionKeepingCycle(SourateSelection selection) async {
-    if (_config == null) return;
-    if (_config!.selections.any((s) => s.sourate.id == selection.sourate.id)) {
-      return;
-    }
-    _config = _config!
-        .copyWith(selections: [..._config!.selections, selection]);
-    await StorageService.saveConfig(_config!, _riwaya);
-  }
-
   /// Toute sourate entièrement mémorisée bascule automatiquement dans la
   /// sélection de révision et quitte l'apprentissage — « à la fin de
   /// l'apprentissage d'une sourate celle-ci devient à réviser » (cadrage
@@ -716,9 +699,13 @@ class AppState extends ChangeNotifier {
   /// basculer, pour que l'appelant puisse le signaler à l'utilisateur.
   /// Appelé au check-out (avec `notify: false`, qui notifie lui-même une
   /// seule fois pour toute l'opération) et au retour de l'écran de pratique.
+  ///
+  /// La sourate rejoint `selections` **sans** passer par [saveConfig], qui
+  /// remettrait `cyclePosition` à 0 : une sourate fraîchement mémorisée
+  /// s'ajoute au cycle en cours, elle n'invalide pas la position déjà
+  /// atteinte dans les autres.
   Future<List<Sourate>> handOffLearnedSurahs({bool notify = true}) async {
-    final selected =
-        _config?.selections.map((s) => s.sourate.id).toSet() ?? const {};
+    if (_config == null) return const [];
     final handed = <Sourate>[];
     for (final p in await learningProgressList()) {
       // Déjà basculée lors d'un check-out précédent : ni ré-ajoutée, ni
@@ -726,8 +713,13 @@ class AppState extends ChangeNotifier {
       // `learn` — qui rend la bascule idempotente : ces faits sont la trace
       // de mémorisation qui alimente « Sourates mémorisées » (Récap,
       // Réglages), les effacer remettrait ce compteur à 0 pour toujours.
-      if (!p.isComplete || selected.contains(p.sourate.id)) continue;
-      await _addSelectionKeepingCycle(SourateSelection.whole(p.sourate));
+      if (!p.isComplete ||
+          _config!.selections.any((s) => s.sourate.id == p.sourate.id)) {
+        continue;
+      }
+      _config = _config!.copyWith(
+          selections: [..._config!.selections, SourateSelection.whole(p.sourate)]);
+      await StorageService.saveConfig(_config!, _riwaya);
       handed.add(p.sourate);
     }
     if (notify && handed.isNotEmpty) notifyListeners();

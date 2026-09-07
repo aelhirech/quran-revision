@@ -347,8 +347,6 @@ class S {
   static String get checkInAPrioriser => _t('À prioriser', 'To prioritize');
   static String get checkInVueDuJour => _t('Vue du jour', 'Today\'s view');
   static String get checkInAjouterSourate => _t('Ajouter une sourate', 'Add a surah');
-  static String get checkInAjouterDesc =>
-      _t('Même hors de ta sélection en cours.', 'Even outside your current selection.');
 
   // « Illuminer ma journée » (Phase 9) — rythme, apprentissage et prières
   // confirmés dans le même check-in que la liste de révision.

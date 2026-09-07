@@ -9,6 +9,7 @@ import '../models/sourate_selection.dart';
 import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
 import '../widgets/cycle_milestone_dialog.dart';
+import '../widgets/outlined_action_button.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/unit_range_label.dart';
@@ -179,7 +180,11 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                       it.needsWorkVerses,
                                     ),
                                   ),
-                                _addRevisedButton(palette),
+                                const SizedBox(height: 14),
+                                OutlinedActionButton(
+                                    icon: Icons.add,
+                                    label: S.checkOutReviseEnPlus,
+                                    onTap: _addRevisedSourate),
                                 ..._learnSection(palette),
                               ],
                             ),
@@ -217,30 +222,6 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   /// défaut" la confirmera à la clôture ; comme tout ajout hors-sélection,
   /// elle alimente historique et fraîcheur sans faire avancer le cycle
   /// au-delà de ce que le moteur avait proposé (voir `AppState.checkOut`).
-  Widget _addRevisedButton(AppPalette palette) => Padding(
-        padding: const EdgeInsets.only(top: 14),
-        child: InkWell(
-          onTap: _addRevisedSourate,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: palette.gold.withValues(alpha: 0.7)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add, size: 16, color: palette.textPrimary),
-                const SizedBox(width: 8),
-                Text(S.checkOutReviseEnPlus,
-                    style: TextStyle(fontSize: 13, color: palette.textPrimary)),
-              ],
-            ),
-          ),
-        ),
-      );
-
   /// Choix de la sourate puis de la **portion** réellement révisée
   /// (`VerseRangePicker`, le même sélecteur que l'onboarding) — on peut
   /// n'avoir fait qu'une partie de la sourate en plus. Fermer le sélecteur
