@@ -82,6 +82,13 @@ précis — deux précédents réels l'ont révélée dans des domaines différe
 - Texte affiché à l'utilisateur → `lib/core/strings.dart` (FR/EN) ; texte arabe → `lib/services/verse_service.dart`. Jamais d'appel direct à `package:quran` dans un écran/widget.
 - Couleurs/typo → toujours via `AppPalette` (`lib/core/app_colors.dart`), jamais de couleur en dur dans un widget.
 
+## Commentaires : priment sur "match existing style"
+Le code existant contient beaucoup de commentaires en français — ne pas reproduire ce style dans le nouveau code, ni l'imiter par mimétisme malgré la règle générale "colle au style existant" (`d:\Prog\CLAUDE.md` §3, qui ne s'applique pas ici).
+- Anglais, pas français.
+- Uniquement pour le WHY non-évident (contrainte cachée, invariant, contournement d'un bug précis) — jamais pour décrire le WHAT (le nom des variables/fonctions doit suffire).
+- Pas de docstring multi-lignes sauf API publique exposée (service/package partagé).
+- Ne pas nettoyer rétroactivement les commentaires français existants sans qu'on le demande — cette règle vise uniquement la propagation dans le nouveau code.
+
 ## Modèle de données central : `ayah_facts`
 
 `ayah_facts` (`lib/services/ayah_facts_service.dart`) n'est pas une table parmi d'autres : c'est le **journal de la relation entre l'utilisateur et le Coran** — l'unique source de vérité dont tout le reste (fraîcheur, streak, plan du jour, apprentissage, récap) est *reconstruit* par requête, jamais recalculé/stocké en parallèle. Avant d'ajouter un flag, un compteur ou une table séparée pour une nouvelle fonctionnalité, se demander d'abord si elle peut se dériver d'`ayah_facts`.
