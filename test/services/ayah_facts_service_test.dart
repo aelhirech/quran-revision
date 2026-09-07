@@ -144,10 +144,18 @@ void main() {
     });
   });
 
-  group('startLearning — sourate démarrée sans verset appris', () {
+  // `startLearning` (une ligne `ayah_id=1, reach=0` écrite au démarrage d'une
+  // sourate) a été supprimée en Phase 9 : c'est désormais `proposeLearnVerses`
+  // qui écrit la portion du jour, avec la même sémantique "visé (0) → atteint
+  // (1)". Les invariants qu'elle protégeait (retour TestFlight 2026-09-01 :
+  // une sourate démarrée ne doit pas disparaître de "en cours") restent
+  // couverts ici, sur le nouveau chemin d'écriture.
+  group('démarrage d\'une sourate sans verset appris', () {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
     test('apparaît dans loadMainLearningProgress avec 0 verset appris',
         () async {
-      await AyahFactsService.startLearning(30, Riwaya.hafs);
+      await AyahFactsService.proposeLearnVerses(today, Riwaya.hafs, 30, [1]);
       final progress = await AyahFactsService.loadMainLearningProgress(
           riwaya: Riwaya.hafs, sourates: [testSourate(30)]);
       expect(progress, hasLength(1));
@@ -157,7 +165,7 @@ void main() {
 
     test('reste "en cours" même si le seul verset appris est ensuite désappris',
         () async {
-      await AyahFactsService.startLearning(31, Riwaya.hafs);
+      await AyahFactsService.proposeLearnVerses(today, Riwaya.hafs, 31, [1]);
       await AyahFactsService.learnVerse(31, 1, Riwaya.hafs);
       await AyahFactsService.unlearnVerse(31, 1, Riwaya.hafs);
       final progress = await AyahFactsService.loadMainLearningProgress(
@@ -167,7 +175,7 @@ void main() {
     });
 
     test('deleteLearnFacts retire aussi la ligne "verset 1 visé"', () async {
-      await AyahFactsService.startLearning(32, Riwaya.hafs);
+      await AyahFactsService.proposeLearnVerses(today, Riwaya.hafs, 32, [1]);
       await AyahFactsService.deleteLearnFacts(32, Riwaya.hafs);
       final progress = await AyahFactsService.loadMainLearningProgress(
           riwaya: Riwaya.hafs, sourates: [testSourate(32)]);

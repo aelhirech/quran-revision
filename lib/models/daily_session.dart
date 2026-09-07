@@ -5,7 +5,18 @@ class RakaaAssignment {
   final int rakaaNumber;
   final RevisionUnit? unit; // null = Al-Fatiha uniquement
 
-  const RakaaAssignment({required this.rakaaNumber, this.unit});
+  /// `true` si [unit] est la portion à *apprendre* aujourd'hui, pas une
+  /// portion à réviser — la toute dernière rakaa récitée de la journée (voir
+  /// `RevisionEngine.distributeToRakaas`). Les deux se distinguent à
+  /// l'affichage (PlanScreen) et à l'écriture (`ayah_facts.type`), d'où le
+  /// drapeau porté par l'assignation plutôt que déduit par l'appelant.
+  final bool isLearning;
+
+  const RakaaAssignment({
+    required this.rakaaNumber,
+    this.unit,
+    this.isLearning = false,
+  });
 }
 
 class PrayerPlan {

@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quran_revision/core/revision_engine.dart';
+import 'package:quran_revision/models/daily_session.dart';
 import 'package:quran_revision/models/prayer.dart';
+import 'package:quran_revision/models/revision_unit.dart';
 import 'package:quran_revision/models/riwaya.dart';
 import 'package:quran_revision/models/sourate.dart';
 import 'package:quran_revision/models/sourate_selection.dart';
@@ -429,6 +431,68 @@ void main() {
           .map((r) => r.unit!.sourate.id)
           .toSet();
       expect(surats, {1});
+    });
+  });
+
+  group('RevisionEngine.distributeToRakaas — apprentissage (Phase 9)', () {
+    // Fajr (2 rakaas récitées) + Maghrib (3 rakaas, 2 récitées) = 4 rakaas
+    // récitées au total, dont la dernière revient à l'apprentissage.
+    final prayers = [Prayer.fajr, Prayer.maghrib];
+    final revision = [
+      RevisionUnit(
+          sourate: _sourate(112, 4, 20), verseStart: 1, verseEnd: 4, isWhole: true),
+      RevisionUnit(
+          sourate: _sourate(113, 5, 25), verseStart: 1, verseEnd: 5, isWhole: true),
+    ];
+    final learning = RevisionUnit(
+        sourate: _sourate(99, 8, 60), verseStart: 1, verseEnd: 3, isWhole: false);
+
+    List<RakaaAssignment> recited(List<PrayerPlan> plan) => [
+          for (final pp in plan)
+            for (final r in pp.rakaas)
+              if (r.unit != null) r,
+        ];
+
+    test("la portion à apprendre occupe la toute dernière rakaa récitée du jour",
+        () {
+      final plan = RevisionEngine.distributeToRakaas(
+        units: revision,
+        prayersAlone: prayers,
+        learningUnit: learning,
+      );
+
+      final filled = recited(plan);
+      expect(filled.length, 4); // aucune rakaa récitée laissée vide
+      expect(filled.last.isLearning, isTrue);
+      expect(filled.last.unit, learning);
+      // Toutes les précédentes sont de la révision, jamais l'apprentissage.
+      for (final r in filled.take(3)) {
+        expect(r.isLearning, isFalse);
+        expect(r.unit!.sourate.id, isNot(99));
+      }
+    });
+
+    test('sans portion à apprendre, la dernière rakaa reste de la révision', () {
+      final plan =
+          RevisionEngine.distributeToRakaas(units: revision, prayersAlone: prayers);
+      final filled = recited(plan);
+      expect(filled.length, 4);
+      expect(filled.every((r) => !r.isLearning), isTrue);
+    });
+
+    test(
+        'la rakaa d\'apprentissage est exclue de coverageForFirstRakaas — elle ne '
+        'fait pas avancer le cycle et se confirme au check-out', () {
+      final plan = RevisionEngine.distributeToRakaas(
+        units: revision,
+        prayersAlone: prayers,
+        learningUnit: learning,
+      );
+      // "Tout fait" = les 4 rakaas récitées : seules les 3 de révision
+      // remontent comme unités couvertes.
+      final coverage = RevisionEngine.coverageForFirstRakaas(plan, 4);
+      expect(coverage.coveredUnits.length, 3);
+      expect(coverage.coveredUnits.any((u) => u.sourate.id == 99), isFalse);
     });
   });
 

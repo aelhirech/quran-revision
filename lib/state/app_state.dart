@@ -3,7 +3,9 @@ import '../core/freshness_engine.dart';
 import '../core/quran_data.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
+import '../models/ayah_fact.dart';
 import '../models/daily_session.dart';
+import '../models/learning_progress.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
 import '../models/riwaya.dart';
@@ -25,12 +27,6 @@ class AppState extends ChangeNotifier {
   // quotidien ne génère pas de nouveau plan (voir cadrage Phase 6, "Moteur
   // quotidien — source unique de vérité").
   String? _pendingDate;
-  // true juste après que `ensureDayPlan` ait proposé un nouveau plan — sert
-  // à afficher le popup de check-in une seule fois par jour généré, pas à
-  // chaque reprise de l'app. Transitoire (pas persisté) : si l'app est tuée
-  // avant l'accusé de réception, le popup ne réapparaît pas — sans gravité,
-  // le plan reste modifiable depuis PlanScreen.
-  bool _justCheckedIn = false;
   Set<String> _pauseDates;
   String _locale;
   Riwaya _riwaya;
@@ -78,7 +74,6 @@ class AppState extends ChangeNotifier {
   int get cyclePosition => _cyclePosition;
   DailySession? get todaySession => _todaySession;
   String? get pendingDate => _pendingDate;
-  bool get justCheckedIn => _justCheckedIn;
   Set<String> get pauseDates => Set.unmodifiable(_pauseDates);
   String get locale => _locale;
   Riwaya get riwaya => _riwaya;
@@ -165,7 +160,6 @@ class AppState extends ChangeNotifier {
     _adaptiveCycleDays = null;
     _todaySession = null;
     _pendingDate = null;
-    _justCheckedIn = false;
     await refreshFreshness(notify: false);
     if (_config?.adaptiveCycle == true) {
       await refreshAdaptiveCycle(_config!.totalSelectedVerses, notify: false);
@@ -260,7 +254,6 @@ class AppState extends ChangeNotifier {
     _cyclePosition = 0;
     _todaySession = null;
     _pendingDate = null;
-    _justCheckedIn = false;
     _pauseDates = {};
     await StorageService.clearConfigOnly(_riwaya);
     notifyListeners();
@@ -361,20 +354,43 @@ class AppState extends ChangeNotifier {
   /// tant qu'il n'est pas scellé, aucun nouveau plan n'est généré (sinon
   /// `cyclePosition` n'aurait pas encore avancé pour ce jour-là, et le
   /// nouveau plan proposerait les mêmes versets une seconde fois).
+  ///
+  /// Depuis la Phase 9, propose aussi les versets à **apprendre** du jour
+  /// (sourate déjà en cours, `config.versesToLearnPerDay` versets) — le
+  /// check-in confirme ou ajuste les deux propositions, il ne les crée pas.
   Future<void> ensureDayPlan({bool notify = true}) async {
     if (_config == null) return;
     _pendingDate = await AyahFactsService.pendingDate(riwaya: _riwaya);
     if (_pendingDate == null) {
       final today = _todayStr;
-      final existing = await AyahFactsService.dayFacts(today, _riwaya);
-      if (existing.isEmpty) {
+      // Lectures indépendantes démarrées ensemble plutôt qu'en série — c'est
+      // le chemin d'ouverture de l'app (ShellScreen.initState).
+      final existingF = AyahFactsService.dayFacts(today, _riwaya);
+      final learnPlanF = AyahFactsService.learnPlanFor(today, _riwaya);
+      final activePrayersF = StorageService.loadActivePrayers(_riwaya);
+      // Le plan du jour n'est généré qu'une fois par jour — la proposition
+      // d'apprentissage est gatée sur ce même moment, pas seulement sur
+      // « aucune ligne learn aujourd'hui » : sinon « Je n'apprends rien
+      // aujourd'hui » (check-in) serait silencieusement annulé à la
+      // prochaine ouverture de l'app, qui reproposerait la même portion.
+      // Cas limite connu : sans aucune sourate en révision, `proposeUnits`
+      // n'écrit rien, la journée reste vue comme neuve et le refus est
+      // reproposé à chaque ouverture — sans conséquence sur les données.
+      if ((await existingF).isEmpty) {
         await AyahFactsService.proposeUnits(
             today, _riwaya, (await _selectionForAsync(today)).units);
-        _justCheckedIn = true;
+        if (await learnPlanF == null) {
+          final inProgress = await learningInProgress();
+          if (inProgress != null) {
+            await _proposeLearning(
+                inProgress.sourate, _config!.versesToLearnPerDay,
+                progress: inProgress);
+          }
+        }
       }
       // Reprend la manche en cours si l'app a redémarré après un début de
       // check-in/PlanScreen le même jour (prières déjà choisies).
-      final activePrayers = await StorageService.loadActivePrayers(_riwaya);
+      final activePrayers = await activePrayersF;
       if (activePrayers != null && activePrayers.isNotEmpty) {
         await buildTodaySession(activePrayers, notify: false);
       }
@@ -382,9 +398,105 @@ class AppState extends ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  Future<void> acknowledgeCheckIn() async {
-    if (!_justCheckedIn) return;
-    _justCheckedIn = false;
+  // ─── Apprentissage du jour (Phase 9) ─────────────────────────────────────
+  //
+  // Même modèle que la révision : les versets à apprendre sont des lignes
+  // `ayah_facts` datées (`type='learn'`, `reach=0` visé → `reach=1` acquis),
+  // jamais un état tenu en parallèle. La dernière rakaa du plan du jour les
+  // fait réciter, le check-out confirme lesquels sont réellement acquis.
+
+  /// Sourates dont la mémorisation est commencée mais pas terminée —
+  /// reconstruites depuis `ayah_facts` (`type='learn'`).
+  Future<List<LearningProgress>> learningProgressList() async =>
+      AyahFactsService.loadMainLearningProgress(
+          riwaya: _riwaya, sourates: _sourates);
+
+  /// Sourate en cours d'apprentissage, ou `null`. Une seule à la fois en
+  /// pratique (c'est le check-in qui en démarre une), mais changer de
+  /// sourate en cours de route en laisse plusieurs inachevées : on retient
+  /// la **plus récemment démarrée**, celle sur laquelle l'utilisateur
+  /// travaille aujourd'hui — pas la première que renvoie SQLite, dont
+  /// l'ordre ne veut rien dire.
+  Future<LearningProgress?> learningInProgress() async {
+    LearningProgress? latest;
+    for (final p in await learningProgressList()) {
+      if (p.isComplete) continue;
+      if (latest == null || p.startDate.isAfter(latest.startDate)) latest = p;
+    }
+    return latest;
+  }
+
+  /// Prochains [count] versets non encore acquis de [sourate], proposés pour
+  /// aujourd'hui — règle partagée avec l'écran de pratique
+  /// (`LearningProgress.nextBlock`). [progress] évite une relecture quand
+  /// l'appelant vient déjà de charger la progression de cette sourate.
+  Future<void> _proposeLearning(Sourate sourate, int count,
+      {LearningProgress? progress}) async {
+    final resolved = progress ??
+        LearningProgress(
+          sourate: sourate,
+          learnedVerses: await AyahFactsService.learnedVersesForSourate(
+              riwaya: _riwaya, surahId: sourate.id),
+          startDate: DateTime.now(),
+        );
+    await AyahFactsService.proposeLearnVerses(
+        _todayStr, _riwaya, sourate.id, resolved.nextBlock(count));
+  }
+
+  /// Portion à apprendre aujourd'hui (dernière rakaa du plan du jour), ou
+  /// `null` si l'utilisateur n'apprend rien en ce moment. **Dérivée à la
+  /// demande**, jamais mise en cache dans un champ : c'est exactement l'état
+  /// parallèle à `ayah_facts` que CLAUDE.md interdit (précédent
+  /// `_checkedRakaas`) — un cache aurait dû être rafraîchi par les 4 écrivains
+  /// de lignes `learn`, dont `deleteLearnFacts` appelé depuis le Récap.
+  Future<RevisionUnit?> todayLearningUnit() async {
+    final plan = await learningPlanFor(_todayStr);
+    if (plan == null) return null;
+    // `learnPlanFor` trie par `ayah_id`, donc first/last sont bien min/max.
+    return RevisionUnit(
+      sourate: plan.sourate,
+      verseStart: plan.ayahIds.first,
+      verseEnd: plan.ayahIds.last,
+      isWhole: plan.ayahIds.first == 1 &&
+          plan.ayahIds.last == plan.sourate.verses,
+    );
+  }
+
+  /// Check-in : quelle sourate apprendre aujourd'hui et combien de versets.
+  /// [sourate] `null` = ne rien apprendre aujourd'hui. [count] devient aussi
+  /// le nouveau défaut proposé les jours suivants
+  /// (`UserConfig.versesToLearnPerDay`).
+  Future<void> setLearningForToday(Sourate? sourate, int count) async {
+    if (_config == null) return;
+    if (count != _config!.versesToLearnPerDay) {
+      _config = _config!.copyWith(versesToLearnPerDay: count);
+      await StorageService.saveConfig(_config!, _riwaya);
+    }
+    // Seules les lignes encore `reach=0` sont effacées — un verset déjà
+    // acquis aujourd'hui ne disparaît pas parce qu'on réajuste la portion.
+    await AyahFactsService.clearDayProposal(_todayStr, _riwaya,
+        type: AyahFactType.learn);
+    if (sourate != null) await _proposeLearning(sourate, count);
+    notifyListeners();
+  }
+
+  /// Check-in : ajuste le budget de pages/jour et régénère la proposition de
+  /// révision du jour en conséquence (les lignes déjà `reach=1` sont
+  /// conservées, voir `AyahFactsService.clearDayProposal`).
+  Future<void> setPagesPerDay(int pagesPerDay) async {
+    if (_config == null || _config!.pagesPerDay == pagesPerDay) return;
+    _config = _config!.copyWith(pagesPerDay: pagesPerDay);
+    await StorageService.saveConfig(_config!, _riwaya);
+    final today = _todayStr;
+    await AyahFactsService.clearDayProposal(today, _riwaya);
+    await AyahFactsService.proposeUnits(
+        today, _riwaya, (await _selectionForAsync(today)).units);
+    // Une manche déjà répartie en rakaas porterait des unités qui viennent
+    // d'être effacées de la table — ses cases cochées reviendraient en
+    // arrière sans explication. On la referme, comme `saveConfig` le fait
+    // quand la sélection de sourates change.
+    _todaySession = null;
+    await StorageService.clearActivePrayers(_riwaya);
     notifyListeners();
   }
 
@@ -417,10 +529,18 @@ class AppState extends ChangeNotifier {
   Future<void> buildTodaySession(List<Prayer> prayersAlone,
       {bool notify = true}) async {
     if (_config == null || prayersAlone.isEmpty) return;
-    final selection = await _selectionForAsync(_todayStr);
-    final units = await dayUnits();
-    final plan =
-        RevisionEngine.distributeToRakaas(units: units, prayersAlone: prayersAlone);
+    // Trois lectures indépendantes (sélection du cycle, unités du jour,
+    // portion à apprendre) démarrées ensemble plutôt qu'en série.
+    final selectionF = _selectionForAsync(_todayStr);
+    final unitsF = dayUnits();
+    final learningF = todayLearningUnit();
+    final selection = await selectionF;
+    final units = await unitsF;
+    final plan = RevisionEngine.distributeToRakaas(
+      units: units,
+      prayersAlone: prayersAlone,
+      learningUnit: await learningF,
+    );
     _todaySession = DailySession(
       date: DateTime.now(),
       prayersAlone: prayersAlone,
@@ -456,8 +576,21 @@ class AppState extends ChangeNotifier {
   /// la manche (pénurie de matière, cf. `RevisionEngine._padCyclically`),
   /// cocher l'une coche automatiquement les autres — `reach` est une vérité
   /// par verset/jour, pas par rakaa, comportement voulu.
-  Future<void> toggleTodayUnitReach(RevisionUnit unit, bool reach) =>
-      setUnitReach(_todayStr, unit, reach);
+  /// [learning] cible la rakaa d'apprentissage (lignes `type='learn'`) au
+  /// lieu de la révision — c'est le même geste ("j'ai fait cette rakaa") sur
+  /// les deux natures de contenu.
+  Future<void> toggleTodayUnitReach(RevisionUnit unit, bool reach,
+      {bool learning = false}) async {
+    if (!learning) return setUnitReach(_todayStr, unit, reach);
+    // La portion à apprendre n'est pas forcément contiguë (un verset du
+    // milieu peut avoir été appris en avance, ou désappris) : on écrit la
+    // liste exacte des versets proposés, pas la plage `BETWEEN` qui
+    // engloberait des versets sans ligne en base.
+    final plan = await learningPlanFor(_todayStr);
+    if (plan == null) return;
+    await markLearnVerses(_todayStr, plan.sourate.id, plan.ayahIds, reach);
+    notifyListeners();
+  }
 
   /// Statut `reach` d'aujourd'hui pour chaque unité unique de [units] — une
   /// seule requête ([AyahFactsService.reachedVersesToday]), le résultat
@@ -465,15 +598,26 @@ class AppState extends ChangeNotifier {
   /// [dayUnitsWithStatus], qui agrégerait à tort deux plages distinctes de la
   /// même sourate assignées à des rakaas différents). Consommé par
   /// PlanScreen pour l'état "coché" de chaque rakaa.
-  Future<Map<RevisionUnit, bool>> reachStatusFor(
-      Iterable<RevisionUnit> units) async {
-    final reachedByVerse =
-        await AyahFactsService.reachedVersesToday(_todayStr, _riwaya);
-    return {
-      for (final unit in units.toSet())
-        unit: List.generate(unit.verseCount, (i) => unit.verseStart + i)
-            .every((v) => reachedByVerse[unit.sourate.id]?.contains(v) ?? false),
-    };
+  Future<Map<RevisionUnit, bool>> reachStatusFor(Iterable<RevisionUnit> units,
+      {bool learning = false}) async {
+    final reachedByVerse = await AyahFactsService.reachedVersesToday(
+        _todayStr, _riwaya,
+        type: learning ? AyahFactType.learn : AyahFactType.revise);
+    // Côté apprentissage, la vérité est la liste des versets réellement
+    // proposés — pas tous ceux de la plage : une portion à trous
+    // ([2, 4, 5]) ne serait sinon jamais considérée comme faite, le verset 3
+    // n'ayant aucune ligne à passer à `reach = 1`.
+    final learnVerses =
+        learning ? (await learningPlanFor(_todayStr))?.ayahIds : null;
+    bool isReached(RevisionUnit unit) {
+      final verses = learnVerses ??
+          List.generate(unit.verseCount, (i) => unit.verseStart + i);
+      return verses.isNotEmpty &&
+          verses.every(
+              (v) => reachedByVerse[unit.sourate.id]?.contains(v) ?? false);
+    }
+
+    return {for (final unit in units.toSet()) unit: isReached(unit)};
   }
 
   /// Bascule "à retravailler" pour un verset précis — écran détail du
@@ -484,11 +628,84 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Bascule "fait/pas fait" pour une sourate/portion du check-out.
-  Future<void> setUnitReach(String date, RevisionUnit unit, bool reach) async {
+  /// Bascule "fait/pas fait" pour une sourate/portion du check-out — ou, si
+  /// [learning], pour une portion à apprendre (`type='learn'`).
+  Future<void> setUnitReach(String date, RevisionUnit unit, bool reach,
+      {bool learning = false}) async {
     await AyahFactsService.setReach(date, _riwaya, unit.sourate.id,
-        unit.verseStart, unit.verseEnd, reach);
+        unit.verseStart, unit.verseEnd, reach,
+        type: learning ? AyahFactType.learn : AyahFactType.revise);
     notifyListeners();
+  }
+
+  /// Portion à apprendre proposée le jour [date] (check-out d'un jour en
+  /// attente, ou aujourd'hui via [todayLearningUnit]), résolue en `Sourate` —
+  /// `null` si l'utilisateur n'apprenait rien ce jour-là. Les versets sont
+  /// rendus tels quels (liste, pas une plage) : la portion d'un jour n'est
+  /// pas forcément contiguë si un verset du milieu a été appris en avance.
+  /// `reachedVerses` du service n'est pas remonté — le check-out coche tout
+  /// par défaut, comme côté révision.
+  Future<({Sourate sourate, List<int> ayahIds})?> learningPlanFor(
+      String date) async {
+    final plan = await AyahFactsService.learnPlanFor(date, _riwaya);
+    final sourate = plan == null ? null : _sourateById(plan.surahId);
+    if (plan == null || sourate == null || plan.ayahIds.isEmpty) return null;
+    return (sourate: sourate, ayahIds: plan.ayahIds);
+  }
+
+  /// Confirme (ou annule) l'acquisition de versets appris le jour [date] —
+  /// check-out, en deux batchs (appris / à continuer). Annuler écrit
+  /// explicitement `reach = 0` plutôt que de s'abstenir : la ligne peut déjà
+  /// être à 1 (rakaa d'apprentissage cochée dans PlanScreen), voir CLAUDE.md
+  /// § « Modèle de données central ».
+  Future<void> markLearnVerses(
+      String date, int surahId, List<int> ayahIds, bool learned) async {
+    await AyahFactsService.setReachForVerses(
+        date, _riwaya, surahId, ayahIds, learned,
+        type: AyahFactType.learn);
+  }
+
+  /// Ajoute une sourate à la sélection de révision **sans** remettre le
+  /// cycle à zéro, contrairement à [saveConfig] : une sourate qui vient
+  /// d'être entièrement mémorisée rejoint le cycle en cours, elle n'invalide
+  /// pas la position déjà atteinte dans les autres sourates. Privée et sans
+  /// `notifyListeners` : son unique appelant ([handOffLearnedSurahs])
+  /// contrôle lui-même quand notifier, pour rester à un seul notify par
+  /// opération logique quand le check-out l'enchaîne.
+  Future<void> _addSelectionKeepingCycle(SourateSelection selection) async {
+    if (_config == null) return;
+    if (_config!.selections.any((s) => s.sourate.id == selection.sourate.id)) {
+      return;
+    }
+    _config = _config!
+        .copyWith(selections: [..._config!.selections, selection]);
+    await StorageService.saveConfig(_config!, _riwaya);
+  }
+
+  /// Toute sourate entièrement mémorisée bascule automatiquement dans la
+  /// sélection de révision et quitte l'apprentissage — « à la fin de
+  /// l'apprentissage d'une sourate celle-ci devient à réviser » (cadrage
+  /// Phase 9). Remplace l'ancien bouton manuel « Ajouter à la révision » de
+  /// l'onglet Apprendre (supprimé). Retourne les sourates qui viennent de
+  /// basculer, pour que l'appelant puisse le signaler à l'utilisateur.
+  /// Appelé au check-out (avec `notify: false`, qui notifie lui-même une
+  /// seule fois pour toute l'opération) et au retour de l'écran de pratique.
+  Future<List<Sourate>> handOffLearnedSurahs({bool notify = true}) async {
+    final selected =
+        _config?.selections.map((s) => s.sourate.id).toSet() ?? const {};
+    final handed = <Sourate>[];
+    for (final p in await learningProgressList()) {
+      // Déjà basculée lors d'un check-out précédent : ni ré-ajoutée, ni
+      // re-signalée. C'est ce test — et non la suppression des faits
+      // `learn` — qui rend la bascule idempotente : ces faits sont la trace
+      // de mémorisation qui alimente « Sourates mémorisées » (Récap,
+      // Réglages), les effacer remettrait ce compteur à 0 pour toujours.
+      if (!p.isComplete || selected.contains(p.sourate.id)) continue;
+      await _addSelectionKeepingCycle(SourateSelection.whole(p.sourate));
+      handed.add(p.sourate);
+    }
+    if (notify && handed.isNotEmpty) notifyListeners();
+    return handed;
   }
 
   /// Scelle la journée [date] (check-out) : verrouille ses lignes et fait
@@ -545,6 +762,10 @@ class AppState extends ChangeNotifier {
       StorageService.clearActivePrayers(_riwaya),
       advanceCycle(groupsCompleted, selection.cycleTotal, notify: false),
     ]);
+    // Après le scellement seulement : une sourate dont le dernier verset
+    // vient d'être confirmé appris rejoint la révision (voir
+    // [handOffLearnedSurahs]).
+    await handOffLearnedSurahs(notify: false);
     notifyListeners(); // seul notify de toute l'opération
     return cycleWraps;
   }

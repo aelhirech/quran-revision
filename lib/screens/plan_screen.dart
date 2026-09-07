@@ -48,27 +48,56 @@ class _PlanScreenState extends State<PlanScreen> {
   // `reach` pour aujourd'hui pendant que PlanScreen reste monté.
   Map<RevisionUnit, bool>? _reached;
 
+  /// Statut de la rakaa d'apprentissage, tenu à part de [_reached] : ses
+  /// faits vivent sous `type='learn'` dans `ayah_facts`, et deux plages
+  /// identiques (même sourate, mêmes versets) n'auraient sinon qu'une seule
+  /// entrée dans une Map clée par `RevisionUnit`.
+  bool _learningReached = false;
+
   @override
   void initState() {
     super.initState();
     _load();
   }
 
-  Future<void> _load() async {
-    final reached =
-        await context.read<AppState>().reachStatusFor(_allCoveredUnits);
-    if (!mounted) return;
-    setState(() => _reached = reached);
+  /// Rakaa d'apprentissage du jour (la dernière récitée), s'il y en a une.
+  RevisionUnit? get _learningUnit {
+    for (final pp in widget.session.plan) {
+      for (final r in pp.rakaas) {
+        if (r.isLearning && r.unit != null) return r.unit;
+      }
+    }
+    return null;
   }
 
+  Future<void> _load() async {
+    final state = context.read<AppState>();
+    final learningUnit = _learningUnit;
+    // Deux lectures indépendantes (révision / apprentissage) démarrées en
+    // parallèle plutôt qu'en série.
+    final reachedF = state.reachStatusFor(_allCoveredUnits);
+    final learningF = learningUnit == null
+        ? Future.value(const <RevisionUnit, bool>{})
+        : state.reachStatusFor([learningUnit], learning: true);
+    final reached = await reachedF;
+    final learning = await learningF;
+    if (!mounted) return;
+    setState(() {
+      _reached = reached;
+      _learningReached = learning[learningUnit] ?? false;
+    });
+  }
+
+  bool _isReached(RakaaAssignment r) =>
+      r.isLearning ? _learningReached : (_reached ?? const {})[r.unit] == true;
+
   Map<int, Set<int>> _checkedByPrayer() {
-    final reached = _reached ?? const {};
     final result = <int, Set<int>>{};
     for (int pi = 0; pi < widget.session.plan.length; pi++) {
       final pp = widget.session.plan[pi];
       result[pi] = {
         for (final r in pp.rakaas)
-          if (r.unit != null && reached[r.unit] == true) r.rakaaNumber,
+          if (r.unit != null && _isReached(r)) r.rakaaNumber,
       };
     }
     return result;
@@ -96,13 +125,15 @@ class _PlanScreenState extends State<PlanScreen> {
   int _checkedCountOf(Map<int, Set<int>> checkedByPrayer) =>
       checkedByPrayer.values.fold(0, (sum, s) => sum + s.length);
 
-  /// Toutes les unités couvertes par le plan du jour (déclaration "tout fait")
-  /// — plages verseStart/verseEnd précises, nécessaires pour écrire des
-  /// faits par verset dans `ayah_facts` (Phase 6).
+  /// Toutes les unités de **révision** couvertes par le plan du jour
+  /// (déclaration "tout fait") — plages verseStart/verseEnd précises,
+  /// nécessaires pour écrire des faits par verset dans `ayah_facts` (Phase
+  /// 6). La rakaa d'apprentissage en est exclue : elle ne fait pas avancer
+  /// le cycle et se confirme au check-out (Phase 9).
   List<RevisionUnit> get _allCoveredUnits => [
         for (final pp in widget.session.plan)
           for (final r in pp.rakaas)
-            if (r.unit != null) r.unit!,
+            if (r.unit != null && !r.isLearning) r.unit!,
       ];
 
   Future<void> _confirmChangePlan(BuildContext context) async {
@@ -139,16 +170,24 @@ class _PlanScreenState extends State<PlanScreen> {
 
   Future<void> _toggle(int prayerIndex, int rakaaNumber) async {
     final pp = widget.session.plan[prayerIndex];
-    final unit = pp.rakaas.firstWhere((r) => r.rakaaNumber == rakaaNumber).unit;
+    final assignment = pp.rakaas.firstWhere((r) => r.rakaaNumber == rakaaNumber);
+    final unit = assignment.unit;
     if (unit == null) return;
-    final newReach = !((_reached ?? const {})[unit] ?? false);
+    final newReach = !_isReached(assignment);
     final appState = context.read<AppState>();
     // Coche affichée avant l'écriture disque (comme l'ancien
     // `toggleChecked`) pour que le tap reste instantané — `setReach` est une
     // affectation directe (pas de lecture-modification), la valeur locale
     // est donc déjà celle qui sera écrite.
-    setState(() => _reached = {...?_reached, unit: newReach});
-    await appState.toggleTodayUnitReach(unit, newReach);
+    setState(() {
+      if (assignment.isLearning) {
+        _learningReached = newReach;
+      } else {
+        _reached = {...?_reached, unit: newReach};
+      }
+    });
+    await appState.toggleTodayUnitReach(unit, newReach,
+        learning: assignment.isLearning);
   }
 
   @override

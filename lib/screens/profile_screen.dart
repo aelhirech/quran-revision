@@ -8,7 +8,6 @@ import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
-import '../services/ayah_facts_service.dart';
 import '../state/app_state.dart';
 import '../widgets/preset_dropdown.dart';
 import '../widgets/profile_info_card.dart';
@@ -31,8 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadMemorisees() async {
     final state = context.read<AppState>();
-    final progress = await AyahFactsService.loadMainLearningProgress(
-        riwaya: state.riwaya, sourates: state.sourates);
+    final progress = await state.learningProgressList();
     if (!mounted) return;
     setState(() => _memorisees = progress.memorisedCount);
   }
@@ -75,14 +73,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .map<SourateSelection>(
             (s) => existingSelections[s.id] ?? SourateSelection.whole(s))
         .toList();
-    await state.saveConfig(UserConfig(
-      selections: selections,
-      pagesPerDay: _pagesPerDay,
-      startDate: state.config?.startDate ?? DateTime.now(),
-      shuffleEnabled: state.config?.shuffleEnabled ?? true,
-      adaptiveCycle: state.config?.adaptiveCycle ?? false,
-      riwaya: state.riwaya,
-    ));
+    // `copyWith` sur la config existante, jamais un `UserConfig(...)` brut :
+    // recopier les champs un à un fait silencieusement retomber au défaut
+    // tout champ oublié (c'est arrivé à `versesToLearnPerDay`, Phase 9) et
+    // c'est la règle CLAUDE.md « mise à jour uniquement via copyWith() ».
+    final existing = state.config;
+    await state.saveConfig(existing != null
+        ? existing.copyWith(
+            selections: selections,
+            pagesPerDay: _pagesPerDay,
+            riwaya: state.riwaya,
+          )
+        : UserConfig(
+            selections: selections,
+            pagesPerDay: _pagesPerDay,
+            startDate: DateTime.now(),
+            riwaya: state.riwaya,
+          ));
     if (mounted) setState(() => _editing = false);
   }
 
@@ -119,10 +126,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final state = context.read<AppState>();
-    await state.saveConfig(state.config!.copyWith(
-      pagesPerDay: tempPages,
-    ));
+    // Même point d'entrée que la rangée de rythme du check-in : changer le
+    // budget de pages régénère la proposition du jour. Passer par
+    // `saveConfig` directement laisserait le plan du jour sur l'ancien
+    // budget, silencieusement — deux comportements pour le même geste.
+    await context.read<AppState>().setPagesPerDay(tempPages);
     if (!mounted) return;
     setState(() {
       _pagesPerDay = tempPages;
@@ -143,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: Text(S.monProfil),
+            title: Text(S.reglages),
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             centerTitle: false,

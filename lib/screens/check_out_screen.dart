@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
+import '../models/sourate.dart';
 import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
 import '../widgets/cycle_milestone_dialog.dart';
@@ -29,6 +30,12 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   // Unités décochées par l'utilisateur (exceptions) — tout le reste est
   // "fait" par défaut, écrit en base seulement à la clôture ([_close]).
   final Set<RevisionUnit> _unchecked = {};
+  // Portion à apprendre proposée ce jour-là (Phase 9), et les versets que
+  // l'utilisateur déclare NE PAS avoir acquis — même patron d'exception que
+  // `_unchecked` côté révision : tout est "appris" par défaut, décocher
+  // signale un verset à continuer d'apprendre (il sera reproposé).
+  ({Sourate sourate, List<int> ayahIds})? _learnPlan;
+  final Set<int> _notLearned = {};
   int _step = 1;
   bool _addToday = false;
   bool _sealing = false;
@@ -47,11 +54,16 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   }
 
   Future<void> _load() async {
-    final items = await context.read<AppState>().dayUnitsWithStatus(
-      date: widget.date,
-    );
+    final state = context.read<AppState>();
+    final itemsF = state.dayUnitsWithStatus(date: widget.date);
+    final learnF = state.learningPlanFor(widget.date);
+    final items = await itemsF;
+    final learn = await learnF;
     if (!mounted) return;
-    setState(() => _items = items);
+    setState(() {
+      _items = items;
+      _learnPlan = learn;
+    });
   }
 
   void _toggleReach(RevisionUnit unit) {
@@ -93,9 +105,22 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
           it.unit,
         );
       }
+      // Même patron pour la portion à apprendre : les versets restés cochés
+      // sont confirmés acquis, ceux décochés repassent explicitement à
+      // `reach = 0` (ils seront reproposés) plutôt que de rester tels quels.
+      final learn = _learnPlan;
       await Future.wait([
         state.markUnitsReached(stillChecked, date: widget.date),
         state.markUnitsReached(uncheckedNow, date: widget.date, reach: false),
+        if (learn != null) ...[
+          state.markLearnVerses(
+              widget.date,
+              learn.sourate.id,
+              [for (final v in learn.ayahIds) if (!_notLearned.contains(v)) v],
+              true),
+          state.markLearnVerses(
+              widget.date, learn.sourate.id, _notLearned.toList(), false),
+        ],
       ]);
       final cycleWrapped = await state.checkOut(widget.date);
       // Le jour en attente est scellé. Écart d'1 jour : pas de choix
@@ -151,6 +176,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                       it.needsWorkVerses,
                                     ),
                                   ),
+                                ..._learnSection(palette),
                               ],
                             ),
                     ),
@@ -179,6 +205,70 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       title: title,
       badge: badge,
     );
+  }
+
+  /// Volet apprentissage (Phase 9) : les versets proposés à la mémorisation
+  /// ce jour-là, cochés par défaut. Décocher un verset le laisse `reach = 0`
+  /// — il repassera dans la proposition du lendemain.
+  List<Widget> _learnSection(AppPalette palette) {
+    final learn = _learnPlan;
+    if (learn == null || learn.ayahIds.isEmpty) return const [];
+    return [
+      const SizedBox(height: 18),
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: palette.surfaceCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: palette.cardBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(S.checkOutApprentissage.toUpperCase(),
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.4,
+                    color: palette.textMuted)),
+            const SizedBox(height: 6),
+            Text('${learn.sourate.nameFr} · ${learn.sourate.nameAr}',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: palette.textPrimary)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final v in learn.ayahIds)
+                  VerseChip(
+                    borderColor: _notLearned.contains(v)
+                        ? palette.cardBorder
+                        : palette.gold.withValues(alpha: 0.8),
+                    onTap: () => setState(() {
+                      if (!_notLearned.add(v)) _notLearned.remove(v);
+                    }),
+                    child: Text('$v',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: _notLearned.contains(v)
+                                ? palette.textMuted
+                                : palette.goldDark)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(S.checkOutApprentissageDesc,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: palette.textMuted)),
+          ],
+        ),
+      ),
+    ];
   }
 
   Widget _stepDots(AppPalette palette, bool showPart2) {

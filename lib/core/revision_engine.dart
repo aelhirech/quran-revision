@@ -264,14 +264,27 @@ class RevisionEngine {
   /// [buildDayUnits] (nouveau flux) ou des lignes `ayah_facts` déjà
   /// validées au check-in (Phase 6 Sprint 2 — PlanScreen ne génère plus son
   /// propre plan, il répartit celui déjà confirmé).
+  /// [learningUnit] (optionnel) — les versets que l'utilisateur veut
+  /// *apprendre* aujourd'hui : ils occupent la toute dernière rakaa récitée
+  /// de la journée, la révision se répartissant sur les précédentes. Le
+  /// budget de rakaas laissé à la révision est donc réduit d'une unité, sans
+  /// quoi la dernière portion de révision serait simplement écrasée par
+  /// l'apprentissage au lieu d'être redistribuée.
   static List<PrayerPlan> distributeToRakaas({
     required List<RevisionUnit> units,
     required List<Prayer> prayersAlone,
+    RevisionUnit? learningUnit,
   }) {
     final totalSuratRakaas =
         prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
-    final pool = _UnitPool(_expandToRakaas(units, totalSuratRakaas));
+    final hasLearning = learningUnit != null && totalSuratRakaas > 0;
+    final pool = _UnitPool(
+        _expandToRakaas(units, totalSuratRakaas - (hasLearning ? 1 : 0)));
 
+    // Décompte des rakaas récitées restantes : la dernière (recitedLeft == 0
+    // après décrément) est celle de l'apprentissage. Compter à rebours évite
+    // d'avoir à retrouver "la dernière prière qui récite" en amont.
+    int recitedLeft = totalSuratRakaas;
     final plan = <PrayerPlan>[];
     for (final prayer in prayersAlone) {
       pool.startPrayer();
@@ -281,6 +294,12 @@ class RevisionEngine {
           // Rakaa silencieuse (au-delà du nombre de rakaas récitées à voix haute) —
           // c'est la seule situation où une rakaa reste vide.
           rakaas.add(RakaaAssignment(rakaaNumber: r));
+          continue;
+        }
+        recitedLeft--;
+        if (hasLearning && recitedLeft == 0) {
+          rakaas.add(RakaaAssignment(
+              rakaaNumber: r, unit: learningUnit, isLearning: true));
           continue;
         }
         rakaas.add(RakaaAssignment(rakaaNumber: r, unit: pool.next()));
@@ -375,7 +394,9 @@ class RevisionEngine {
     int counted = 0;
     for (final pp in plan) {
       for (final r in pp.rakaas) {
-        if (r.unit == null) continue;
+        // La rakaa d'apprentissage n'est pas une unité de révision : elle ne
+        // fait pas avancer le cycle et se confirme au check-out, pas ici.
+        if (r.unit == null || r.isLearning) continue;
         if (counted >= n) break;
         counted++;
         seenLabels.add(r.unit!.label);

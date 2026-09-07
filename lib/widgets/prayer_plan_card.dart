@@ -109,12 +109,19 @@ class PrayerPlanCard extends StatelessWidget {
                           ))
                       : Text(S.alFatihaSeul,
                           style: TextStyle(color: palette.textMuted, fontSize: 13)),
+                  // La rakaa d'apprentissage garde le même sous-titre que les
+                  // autres (compte de versets) — sans fraîcheur, qui n'a pas
+                  // de sens pour un contenu jamais révisé — et gagne un tag
+                  // en plus, pas à la place.
                   if (hasUnit)
                     _subtitle(
                         palette,
                         r.unit!,
-                        freshnessOf?.call(
-                            r.unit!.sourate.id, r.unit!.verseStart, r.unit!.verseEnd)),
+                        r.isLearning
+                            ? null
+                            : freshnessOf?.call(r.unit!.sourate.id,
+                                r.unit!.verseStart, r.unit!.verseEnd),
+                        isLearning: r.isLearning),
                 ],
               ),
             ),
@@ -131,17 +138,37 @@ class PrayerPlanCard extends StatelessWidget {
     );
   }
 
-  /// Sous-titre d'une rakaa : compte de versets et/ou badge de fraîcheur.
-  Widget _subtitle(AppPalette palette, RevisionUnit unit, FreshnessLevel? freshness) {
+  /// Sous-titre d'une rakaa : compte de versets, badge de fraîcheur, et/ou
+  /// tag « Apprentissage » pour la dernière rakaa du jour (Phase 9) —
+  /// l'utilisateur doit voir d'un coup d'œil que cette rakaa n'a pas la même
+  /// nature que les précédentes.
+  Widget _subtitle(AppPalette palette, RevisionUnit unit, FreshnessLevel? freshness,
+      {bool isLearning = false}) {
     final showCount = !unit.isWhole;
     final showBadge = freshness != null && freshnessShowsBadge(freshness);
 
-    if (!showCount && !showBadge) return const SizedBox.shrink();
+    if (!showCount && !showBadge && !isLearning) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Row(
         children: [
+          if (isLearning) ...[
+            // Même géométrie que `FreshnessBadge` (le badge voisin de cette
+            // même ligne) plutôt qu'une pilule de plus : les deux ne
+            // coexistent jamais, mais ils occupent la même place et doivent
+            // se ressembler.
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(S.rakaaApprentissage,
+                  style: TextStyle(fontSize: 10, color: palette.goldDark)),
+            ),
+            const SizedBox(width: 8),
+          ],
           if (showCount)
             Text(
               '${unit.verseCount} ${S.versets}',

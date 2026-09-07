@@ -192,33 +192,6 @@ class AyahFactsService {
 
   // --- Apprentissage ---
 
-  /// Marque le 1er verset d'une sourate comme visé (`reach = 0`) dès la
-  /// décision de démarrer son apprentissage — même sémantique "proposé (0)
-  /// puis atteint (1)" que `proposeUnits`/`setReach` côté révision, pas un
-  /// événement à part. `ConflictAlgorithm.ignore` : si une ligne existe déjà
-  /// aujourd'hui pour ce verset (ex. déjà appris), on ne l'écrase pas.
-  /// Sans cette ligne, `LearnScreen._startNewSourate` ne persistait rien
-  /// tant qu'aucun verset n'était réellement appris, et la sourate
-  /// disparaissait de "en cours d'apprentissage" si l'utilisateur quittait
-  /// l'écran de pratique avant de marquer un premier bloc (retour TestFlight
-  /// du 2026-09-01).
-  static Future<void> startLearning(int surahId, Riwaya riwaya) async {
-    final db = await _open();
-    final date = DateTime.now().toIso8601String().substring(0, 10);
-    await db.insert(
-      'ayah_facts',
-      AyahFact(
-        userId: _userId,
-        date: date,
-        riwaya: riwaya,
-        surahId: surahId,
-        ayahId: 1,
-        type: AyahFactType.learn,
-      ).toMap(),
-      conflictAlgorithm: ConflictAlgorithm.ignore,
-    );
-  }
-
   static Future<void> learnVerse(int surahId, int ayahId, Riwaya riwaya) async {
     await learnVerses(surahId, [ayahId], riwaya);
   }
@@ -280,6 +253,19 @@ class AyahFactsService {
     return result;
   }
 
+  /// Versets acquis d'**une seule** sourate — filtré en SQL plutôt que de
+  /// charger [learnedVersesBySourate] en entier pour n'en garder qu'une clé
+  /// (le check-in appelle ce chemin à chaque ajustement de la portion).
+  static Future<Set<int>> learnedVersesForSourate(
+      {required Riwaya riwaya, required int surahId}) async {
+    final db = await _open();
+    final rows = await db.query('ayah_facts',
+        columns: ['ayah_id'],
+        where: 'riwaya = ? AND type = ? AND reach = 1 AND surah_id = ?',
+        whereArgs: [riwaya.name, AyahFactType.learn.name, surahId]);
+    return {for (final row in rows) row['ayah_id'] as int};
+  }
+
   /// Date de première ligne `learn` par sourate (`MIN(date)` groupé) — sert
   /// de `startDate` approximatif pour `LearningProgress`.
   static Future<Map<int, DateTime>> learnStartDatesBySourate(
@@ -330,6 +316,86 @@ class AyahFactsService {
     await db.delete('ayah_facts',
         where: 'surah_id = ? AND riwaya = ? AND type = ?',
         whereArgs: [surahId, riwaya.name, AyahFactType.learn.name]);
+  }
+
+  /// Écrit les versets que l'utilisateur veut *apprendre* le jour [date] —
+  /// mêmes sémantiques que [proposeUnits] côté révision (`reach = 0` = visé,
+  /// pas encore acquis ; `ConflictAlgorithm.ignore` pour ne jamais écraser
+  /// un verset déjà marqué appris). C'est ce que la dernière rakaa du plan
+  /// du jour fait réciter (voir `RevisionEngine.distributeToRakaas`).
+  static Future<void> proposeLearnVerses(
+      String date, Riwaya riwaya, int surahId, List<int> ayahIds) async {
+    if (ayahIds.isEmpty) return;
+    final db = await _open();
+    final batch = db.batch();
+    for (final ayahId in ayahIds) {
+      batch.insert(
+        'ayah_facts',
+        AyahFact(
+          userId: _userId,
+          date: date,
+          riwaya: riwaya,
+          surahId: surahId,
+          ayahId: ayahId,
+          type: AyahFactType.learn,
+        ).toMap(),
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  /// Portion à apprendre **proposée** pour [date], ou `null` si aucune.
+  ///
+  /// Filtre `checked_out = 0`, ce qui distingue la proposition du jour
+  /// (écrite par [proposeLearnVerses]) des versets travaillés à la volée
+  /// dans l'écran de pratique ([learnVerses] écrit `checked_out = 1`) — sans
+  /// ce filtre, pratiquer une autre sourate le même jour pouvait détourner
+  /// le plan du jour vers elle (`ORDER BY surah_id` prend le plus petit id),
+  /// et le check-out proposait alors de « désapprendre » des versets
+  /// réellement acquis.
+  ///
+  /// S'il reste plusieurs sourates candidates (l'utilisateur a changé de
+  /// sourate en cours de journée après en avoir déjà acquis des versets),
+  /// celle qui porte encore des versets non acquis l'emporte : c'est la
+  /// proposition active, pas le reliquat de la précédente.
+  static Future<({int surahId, List<int> ayahIds, Set<int> reachedVerses})?>
+      learnPlanFor(String date, Riwaya riwaya) async {
+    final db = await _open();
+    final rows = await db.query('ayah_facts',
+        columns: ['surah_id', 'ayah_id', 'reach'],
+        where: 'date = ? AND riwaya = ? AND type = ? AND checked_out = 0',
+        whereArgs: [date, riwaya.name, AyahFactType.learn.name],
+        orderBy: 'surah_id, ayah_id');
+    if (rows.isEmpty) return null;
+    final pending = rows.firstWhere((r) => (r['reach'] as int) == 0,
+        orElse: () => rows.first);
+    final surahId = pending['surah_id'] as int;
+    final forSurah = rows.where((r) => r['surah_id'] as int == surahId);
+    return (
+      surahId: surahId,
+      ayahIds: [for (final r in forSurah) r['ayah_id'] as int],
+      reachedVerses: {
+        for (final r in forSurah)
+          if ((r['reach'] as int) == 1) r['ayah_id'] as int,
+      },
+    );
+  }
+
+  /// Efface la proposition non encore acquise d'un jour, pour la
+  /// régénérer — l'utilisateur ajuste son rythme (révision) ou change de
+  /// sourate/nombre de versets (apprentissage) au check-in. Ne touche jamais
+  /// une ligne `reach = 1` : une progression déjà faite ne disparaît pas
+  /// parce qu'on recalcule la proposition (voir CLAUDE.md § « Modèle de
+  /// données central »). Même nature de suppression que
+  /// [removeFromDayPlan] (retrait explicite du plan du jour), pas un
+  /// "retour en arrière" d'un pas.
+  static Future<void> clearDayProposal(String date, Riwaya riwaya,
+      {AyahFactType type = AyahFactType.revise}) async {
+    final db = await _open();
+    await db.delete('ayah_facts',
+        where: 'date = ? AND riwaya = ? AND type = ? AND reach = 0',
+        whereArgs: [date, riwaya.name, type.name]);
   }
 
   // --- Rituel check-in/check-out (Phase 6 Sprint 2) ---
@@ -436,10 +502,34 @@ class AyahFactsService {
     await batch.commit(noResult: true);
   }
 
+  /// Comme [setReach], mais pour une liste de versets précis d'une même
+  /// sourate en un seul aller-retour — la portion à apprendre d'un jour
+  /// n'est pas nécessairement contiguë (l'utilisateur peut avoir désappris
+  /// un verset au milieu, voir `AppState._proposeLearning`), donc une plage
+  /// `BETWEEN` ne suffit pas.
+  static Future<void> setReachForVerses(String date, Riwaya riwaya, int surahId,
+      List<int> ayahIds, bool reach,
+      {required AyahFactType type}) async {
+    if (ayahIds.isEmpty) return;
+    final db = await _open();
+    final batch = db.batch();
+    for (final ayahId in ayahIds) {
+      batch.update('ayah_facts', {'reach': reach ? 1 : 0},
+          where:
+              'date = ? AND riwaya = ? AND surah_id = ? AND ayah_id = ? AND type = ?',
+          whereArgs: [date, riwaya.name, surahId, ayahId, type.name]);
+    }
+    await batch.commit(noResult: true);
+  }
+
   /// Bascule `reach` ("fait"/"pas fait") pour une plage de versets — case à
-  /// cocher du check-out, ou une rakaa cochée dans PlanScreen.
+  /// cocher du check-out, ou une rakaa cochée dans PlanScreen. [type] permet
+  /// la même bascule sur la portion à *apprendre* du jour (rakaa
+  /// d'apprentissage, confirmation au check-out) plutôt que de dupliquer un
+  /// `setLearnReach` quasi identique à côté.
   static Future<void> setReach(String date, Riwaya riwaya, int surahId,
-      int verseStart, int verseEnd, bool reach) async {
+      int verseStart, int verseEnd, bool reach,
+      {AyahFactType type = AyahFactType.revise}) async {
     final db = await _open();
     await db.update('ayah_facts', {'reach': reach ? 1 : 0},
         where:
@@ -450,7 +540,7 @@ class AyahFactsService {
           surahId,
           verseStart,
           verseEnd,
-          AyahFactType.revise.name
+          type.name
         ]);
   }
 
@@ -488,12 +578,13 @@ class AyahFactsService {
   /// pour qu'`AppState.reachStatusFor` n'ait pas besoin d'une requête
   /// [isRangeReached] par unité affichée dans PlanScreen.
   static Future<Map<int, Set<int>>> reachedVersesToday(
-      String date, Riwaya riwaya) async {
+      String date, Riwaya riwaya,
+      {AyahFactType type = AyahFactType.revise}) async {
     final db = await _open();
     final rows = await db.query('ayah_facts',
         columns: ['surah_id', 'ayah_id'],
         where: 'date = ? AND riwaya = ? AND type = ? AND reach = 1',
-        whereArgs: [date, riwaya.name, AyahFactType.revise.name]);
+        whereArgs: [date, riwaya.name, type.name]);
     final result = <int, Set<int>>{};
     for (final row in rows) {
       result.putIfAbsent(row['surah_id'] as int, () => {}).add(row['ayah_id'] as int);
@@ -516,12 +607,17 @@ class AyahFactsService {
     return (rows.first['total'] as int? ?? 0) > 0;
   }
 
-  /// Scelle une journée : `checked_out = 1` pour toutes ses lignes de
-  /// révision. `reach`/`needs_work` doivent déjà être à jour (voir
-  /// [setReach]/[setNeedsWork], appliqués au fil des interactions du
-  /// check-out) — chaque bascule précédente est déjà durablement écrite, un
-  /// simple UPDATE suffit donc ici, pas besoin d'empaqueter
-  /// reach+needs_work+checked_out dans une même transaction.
+  /// Scelle une journée : `checked_out = 1` pour ses lignes de révision.
+  /// **Volontairement borné à `type = 'revise'`** : `checked_out` n'est lu
+  /// que par [pendingDate], elle-même filtrée sur `revise`. L'élargir à
+  /// `learn` ressemblerait à une décision de modèle sans en être une (aucun
+  /// lecteur, et `learnVerses` écrit déjà `checked_out = 1` par
+  /// construction) — si le gating du moteur quotidien doit un jour tenir
+  /// compte de l'apprentissage, c'est [pendingDate] qu'il faut élargir en
+  /// premier, pas cette écriture. `reach`/`needs_work` doivent déjà être à
+  /// jour (voir [setReach]/[setNeedsWork], appliqués au fil des interactions
+  /// du check-out) — chaque bascule précédente est déjà durablement écrite,
+  /// un simple UPDATE suffit donc ici.
   static Future<void> sealDay(String date, Riwaya riwaya) async {
     final db = await _open();
     await db.update('ayah_facts', {'checked_out': 1},
