@@ -228,6 +228,37 @@ class RevisionEngine {
     );
   }
 
+  /// Tous les groupes du cycle, dans l'ordre du cycle (shuffle déterministe
+  /// puis regroupement par page partagée) — pas seulement ceux qui tiennent
+  /// dans le budget d'un jour. `buildDayUnits` en consomme un préfixe à
+  /// partir de `cyclePosition` ; `AppState.checkOut` a besoin de la liste
+  /// entière pour continuer à compter au-delà de ce qui avait été proposé
+  /// quand l'utilisateur déclare en avoir fait plus (cadrage 2026-09-07).
+  ///
+  /// Un groupe = une position de cycle (voir [DaySelection.groups]).
+  static List<List<RevisionUnit>> cycleGroups({
+    required UserConfig config,
+    required Map<int, Map<int, int>> pageMetadata,
+  }) {
+    final List<SourateSelection> surahList = List.from(config.selections);
+    if (config.shuffleEnabled) {
+      surahList.shuffle(math.Random(config.startDate.millisecondsSinceEpoch));
+    }
+    if (surahList.isEmpty) return const [];
+    return [
+      for (final group in _groupSelectionsByPage(surahList, pageMetadata))
+        [
+          for (final selection in group)
+            RevisionUnit(
+              sourate: selection.sourate,
+              verseStart: selection.verseStart,
+              verseEnd: selection.verseEnd,
+              isWhole: selection.isWhole,
+            ),
+        ],
+    ];
+  }
+
   /// Construit le plan complet du jour (sélection + répartition en rakaas)
   /// en un seul appel — composition pure de [buildDayUnits] +
   /// [distributeToRakaas], sans effet de bord.

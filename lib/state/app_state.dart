@@ -759,9 +759,20 @@ class AppState extends ChangeNotifier {
   Future<bool> checkOut(String date) async {
     if (_config == null) return false;
     final selection = await _selectionForAsync(date);
+    // Le comptage ne s'arrête plus à ce que le moteur avait proposé : il
+    // continue dans les groupes SUIVANTS du cycle (cadrage 2026-09-07,
+    // « faire plus fait avancer le cycle »). Un groupe au-delà de la
+    // proposition ne compte que si l'utilisateur l'a réellement déclaré ce
+    // jour-là — sinon le curseur sauterait du contenu jamais révisé.
+    final allGroups = RevisionEngine.cycleGroups(
+      config: _config!,
+      pageMetadata: PageMetadataService.pageMetadataFor(_riwaya),
+    );
+    final proposedCount = selection.groups.length;
     int groupsCompleted = 0;
     outer:
-    for (final group in selection.groups) {
+    for (int step = 0; step < allGroups.length; step++) {
+      final group = allGroups[(selection.cyclePosition + step) % allGroups.length];
       bool anyExists = false;
       for (final unit in group) {
         final exists = await AyahFactsService.rangeExists(
@@ -772,7 +783,13 @@ class AppState extends ChangeNotifier {
             date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
         if (!reached) break outer; // unité présente mais pas faite — le groupe (et la suite) bloque
       }
-      if (!anyExists) continue; // groupe entièrement retiré — ni compté ni bloquant
+      if (!anyExists) {
+        // Aucune ligne pour ce groupe. Dans la proposition du jour, c'est un
+        // retrait au check-in : ni compté ni bloquant. Au-delà, c'est
+        // simplement du contenu non fait : le cycle s'arrête là.
+        if (step < proposedCount) continue;
+        break outer;
+      }
       groupsCompleted++;
     }
     final cycleWraps = selection.cycleTotal > 0 &&

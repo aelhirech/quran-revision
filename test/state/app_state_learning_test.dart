@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quran_revision/core/revision_engine.dart';
 import 'package:quran_revision/models/ayah_fact.dart';
 import 'package:quran_revision/models/learning_progress.dart';
 import 'package:quran_revision/models/riwaya.dart';
@@ -208,35 +209,64 @@ void main() {
   });
 
   test(
-      'check-out : déclarer une sourate révisée EN PLUS l\'ajoute au jour sans '
-      'faire avancer le cycle au-delà de ce que le moteur avait proposé',
+      'check-out : déclarer en plus le groupe SUIVANT du cycle le fait avancer '
+      "d'autant (cadrage 2026-09-07)", () async {
+    final day = _isoDate(DateTime.now().subtract(const Duration(days: 2)));
+    final state = newState();
+    // Les deux groupes du cycle (sourates 60 et 65, chacune multi-page donc
+    // jamais regroupées) dans l'ordre réel du cycle.
+    final groups = RevisionEngine.cycleGroups(
+      config: state.config!,
+      pageMetadata: PageMetadataService.pageMetadataFor(Riwaya.hafs),
+    );
+    expect(groups, hasLength(2));
+
+    // Le moteur n'en propose qu'un (pagesPerDay = 1) ; l'utilisateur déclare
+    // aussi le suivant, et coche tout.
+    for (final group in groups) {
+      await AyahFactsService.proposeUnits(day, Riwaya.hafs, group);
+    }
+    await state.markUnitsReached(
+        [for (final g in groups) ...g], date: day);
+
+    await state.ensureDayPlan(); // détecte le jour en attente
+    expect(state.pendingDate, day);
+    await state.checkOut(day);
+
+    expect(state.cyclePosition, 0,
+        reason: 'les 2 groupes du cycle faits le même jour → le cycle boucle '
+            '(2 positions avancées sur un cycle de 2)');
+  });
+
+  test(
+      "une sourate hors sélection déclarée en plus ne fait PAS sauter le cycle",
       () async {
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 2)));
+    final day = _isoDate(DateTime.now().subtract(const Duration(days: 3)));
     final state = newState();
     final extra = state.sourates.firstWhere((s) => s.id == 112);
 
-    // Un jour en attente, avec la seule unité proposée par le moteur faite.
-    await AyahFactsService.proposeUnits(yesterday, Riwaya.hafs,
-        [RevisionUnit(sourate: state.sourates.firstWhere((s) => s.id == 60), verseStart: 1, verseEnd: 5, isWhole: false)]);
+    // Seul le groupe proposé par le moteur est fait ; la sourate déclarée en
+    // plus n'appartient pas au cycle configuré (60/65).
+    final groups = RevisionEngine.cycleGroups(
+      config: state.config!,
+      pageMetadata: PageMetadataService.pageMetadataFor(Riwaya.hafs),
+    );
+    await AyahFactsService.proposeUnits(day, Riwaya.hafs, groups.first);
     await state.addToDayPlan(
         RevisionUnit(
             sourate: extra, verseStart: 1, verseEnd: extra.verses, isWhole: true),
-        date: yesterday);
+        date: day);
 
-    final units = await state.dayUnits(date: yesterday);
+    final units = await state.dayUnits(date: day);
     expect(units.map((u) => u.sourate.id), contains(112),
         reason: 'la sourate déclarée en plus rejoint le plan de ce jour-là');
+    await state.markUnitsReached(units, date: day);
 
-    await state.markUnitsReached(units, date: yesterday);
-    final before = state.cyclePosition;
-    await state.checkOut(yesterday);
-    // Deux unités faites ce jour-là (celle du moteur + celle déclarée en
-    // plus), mais un seul groupe proposé par le moteur : le cycle n'avance
-    // que d'une position. L'ajout hors-sélection alimente historique et
-    // fraîcheur sans gonfler la progression (règle `AppState.checkOut`).
-    expect(state.cyclePosition, before + 1,
-        reason: 'seul le groupe proposé par le moteur compte — la sourate '
-            'déclarée en plus n\'ajoute pas une position de cycle');
+    await state.ensureDayPlan();
+    await state.checkOut(day);
+    expect(state.cyclePosition, 1,
+        reason: 'un seul groupe du cycle fait : le curseur avance de 1, sans '
+            'sauter le groupe suivant qui n\'a pas été révisé');
   });
 
   test('un verset décoché au check-out reste "à continuer" (reach=0)', () async {

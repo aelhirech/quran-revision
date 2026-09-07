@@ -5,6 +5,7 @@ import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import '../models/sourate.dart';
+import '../models/sourate_selection.dart';
 import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
 import '../widgets/cycle_milestone_dialog.dart';
@@ -13,6 +14,7 @@ import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/unit_range_label.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_chips_scaffold.dart';
+import '../widgets/verse_range_picker.dart';
 
 /// Popup de rattrapage : scelle un jour de révision non encore clôturé
 /// (`checked_out = 0`) — c'est le seul moment où `cyclePosition` avance
@@ -239,6 +241,11 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
         ),
       );
 
+  /// Choix de la sourate puis de la **portion** réellement révisée
+  /// (`VerseRangePicker`, le même sélecteur que l'onboarding) — on peut
+  /// n'avoir fait qu'une partie de la sourate en plus. Fermer le sélecteur
+  /// de plage sans confirmer annule l'ajout : la sourate n'a été
+  /// présélectionnée que pour pouvoir l'ouvrir.
   Future<void> _addRevisedSourate() async {
     final state = context.read<AppState>();
     final present = _items!.map((it) => it.unit.sourate.id).toSet();
@@ -252,9 +259,21 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
           sourates: candidates, title: S.checkOutSourateEnPlusTitre),
     );
     if (picked == null || !mounted) return;
+    final range = await showModalBottomSheet<SourateSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => VerseRangePicker(
+          sourate: picked, current: SourateSelection.whole(picked)),
+    );
+    if (range == null || !mounted) return;
     await state.addToDayPlan(
       RevisionUnit(
-          sourate: picked, verseStart: 1, verseEnd: picked.verses, isWhole: true),
+        sourate: picked,
+        verseStart: range.verseStart,
+        verseEnd: range.verseEnd,
+        isWhole: range.isWhole,
+      ),
       date: widget.date,
     );
     await _load();
