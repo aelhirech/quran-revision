@@ -10,6 +10,7 @@ import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/primary_cta_button.dart';
+import '../widgets/unit_range_label.dart';
 
 /// Répartition en rakaas d'un plan déjà validé au check-in (Phase 6 Sprint
 /// 2, voir cadrage "Moteur quotidien") — checklist active uniquement,
@@ -228,6 +229,7 @@ class _PlanScreenState extends State<PlanScreen> {
             ),
           ),
           SliverToBoxAdapter(child: _summaryBar()),
+          SliverToBoxAdapter(child: _outsidePrayersBlock()),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
             sliver: SliverList(
@@ -268,6 +270,43 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
+  /// Content that did not fit in the chosen prayers, shown read-only: the
+  /// rakaa layout is a display and must not hide day content the check-out
+  /// will still credit (cadrage 2026-09-08).
+  Widget _outsidePrayersBlock() {
+    final extra = widget.session.outsidePrayers;
+    if (extra.isEmpty) return const SizedBox.shrink();
+    final palette = context.palette;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: palette.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(S.horsPrieresTitre,
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: palette.textPrimary)),
+          const SizedBox(height: 4),
+          Text(S.horsPrieresDesc,
+              style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
+          const SizedBox(height: 10),
+          for (final u in extra)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: UnitRangeLabel(unit: u, nameColor: palette.textPrimary),
+            ),
+        ],
+      ),
+    );
+  }
+
   /// « Clôturer ma journée » — **toujours actif** (cadrage 2026-09-07) : le
   /// check-out est précisément l'endroit où l'on corrige ce qui n'a pas été
   /// fait comme ce qui l'a été en plus, le verrouiller tant que toutes les
@@ -297,7 +336,7 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   /// Bandeau de résumé — en **pages réelles** depuis la Phase 9 Sprint 2, la
-  /// même unité que le rythme réglé. Lit `pagesPosition`/`pagesTotal` du
+  /// même unité que le rythme réglé. Lit `cyclePosition`/`cycleTotal` du
   /// `DailySession` au lieu de reprojeter localement une fin de cycle : cet
   /// écran était le dernier des trois (avec Accueil et Récap) à refaire
   /// l'arithmétique de cycle dans son coin — dette §8.5 de la doc technique.
@@ -327,7 +366,7 @@ class _PlanScreenState extends State<PlanScreen> {
           Row(
             children: [
               Text(
-                '${S.cycleEnCours} : ${session.pagesPosition} / ${session.pagesTotal}',
+                '${S.cycleEnCours} : ${session.cyclePosition} / ${session.cycleTotal}',
                 style: TextStyle(color: palette.textMuted, fontSize: 11),
               ),
               const SizedBox(width: 8),
@@ -335,9 +374,9 @@ class _PlanScreenState extends State<PlanScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(3),
                   child: LinearProgressIndicator(
-                    value: session.pagesTotal == 0
+                    value: session.cycleTotal == 0
                         ? 0
-                        : session.pagesPosition / session.pagesTotal,
+                        : session.cyclePosition / session.cycleTotal,
                     minHeight: 3,
                     backgroundColor: palette.textPrimary.withValues(alpha: 0.1),
                     color: palette.gold,

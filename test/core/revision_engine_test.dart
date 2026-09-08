@@ -34,7 +34,6 @@ void main() {
       final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -74,7 +73,6 @@ void main() {
       final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -113,7 +111,6 @@ void main() {
       final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -153,13 +150,11 @@ void main() {
       final selection1 = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
       final selection2 = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -197,7 +192,6 @@ void main() {
       final selection0 = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -205,7 +199,6 @@ void main() {
       final selection1 = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 1,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -213,7 +206,6 @@ void main() {
       final selection2 = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 2,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -252,7 +244,6 @@ void main() {
       final selection0 = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -260,7 +251,6 @@ void main() {
       final selection1 = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 1,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -268,7 +258,6 @@ void main() {
       final selection2 = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 2,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -292,7 +281,6 @@ void main() {
       final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: const {},
       );
 
@@ -332,7 +320,6 @@ void main() {
       final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -342,15 +329,14 @@ void main() {
       expect(selection.groups, hasLength(1),
           reason: 'un seul groupe de 3 unités — une seule position de cycle');
       expect(selection.groups.single, hasLength(3));
-      expect(selection.cycleTotal, 2,
-          reason: '2 slots au total : le groupe de la page 602, et la '
-              'sourate 2 (page différente) — pas 4 sourates individuelles');
+      expect(selection.cycleTotal, 3,
+          reason: 'le cycle compte des PAGES : la page 602 partagee par les 3 '
+              'courtes sourates, plus les 2 pages de la sourate 2');
 
       // Position 1 (après le groupe) : doit prendre la sourate 2, seule.
       final next = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 1,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
       expect(next.units.map((u) => u.sourate.id).toList(), [2]);
@@ -381,7 +367,6 @@ void main() {
       final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
 
@@ -419,7 +404,6 @@ void main() {
       final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: mockPageMetadata,
       );
       final plan = RevisionEngine.distributeToRakaas(
@@ -495,7 +479,6 @@ void main() {
       final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: const {},
       );
       final plan = RevisionEngine.distributeToRakaas(
@@ -503,7 +486,7 @@ void main() {
         prayersAlone: [Prayer.fajr],
       );
       expect(selection.cycleTotal, 0);
-      expect(selection.pagesTotal, 0);
+      expect(selection.cycleTotal, 0);
       // Toutes les rakaas restent "Al-Fatiha seule" (aucune unité à assigner).
       expect(plan.first.rakaas.every((r) => r.unit == null), isTrue);
     });
@@ -560,33 +543,31 @@ void main() {
     });
 
     test(
-        'pagesTotal/pagesPosition expriment le cycle dans la même unité que '
+        'cycleTotal/cyclePosition expriment le cycle dans la même unité que '
         'pagesPerDay — un groupe de page partagée coûte 1 page, pas 2', () async {
       final atStart = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: pageMetadata,
       );
       expect(atStart.cycleTotal, 2, reason: '106+107 groupées, 61 seule');
-      expect(atStart.pagesTotal, 2,
+      expect(atStart.cycleTotal, 2,
           reason: "la page 602 partagée ne compte qu'une fois");
-      expect(atStart.pagesPosition, 0);
+      expect(atStart.cyclePosition, 0);
 
       // Un groupe consommé : la position en pages suit celle en groupes.
       final afterFirst = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 1,
-        today: DateTime(2026, 1, 2),
         pageMetadata: pageMetadata,
       );
-      expect(afterFirst.pagesPosition, 1);
-      expect(afterFirst.pagesTotal, 2);
+      expect(afterFirst.cyclePosition, 1);
+      expect(afterFirst.cycleTotal, 2);
     });
 
     test(
         "une page physique partagée par deux GROUPES n'est comptée qu'une fois "
-        "dans pagesTotal — la sommer gonflerait le cycle complet à 659 pages "
+        "dans cycleTotal — la sommer gonflerait le cycle complet à 659 pages "
         "au lieu des 604 du mushaf Hafs", () async {
       // 2 sourates multi-pages (donc jamais regroupées ensemble) qui se
       // partagent la page 2 : la première finit dessus, la seconde y commence.
@@ -606,11 +587,9 @@ void main() {
           shuffleEnabled: false,
         ),
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: straddling,
       );
-      expect(selection.cycleTotal, 2, reason: "deux groupes distincts");
-      expect(selection.pagesTotal, 3,
+      expect(selection.cycleTotal, 3,
           reason: "pages 1, 2 et 3 — la somme par groupe en compterait 4");
     });
 
@@ -623,11 +602,159 @@ void main() {
           riwaya: Riwaya.hafs,
         ),
         cyclePosition: 0,
-        today: DateTime(2026, 1, 1),
         pageMetadata: const {},
       );
-      expect(empty.pagesTotal, 0);
-      expect(empty.pagesPosition, 0);
+      expect(empty.cycleTotal, 0);
+      expect(empty.cyclePosition, 0);
+    });
+  });
+
+  // ─── Règle du plan quotidien (CLAUDE.md § « Règle du plan quotidien ») ──────
+  //
+  // Le cycle est une liste ORDONNÉE DE PAGES du mushaf, et `cyclePosition`
+  // indexe cette liste. Ces tests verrouillent les invariants de ce bloc ;
+  // ils échouaient tous avant la refonte du 2026-09-08.
+  group('RevisionEngine — le cycle est une liste ordonnée de pages', () {
+    // S2 mockée sur 3 pages : v.1-5 | v.6-12 | v.13-20. S112 tient sur 1 page.
+    final pageMeta = {
+      2: {
+        for (var v = 1; v <= 5; v++) v: 1,
+        for (var v = 6; v <= 12; v++) v: 2,
+        for (var v = 13; v <= 20; v++) v: 3,
+      },
+      112: {for (var v = 1; v <= 4; v++) v: 10},
+    };
+    final s2 = _sourate(2, 20, 400);
+    final s112 = _sourate(112, 4, 20);
+
+    UserConfig cfg(List<SourateSelection> sel, {int pages = 1}) => UserConfig(
+          selections: sel,
+          pagesPerDay: pages,
+          startDate: DateTime(2026, 1, 1),
+          riwaya: Riwaya.hafs,
+          shuffleEnabled: false,
+        );
+
+    List<RevisionUnit> dayAt(UserConfig config, int pos) =>
+        RevisionEngine.buildDayUnits(
+          config: config,
+          cyclePosition: pos,
+          pageMetadata: pageMeta,
+        ).units;
+
+    test(
+        "une sourate de N pages est couverte en N jours consécutifs, sans trou "
+        "ni répétition — le bug du 2026-09-08 reproposait indéfiniment sa page 1",
+        () {
+      final config = cfg([SourateSelection.whole(s2), SourateSelection.whole(s112)]);
+      final cycle = RevisionEngine.buildDayUnits(
+          config: config, cyclePosition: 0, pageMetadata: pageMeta);
+      expect(cycle.cycleTotal, 4,
+          reason: "3 pages pour S2 + 1 page pour S112, comptées en PAGES");
+
+      expect(dayAt(config, 0).single.verseStart, 1);
+      expect(dayAt(config, 0).single.verseEnd, 5);
+      expect(dayAt(config, 1).single.verseEnd, 12);
+      expect(dayAt(config, 2).single.verseEnd, 20);
+      expect(dayAt(config, 3).single.sourate.id, 112);
+
+      // Les 3 premières positions couvrent S2 en entier, sans trou ni doublon.
+      final couverts = <int>[];
+      for (var pos = 0; pos < 3; pos++) {
+        final u = dayAt(config, pos).single;
+        for (var v = u.verseStart; v <= u.verseEnd; v++) {
+          couverts.add(v);
+        }
+      }
+      expect(couverts, List.generate(20, (i) => i + 1),
+          reason: "chaque verset de S2 exactement une fois, dans l'ordre");
+
+      // Le cycle reboucle proprement, pas avant.
+      expect(dayAt(config, 4).single.verseStart, 1);
+    });
+
+    test(
+        "une sélection PARTIELLE ne propose jamais hors de sa plage — le bug du "
+        "2026-09-08 répondait v.1-5 à une demande de v.7-15", () {
+      final config = cfg([
+        SourateSelection(sourate: s2, verseStart: 7, verseEnd: 15),
+      ]);
+      final cycle = RevisionEngine.buildDayUnits(
+          config: config, cyclePosition: 0, pageMetadata: pageMeta);
+      expect(cycle.cycleTotal, 2,
+          reason: "v.7-15 chevauche la page 2 (v.7-12) et la page 3 (v.13-15)");
+
+      final j0 = dayAt(config, 0).single;
+      expect([j0.verseStart, j0.verseEnd], [7, 12],
+          reason: "borné par le DÉBUT de la sélection, pas par le début de la page");
+      final j1 = dayAt(config, 1).single;
+      expect([j1.verseStart, j1.verseEnd], [13, 15],
+          reason: "borné par la FIN de la sélection, pas par la fin de la page");
+
+      for (var pos = 0; pos < 4; pos++) {
+        for (final u in dayAt(config, pos)) {
+          expect(u.verseStart, greaterThanOrEqualTo(7));
+          expect(u.verseEnd, lessThanOrEqualTo(15));
+        }
+      }
+    });
+
+    test(
+        "le curseur progresse à l'intérieur d'une sourate même seule sélectionnée "
+        "— avec un cycle compté en groupes, cycleTotal valait 1 et la position "
+        "restait bloquée à 0", () {
+      final config = cfg([SourateSelection.whole(s2)]);
+      final cycle = RevisionEngine.buildDayUnits(
+          config: config, cyclePosition: 0, pageMetadata: pageMeta);
+      expect(cycle.cycleTotal, 3);
+      expect(dayAt(config, 0).single.verseEnd, 5);
+      expect(dayAt(config, 1).single.verseEnd, 12);
+      expect(dayAt(config, 2).single.verseEnd, 20);
+    });
+
+    test(
+        "plusieurs sourates sur une même page physique forment UNE entrée, donc "
+        "UNE journée et UNE page au compteur", () {
+      final partagee = {
+        106: {1: 602, 2: 602, 3: 602, 4: 602},
+        107: {for (var v = 1; v <= 7; v++) v: 602},
+      };
+      final config = UserConfig(
+        selections: [
+          SourateSelection.whole(_sourate(106, 4, 20)),
+          SourateSelection.whole(_sourate(107, 7, 40)),
+        ],
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+      final sel = RevisionEngine.buildDayUnits(
+          config: config, cyclePosition: 0, pageMetadata: partagee);
+      expect(sel.cycleTotal, 1, reason: "une page = une position de cycle");
+      expect(sel.units.map((u) => u.sourate.id).toSet(), {106, 107},
+          reason: "les deux sourates sont proposées le même jour");
+    });
+
+    test("un budget supérieur au cycle ne reproduit jamais deux fois la même page",
+        () {
+      final config = cfg([SourateSelection.whole(s2)], pages: 10);
+      final sel = RevisionEngine.buildDayUnits(
+          config: config, cyclePosition: 0, pageMetadata: pageMeta);
+      expect(sel.groups.length, 3, reason: "3 pages disponibles, pas 10");
+      final debuts = sel.units.map((u) => u.verseStart).toList();
+      expect(debuts.toSet().length, debuts.length, reason: "aucun doublon");
+    });
+
+    test("une sourate sans métadonnée de pagination est ignorée du cycle", () {
+      final config = cfg([
+        SourateSelection.whole(s2),
+        SourateSelection.whole(_sourate(99, 8, 60)), // absente de pageMeta
+      ]);
+      final sel = RevisionEngine.buildDayUnits(
+          config: config, cyclePosition: 0, pageMetadata: pageMeta);
+      expect(sel.cycleTotal, 3, reason: "seules les 3 pages de S2 entrent");
+      expect(sel.units.every((u) => u.sourate.id == 2), isTrue);
     });
   });
 }

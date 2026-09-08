@@ -24,7 +24,17 @@ import '../widgets/spotlight_tour.dart';
 class HomeScreen extends StatefulWidget {
   final VoidCallback onIlluminer;
 
-  const HomeScreen({super.key, required this.onIlluminer});
+  /// Reopens today's check-out once the day is sealed. Sealing used to be a
+  /// dead end until midnight, so a mistyped check-out could not be fixed;
+  /// `AppState.checkOut` is idempotent on the cycle, so reopening never
+  /// credits anything twice.
+  final VoidCallback onRouvrirCloture;
+
+  const HomeScreen({
+    super.key,
+    required this.onIlluminer,
+    required this.onRouvrirCloture,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -109,11 +119,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
                 CycleProgressCard(
-                  progress: (_daySelection?.pagesTotal ?? 0) > 0
-                      ? _daySelection!.pagesPosition / _daySelection!.pagesTotal
+                  progress: (_daySelection?.cycleTotal ?? 0) > 0
+                      ? _daySelection!.cyclePosition / _daySelection!.cycleTotal
                       : 0.0,
-                  pos: _daySelection?.pagesPosition ?? 0,
-                  total: _daySelection?.pagesTotal ?? 0,
+                  pos: _daySelection?.cyclePosition ?? 0,
+                  total: _daySelection?.cycleTotal ?? 0,
                   streak: _streak,
                   label: S.cycleEnCours,
                 ),
@@ -127,7 +137,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 KeyedSubtree(
                   key: TourKeys.voirPlanButton,
                   child: PrimaryCtaButton(
-                    onPressed: closed ? null : widget.onIlluminer,
+                    onPressed:
+                        closed ? widget.onRouvrirCloture : widget.onIlluminer,
                     icon: closed
                         ? Icons.nightlight_outlined
                         : Icons.wb_sunny_outlined,

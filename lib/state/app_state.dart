@@ -306,10 +306,12 @@ class AppState extends ChangeNotifier {
   /// génération du plan ou plus tard au check-out, sinon `daysElapsed`
   /// dérive avec l'heure de la journée et les deux appels ne comptent plus
   /// les mêmes unités (bug trouvé en revue de code).
-  Future<DaySelection> _selectionForAsync(String date) async => RevisionEngine.buildDayUnits(
+  /// The cycle no longer depends on the date at all: it is a pure function of
+  /// the selection, the pace and the cursor. Every caller reads it here so the
+  /// day plan, the check-out and the KPIs can never diverge.
+  DaySelection get _selection => RevisionEngine.buildDayUnits(
         config: _config!,
         cyclePosition: _cyclePosition,
-        today: DateTime.parse(date),
         pageMetadata: PageMetadataService.pageMetadataFor(_riwaya),
       );
 
@@ -320,7 +322,7 @@ class AppState extends ChangeNotifier {
   /// écrans n'importent jamais `RevisionEngine` directement.
   Future<List<RevisionUnit>> previewTodayUnits() async {
     if (_config == null) return const [];
-    return (await _selectionForAsync(todayStr)).units;
+    return _selection.units;
   }
 
   /// Position/total du cycle en cours (nombre de groupes `RevisionEngine`),
@@ -330,9 +332,7 @@ class AppState extends ChangeNotifier {
   /// propre `RevisionEngine.buildDayUnits(...)` (source de divergence
   /// silencieuse, retour TestFlight 2026-09-01 sur les chiffres du
   /// récapitulatif).
-  Future<DaySelection> getDaySelectionForToday() async {
-    return await _selectionForAsync(todayStr);
-  }
+  Future<DaySelection> getDaySelectionForToday() async => _selection;
 
   /// Point d'entrée du moteur quotidien — à appeler à l'ouverture/reprise de
   /// l'app (voir ShellScreen). Gated sur un éventuel jour en attente
@@ -369,7 +369,7 @@ class AppState extends ChangeNotifier {
       // reproposé à chaque ouverture — sans conséquence sur les données.
       if ((await existingF).isEmpty) {
         await AyahFactsService.proposeUnits(
-            today, _riwaya, (await _selectionForAsync(today)).units);
+            today, _riwaya, _selection.units);
         if (await learnPlanF == null) {
           final inProgress = await learningInProgress();
           if (inProgress != null) {
@@ -491,7 +491,7 @@ class AppState extends ChangeNotifier {
       final today = todayStr;
       await AyahFactsService.clearDayProposal(today, _riwaya);
       await AyahFactsService.proposeUnits(
-          today, _riwaya, (await _selectionForAsync(today)).units);
+          today, _riwaya, _selection.units);
       // Une manche déjà répartie en rakaas porterait des unités qui viennent
       // d'être effacées de la table — ses cases cochées reviendraient en
       // arrière sans explication. On la referme, comme `saveConfig` le fait
@@ -559,16 +559,28 @@ class AppState extends ChangeNotifier {
     if (_config == null || prayersAlone.isEmpty) return;
     // Trois lectures indépendantes (sélection du cycle, unités du jour,
     // portion à apprendre) démarrées ensemble plutôt qu'en série.
-    final selectionF = _selectionForAsync(todayStr);
+    final selection = _selection;
     final unitsF = dayUnits();
     final learningF = todayLearningUnit();
-    final selection = await selectionF;
     final units = await unitsF;
     final plan = RevisionEngine.distributeToRakaas(
       units: units,
       prayersAlone: prayersAlone,
       learningUnit: await learningF,
     );
+    // Units the layout could not place. Only possible when there are more
+    // units than reciting rakaas — in that case `distributeToRakaas` assigns
+    // them whole, so comparing by value is exact. When it subdivides instead
+    // (fewer units than rakaas), nothing is ever left out.
+    final assigned = {
+      for (final pp in plan)
+        for (final r in pp.rakaas)
+          if (r.unit != null && !r.isLearning) r.unit!,
+    };
+    final outside = [
+      for (final u in units)
+        if (!assigned.contains(u)) u,
+    ];
     _todaySession = DailySession(
       date: DateTime.now(),
       prayersAlone: prayersAlone,
@@ -577,8 +589,9 @@ class AppState extends ChangeNotifier {
       // au check-in), pas sur la proposition d'origine de `selection`.
       pagesToday: RevisionEngine.pagesOf(
           units, PageMetadataService.pageMetadataFor(_riwaya)),
-      pagesPosition: selection.pagesPosition,
-      pagesTotal: selection.pagesTotal,
+      cyclePosition: selection.cyclePosition,
+      cycleTotal: selection.cycleTotal,
+      outsidePrayers: outside,
     );
     // `saveActivePrayers` = reprendre la manche en cours après un
     // redémarrage ; `saveLastSessionPrayers` = alimenter « reprendre les
@@ -741,26 +754,24 @@ class AppState extends ChangeNotifier {
     return handed;
   }
 
-  /// Combien de GROUPES du cycle la journée [date] a réellement complétés,
-  /// à partir de `selection.cyclePosition` — c'est ce nombre qui fait avancer
-  /// `cyclePosition` (voir [checkOut], dont la dartdoc porte la règle métier
-  /// complète).
+  /// How many cycle PAGES day [date] actually completed, starting from
+  /// `selection.cyclePosition` — this is what advances the cursor (the full
+  /// business rule lives on [checkOut] and in `CLAUDE.md`).
   ///
-  /// Le comptage ne s'arrête pas à ce que le moteur avait proposé : il
-  /// continue dans les groupes SUIVANTS du cycle (cadrage 2026-09-07,
-  /// « faire plus fait avancer le cycle »). Un groupe au-delà de la
-  /// proposition ne compte que si l'utilisateur l'a réellement déclaré ce
-  /// jour-là — sinon le curseur sauterait du contenu jamais révisé.
-  Future<int> _completedGroupsFor(String date, DaySelection selection) async {
-    final allGroups = RevisionEngine.cycleGroups(
+  /// Counting does not stop at what the engine had proposed: it carries on
+  /// into the NEXT pages of the cycle, so declaring extra work moves the
+  /// cursor. A page beyond the proposal only counts if the user actually
+  /// declared it that day, otherwise the cursor would skip never-revised
+  /// content.
+  Future<int> _completedPagesFor(String date, DaySelection selection) async {
+    final cycle = RevisionEngine.buildCycle(
       config: _config!,
       pageMetadata: PageMetadataService.pageMetadataFor(_riwaya),
     );
     final proposedCount = selection.groups.length;
-    int groupsCompleted = 0;
-    for (int step = 0; step < allGroups.length; step++) {
-      final group =
-          allGroups[(selection.cyclePosition + step) % allGroups.length];
+    int pagesCompleted = 0;
+    for (int step = 0; step < cycle.length; step++) {
+      final group = cycle[(selection.cyclePosition + step) % cycle.length];
       bool anyExists = false;
       for (final unit in group) {
         final exists = await AyahFactsService.rangeExists(
@@ -770,18 +781,18 @@ class AppState extends ChangeNotifier {
         final reached = await AyahFactsService.isRangeReached(
             date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
         // Unité présente mais pas faite : le groupe, et toute la suite, bloque.
-        if (!reached) return groupsCompleted;
+        if (!reached) return pagesCompleted;
       }
       if (!anyExists) {
         // Aucune ligne pour ce groupe. Dans la proposition du jour, c'est un
         // retrait au check-in : ni compté ni bloquant. Au-delà, c'est
         // simplement du contenu non fait : le cycle s'arrête là.
         if (step < proposedCount) continue;
-        return groupsCompleted;
+        return pagesCompleted;
       }
-      groupsCompleted++;
+      pagesCompleted++;
     }
-    return groupsCompleted;
+    return pagesCompleted;
   }
 
   /// Scelle la journée [date] (check-out) : verrouille ses lignes et fait
@@ -814,21 +825,20 @@ class AppState extends ChangeNotifier {
     if (_config == null) return false;
     // Passe moteur (CPU pur) et lecture SQLite indépendantes — démarrées
     // ensemble plutôt qu'en série.
-    final selectionF = _selectionForAsync(date);
     final sealedF = AyahFactsService.isDaySealed(date, _riwaya);
-    final selection = await selectionF;
+    final selection = _selection;
     // Une journée déjà scellée peut être re-clôturée : « Clôturer ma journée »
     // (Phase 9 Sprint 2) n'empêche pas de relancer une manche derrière, et le
     // check-out qui suivrait scellerait le même jour une seconde fois. Les
     // corrections de `reach` continuent de s'écrire normalement, mais le
     // cycle ne doit avancer qu'une seule fois pour un jour donné — sinon le
     // curseur sauterait du contenu jamais révisé, exactement ce que le
-    // garde-fou de [_completedGroupsFor] cherche à éviter.
-    final groupsCompleted =
-        await sealedF ? 0 : await _completedGroupsFor(date, selection);
-    final cycleWraps = groupsCompleted > 0 &&
+    // garde-fou de [_completedPagesFor] cherche à éviter.
+    final pagesCompleted =
+        await sealedF ? 0 : await _completedPagesFor(date, selection);
+    final cycleWraps = pagesCompleted > 0 &&
         selection.cycleTotal > 0 &&
-        (_cyclePosition + groupsCompleted) >= selection.cycleTotal;
+        (_cyclePosition + pagesCompleted) >= selection.cycleTotal;
     _pendingDate = null;
     _closedDate = date;
     _todaySession = null;
@@ -838,7 +848,7 @@ class AppState extends ChangeNotifier {
       AyahFactsService.sealDay(date, _riwaya),
       refreshFreshness(notify: false),
       StorageService.clearActivePrayers(_riwaya),
-      advanceCycle(groupsCompleted, selection.cycleTotal, notify: false),
+      advanceCycle(pagesCompleted, selection.cycleTotal, notify: false),
     ]);
     // Après le scellement seulement : une sourate dont le dernier verset
     // vient d'être confirmé appris rejoint la révision (voir

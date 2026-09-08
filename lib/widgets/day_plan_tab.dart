@@ -98,6 +98,9 @@ class _DayPlanTabState extends State<DayPlanTab> {
       );
     }
 
-    return HomeScreen(onIlluminer: () => _openCheckIn(state));
+    return HomeScreen(
+      onIlluminer: () => _openCheckIn(state),
+      onRouvrirCloture: () => _openCheckOut(state.todayStr),
+    );
   }
 }

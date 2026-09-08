@@ -19,6 +19,11 @@ class S {
   static String get cycleEnCours => _t('Cycle en cours', 'Current cycle');
 
   // Plan screen
+  static String get horsPrieresTitre =>
+      _t('À réviser en dehors des prières', 'To revise outside prayers');
+  static String get horsPrieresDesc => _t(
+      "Ce contenu fait partie de ta journée, mais il ne rentrait pas dans les prières que tu as choisies.",
+      'This is part of your day, but it did not fit in the prayers you picked.');
   static String get cloturerMaJournee =>
       _t('Clôturer ma journée', 'Close out my day');
   static String get refairePlan => _t('Refaire le plan', 'Rebuild plan');
@@ -229,8 +234,8 @@ class S {
   static String get journeeCloturee =>
       _t('Journée clôturée', 'Day closed out');
   static String get journeeClotureeSousTitre => _t(
-      "Ta journée est scellée. À demain, in shâ' Allah.",
-      "Your day is sealed. See you tomorrow, in shâ' Allah.");
+      "Ta journée est scellée. Touche pour revenir dessus si besoin.",
+      'Your day is sealed. Tap to go back over it if needed.');
 
   // Mode pause
   static String get pauseLabel => _t('Pause aujourd\'hui', 'Pause today');

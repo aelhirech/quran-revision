@@ -217,13 +217,13 @@ void main() {
       "d'autant (cadrage 2026-09-07)", () async {
     final day = _isoDate(DateTime.now().subtract(const Duration(days: 2)));
     final state = newState();
-    // Les deux groupes du cycle (sourates 60 et 65, chacune multi-page donc
-    // jamais regroupées) dans l'ordre réel du cycle.
-    final groups = RevisionEngine.cycleGroups(
+    // Toutes les PAGES du cycle (sourates 60 et 65), dans l'ordre réel.
+    final groups = RevisionEngine.buildCycle(
       config: state.config!,
       pageMetadata: PageMetadataService.pageMetadataFor(Riwaya.hafs),
     );
-    expect(groups, hasLength(2));
+    expect(groups.length, greaterThan(2),
+        reason: 'le cycle compte des pages : 60 et 65 en couvrent plusieurs');
 
     // Le moteur n'en propose qu'un (pagesPerDay = 1) ; l'utilisateur déclare
     // aussi le suivant, et coche tout.
@@ -238,8 +238,7 @@ void main() {
     await state.checkOut(day);
 
     expect(state.cyclePosition, 0,
-        reason: 'les 2 groupes du cycle faits le même jour → le cycle boucle '
-            '(2 positions avancées sur un cycle de 2)');
+        reason: 'toutes les pages du cycle faites le même jour → il boucle');
   });
 
   test(
@@ -251,7 +250,7 @@ void main() {
 
     // Seul le groupe proposé par le moteur est fait ; la sourate déclarée en
     // plus n'appartient pas au cycle configuré (60/65).
-    final groups = RevisionEngine.cycleGroups(
+    final groups = RevisionEngine.buildCycle(
       config: state.config!,
       pageMetadata: PageMetadataService.pageMetadataFor(Riwaya.hafs),
     );

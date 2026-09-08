@@ -115,9 +115,17 @@ void main() {
 
     final wrapped = await state.checkOut(yesterday);
     expect(wrapped, isFalse,
-        reason: '1 unité complétée sur 2 dans le cycle : pas de bouclage');
-    expect(state.cyclePosition, 1,
-        reason: 'la seule unité reach=1 fait avancer le cycle de 1');
+        reason: 'une seule sourate faite sur les deux du cycle : pas de bouclage');
+    // Le curseur est en PAGES depuis le 2026-09-08 : la sourate 60 en couvre
+    // plusieurs, et les faire toutes doit avancer d'autant.
+    final pagesFaites = RevisionEngine.pagesOf([
+      RevisionUnit(
+          sourate: _sourate(60), verseStart: 1, verseEnd: 10, isWhole: true)
+    ], _hafsPages);
+    expect(pagesFaites, greaterThan(1),
+        reason: 'sinon ce test ne prouverait rien sur la progression en pages');
+    expect(state.cyclePosition, pagesFaites,
+        reason: 'le curseur avance du nombre de pages réellement faites');
     expect(state.pendingDate, isNull);
 
     await state.ensureDayPlan();
@@ -156,10 +164,9 @@ void main() {
     final units = await RevisionEngine.buildDayUnits(
       config: config,
       cyclePosition: 0,
-      today: DateTime.parse(yesterday),
       pageMetadata: _hafsPages,
     );
-    expect(units.units, hasLength(3),
+    expect(units.units.map((u) => u.sourate.id).toSet(), {67, 69, 71},
         reason: 'les 3 sourates entières tiennent dans le budget de 8 pages');
     await AyahFactsService.proposeUnits(yesterday, Riwaya.hafs, units.units);
     // 67 et 71 faites ; 69 retirée au check-in (plus aucune ligne).
@@ -171,19 +178,23 @@ void main() {
     expect(state.pendingDate, yesterday);
 
     await state.checkOut(yesterday);
-    expect(state.cyclePosition, 2,
-        reason: '67 et 71 comptées (2 groupes) ; 69 retirée est ignorée '
-            'sans bloquer le comptage de 71 qui la suit — sans le fix, le '
-            'comptage se serait arrêté à 69 et cyclePosition serait resté à 1');
+    final attendu = RevisionEngine.pagesOf(
+            units.units.where((u) => u.sourate.id == 67), _hafsPages) +
+        RevisionEngine.pagesOf(
+            units.units.where((u) => u.sourate.id == 71), _hafsPages);
+    expect(state.cyclePosition, attendu,
+        reason: 'les pages de 67 et de 71 sont comptées ; 69 retirée est '
+            'ignorée sans bloquer le comptage de 71 qui la suit — sans le fix, '
+            'le comptage se serait arrêté aux pages de 69');
   });
 
   test(
-      'check-out "fait par défaut" (comportement CheckOutScreen sans exception) '
-      'avance le cycle jour après jour — régression bug "cycle figé, même '
-      'sourate en boucle" (backlog 2026-09-04)', () async {
-    // Sourates 73/74/76, chacune multi-page : avec pagesPerDay=1, chacune
-    // dépasse toujours le budget → 1 unité (partielle) par jour, cycle sur 3
-    // jours (3 groupes distincts, aucune ne partage de page).
+      'check-out "fait par défaut" : le cycle avance page par page et couvre '
+      'chaque sourate EN ENTIER avant de passer à la suivante — régression du '
+      'bug 2026-09-08 (la page 1 était reproposée indéfiniment)', () async {
+    // Sourates 73/74/76, chacune multi-page. Avec pagesPerDay=1 le cycle
+    // compte une position PAR PAGE : l'ancien moteur en faisait 3 positions
+    // (une par sourate) et sautait tout ce qui suivait la première page.
     final config = UserConfig(
       selections: [
         SourateSelection.whole(_sourate(73)),
@@ -191,43 +202,60 @@ void main() {
         SourateSelection.whole(_sourate(76)),
       ],
       pagesPerDay: 1,
-      startDate: DateTime.now().subtract(const Duration(days: 5)),
+      startDate: DateTime.now().subtract(const Duration(days: 20)),
       shuffleEnabled: false,
       riwaya: Riwaya.hafs,
     );
-    final state = AppState(config, riwaya: Riwaya.hafs);
-    final proposedSourateIds = <int>[];
+    final cycle =
+        RevisionEngine.buildCycle(config: config, pageMetadata: _hafsPages);
+    expect(cycle.length, greaterThan(3),
+        reason: 'trois sourates multi-pages : plus de 3 positions de cycle');
 
-    var day = DateTime.now().subtract(const Duration(days: 3));
-    for (var i = 0; i < 3; i++) {
+    final state = AppState(config, riwaya: Riwaya.hafs);
+    final proposees = <String>[];
+
+    var day = DateTime.now().subtract(Duration(days: cycle.length + 1));
+    for (var i = 0; i < cycle.length; i++) {
       final dateStr = _isoDate(day);
-      final selection = await RevisionEngine.buildDayUnits(
-          config: config,
-          cyclePosition: state.cyclePosition,
-          today: day,
-          pageMetadata: _hafsPages,
-        );
-      expect(selection.units, hasLength(1),
-          reason: 'pagesPerDay=1 pour 3 unités : dailyTarget doit rester à 1/jour');
-      proposedSourateIds.add(selection.units.single.sourate.id);
+      final selection = RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: state.cyclePosition,
+        pageMetadata: _hafsPages,
+      );
+      expect(selection.groups, hasLength(1),
+          reason: 'pagesPerDay=1 : exactement une page par jour');
+      for (final u in selection.units) {
+        proposees.add('${u.sourate.id}:${u.verseStart}-${u.verseEnd}');
+      }
 
       await AyahFactsService.proposeUnits(dateStr, Riwaya.hafs, selection.units);
-      // Simule CheckOutScreen : clôture sans rien décocher → tout est
-      // confirmé "fait" avant d'appeler checkOut (voir _close()).
       await state.markUnitsReached(selection.units, date: dateStr);
       await state.checkOut(dateStr);
 
-      expect(state.cyclePosition, (i + 1) % 3,
-          reason: 'sans le fix (reach jamais écrit), cyclePosition resterait '
-              'gelé à 0 pour toujours — le modulo 3 au dernier tour est le '
-              'bouclage normal du cycle (3 unités/3 jours), pas le bug');
+      expect(state.cyclePosition, (i + 1) % cycle.length,
+          reason: 'une page faite = une position de cycle');
       day = day.add(const Duration(days: 1));
     }
 
-    expect(proposedSourateIds.toSet(), hasLength(3),
-        reason: '3 sourates distinctes proposées sur 3 jours — avant le fix, '
-            'cyclePosition figé aurait reproposé la sourate 73 les 3 jours '
-            '(symptôme backlog : "ça propose toujours la même sourate")');
+    // Aucune page reproposée avant le bouclage.
+    expect(proposees.toSet(), hasLength(proposees.length),
+        reason: 'aucune portion ne revient deux fois dans un même cycle');
+
+    // Chaque sourate est couverte en entier, ses pages dans l'ordre du mushaf.
+    for (final id in [73, 74, 76]) {
+      final versets = <int>[];
+      for (final cle in proposees) {
+        final parts = cle.split(':');
+        if (int.parse(parts[0]) != id) continue;
+        final bornes = parts[1].split('-').map(int.parse).toList();
+        for (var v = bornes[0]; v <= bornes[1]; v++) {
+          versets.add(v);
+        }
+      }
+      expect(versets, List.generate(versets.length, (k) => k + 1),
+          reason: 'sourate $id couverte de son verset 1 à son dernier, '
+              'dans l\'ordre et sans trou');
+    }
   });
 
   test(
@@ -255,7 +283,6 @@ void main() {
     final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime.parse(day),
         pageMetadata: _hafsPages,
       );
     expect(selection.units, hasLength(1));
@@ -303,7 +330,6 @@ void main() {
     final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime.parse(day),
         pageMetadata: _hafsPages,
       );
     expect(selection.units, hasLength(2));
@@ -365,7 +391,6 @@ void main() {
     final selection = await RevisionEngine.buildDayUnits(
       config: config,
       cyclePosition: 0,
-      today: DateTime.parse(day),
       pageMetadata: _hafsPages,
     );
     expect(selection.units, hasLength(3),
@@ -415,7 +440,6 @@ void main() {
     final selection = await RevisionEngine.buildDayUnits(
       config: config,
       cyclePosition: state.cyclePosition,
-      today: DateTime.now(),
       pageMetadata: _hafsPages,
     );
     await AyahFactsService.proposeUnits(today, Riwaya.hafs, selection.units);

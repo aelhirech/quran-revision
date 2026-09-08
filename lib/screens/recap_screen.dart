@@ -122,18 +122,18 @@ class _RecapScreenState extends State<RecapScreen> {
                 StreakCard(streak: _streak, totalDays: _totalDays),
                 const SizedBox(height: 16),
                 CycleProgressCard(
-                  progress: cycle.pagesTotal > 0
-                      ? cycle.pagesPosition / cycle.pagesTotal
+                  progress: cycle.cycleTotal > 0
+                      ? cycle.cyclePosition / cycle.cycleTotal
                       : 0.0,
-                  pos: cycle.pagesPosition,
-                  total: cycle.pagesTotal,
+                  pos: cycle.cyclePosition,
+                  total: cycle.cycleTotal,
                   label: S.cycleActuel,
                   topRadius: 150,
                 ),
                 const SizedBox(height: 16),
                 _repartitionCard(cs, state),
                 const SizedBox(height: 16),
-                _statsRow(cs, state, cycle.pagesTotal),
+                _statsRow(cs, state, cycle.cycleTotal),
                 const SizedBox(height: 16),
                 HistoryCard(sessions: _sessions),
                 const SizedBox(height: 16),
@@ -280,7 +280,7 @@ class _RecapScreenState extends State<RecapScreen> {
     );
   }
 
-  Widget _statsRow(ColorScheme cs, AppState state, int pagesTotal) {
+  Widget _statsRow(ColorScheme cs, AppState state, int cycleTotal) {
     final selections = state.config!.selections;
     final totalVerses = selections.fold(0, (sum, s) => sum + s.verseCount);
 
@@ -292,7 +292,7 @@ class _RecapScreenState extends State<RecapScreen> {
         _statChip(cs, '$totalVerses', S.versetsLabel,
             Icons.format_list_numbered, 100),
         const SizedBox(width: 12),
-        _statChip(cs, '$pagesTotal', S.pagesLabel,
+        _statChip(cs, '$cycleTotal', S.pagesLabel,
             Icons.auto_stories_outlined, 200),
       ],
     );

@@ -38,16 +38,25 @@ class DailySession {
   /// sur les unités réellement retenues pour la journée (donc après édition
   /// au check-in), pas sur la proposition d'origine.
   final int pagesToday;
-  final int pagesPosition;
-  final int pagesTotal;
+
+  /// Position and length of the cycle, in mushaf pages (same unit as
+  /// [pagesToday] and as `UserConfig.pagesPerDay`).
+  final int cyclePosition;
+  final int cycleTotal;
+
+  /// Day content that did not fit in the chosen prayers. The rakaa layout is a
+  /// display, never a source of truth: it must not silently drop content the
+  /// check-out will still credit. Shown as its own block instead.
+  final List<RevisionUnit> outsidePrayers;
 
   const DailySession({
     required this.date,
     required this.prayersAlone,
     required this.plan,
     required this.pagesToday,
-    required this.pagesPosition,
-    required this.pagesTotal,
+    required this.cyclePosition,
+    required this.cycleTotal,
+    this.outsidePrayers = const [],
   });
 
   int get totalRakaas =>
