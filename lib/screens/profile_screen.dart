@@ -10,7 +10,7 @@ import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
-import '../widgets/preset_dropdown.dart';
+import '../widgets/pages_per_day_dropdown.dart';
 import '../widgets/profile_info_card.dart';
 import '../widgets/settings_card.dart';
 
@@ -105,12 +105,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PresetDropdown(
+              PagesPerDayDropdown(
                 value: tempPages,
-                presets: pagesPerDayPresets,
-                labelBuilder: (n) => '$n ${S.pagesParJourValeur}',
-                customDialogTitle: S.pagesCustomTitle,
-                customSuffix: S.pagesSuffix,
                 onChanged: (v) => setS(() => tempPages = v),
               ),
             ],
@@ -285,7 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // même réglage sur cette page créait une redondance non
                 // harmonisée (retour TestFlight 2026-09-01).
                 Text(
-                  '$_pagesPerDay ${S.pagesParJourValeur}',
+                  S.pagesParJour(_pagesPerDay),
                   style: TextStyle(
                       color: cs.onPrimaryContainer, fontWeight: FontWeight.w600),
                 ),

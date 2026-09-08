@@ -71,22 +71,22 @@ void main() {
     });
   });
 
-  group('setReach / isRangeReached', () {
+  group('setReach / rangeStatus', () {
     test('reach=1 seulement quand toute la plage est cochée', () async {
       const date = '2020-02-02';
       await AyahFactsService.proposeUnits(date, Riwaya.hafs, [testUnit(11, 1, 3)]);
       expect(
-          await AyahFactsService.isRangeReached(date, Riwaya.hafs, 11, 1, 3),
+          (await AyahFactsService.rangeStatus(date, Riwaya.hafs, 11, 1, 3)).reached,
           isFalse);
 
       await AyahFactsService.setReach(date, Riwaya.hafs, 11, 1, 3, true);
       expect(
-          await AyahFactsService.isRangeReached(date, Riwaya.hafs, 11, 1, 3),
+          (await AyahFactsService.rangeStatus(date, Riwaya.hafs, 11, 1, 3)).reached,
           isTrue);
 
       await AyahFactsService.setReach(date, Riwaya.hafs, 11, 2, 2, false);
       expect(
-          await AyahFactsService.isRangeReached(date, Riwaya.hafs, 11, 1, 3),
+          (await AyahFactsService.rangeStatus(date, Riwaya.hafs, 11, 1, 3)).reached,
           isFalse,
           reason: 'un seul verset décoché suffit à invalider toute la plage');
       await AyahFactsService.sealDay(date, Riwaya.hafs);
@@ -221,8 +221,9 @@ void main() {
     });
 
     test(
-        "unlearnVerse ne retrograde que la ligne la plus recente — deux dates "
-        "distinctes existent justement pour preserver l historique",
+        "unlearnVerse retrograde TOUTES les lignes datees du verset — les "
+        "lecteurs de « appris » ignorent la date, ne rabattre que la plus "
+        "recente ferait du desapprentissage un no-op silencieux",
         () async {
       const j1 = '2031-04-01';
       const j2 = '2031-04-09';
@@ -234,14 +235,18 @@ void main() {
 
       await AyahFactsService.unlearnVerse(40, 1, Riwaya.hafs);
 
-      // `learnedVersesBySourate` lit toutes les dates : le verset y reste
-      // parce que la ligne du J1 garde reach=1. Avec l'ancien UPDATE sans
-      // clause de date, les DEUX lignes retombaient a 0 et le verset
-      // disparaissait — l'historique etait reecrit.
       final appris = await AyahFactsService.learnedVersesBySourate(
           riwaya: Riwaya.hafs);
-      expect(appris[40], contains(1),
-          reason: "la ligne du J1 doit survivre au desapprentissage du J2");
+      expect(appris[40] ?? const <int>{}, isNot(contains(1)),
+          reason: "le verset ne doit plus etre acquis apres desapprentissage");
+      // L'historique tient a l'EXISTENCE des lignes datees, pas a leur
+      // `reach` : les deux jours restent en base, a reach=0.
+      final plans = [
+        for (final jour in [j1, j2])
+          await AyahFactsService.learnPlanFor(jour, Riwaya.hafs),
+      ];
+      expect(plans.every((p) => p?.ayahIds.contains(1) ?? false), isTrue,
+          reason: "les deux lignes datees restent, seul leur reach retombe");
     });
   });
 }

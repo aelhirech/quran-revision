@@ -38,12 +38,12 @@ class TourStep {
 /// GlobalKeys déjà posées sur les widgets à mettre en avant.
 ///
 /// **Le halo est traversant** (Phase 9 Sprint 2) : les taps qui tombent
-/// dedans atteignent le vrai widget en dessous — on suit le tour en se
-/// servant de l'app, pas en enchaînant « Suivant ». Tout ce qui tombe à côté
-/// est en revanche absorbé, pour que le reste de l'écran ne réagisse pas
-/// pendant le tour. Composant **contrôlé** : l'étape courante ([index]) est
-/// tenue par le parent, seul capable de la garder synchronisée avec ce que
-/// l'utilisateur fait réellement (changer d'onglet avance le tour).
+/// dedans atteignent le vrai widget en dessous, ce qui laisse la dernière
+/// étape ouvrir directement l'écran qu'elle présente. Tout ce qui tombe à
+/// côté est en revanche absorbé, pour que le reste de l'écran ne réagisse pas
+/// pendant le tour — les onglets compris, d'où l'enchaînement par
+/// « Suivant ». Composant **contrôlé** : l'étape courante ([index]) est tenue
+/// par le parent, seul à savoir quel onglet est affiché sous le halo.
 class SpotlightOverlay extends StatefulWidget {
   final List<TourStep> steps;
   final int index;
@@ -149,9 +149,16 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
                 // `translucent` : le Listener voit le pointeur ET le laisse
                 // continuer vers le widget réel, en dessous dans le Stack de
                 // ShellScreen. Un GestureDetector, lui, l'absorberait.
+                //
+                // Sur `up`, et seulement si le doigt est encore DANS le halo :
+                // sur `down`, un appui suivi d'un glissement (scroll démarré
+                // sur le bouton) terminait le tour définitivement — il est
+                // persisté — alors que le bouton réel n'avait rien reçu.
                 child: Listener(
                   behavior: HitTestBehavior.translucent,
-                  onPointerDown: (_) => widget.onTargetTap?.call(),
+                  onPointerUp: (e) {
+                    if (rect.contains(e.position)) widget.onTargetTap?.call();
+                  },
                 ),
               ),
             Positioned(

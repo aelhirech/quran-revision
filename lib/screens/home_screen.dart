@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/hadith_data.dart';
-import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/riwaya.dart';
 import '../services/ayah_facts_service.dart';
@@ -43,7 +42,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _streak = 0;
   Riwaya? _lastRiwaya;
-  DaySelection? _daySelection;
 
   @override
   void didChangeDependencies() {
@@ -62,19 +60,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadHistory() async {
     final state = context.read<AppState>();
-    // Lectures indépendantes démarrées en parallèle — un seul aller-retour
-    // au lieu de plusieurs en série (même principe qu'ailleurs, voir
-    // recap_screen.dart._load).
-    final streakF = AyahFactsService.currentStreak(
+    final streak = await AyahFactsService.currentStreak(
         pauseDates: state.pauseDates, riwaya: state.riwaya);
-    final daySelectionF = state.getDaySelectionForToday();
-    final streak = await streakF;
-    final daySelection = await daySelectionF;
     if (!mounted) return;
-    setState(() {
-      _streak = streak;
-      _daySelection = daySelection;
-    });
+    setState(() => _streak = streak);
   }
 
   /// The cycle can only be empty while surahs are selected if the mushaf
@@ -110,6 +99,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final closed = state.todayClosed;
+    // Read straight from AppState in `build`: a cached copy stayed stale after
+    // a check-out moved the cursor, since `_loadHistory` only reruns when the
+    // riwaya changes.
+    final daySelection = state.daySelection;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -141,16 +134,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 10),
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
-                if (_daySelection != null &&
-                    _daySelection!.cycleTotal == 0 &&
+                if (daySelection.cycleTotal == 0 &&
                     state.config!.selections.isNotEmpty)
                   _cycleIndisponible(palette),
                 CycleProgressCard(
-                  progress: (_daySelection?.cycleTotal ?? 0) > 0
-                      ? _daySelection!.cyclePosition / _daySelection!.cycleTotal
+                  progress: daySelection.cycleTotal > 0
+                      ? daySelection.cyclePosition / daySelection.cycleTotal
                       : 0.0,
-                  pos: _daySelection?.cyclePosition ?? 0,
-                  total: _daySelection?.cycleTotal ?? 0,
+                  pos: daySelection.cyclePosition,
+                  total: daySelection.cycleTotal,
                   streak: _streak,
                   label: S.cycleEnCours,
                 ),

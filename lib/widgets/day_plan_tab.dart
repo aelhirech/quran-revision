@@ -44,6 +44,18 @@ class _DayPlanTabState extends State<DayPlanTab> {
         ),
       );
 
+  /// « Clôturer ma journée » depuis PlanScreen. Rebâtit la manche au retour si
+  /// la journée n'a PAS été scellée (retour arrière) : le check-out peut avoir
+  /// ajouté une sourate révisée en plus ou étendu la portion à apprendre, et
+  /// PlanScreen tient son état de rakaas localement, donc il resterait affiché
+  /// sur un plan qui ne contient rien de ce qui vient d'être déclaré.
+  Future<void> _closeDay(AppState state, String date) async {
+    await _openCheckOut(date);
+    if (!mounted) return;
+    final session = state.todaySession;
+    if (session != null) await state.buildTodaySession(session.prayersAlone);
+  }
+
   void _maybeShowCheckOut(AppState state) {
     if (state.pendingDate == null || _checkOutShown) return;
     _checkOutShown = true;
@@ -93,7 +105,7 @@ class _DayPlanTabState extends State<DayPlanTab> {
         key: ValueKey(session),
         session: session,
         freshnessOf: state.freshnessFor,
-        onCloturer: () => _openCheckOut(sessionDate),
+        onCloturer: () => _closeDay(state, sessionDate),
         onChangePlan: () => state.clearTodaySession(),
       );
     }

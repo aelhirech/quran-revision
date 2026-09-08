@@ -103,10 +103,10 @@ extension AppStateCheckOut on AppState {
   /// declared it that day, otherwise the cursor would skip never-revised
   /// content.
   Future<int> _completedPagesFor(String date, DaySelection selection) async {
-    final cycle = RevisionEngine.buildCycle(
-      config: _config!,
-      pageMetadata: PageMetadataService.pageMetadataFor(_riwaya),
-    );
+    // The very cycle the day plan came from, not a second `buildCycle` pass:
+    // rebuilding it here walked a list that nothing guaranteed identical to
+    // the one that produced `selection.cyclePosition`.
+    final cycle = selection.cycle;
     final proposedCount = selection.groups.length;
     int pagesCompleted = 0;
     for (int step = 0; step < cycle.length; step++) {
@@ -177,14 +177,17 @@ extension AppStateCheckOut on AppState {
         selection.cycleTotal > 0 &&
         (_cyclePosition + pagesCompleted) >= selection.cycleTotal;
     _pendingDate = null;
-    _closedDate = date;
-    _todaySession = null;
+    // Only when it IS today: a catch-up check-out on an older day would
+    // otherwise overwrite the flag and make an already-sealed today look
+    // open again, re-arming the very guards that flag protects.
+    if (date == todayStr) _closedDate = date;
     // Écritures indépendantes (table ayah_facts, prefs, cycle) — lancées en
     // parallèle plutôt qu'en série.
     await Future.wait([
       AyahFactsService.sealDay(date, _riwaya),
+      StorageService.saveSealedDate(date, _riwaya),
       refreshFreshness(notify: false),
-      StorageService.clearActivePrayers(_riwaya),
+      clearTodaySession(notify: false),
       advanceCycle(pagesCompleted, selection.cycleTotal, notify: false),
     ]);
     // Après le scellement seulement : une sourate dont le dernier verset

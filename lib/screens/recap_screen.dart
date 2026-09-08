@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/riwaya.dart';
@@ -33,7 +32,6 @@ class _RecapScreenState extends State<RecapScreen> {
   List<LearningProgress> _learningProgress = [];
   Set<String> _lastPauseDates = {};
   Riwaya? _lastRiwaya;
-  DaySelection? _daySelection;
 
   @override
   void didChangeDependencies() {
@@ -60,13 +58,11 @@ class _RecapScreenState extends State<RecapScreen> {
     // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
     // sans être passé par un plan du jour cette session.
     final freshnessF = state.refreshFreshness(notify: false);
-    final daySelectionF = state.getDaySelectionForToday();
     final streak = await streakF;
     final total = await totalF;
     final stats = await statsF;
     final progress = await progressF;
     await freshnessF;
-    final daySelection = await daySelectionF;
 
     // totalUnits = versets proposés ce jour-là (pas le total du cycle) —
     // sinon le % quotidien reste écrasé près de 0 (bug retour TestFlight).
@@ -85,7 +81,6 @@ class _RecapScreenState extends State<RecapScreen> {
         _totalDays = total;
         _sessions = sessions;
         _learningProgress = progress;
-        _daySelection = daySelection;
       });
     }
   }
@@ -95,11 +90,14 @@ class _RecapScreenState extends State<RecapScreen> {
     final state = context.watch<AppState>();
     final cs = Theme.of(context).colorScheme;
 
-    if (state.config == null || _daySelection == null) {
+    if (state.config == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final cycle = _daySelection!;
+    // Read straight from AppState: it is a pure computation, so caching it in
+    // a field only bought a full-screen spinner and a value that went stale
+    // after each check-out.
+    final cycle = state.daySelection;
 
     return Scaffold(
       backgroundColor: cs.surface,

@@ -33,12 +33,8 @@ class _RhythmPage extends StatelessWidget {
             _RecapCard(
               icon: Icons.calendar_today_outlined,
               label: S.cycleObjectif,
-              trailing: PresetDropdown(
+              trailing: PagesPerDayDropdown(
                 value: pagesPerDay,
-                presets: pagesPerDayPresets,
-                labelBuilder: (n) => '$n ${S.pagesParJourValeur}',
-                customDialogTitle: S.pagesCustomTitle,
-                customSuffix: S.pagesSuffix,
                 color: cs.onSurface,
                 onChanged: onPagesPerDayChanged,
               ),

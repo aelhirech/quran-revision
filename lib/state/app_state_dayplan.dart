@@ -30,39 +30,51 @@ extension AppStateDayPlan on AppState {
   }
 
   /// Comme [dayUnits], avec les versets flagués "à retravailler" de chaque
-  /// unité (`needsWorkVerses`) — c'est cette version que consomme
-  /// CheckOutScreen. Ne renvoie plus `reach` (Sprint 7) : CheckOutScreen
-  /// affiche tout comme "fait" par défaut, indépendamment de la valeur
-  /// persistée (voir Backlog "Check-out : reach fait par défaut",
-  /// 2026-09-04) — le `reach` en base ne sert plus qu'à [checkOut] lui-même.
-  Future<List<({RevisionUnit unit, Set<int> needsWorkVerses})>> dayUnitsWithStatus(
-      {String? date}) async {
+  /// unité (`needsWorkVerses`) et son `reach` persisté — c'est cette version
+  /// que consomme CheckOutScreen.
+  ///
+  /// `reach` is back (it had been dropped in Sprint 7): the check-out shows
+  /// everything as done BY DEFAULT — Backlog "Check-out : reach fait par
+  /// défaut", 2026-09-04 — but that default only holds the first time. Since
+  /// a sealed day can be reopened (Phase 9 Sprint 2), the screen has to start
+  /// from what the user already declared, or a second close would silently
+  /// re-credit what they had unchecked.
+  Future<List<({RevisionUnit unit, Set<int> needsWorkVerses, bool reach})>>
+      dayUnitsWithStatus({String? date}) async {
     final groups = await AyahFactsService.dayFacts(date ?? todayStr, _riwaya);
     return [
       for (final g in groups)
         if (_unitFor(g) case final unit?)
-          (unit: unit, needsWorkVerses: g.needsWorkVerses),
+          (unit: unit, needsWorkVerses: g.needsWorkVerses, reach: g.reach),
     ];
   }
 
-  /// Aperçu pur (aucune écriture) de ce que le moteur quotidien proposerait
-  /// s'il tournait maintenant — utilisé par le check-out multi-jours (Partie
-  /// 2, "ajouter aussi aujourd'hui") pour montrer un aperçu avant de sceller.
-  /// Même appel que [ensureDayPlan] fait réellement, exposé ici pour que les
-  /// écrans n'importent jamais `RevisionEngine` directement.
-  Future<List<RevisionUnit>> previewTodayUnits() async {
-    if (_config == null) return const [];
-    return _selection.units;
-  }
+  /// La journée [date] a-t-elle déjà été scellée ? Voir
+  /// [AyahFactsService.isDaySealed] — exposé pour que CheckOutScreen sache
+  /// s'il rouvre une clôture ou s'il en fait une première.
+  Future<bool> isDaySealed(String date) =>
+      AyahFactsService.isDaySealed(date, _riwaya);
 
-  /// Position/total du cycle en cours (nombre de groupes `RevisionEngine`),
-  /// à afficher (bandeau HomeScreen, carte cycle RecapScreen) — dérivés de la
-  /// même [_selectionForAsync] que le plan du jour (`DailySession`,
-  /// PlanScreen), pour que les 3 écrans ne recalculent plus chacun leur
-  /// propre `RevisionEngine.buildDayUnits(...)` (source de divergence
-  /// silencieuse, retour TestFlight 2026-09-01 sur les chiffres du
+  /// Position/total du cycle en cours, à afficher (bandeau HomeScreen, carte
+  /// cycle RecapScreen) — dérivés du même [_selection] que le plan du jour
+  /// (`DailySession`, PlanScreen), pour que les 3 écrans ne recalculent plus
+  /// chacun leur propre `RevisionEngine.buildDayUnits(...)` (source de
+  /// divergence silencieuse, retour TestFlight 2026-09-01 sur les chiffres du
   /// récapitulatif).
-  Future<DaySelection> getDaySelectionForToday() async => _selection;
+  ///
+  /// Synchrone : c'est un calcul pur sur `_config`/`_cyclePosition`, déjà en
+  /// mémoire. Les écrans le lisent donc dans leur `build` — un champ de cache
+  /// rempli par un `await` restait périmé après un check-out qui vient
+  /// justement de faire avancer le curseur.
+  DaySelection get daySelection => _config == null
+      ? const DaySelection(groups: [], cycle: [], cyclePosition: 0)
+      : _selection;
+
+  /// Aperçu (aucune écriture) de ce que le moteur quotidien proposerait s'il
+  /// tournait maintenant — utilisé par le check-out multi-jours (Partie 2,
+  /// "ajouter aussi aujourd'hui") pour montrer un aperçu avant de sceller.
+  /// Exposé ici pour que les écrans n'importent jamais `RevisionEngine`.
+  List<RevisionUnit> get todayPreviewUnits => daySelection.units;
 
   /// Point d'entrée du moteur quotidien — à appeler à l'ouverture/reprise de
   /// l'app (voir ShellScreen). Gated sur un éventuel jour en attente
@@ -81,8 +93,14 @@ extension AppStateDayPlan on AppState {
     // ci-dessous : c'est le chemin d'ouverture de l'app.
     final pendingF = AyahFactsService.pendingDate(riwaya: _riwaya);
     final sealedF = AyahFactsService.isDaySealed(today, _riwaya);
+    final sealedDateF = StorageService.loadSealedDate(_riwaya);
     _pendingDate = await pendingF;
-    _closedDate = await sealedF ? today : null;
+    final sealed = await sealedF;
+    final sealedDate = await sealedDateF;
+    // A day with no revision row at all (every portion removed at check-in, or
+    // nothing but learning) leaves nothing for `sealDay` to mark, hence the
+    // stored date as a fallback — see `StorageService.saveSealedDate`.
+    _closedDate = sealed || sealedDate == today ? today : null;
     if (_pendingDate == null) {
       // Lectures indépendantes démarrées ensemble plutôt qu'en série — c'est
       // le chemin d'ouverture de l'app (ShellScreen.initState).
@@ -144,10 +162,20 @@ extension AppStateDayPlan on AppState {
       // d'être effacées de la table — ses cases cochées reviendraient en
       // arrière sans explication. On la referme, comme `saveConfig` le fait
       // quand la sélection de sourates change.
-      _todaySession = null;
-      await StorageService.clearActivePrayers(_riwaya);
+      await clearTodaySession(notify: false);
     }
     _notify();
+  }
+
+  /// Ferme la manche en cours (« Refaire le plan », changement de rythme,
+  /// clôture) — implémentation unique du couple `_todaySession` +
+  /// `active_prayers`, que trois appelants recopiaient sinon chacun de leur
+  /// côté. [notify] `false` pour les appelants qui enchaînent d'autres
+  /// écritures avant de notifier une seule fois.
+  Future<void> clearTodaySession({bool notify = true}) async {
+    _todaySession = null;
+    await StorageService.clearActivePrayers(_riwaya);
+    if (notify) _notify();
   }
 
   /// Ajoute une sourate/portion au plan du jour depuis le check-in.
@@ -163,9 +191,16 @@ extension AppStateDayPlan on AppState {
     _notify();
   }
 
-  /// Retire une sourate du plan du jour depuis le check-in.
-  Future<void> removeFromDayPlan(int surahId) async {
-    await AyahFactsService.removeFromDayPlan(todayStr, _riwaya, surahId);
+  /// Retire une sourate/portion du plan du jour depuis le check-in.
+  ///
+  /// The range is not optional in practice: since the cycle became a page
+  /// list, one day can hold two non-adjacent fragments of the same surah, and
+  /// removing by surah alone would delete the other one too — with no way to
+  /// get it back (re-adding writes the WHOLE surah).
+  Future<void> removeFromDayPlan(int surahId,
+      {int? verseStart, int? verseEnd}) async {
+    await AyahFactsService.removeFromDayPlan(todayStr, _riwaya, surahId,
+        verseStart: verseStart, verseEnd: verseEnd);
     _notify();
   }
 
@@ -186,41 +221,29 @@ extension AppStateDayPlan on AppState {
   Future<void> buildTodaySession(List<Prayer> prayersAlone,
       {bool notify = true}) async {
     if (_config == null || prayersAlone.isEmpty) return;
-    // Trois lectures indépendantes (sélection du cycle, unités du jour,
-    // portion à apprendre) démarrées ensemble plutôt qu'en série.
-    final selection = _selection;
+    // Deux lectures SQLite indépendantes, démarrées ensemble plutôt qu'en
+    // série ; la sélection du cycle est un calcul pur, elle vient après pour
+    // ne pas retarder leur départ.
     final unitsF = dayUnits();
     final learningF = todayLearningUnit();
+    final selection = _selection;
     final units = await unitsF;
-    final plan = RevisionEngine.distributeToRakaas(
+    final layout = RevisionEngine.distributeToRakaas(
       units: units,
       prayersAlone: prayersAlone,
       learningUnit: await learningF,
     );
-    // Units the layout could not place. Only possible when there are more
-    // units than reciting rakaas — in that case `distributeToRakaas` assigns
-    // them whole, so comparing by value is exact. When it subdivides instead
-    // (fewer units than rakaas), nothing is ever left out.
-    final assigned = {
-      for (final pp in plan)
-        for (final r in pp.rakaas)
-          if (r.unit != null && !r.isLearning) r.unit!,
-    };
-    final outside = [
-      for (final u in units)
-        if (!assigned.contains(u)) u,
-    ];
     _todaySession = DailySession(
       date: DateTime.now(),
       prayersAlone: prayersAlone,
-      plan: plan,
+      plan: layout.plan,
       // Sur les unités réellement retenues (`dayUnits()`, donc après édition
       // au check-in), pas sur la proposition d'origine de `selection`.
       pagesToday: RevisionEngine.pagesOf(
           units, PageMetadataService.pageMetadataFor(_riwaya)),
       cyclePosition: selection.cyclePosition,
       cycleTotal: selection.cycleTotal,
-      outsidePrayers: outside,
+      outsidePrayers: layout.outside,
     );
     // `saveActivePrayers` = reprendre la manche en cours après un
     // redémarrage ; `saveLastSessionPrayers` = alimenter « reprendre les

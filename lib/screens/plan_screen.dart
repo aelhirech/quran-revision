@@ -46,13 +46,12 @@ class PlanScreen extends StatefulWidget {
 class _PlanScreenState extends State<PlanScreen> {
   // Chargé une fois puis tenu à jour localement par [_toggle] — pas de
   // `context.watch`, donc pas réactif à une écriture `ayah_facts` faite
-  // ailleurs pour aujourd'hui. Sûr aujourd'hui car DayPlanTab n'affiche
-  // jamais PlanScreen en même temps qu'un autre écran écrivant `reach`
-  // (CheckOutScreen ne s'ouvre que sur un jour STRICTEMENT antérieur —
-  // `AyahFactsService.pendingDate` — jamais aujourd'hui ; HomeScreen n'est
-  // affiché que quand `todaySession == null`, donc jamais en même temps que
-  // PlanScreen) — à revoir si un futur écran gagne la capacité d'écrire
-  // `reach` pour aujourd'hui pendant que PlanScreen reste monté.
+  // ailleurs pour aujourd'hui. Un seul écran peut écrire `reach` par-dessus
+  // PlanScreen resté monté : le check-out d'aujourd'hui, poussé par
+  // « Clôturer ma journée ». `DayPlanTab._closeDay` reconstruit donc la
+  // manche à son retour, ce qui remonte un nouveau `DailySession`, une
+  // nouvelle `ValueKey` et un `_load()` frais. À revoir si un autre écran
+  // gagne cette capacité.
   Map<RevisionUnit, bool>? _reached;
 
   /// Statut de la rakaa d'apprentissage, tenu à part de [_reached] : ses
@@ -194,7 +193,11 @@ class _PlanScreenState extends State<PlanScreen> {
     }
     final palette = context.palette;
     final checkedByPrayer = _checkedByPrayer();
-    final allDone = _allDoneOf(checkedByPrayer);
+    // Le contenu qui n'a pas tenu dans les prières est bien du contenu du
+    // jour : tant qu'il en reste, la journée n'est pas "tout fait", même si
+    // toutes les rakaas sont cochées.
+    final allDone = _allDoneOf(checkedByPrayer) &&
+        widget.session.outsidePrayers.isEmpty;
     final checkedCount = _checkedCountOf(checkedByPrayer);
     final progress = _totalRakaasWithUnit == 0
         ? 1.0

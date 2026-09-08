@@ -107,14 +107,19 @@ extension AppStateLearning on AppState {
   /// `null` si l'utilisateur n'apprenait rien ce jour-là. Les versets sont
   /// rendus tels quels (liste, pas une plage) : la portion d'un jour n'est
   /// pas forcément contiguë si un verset du milieu a été appris en avance.
-  /// `reachedVerses` du service n'est pas remonté — le check-out coche tout
-  /// par défaut, comme côté révision.
-  Future<({Sourate sourate, List<int> ayahIds})?> learningPlanFor(
-      String date) async {
+  /// `reachedVerses` est remonté pour que le check-out d'un jour DÉJÀ scellé
+  /// puisse repartir des exceptions déclarées la première fois, au lieu de
+  /// tout recocher par défaut (voir [dayUnitsWithStatus]).
+  Future<({Sourate sourate, List<int> ayahIds, Set<int> reachedVerses})?>
+      learningPlanFor(String date) async {
     final plan = await AyahFactsService.learnPlanFor(date, _riwaya);
     final sourate = plan == null ? null : _sourateById(plan.surahId);
     if (plan == null || sourate == null || plan.ayahIds.isEmpty) return null;
-    return (sourate: sourate, ayahIds: plan.ayahIds);
+    return (
+      sourate: sourate,
+      ayahIds: plan.ayahIds,
+      reachedVerses: plan.reachedVerses,
+    );
   }
 
   /// Confirme (ou annule) l'acquisition de versets appris le jour [date] —

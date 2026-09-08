@@ -20,10 +20,13 @@ class _ShellScreenState extends State<ShellScreen> {
   int _index = 0;
   bool _showTour = false;
 
-  /// Étape courante du tour, tenue ici et non dans [SpotlightOverlay] : elle
-  /// doit rester synchronisée avec ce que l'utilisateur fait réellement, or
-  /// c'est cet écran qui reçoit les taps sur les onglets (Phase 9 Sprint 2 —
-  /// le tour se suit en se servant de l'app, plus en enchaînant « Suivant »).
+  /// Étape courante du tour, tenue ici et non dans [SpotlightOverlay] : c'est
+  /// cet écran qui décide quel onglet est affiché sous le halo, et l'étape
+  /// courante et l'onglet doivent avancer ensemble.
+  ///
+  /// Le tour s'enchaîne par « Suivant » : hors du halo, le voile absorbe les
+  /// taps, donc les onglets ne sont pas atteignables pendant le tour et les
+  /// textes n'invitent pas à les toucher.
   int _tourStep = 0;
 
   @override
@@ -106,13 +109,7 @@ class _ShellScreenState extends State<ShellScreen> {
         ),
       ];
 
-  /// A tab tap moves the tour with it — including from the last step, whose
-  /// target lives on tab 0: staying there would leave the highlight chasing a
-  /// button the `IndexedStack` no longer lays out.
-  void _onDestinationSelected(int i) {
-    if (_showTour) return _goToTourStep(i);
-    setState(() => _index = i);
-  }
+  void _onDestinationSelected(int i) => setState(() => _index = i);
 
   List<NavigationDestination> _destinations(BuildContext context) {
     context.watch<AppState>(); // rebuild on locale change

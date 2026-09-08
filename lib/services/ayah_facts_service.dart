@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import '../core/streak_engine.dart';
@@ -85,9 +83,11 @@ class AyahFactsService {
     // lignes dupliquées pour le même verset/jour et fausserait les comptages.
     await db.execute(
         'CREATE UNIQUE INDEX idx_ayah_facts_unique ON ayah_facts(date, riwaya, surah_id, ayah_id, type)');
-    // Couvre le filtre commun à currentStreak/totalActiveDays/recentDayVerseCounts
-    // (riwaya + type + reach), avec date en dernière colonne pour satisfaire
-    // aussi le ORDER BY date de recentDayVerseCounts sans scan supplémentaire.
+    // Couvre le filtre de currentStreak/totalActiveDays (riwaya + type +
+    // reach), `date` en dernière colonne pour que leur DISTINCT/COUNT le
+    // trouve dans l'index. recentDayVerseStats, elle, ne filtre plus sur
+    // `reach` (elle l'agrège) : l'index reste couvrant sur ses colonnes, mais
+    // son GROUP BY date paie un tri.
     await db.execute(
         'CREATE INDEX idx_ayah_facts_active ON ayah_facts(riwaya, type, reach, date)');
   }
@@ -137,33 +137,18 @@ class AyahFactsService {
     return result.first['c'] as int? ?? 0;
   }
 
-  /// Nombre de versets révisés par jour (date ISO → compte), les [limit]
-  /// derniers jours actifs les plus récents — base de [recentDayVerseStats]
-  /// (jours actifs uniquement, un jour sans aucun verset fait n'y figure pas).
-  static Future<Map<String, int>> recentDayVerseCounts(
-      {int limit = 14, required Riwaya riwaya}) async {
-    final db = await _open();
-    final rows = await db.rawQuery(
-      'SELECT date, COUNT(*) as c FROM ayah_facts '
-      'WHERE riwaya = ? AND type = ? AND reach = 1 '
-      'GROUP BY date ORDER BY date DESC LIMIT ?',
-      [riwaya.name, AyahFactType.revise.name, limit],
-    );
-    return {for (final row in rows) row['date'] as String: row['c'] as int};
-  }
-
-  /// Comme [recentDayVerseCounts], mais avec en plus le total de versets
-  /// *proposés* ce jour-là (faits + pas faits) — dénominateur correct pour
-  /// un pourcentage "journée" (`HistoryCard`/`RecapScreen`), à ne pas
-  /// confondre avec `config.totalSelectedVerses` (tout le cycle, pas le
-  /// jour) — bug identifié en retour TestFlight (2026-09-01) : le récap
-  /// affichait `versets faits ce jour / total du cycle`, un pourcentage
-  /// toujours proche de 0.
+  /// Par jour actif (date ISO), les [limit] plus récents : combien de versets
+  /// ont été *faits* (`done`) et combien avaient été *proposés* ce jour-là
+  /// (`total`, faits ou non). `total` est le dénominateur correct d'un
+  /// pourcentage "journée" (`HistoryCard`/`RecapScreen`), à ne pas confondre
+  /// avec `config.totalSelectedVerses` (tout le cycle, pas le jour) — bug
+  /// identifié en retour TestFlight (2026-09-01) : le récap affichait
+  /// `versets faits ce jour / total du cycle`, un pourcentage toujours proche
+  /// de 0. Jours actifs uniquement : un jour où rien n'a été fait est absent
+  /// du résultat plutôt que rendu à 0/N.
   static Future<Map<String, ({int done, int total})>> recentDayVerseStats(
       {int limit = 14, required Riwaya riwaya}) async {
-    // Conditional aggregation gives both numbers in one pass; the "active
-    // days only" filter stays, so a day where nothing was done is still
-    // absent rather than showing up as 0/N.
+    // Conditional aggregation gives both numbers in one pass.
     final db = await _open();
     final rows = await db.rawQuery(
       'SELECT date, COUNT(*) as total, SUM(reach) as done FROM ayah_facts '
@@ -217,23 +202,19 @@ class AyahFactsService {
   /// [startLearning]) la faisait disparaître, reproduisant le même bug par un
   /// autre chemin. Cohérent avec `revise` (`setReach`), qui ne supprime
   /// jamais non plus une ligne pour revenir à "pas fait".
-  /// Steps one verse back to "not acquired yet".
   ///
-  /// Only the MOST RECENT dated row is downgraded: a verse learned on day 1
-  /// and unlearned later is two rows by design, and rewriting them all would
-  /// erase the history those separate dates exist to preserve.
+  /// EVERY dated row of that verse is downgraded, not just the most recent
+  /// one: every reader of "learned" (`learnedVersesBySourate`,
+  /// `learnedVersesForSourate`, hence `LearningProgress`/`isComplete`) asks
+  /// whether ANY row is at 1, with no date clause. Downgrading a single row
+  /// would leave the verse acquired and make the gesture a silent no-op. What
+  /// carries the history is the EXISTENCE of the dated rows, not their
+  /// `reach` — same semantics as `setReach` on the revision side.
   static Future<void> unlearnVerse(int surahId, int ayahId, Riwaya riwaya) async {
     final db = await _open();
-    final latest = await db.rawQuery(
-      'SELECT MAX(date) as d FROM ayah_facts '
-      'WHERE surah_id = ? AND ayah_id = ? AND riwaya = ? AND type = ?',
-      [surahId, ayahId, riwaya.name, AyahFactType.learn.name],
-    );
-    final date = latest.first['d'] as String?;
-    if (date == null) return;
     await db.update('ayah_facts', {'reach': 0},
-        where: 'date = ? AND surah_id = ? AND ayah_id = ? AND riwaya = ? AND type = ?',
-        whereArgs: [date, surahId, ayahId, riwaya.name, AyahFactType.learn.name]);
+        where: 'surah_id = ? AND ayah_id = ? AND riwaya = ? AND type = ?',
+        whereArgs: [surahId, ayahId, riwaya.name, AyahFactType.learn.name]);
   }
 
   static Future<Map<int, Set<int>>> learnedVersesBySourate(
@@ -552,22 +533,16 @@ class AyahFactsService {
         whereArgs: [date, riwaya.name, surahId, ayahId, AyahFactType.revise.name]);
   }
 
-  /// `true` si tous les versets de la plage ont `reach = 1` ce jour-là —
-  /// sert à AppState.checkOut pour compter combien des unités proposées par
-  /// le moteur ont réellement été faites (voir doc de `checkOut`). `false`
-  /// aussi bien si rien n'est fait que si la plage a été entièrement retirée
-  /// au check-in ([removeFromDayPlan]) — voir [rangeStatus] pour distinguer
-  /// les deux.
-  static Future<bool> isRangeReached(String date, Riwaya riwaya, int surahId,
-          int verseStart, int verseEnd) async =>
-      (await rangeStatus(date, riwaya, surahId, verseStart, verseEnd)).reached;
-
   /// Both questions the check-out asks about a range, in ONE query: does it
   /// still have rows (kept at check-in), and are they all reached?
   ///
   /// They used to be two round-trips with a byte-identical `WHERE`, and the
   /// cycle now walks pages rather than surahs — that is several hundred
   /// sequential queries on a full check-out instead of a few dozen.
+  ///
+  /// `reached` is `false` both when nothing was done and when the range was
+  /// removed at check-in ([removeFromDayPlan]); `exists` tells the two apart,
+  /// which is exactly what `AppState._completedPagesFor` needs.
   static Future<({bool exists, bool reached})> rangeStatus(String date,
       Riwaya riwaya, int surahId, int verseStart, int verseEnd) async {
     final db = await _open();
@@ -584,7 +559,7 @@ class AyahFactsService {
   /// Versets `reach = 1` du jour, par sourate — une seule requête (même
   /// principe de regroupement en Dart que [dayFacts]/[learnedVersesBySourate])
   /// pour qu'`AppState.reachStatusFor` n'ait pas besoin d'une requête
-  /// [isRangeReached] par unité affichée dans PlanScreen.
+  /// [rangeStatus] par unité affichée dans PlanScreen.
   static Future<Map<int, Set<int>>> reachedVersesToday(
       String date, Riwaya riwaya,
       {AyahFactType type = AyahFactType.revise}) async {

@@ -16,7 +16,7 @@ import '../../state/app_state.dart';
 import '../../widgets/index_badge.dart';
 import '../../widgets/ornamental_divider.dart';
 import '../../widgets/pill_chip.dart';
-import '../../widgets/preset_dropdown.dart';
+import '../../widgets/pages_per_day_dropdown.dart';
 import '../../widgets/primary_cta_button.dart';
 import '../../widgets/verse_range_picker.dart';
 

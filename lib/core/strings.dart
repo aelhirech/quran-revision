@@ -118,7 +118,6 @@ class S {
       _t('À quel rythme veux-tu avancer ?', 'At what pace do you want to progress?');
   static String get souratesAReviser =>
       _t('Sourates à réviser', 'Surahs to revise');
-  static String get pagesParJourValeur => _t('pages/jour', 'pages/day');
   static String get pagesCustomTitle => _t('Pages par jour personnalisées', 'Custom pages per day');
   static String get pagesSuffix => _t('pages', 'pages');
 
@@ -275,18 +274,18 @@ class S {
 
   static String get tourNavTitle => _t('Plan du jour', "Today's plan");
   static String get tourNavBody => _t(
-    'Tout part d’ici : ta journée de révision, prière par prière. Appuie sur les onglets pour visiter l’app — le tour te suit.',
-    'Everything starts here: your revision day, prayer by prayer. Tap the tabs to explore the app — the tour follows you.',
+    'Tout part d’ici : ta journée de révision, prière par prière. Appuie sur Suivant pour visiter le reste de l’app.',
+    'Everything starts here: your revision day, prayer by prayer. Tap Next to visit the rest of the app.',
   );
   static String get tourRecapTitle => _t('Récap', 'Recap');
   static String get tourRecapBody => _t(
-    'Appuie sur cet onglet : tu y suis ta progression, ton apprentissage en cours, et les sourates qui commencent à refroidir.',
-    'Tap this tab: it tracks your progress, your ongoing memorization, and the surahs that are starting to cool down.',
+    'Cet onglet suit ta progression, ton apprentissage en cours, et les sourates qui commencent à refroidir.',
+    'This tab tracks your progress, your ongoing memorization, and the surahs that are starting to cool down.',
   );
   static String get tourReglagesTitle => _t('Réglages', 'Settings');
   static String get tourReglagesBody => _t(
-    'Appuie sur cet onglet pour ajuster ton rythme ou tes sourates sélectionnées, à tout moment.',
-    'Tap this tab to adjust your pace or selected surahs, at any time.',
+    'Cet onglet te laisse ajuster ton rythme ou tes sourates sélectionnées, à tout moment.',
+    'This tab lets you adjust your pace or selected surahs, at any time.',
   );
   static String get tourVoirPlanTitle => _t('Ton plan du jour', 'Your daily plan');
   static String get tourVoirPlanBody => _t(
@@ -375,8 +374,6 @@ class S {
   static String get checkOutValiderAujourdhui =>
       _t('Valider aussi aujourd\'hui', 'Confirm today too');
   static String get checkOutTerminerSans => _t('Terminer sans aujourd\'hui', 'Finish without today');
-  static String get checkOutAjouterErreur =>
-      _t('Impossible de charger l\'aperçu du jour', 'Could not load today\'s preview');
 
   // Check-out — « j'ai fait plus que prévu » (Phase 9)
   static String get checkOutReviseEnPlus =>

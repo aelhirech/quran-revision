@@ -102,7 +102,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   Future<void> _remove(RevisionUnit unit) async {
-    await context.read<AppState>().removeFromDayPlan(unit.sourate.id);
+    await context.read<AppState>().removeFromDayPlan(unit.sourate.id,
+        verseStart: unit.verseStart, verseEnd: unit.verseEnd);
     await _load();
   }
 

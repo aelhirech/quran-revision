@@ -241,8 +241,18 @@ void main() {
     expect(proposees.toSet(), hasLength(proposees.length),
         reason: 'aucune portion ne revient deux fois dans un même cycle');
 
+    // Aucune sourate sélectionnée n'est absente du cycle — sans cette
+    // assertion, une sourate jamais proposée donnerait une liste de versets
+    // vide, que la boucle ci-dessous validerait sans broncher.
+    expect(proposees.map((c) => int.parse(c.split(':')[0])).toSet(),
+        {73, 74, 76});
+
     // Chaque sourate est couverte en entier, ses pages dans l'ordre du mushaf.
-    for (final id in [73, 74, 76]) {
+    // L'attendu vient de la SÉLECTION, pas du résultat observé : le comparer à
+    // `List.generate(versets.length, ...)` ne vérifiait que la contiguïté, et
+    // une dernière page tronquée passait au vert.
+    for (final selection in config.selections) {
+      final id = selection.sourate.id;
       final versets = <int>[];
       for (final cle in proposees) {
         final parts = cle.split(':');
@@ -252,9 +262,12 @@ void main() {
           versets.add(v);
         }
       }
-      expect(versets, List.generate(versets.length, (k) => k + 1),
-          reason: 'sourate $id couverte de son verset 1 à son dernier, '
-              'dans l\'ordre et sans trou');
+      expect(
+          versets,
+          List.generate(selection.verseEnd - selection.verseStart + 1,
+              (k) => selection.verseStart + k),
+          reason: 'sourate $id couverte de son verset ${selection.verseStart} '
+              'à ${selection.verseEnd}, dans l\'ordre et sans trou');
     }
   });
 
@@ -340,8 +353,9 @@ void main() {
     // scellé et ne devienne "en attente".
     await state.markUnitsReached(selection.units, date: day);
     expect(
-        await AyahFactsService.isRangeReached(day, Riwaya.hafs,
-            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd),
+        (await AyahFactsService.rangeStatus(day, Riwaya.hafs,
+            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd))
+            .reached,
         isTrue);
 
     // Dans CheckOutScreen, l'utilisateur décoche la 2e unité (il constate
@@ -352,8 +366,9 @@ void main() {
     await state.markUnitsReached([selection.units[1]], date: day, reach: false);
 
     expect(
-        await AyahFactsService.isRangeReached(day, Riwaya.hafs,
-            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd),
+        (await AyahFactsService.rangeStatus(day, Riwaya.hafs,
+            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd))
+            .reached,
         isFalse,
         reason: 'décocher une unité déjà reach=1 doit explicitement écrire '
             'reach=0, pas laisser l\'ancienne valeur en place');
@@ -456,5 +471,37 @@ void main() {
     expect(state.cyclePosition, afterFirst,
         reason: "sans le garde-fou `isDaySealed`, le cycle avancerait une "
             "seconde fois sur un contenu déjà compté");
+  });
+
+  test(
+      'retirer un fragment au check-in ne retire que celui-là : depuis que le '
+      'cycle est une liste de pages, une même journée peut porter deux plages '
+      'non adjacentes de la même sourate', () async {
+    final s2 = testSourate(2, verses: 286, words: 6000);
+    final config = UserConfig(
+      selections: [SourateSelection.whole(s2)],
+      pagesPerDay: 1,
+      startDate: DateTime.now().subtract(const Duration(days: 5)),
+      shuffleEnabled: false,
+      riwaya: Riwaya.hafs,
+    );
+    final state = AppState(config, riwaya: Riwaya.hafs);
+    final today = _isoDate(DateTime.now());
+
+    // Deux plages disjointes de la même sourate proposées le même jour.
+    final garde =
+        RevisionUnit(sourate: s2, verseStart: 1, verseEnd: 5, isWhole: false);
+    final retire = RevisionUnit(
+        sourate: s2, verseStart: 200, verseEnd: 203, isWhole: false);
+    await AyahFactsService.proposeUnits(today, Riwaya.hafs, [garde, retire]);
+    expect(await state.dayUnits(), hasLength(2));
+
+    await state.removeFromDayPlan(s2.id,
+        verseStart: retire.verseStart, verseEnd: retire.verseEnd);
+
+    final restant = await state.dayUnits();
+    expect(restant, hasLength(1),
+        reason: 'sans la plage, le DELETE effaçait les DEUX fragments');
+    expect([restant.first.verseStart, restant.first.verseEnd], [1, 5]);
   });
 }

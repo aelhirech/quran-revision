@@ -16,17 +16,23 @@ class DaySelection {
   /// cycle position, holding every selected fragment that falls on it.
   final List<List<RevisionUnit>> groups;
 
-  /// Index of the next page to revise, and how many pages the whole selection
-  /// spans. Counted in PAGES, never in surahs: a surah larger than the daily
-  /// budget must be resumable at page 2 tomorrow.
+  /// The whole cycle [groups] was taken from. Carried along so the check-out
+  /// walks the very list the day plan came from, instead of rebuilding it and
+  /// risking a second, silently different derivation of the same state.
+  final List<List<RevisionUnit>> cycle;
+
+  /// Index of the next page to revise. Counted in PAGES, never in surahs: a
+  /// surah larger than the daily budget must be resumable at page 2 tomorrow.
   final int cyclePosition;
-  final int cycleTotal;
 
   const DaySelection({
     required this.groups,
+    required this.cycle,
     required this.cyclePosition,
-    required this.cycleTotal,
   });
+
+  /// How many pages the whole selection spans.
+  int get cycleTotal => cycle.length;
 
   /// Flattened view, for consumers that do not care about the page boundary
   /// (writing the proposal into `ayah_facts`, rakaa layout, check-out preview).
@@ -56,6 +62,11 @@ class RevisionEngine {
     return pages.length;
   }
 
+  /// Deterministic per-surah shuffle rank — same seed and same surah give the
+  /// same rank whatever else the selection holds.
+  static int _shuffleKey(int seed, int surahId) =>
+      math.Random(seed + surahId).nextInt(1 << 31);
+
   /// The whole cycle, as an ordered list of mushaf pages — each entry holding
   /// every selected fragment sitting on that page.
   ///
@@ -73,7 +84,16 @@ class RevisionEngine {
   }) {
     final order = List<SourateSelection>.from(config.selections);
     if (config.shuffleEnabled) {
-      order.shuffle(math.Random(config.startDate.millisecondsSinceEpoch));
+      // Sorted on a per-surah key rather than shuffled as a list: a
+      // Fisher-Yates pass over n+1 elements shares nothing with the pass over
+      // n, so adding one surah (`handOffLearnedSurahs`) reordered every other
+      // one while `cyclePosition` stayed put — pages skipped, pages repeated.
+      final seed = config.startDate.millisecondsSinceEpoch;
+      order.sort((a, b) {
+        final byKey = _shuffleKey(seed, a.sourate.id)
+            .compareTo(_shuffleKey(seed, b.sourate.id));
+        return byKey != 0 ? byKey : a.sourate.id.compareTo(b.sourate.id);
+      });
     }
 
     final fragmentsByPage = <int, List<RevisionUnit>>{};
@@ -129,15 +149,15 @@ class RevisionEngine {
   }) {
     final cycle = buildCycle(config: config, pageMetadata: pageMetadata);
     if (cycle.isEmpty) {
-      return const DaySelection(groups: [], cyclePosition: 0, cycleTotal: 0);
+      return const DaySelection(groups: [], cycle: [], cyclePosition: 0);
     }
     final total = cycle.length;
     final pos = cyclePosition % total;
     final take = math.min(config.pagesPerDay, total);
     return DaySelection(
       groups: [for (int i = 0; i < take; i++) cycle[(pos + i) % total]],
+      cycle: cycle,
       cyclePosition: pos,
-      cycleTotal: total,
     );
   }
 
@@ -153,7 +173,14 @@ class RevisionEngine {
   /// budget de rakaas laissé à la révision est donc réduit d'une unité, sans
   /// quoi la dernière portion de révision serait simplement écrasée par
   /// l'apprentissage au lieu d'être redistribuée.
-  static List<PrayerPlan> distributeToRakaas({
+  ///
+  /// Returns the layout AND the units it could not place (`outside`), rule D
+  /// of `CLAUDE.md`: only this function knows whether it subdivided (nothing
+  /// is left out) or ran out of rakaas (the tail is shown apart). Re-deriving
+  /// that outside by comparing values gets it wrong — a subdivided unit is
+  /// never equal to the sub-ranges that replaced it.
+  static ({List<PrayerPlan> plan, List<RevisionUnit> outside})
+      distributeToRakaas({
     required List<RevisionUnit> units,
     required List<Prayer> prayersAlone,
     RevisionUnit? learningUnit,
@@ -161,8 +188,8 @@ class RevisionEngine {
     final totalSuratRakaas =
         prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
     final hasLearning = learningUnit != null && totalSuratRakaas > 0;
-    final pool = _UnitPool(
-        _expandToRakaas(units, totalSuratRakaas - (hasLearning ? 1 : 0)));
+    final budget = totalSuratRakaas - (hasLearning ? 1 : 0);
+    final pool = _UnitPool(_expandToRakaas(units, budget));
 
     // Décompte des rakaas récitées restantes : la dernière (recitedLeft == 0
     // après décrément) est celle de l'apprentissage. Compter à rebours évite
@@ -190,7 +217,14 @@ class RevisionEngine {
       plan.add(PrayerPlan(prayer: prayer, rakaas: rakaas));
     }
 
-    return plan;
+    // Below the budget `_expandToRakaas` subdivides and pads, so every unit is
+    // on screen — and the pool's leftovers would be sub-ranges, not the day's
+    // units. Only a genuine shortage of rakaas leaves whole units unplaced.
+    return (
+      plan: plan,
+      outside:
+          units.length > budget ? pool.unconsumed : const <RevisionUnit>[],
+    );
   }
 
   /// Subdivise les unités pour remplir [targetCount] rakaas.
@@ -286,6 +320,9 @@ class _UnitPool {
   final List<RevisionUnit> _units;
   int _consumed = 0;
   Set<RevisionUnit> _usedInPrayer = {};
+
+  /// Units no rakaa ever took — the day's content that did not fit.
+  List<RevisionUnit> get unconsumed => _units.sublist(_consumed);
 
   void startPrayer() => _usedInPrayer = {};
 

@@ -14,6 +14,7 @@ import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../services/ayah_facts_service.dart';
 import '../services/hafs_service.dart';
+import '../services/notification_service.dart';
 import '../services/page_metadata_service.dart';
 import '../services/storage_service.dart';
 import '../services/warsh_service.dart';
@@ -80,6 +81,11 @@ class AppState extends ChangeNotifier {
   /// `notifyListeners()` is `@protected` (only callable from instance members
   /// of a `ChangeNotifier` subclass) — the domain extensions in
   /// `app_state_*.dart` are not instance members, so they call this instead.
+  ///
+  /// The ONLY call site of `notifyListeners()` in the whole library: the class
+  /// body used to call it directly while the extensions called `_notify()`,
+  /// which left the rule "one notify per logical operation" (`CLAUDE.md`)
+  /// spread over two greps instead of one.
   void _notify() => notifyListeners();
 
   Sourate? _sourateById(int id) {
@@ -89,19 +95,13 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  /// Sélection du jour, pure (aucune écriture) — encapsule l'appel à
-  /// `RevisionEngine.buildDayUnits` avec les mêmes paramètres partout
-  /// (position gelée, jour ancré à minuit) pour que
-  /// [ensureDayPlan]/[buildTodaySession]/[checkOut]/[previewTodayUnits] ne
-  /// puissent pas diverger entre eux. [today] est TOUJOURS ancré à minuit
-  /// (`DateTime.parse` d'une date `YYYY-MM-DD`), jamais `DateTime.now()` :
-  /// la même date doit produire la même sélection qu'elle soit calculée à la
-  /// génération du plan ou plus tard au check-out, sinon `daysElapsed`
-  /// dérive avec l'heure de la journée et les deux appels ne comptent plus
-  /// les mêmes unités (bug trouvé en revue de code).
-  /// The cycle no longer depends on the date at all: it is a pure function of
-  /// the selection, the pace and the cursor. Every caller reads it here so the
-  /// day plan, the check-out and the KPIs can never diverge.
+  /// Sélection du jour, pure (aucune écriture).
+  ///
+  /// The cycle does not depend on the date at all: it is a pure function of
+  /// the selection, the pace and the cursor. Every caller
+  /// (`ensureDayPlan`, `buildTodaySession`, `checkOut`, `daySelection`,
+  /// `todayPreviewUnits`) reads it here so the day plan, the check-out and the
+  /// KPIs can never diverge.
   DaySelection get _selection => RevisionEngine.buildDayUnits(
         config: _config!,
         cyclePosition: _cyclePosition,
@@ -121,7 +121,7 @@ class AppState extends ChangeNotifier {
     if (_hasSeenTour) return;
     _hasSeenTour = true;
     await StorageService.setTourSeen();
-    notifyListeners();
+    _notify();
   }
   /// Sourates du parcours actif, avec comptes de versets/mots corrects pour
   /// la riwaya active (Hafs 6236 versets au total, Warsh 6214 — les comptes
@@ -165,14 +165,23 @@ class AppState extends ChangeNotifier {
       _pauseDates.add(today);
     }
     await StorageService.savePauseDates(_pauseDates, _riwaya);
-    notifyListeners();
+    _notify();
   }
 
   Future<void> setLocale(String locale) async {
     _locale = locale;
     S.locale = locale;
     await StorageService.saveLocale(locale);
-    notifyListeners();
+    // Reminder text is baked in at scheduling time, so an already-scheduled
+    // reminder would keep the language it was created in forever. Rescheduling
+    // overwrites ids 1 and 2, so it is idempotent.
+    if (await StorageService.loadNotifEnabled()) {
+      await Future.wait([
+        NotificationService.scheduleMorning(),
+        NotificationService.scheduleEvening(),
+      ]);
+    }
+    _notify();
   }
 
   /// Bascule le parcours actif (Hafs <-> Warsh). Chaque riwaya est un
@@ -189,7 +198,7 @@ class AppState extends ChangeNotifier {
     _riwaya = riwaya;
     await StorageService.saveRiwaya(riwaya);
     await _loadTrackState();
-    notifyListeners();
+    _notify();
     return true;
   }
 
@@ -225,7 +234,7 @@ class AppState extends ChangeNotifier {
       _todaySession = null;
       await StorageService.saveCyclePosition(0, _riwaya);
     }
-    notifyListeners();
+    _notify();
   }
 
   bool _sameSelections(List<SourateSelection> a, List<SourateSelection> b) {
@@ -248,7 +257,7 @@ class AppState extends ChangeNotifier {
       cycleTotal: cycleTotal,
     );
     await StorageService.saveCyclePosition(_cyclePosition, _riwaya);
-    if (notify) notifyListeners();
+    if (notify) _notify();
   }
 
   /// Recharge les dernières dates de révision par verset depuis l'historique
@@ -256,20 +265,20 @@ class AppState extends ChangeNotifier {
   /// session complétée.
   Future<void> refreshFreshness({bool notify = true}) async {
     _lastRevisionByAyah = await AyahFactsService.lastRevisionDatesPerVerse(riwaya: _riwaya);
-    if (notify) notifyListeners();
+    if (notify) _notify();
   }
 
-  Future<void> clearTodaySession() async {
-    _todaySession = null;
-    await StorageService.clearActivePrayers(_riwaya);
-    notifyListeners();
-  }
-
+  /// Toggling the shuffle rebuilds the cycle in a completely different order,
+  /// so the cursor no longer designates the page it used to — it restarts,
+  /// exactly like [saveConfig] does when the selection changes.
   Future<void> setShuffleEnabled(bool enabled) async {
-    if (_config == null) return;
+    if (_config == null || _config!.shuffleEnabled == enabled) return;
     _config = _config!.copyWith(shuffleEnabled: enabled);
+    _cyclePosition = 0;
+    _todaySession = null;
     await StorageService.saveConfig(_config!, _riwaya);
-    notifyListeners();
+    await StorageService.saveCyclePosition(0, _riwaya);
+    _notify();
   }
 
   Future<void> clearConfig() async {
@@ -280,6 +289,6 @@ class AppState extends ChangeNotifier {
     _pendingDate = null;
     _pauseDates = {};
     await StorageService.clearConfigOnly(_riwaya);
-    notifyListeners();
+    _notify();
   }
 }
