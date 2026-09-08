@@ -20,13 +20,19 @@ class _ShellScreenState extends State<ShellScreen> {
   int _index = 0;
   bool _showTour = false;
 
+  /// Étape courante du tour, tenue ici et non dans [SpotlightOverlay] : elle
+  /// doit rester synchronisée avec ce que l'utilisateur fait réellement, or
+  /// c'est cet écran qui reçoit les taps sur les onglets (Phase 9 Sprint 2 —
+  /// le tour se suit en se servant de l'app, plus en enchaînant « Suivant »).
+  int _tourStep = 0;
+
   @override
   void initState() {
     super.initState();
     // Point d'entrée du moteur quotidien (Phase 6 Sprint 2) — à chaque
     // ouverture/reprise de l'app (voir cadrage "Moteur quotidien").
     final state = context.read<AppState>();
-    state.ensureDayPlan();
+    final dayPlanReady = state.ensureDayPlan();
     // `freshnessFor` (Phase 8 Sprint 1) retourne toujours un niveau concret,
     // jamais `null` — tant qu'aucun refresh n'a eu lieu, `_lastRevisionByAyah`
     // est vide et toute sourate lirait à tort "jamais révisée" (badge rouge)
@@ -37,15 +43,23 @@ class _ShellScreenState extends State<ShellScreen> {
     // se résolvent — le démarrer ici, en parallèle, réduit la fenêtre de
     // course plutôt que de la laisser dépendre d'un écran sans rapport.
     state.refreshFreshness(notify: false);
-    _maybeStartTour();
+    _maybeStartTour(dayPlanReady);
   }
 
-  Future<void> _maybeStartTour() async {
+  Future<void> _maybeStartTour(Future<void> dayPlanReady) async {
+    // `pendingDate`/`todaySession` ne valent quelque chose qu'une fois le
+    // moteur quotidien résolu — sans cette attente, le garde ci-dessous lit
+    // toujours l'état d'avant chargement et le tour démarre sous le
+    // check-out de rattrapage qu'il est censé éviter.
+    await dayPlanReady;
+    if (!mounted) return;
     final state = context.read<AppState>();
     // Le tour ne cible que des widgets de HomeScreen (aucune session encore
     // engagée) — pas de sens à le montrer si l'utilisateur a déjà un plan.
-    if (state.todaySession != null) return;
-    if (!state.hasSeenTour && mounted) setState(() => _showTour = true);
+    // Un jour en attente non plus : `DayPlanTab` pousse alors le check-out
+    // par-dessus et n'affiche même pas le CTA que la dernière étape vise.
+    if (state.todaySession != null || state.pendingDate != null) return;
+    if (!state.hasSeenTour) setState(() => _showTour = true);
   }
 
   Future<void> _dismissTour() async {
@@ -53,21 +67,37 @@ class _ShellScreenState extends State<ShellScreen> {
     await context.read<AppState>().markTourSeen();
   }
 
+  /// Les 3 premières étapes présentent un onglet et sont donc indexées comme
+  /// lui ; la dernière ramène sur l'onglet 0 pour pointer le CTA d'accueil,
+  /// qui n'est mesurable que si son onglet est bien affiché (`IndexedStack`
+  /// construit les autres mais ne les met jamais en page).
+  static const _tourCtaStep = 3;
+
+  void _goToTourStep(int step) {
+    setState(() {
+      _tourStep = step;
+      _index = step < _tourCtaStep ? step : 0;
+    });
+  }
+
   List<TourStep> get _tourSteps => [
         TourStep(
-          targetKey: TourKeys.navBar,
+          targetKey: TourKeys.tabPlan,
           title: S.tourNavTitle,
           body: S.tourNavBody,
+          padding: 14,
         ),
         TourStep(
-          targetKey: TourKeys.navBar,
+          targetKey: TourKeys.tabRecap,
           title: S.tourRecapTitle,
           body: S.tourRecapBody,
+          padding: 14,
         ),
         TourStep(
-          targetKey: TourKeys.navBar,
+          targetKey: TourKeys.tabReglages,
           title: S.tourReglagesTitle,
           body: S.tourReglagesBody,
+          padding: 14,
         ),
         TourStep(
           targetKey: TourKeys.voirPlanButton,
@@ -76,22 +106,40 @@ class _ShellScreenState extends State<ShellScreen> {
         ),
       ];
 
+  /// Un onglet touché pendant le tour fait suivre le tour, plutôt que de le
+  /// laisser parler du Récap alors qu'on est sur les Réglages.
+  void _onDestinationSelected(int i) {
+    if (_showTour && _tourStep < _tourCtaStep) return _goToTourStep(i);
+    setState(() => _index = i);
+  }
+
   List<NavigationDestination> _destinations(BuildContext context) {
     context.watch<AppState>(); // rebuild on locale change
+    // La clé du tour est posée sur les DEUX icônes de chaque onglet :
+    // `NavigationDestination` n'en monte qu'une à la fois (sélectionnée ou
+    // non), donc pas de GlobalKey en double, mais la cible resterait
+    // introuvable sur l'onglet actif si seule `icon` était clée.
     return [
       NavigationDestination(
-        icon: const Icon(Icons.mosque_outlined),
-        selectedIcon: const Icon(Icons.mosque),
+        icon: KeyedSubtree(
+            key: TourKeys.tabPlan, child: const Icon(Icons.mosque_outlined)),
+        selectedIcon:
+            KeyedSubtree(key: TourKeys.tabPlan, child: const Icon(Icons.mosque)),
         label: S.planDuJour,
       ),
       NavigationDestination(
-        icon: const Icon(Icons.bar_chart_outlined),
-        selectedIcon: const Icon(Icons.bar_chart),
+        icon: KeyedSubtree(
+            key: TourKeys.tabRecap, child: const Icon(Icons.bar_chart_outlined)),
+        selectedIcon: KeyedSubtree(
+            key: TourKeys.tabRecap, child: const Icon(Icons.bar_chart)),
         label: S.recap,
       ),
       NavigationDestination(
-        icon: const Icon(Icons.settings_outlined),
-        selectedIcon: const Icon(Icons.settings),
+        icon: KeyedSubtree(
+            key: TourKeys.tabReglages,
+            child: const Icon(Icons.settings_outlined)),
+        selectedIcon: KeyedSubtree(
+            key: TourKeys.tabReglages, child: const Icon(Icons.settings)),
         label: S.reglages,
       ),
     ];
@@ -111,27 +159,33 @@ class _ShellScreenState extends State<ShellScreen> {
               ProfileScreen(),
             ],
           ),
-          bottomNavigationBar: KeyedSubtree(
-            key: TourKeys.navBar,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: palette.cardBorder)),
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: palette.cardBorder)),
+            ),
+            child: NavigationBar(
+              selectedIndex: _index,
+              onDestinationSelected: _onDestinationSelected,
+              destinations: _destinations(context),
+            ),
+          ).animate().slideY(
+                begin: 1,
+                end: 0,
+                duration: 400.ms,
+                curve: Curves.easeOut,
               ),
-              child: NavigationBar(
-                selectedIndex: _index,
-                onDestinationSelected: (i) => setState(() => _index = i),
-                destinations: _destinations(context),
-              ),
-            ).animate().slideY(
-                  begin: 1,
-                  end: 0,
-                  duration: 400.ms,
-                  curve: Curves.easeOut,
-                ),
-          ),
         ),
         if (_showTour)
-          SpotlightOverlay(steps: _tourSteps, onDone: _dismissTour),
+          SpotlightOverlay(
+            steps: _tourSteps,
+            index: _tourStep,
+            onNext: () => _goToTourStep(_tourStep + 1),
+            onDone: _dismissTour,
+            // La dernière étape pointe « Illuminer ma journée » : le tap
+            // atteint le vrai bouton et ouvre le check-in par-dessus tout —
+            // laisser le tour derrière n'aurait plus de sens.
+            onTargetTap: _tourStep == _tourCtaStep ? _dismissTour : null,
+          ),
       ],
     );
   }

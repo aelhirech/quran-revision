@@ -30,21 +30,26 @@ class DailySession {
   final DateTime date;
   final List<Prayer> prayersAlone;
   final List<PrayerPlan> plan;
-  final int totalUnits;
-  final int cyclePosition;
-  final int cycleTotal;
+
+  /// Pages réelles du mushaf couvertes par le plan de ce jour, et progression
+  /// du cycle dans cette même unité (Phase 9 Sprint 2) — le rythme se règle
+  /// en pages/jour, tous les compteurs affichés parlent donc de pages plutôt
+  /// que d'« unités », un grain interne au moteur. [pagesToday] est calculé
+  /// sur les unités réellement retenues pour la journée (donc après édition
+  /// au check-in), pas sur la proposition d'origine.
+  final int pagesToday;
+  final int pagesPosition;
+  final int pagesTotal;
 
   const DailySession({
     required this.date,
     required this.prayersAlone,
     required this.plan,
-    required this.totalUnits,
-    required this.cyclePosition,
-    required this.cycleTotal,
+    required this.pagesToday,
+    required this.pagesPosition,
+    required this.pagesTotal,
   });
 
   int get totalRakaas =>
       prayersAlone.fold(0, (sum, p) => sum + p.rakaas);
-
-  double get cycleProgress => cycleTotal == 0 ? 0 : cyclePosition / cycleTotal;
 }

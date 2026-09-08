@@ -43,8 +43,12 @@ void main() {
     await PageMetadataService.initialize();
   });
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    // Les tests de ce fichier partagent une seule `history.db` et réutilisent
+    // les mêmes dates relatives — sans ce nettoyage, l'un hérite du
+    // `checked_out` posé par le précédent sur la même date.
+    await clearFactsBetweenTests();
   });
 
   AppState newState({int cyclePosition = 0}) {

@@ -8,10 +8,10 @@ import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 
 /// Résultat de [RevisionEngine.buildDayUnits] — quelles unités composent le
-/// plan du jour, avant toute répartition en rakaas. Consommé à la fois par
-/// [RevisionEngine.buildDayPlan] (répartition immédiate) et par le moteur
+/// plan du jour, avant toute répartition en rakaas. Consommé par le moteur
 /// quotidien (Phase 6 Sprint 2, qui écrit ces unités dans `ayah_facts` sans
-/// les répartir par prière).
+/// les répartir par prière) puis, une fois les prières choisies, par
+/// [RevisionEngine.distributeToRakaas] via `AppState.buildTodaySession`.
 class DaySelection {
   /// Une entrée = une seule position de cycle. La plupart du temps un
   /// groupe = 1 sourate = 1 unité, mais plusieurs courtes sourates qui
@@ -24,10 +24,23 @@ class DaySelection {
   final int cyclePosition; // position normalisée (mod cycleTotal)
   final int cycleTotal;
 
+  /// La même progression que [cyclePosition]/[cycleTotal], mais exprimée en
+  /// **pages réelles du mushaf** — c'est l'unité que l'utilisateur règle
+  /// (`UserConfig.pagesPerDay`) et donc la seule qu'il puisse rapporter à son
+  /// rythme, là où un « groupe » est un détail d'implémentation du moteur
+  /// (Phase 9 Sprint 2). Somme des pages de chaque groupe, dans l'ordre du
+  /// cycle : même arithmétique que le budget dépensé jour après jour par
+  /// [RevisionEngine.buildDayUnits], donc `pagesTotal / pagesPerDay` donne
+  /// bien le nombre de jours d'un cycle complet.
+  final int pagesPosition;
+  final int pagesTotal;
+
   const DaySelection({
     required this.groups,
     required this.cyclePosition,
     required this.cycleTotal,
+    this.pagesPosition = 0,
+    this.pagesTotal = 0,
   });
 
   /// Vue aplatie de [groups] — pour tout consommateur (proposition dans
@@ -81,11 +94,60 @@ List<List<SourateSelection>> _groupSelectionsByPage(
   return groups;
 }
 
+/// Conversion `SourateSelection` → `RevisionUnit` d'un groupe de cycle —
+/// factorisée ici parce que [RevisionEngine.buildDayUnits] et
+/// [RevisionEngine.cycleGroups] la faisaient chacune à l'identique.
+List<RevisionUnit> _unitsOfGroup(List<SourateSelection> group) => [
+      for (final selection in group)
+        RevisionUnit(
+          sourate: selection.sourate,
+          verseStart: selection.verseStart,
+          verseEnd: selection.verseEnd,
+          isWhole: selection.isWhole,
+        ),
+    ];
+
+/// Numéros de page du mushaf couverts par [units] sur leur plage exacte de
+/// versets. Un **ensemble**, pas un compte : les appelants qui agrègent
+/// plusieurs groupes doivent en faire l'union, jamais la somme — une page
+/// physique partagée par deux groupes (la fin d'une sourate et le début de la
+/// suivante) serait sinon comptée deux fois, et le cycle complet d'un hafiz
+/// afficherait 659 pages au lieu des 604 du mushaf Hafs.
+Set<int> _pageNumbersOf(
+  Iterable<RevisionUnit> units,
+  Map<int, Map<int, int>> pageMetadata,
+) {
+  final pages = <int>{};
+  for (final unit in units) {
+    final surahPages = pageMetadata[unit.sourate.id];
+    if (surahPages == null) continue;
+    for (int v = unit.verseStart; v <= unit.verseEnd; v++) {
+      final page = surahPages[v];
+      if (page != null) pages.add(page);
+    }
+  }
+  return pages;
+}
+
 /// Seuil en-dessous duquel une sous-plage issue de la subdivision d'une unité
 /// pour remplir des rakaas n'a plus de sens (voir [RevisionEngine._materialize]).
 const double _minLinesPerSlot = 5.0;
 
 class RevisionEngine {
+  /// Nombre de pages **réelles distinctes** du mushaf couvertes par [units],
+  /// sur leur plage exacte de versets. Compte des numéros de page, pas des
+  /// couples (sourate, page) : plusieurs courtes sourates qui partagent une
+  /// même page physique n'en font qu'une — exactement ce que le budget de
+  /// [buildDayUnits] dépense pour elles (voir « regroupement par page
+  /// partagée »), sinon les KPI affichés dériveraient du rythme réglé.
+  /// Fonction pure : [pageMetadata] est fourni par l'appelant
+  /// (`PageMetadataService`), `lib/core/` ne fait aucune I/O.
+  static int pagesOf(
+    Iterable<RevisionUnit> units,
+    Map<int, Map<int, int>> pageMetadata,
+  ) =>
+      _pageNumbersOf(units, pageMetadata).length;
+
   /// Détermine quelles unités composent le plan du jour basé sur un budget de
   /// pages/jour. Étapes 1-2 de l'ancien `buildDayPlan` monolithique,
   /// extraites pour être réutilisables par le moteur quotidien
@@ -112,11 +174,7 @@ class RevisionEngine {
 
     // Aucune sourate sélectionnée : rien à faire avancer dans le cycle
     if (surahList.isEmpty) {
-      return const DaySelection(
-        groups: [],
-        cyclePosition: 0,
-        cycleTotal: 0,
-      );
+      return const DaySelection(groups: [], cyclePosition: 0, cycleTotal: 0);
     }
 
     final List<List<SourateSelection>> groups =
@@ -147,15 +205,7 @@ class RevisionEngine {
         // Page partagée entre plusieurs sourates : atomique, coûte 1 page,
         // jamais découpée (par construction chaque membre tient déjà sur
         // cette unique page).
-        todayGroups.add([
-          for (final selection in group)
-            RevisionUnit(
-              sourate: selection.sourate,
-              verseStart: selection.verseStart,
-              verseEnd: selection.verseEnd,
-              isWhole: selection.isWhole,
-            ),
-        ]);
+        todayGroups.add(_unitsOfGroup(group));
         remainingPages -= 1;
         continue;
       }
@@ -178,14 +228,7 @@ class RevisionEngine {
 
       if (remainingPages >= totalPages) {
         // La sourate entière tient dans le budget restant
-        todayGroups.add([
-          RevisionUnit(
-            sourate: sourate,
-            verseStart: selection.verseStart,
-            verseEnd: selection.verseEnd,
-            isWhole: selection.isWhole,
-          ),
-        ]);
+        todayGroups.add(_unitsOfGroup(group));
         remainingPages -= totalPages;
       } else {
         // Seulement une partie de la sourate tient dans le budget restant
@@ -221,10 +264,27 @@ class RevisionEngine {
       }
     }
 
+    // Progression du cycle en pages réelles : les groupes déjà passés
+    // (avant `pos`) d'un côté, la totalité de l'autre — une seule passe.
+    // **Union, pas somme** : deux groupes peuvent se partager une page
+    // physique (fin d'une sourate, début de la suivante), et l'additionner
+    // gonflerait le total au-delà du nombre de pages réellement à réviser.
+    // Calculé ici plutôt que chez l'appelant pour que les trois écrans qui
+    // affichent le cycle (Accueil, Récap, Plan du jour) lisent la même
+    // valeur, comme pour `cyclePosition`/`cycleTotal`.
+    final pagesAll = <int>{};
+    final pagesBefore = <int>{};
+    for (int i = 0; i < groups.length; i++) {
+      final pages = _pageNumbersOf(_unitsOfGroup(groups[i]), pageMetadata);
+      pagesAll.addAll(pages);
+      if (i < pos) pagesBefore.addAll(pages);
+    }
     return DaySelection(
       groups: todayGroups,
       cyclePosition: pos,
       cycleTotal: groupCount,
+      pagesPosition: pagesBefore.length,
+      pagesTotal: pagesAll.length,
     );
   }
 
@@ -247,46 +307,8 @@ class RevisionEngine {
     if (surahList.isEmpty) return const [];
     return [
       for (final group in _groupSelectionsByPage(surahList, pageMetadata))
-        [
-          for (final selection in group)
-            RevisionUnit(
-              sourate: selection.sourate,
-              verseStart: selection.verseStart,
-              verseEnd: selection.verseEnd,
-              isWhole: selection.isWhole,
-            ),
-        ],
+        _unitsOfGroup(group),
     ];
-  }
-
-  /// Construit le plan complet du jour (sélection + répartition en rakaas)
-  /// en un seul appel — composition pure de [buildDayUnits] +
-  /// [distributeToRakaas], sans effet de bord.
-  static Future<DailySession> buildDayPlan({
-    required UserConfig config,
-    required List<Prayer> prayersAlone,
-    required int cyclePosition,
-    required DateTime today,
-    required Map<int, Map<int, int>> pageMetadata,
-  }) async {
-    final selection = await buildDayUnits(
-      config: config,
-      cyclePosition: cyclePosition,
-      today: today,
-      pageMetadata: pageMetadata,
-    );
-    final plan = distributeToRakaas(
-      units: selection.units,
-      prayersAlone: prayersAlone,
-    );
-    return DailySession(
-      date: today,
-      prayersAlone: prayersAlone,
-      plan: plan,
-      totalUnits: selection.units.length,
-      cyclePosition: selection.cyclePosition,
-      cycleTotal: selection.cycleTotal,
-    );
   }
 
   /// Répartit des unités déjà choisies dans les rakaas des prières données —
@@ -414,29 +436,6 @@ class RevisionEngine {
     return (currentPosition + unitsCompleted) % cycleTotal;
   }
 
-  /// Unités (échelle attendue par [advanceCycle]) et unités réellement
-  /// couvertes par les [n] premières rakaas de [plan] (dans l'ordre) —
-  /// utilisé pour la déclaration manuelle "une part fait" de `PlanScreen`, où
-  /// l'utilisateur pense en rakaas récitées, pas en unités de cycle.
-  static ({int units, List<RevisionUnit> coveredUnits}) coverageForFirstRakaas(
-      List<PrayerPlan> plan, int n) {
-    final seenLabels = <String>{};
-    final coveredUnits = <RevisionUnit>[];
-    int counted = 0;
-    for (final pp in plan) {
-      for (final r in pp.rakaas) {
-        // La rakaa d'apprentissage n'est pas une unité de révision : elle ne
-        // fait pas avancer le cycle et se confirme au check-out, pas ici.
-        if (r.unit == null || r.isLearning) continue;
-        if (counted >= n) break;
-        counted++;
-        seenLabels.add(r.unit!.label);
-        coveredUnits.add(r.unit!);
-      }
-      if (counted >= n) break;
-    }
-    return (units: seenLabels.length, coveredUnits: coveredUnits);
-  }
 }
 
 /// Distribue une liste d'unités déjà expansées (une par rakaa cible) rakaa

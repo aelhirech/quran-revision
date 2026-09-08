@@ -166,7 +166,7 @@ void main() {
     test('reste "en cours" même si le seul verset appris est ensuite désappris',
         () async {
       await AyahFactsService.proposeLearnVerses(today, Riwaya.hafs, 31, [1]);
-      await AyahFactsService.learnVerse(31, 1, Riwaya.hafs);
+      await AyahFactsService.learnVerses(31, [1], Riwaya.hafs);
       await AyahFactsService.unlearnVerse(31, 1, Riwaya.hafs);
       final progress = await AyahFactsService.loadMainLearningProgress(
           riwaya: Riwaya.hafs, sourates: [testSourate(31)]);

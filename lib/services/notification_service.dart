@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../core/strings.dart';
 import 'storage_service.dart';
 
 class NotificationService {
@@ -70,8 +71,8 @@ class NotificationService {
   static Future<void> scheduleMorning({int hour = 7, int minute = 0}) async {
     await _schedule(
       id: 1,
-      title: '🕌 Révision du Coran',
-      body: 'Planifie ta révision du jour',
+      title: S.notifMatinTitle,
+      body: S.notifMatinBody,
       hour: hour,
       minute: minute,
       channelId: 'morning',
@@ -83,8 +84,8 @@ class NotificationService {
   static Future<void> scheduleEvening({int hour = 20, int minute = 30}) async {
     await _schedule(
       id: 2,
-      title: '📖 Bilan du jour',
-      body: 'As-tu complété ta révision ?',
+      title: S.notifSoirTitle,
+      body: S.notifSoirBody,
       hour: hour,
       minute: minute,
       channelId: 'evening',

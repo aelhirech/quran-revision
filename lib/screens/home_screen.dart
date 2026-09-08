@@ -23,9 +23,8 @@ import '../widgets/spotlight_tour.dart';
 /// confirment au même endroit, juste avant que le plan ne soit réparti.
 class HomeScreen extends StatefulWidget {
   final VoidCallback onIlluminer;
-  final VoidCallback? onSaisirManuel;
 
-  const HomeScreen({super.key, required this.onIlluminer, this.onSaisirManuel});
+  const HomeScreen({super.key, required this.onIlluminer});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -77,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (state.config == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final closed = state.todayClosed;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -109,35 +109,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
                 CycleProgressCard(
-                  progress: (_daySelection?.cycleTotal ?? 0) > 0
-                      ? _daySelection!.cyclePosition / _daySelection!.cycleTotal
+                  progress: (_daySelection?.pagesTotal ?? 0) > 0
+                      ? _daySelection!.pagesPosition / _daySelection!.pagesTotal
                       : 0.0,
-                  pos: _daySelection?.cyclePosition ?? 0,
-                  total: _daySelection?.cycleTotal ?? 0,
+                  pos: _daySelection?.pagesPosition ?? 0,
+                  total: _daySelection?.pagesTotal ?? 0,
                   streak: _streak,
+                  label: S.cycleEnCours,
                 ),
                 const SizedBox(height: 16),
                 HadithCard(hadith: hadithDuJour(DateTime.now())),
                 const SizedBox(height: 28),
+                // Journée déjà clôturée : le CTA reste à sa place (le tour
+                // guidé le cible) mais devient inerte — réinviter à
+                // « illuminer » une journée scellée relancerait un check-in
+                // sur un plan qui ne peut plus faire avancer le cycle.
                 KeyedSubtree(
                   key: TourKeys.voirPlanButton,
                   child: PrimaryCtaButton(
-                    onPressed: widget.onIlluminer,
-                    icon: Icons.wb_sunny_outlined,
-                    label: S.illuminerMaJournee,
+                    onPressed: closed ? null : widget.onIlluminer,
+                    icon: closed
+                        ? Icons.nightlight_outlined
+                        : Icons.wb_sunny_outlined,
+                    label:
+                        closed ? S.journeeCloturee : S.illuminerMaJournee,
                   ),
                 ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
                 const SizedBox(height: 8),
                 Center(
-                  child: Text(S.illuminerSousTitre,
+                  child: Text(
+                      closed
+                          ? S.journeeClotureeSousTitre
+                          : S.illuminerSousTitre,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: palette.textMuted)),
                 ).animate().fadeIn(delay: 300.ms),
-                if (widget.onSaisirManuel != null)
-                  TextButton(
-                    onPressed: widget.onSaisirManuel,
-                    child: Text(S.saisirManuellement),
-                  ).animate().fadeIn(delay: 350.ms),
               ]),
             ),
           ),

@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/app_rules.dart';
 import '../core/freshness_engine.dart';
-import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
-import '../models/prayer.dart';
 import '../models/revision_unit.dart';
-import '../services/ayah_facts_service.dart';
 import '../state/app_state.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/primary_cta_button.dart';
 
@@ -20,14 +17,23 @@ import '../widgets/primary_cta_button.dart';
 /// désormais lieu (`CheckInScreen`).
 class PlanScreen extends StatefulWidget {
   final DailySession session;
-  final Future<void> Function(int unitsCompleted, List<RevisionUnit> coveredUnits)? onComplete;
+
+  /// « Clôturer ma journée » — ouvre le check-out du jour (voir `DayPlanTab`).
+  /// Depuis la Phase 9 Sprint 2, c'est la seule sortie normale de l'écran :
+  /// l'ancien `onComplete` (déclaration "tout fait / une part / rien fait" +
+  /// écran de célébration) a disparu, ce que l'utilisateur a réellement fait
+  /// se confirme au check-out et nulle part ailleurs.
+  final VoidCallback onCloturer;
+
+  /// « Refaire le plan » — abandonne la répartition en cours et revient à
+  /// l'accueil pour un nouveau check-in.
   final VoidCallback? onChangePlan;
   final FreshnessLevel Function(int sourateId, int verseStart, int verseEnd)? freshnessOf;
 
   const PlanScreen({
     super.key,
     required this.session,
-    this.onComplete,
+    required this.onCloturer,
     this.onChangePlan,
     this.freshnessOf,
   });
@@ -136,36 +142,21 @@ class _PlanScreenState extends State<PlanScreen> {
             if (r.unit != null && !r.isLearning) r.unit!,
       ];
 
-  Future<void> _confirmChangePlan(BuildContext context) async {
-    // Commitment modal — l'utilisateur doit déclarer ce qu'il a fait.
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CommitmentSheet(
-        totalRakaas: _totalRakaasWithUnit,
-        onToutFait: () async {
-          Navigator.pop(context);
-          if (mounted) {
-            await widget.onComplete!(widget.session.totalUnits, _allCoveredUnits);
-          }
-        },
-        onPartFait: (n) async {
-          Navigator.pop(context);
-          final coverage =
-              RevisionEngine.coverageForFirstRakaas(widget.session.plan, n);
-          if (mounted) {
-            await widget.onComplete!(coverage.units, coverage.coveredUnits);
-          }
-        },
-        onRienFait: () {
-          Navigator.pop(context);
-          widget.onChangePlan?.call();
-        },
-      ),
+  /// « Refaire le plan » — remplace l'ancien volet non-fermable « Tout fait /
+  /// Une part / Rien fait » (Phase 9 Sprint 2). Faire déclarer ici ce qui a
+  /// été révisé faisait doublon avec le check-out, seul endroit qui scelle la
+  /// journée et fait avancer le cycle ; il ne reste donc que le geste « je
+  /// veux une autre répartition », derrière une confirmation parce qu'il
+  /// renvoie à l'accueil. Les rakaas déjà cochées restent écrites dans
+  /// `ayah_facts` : rien n'est perdu, seule la répartition en rakaas l'est.
+  Future<void> _confirmRefairePlan() async {
+    final confirmed = await confirmDialog(
+      context,
+      title: S.refairePlan,
+      message: S.refairePlanConfirm,
+      confirmLabel: S.refairePlan,
     );
+    if (confirmed) widget.onChangePlan?.call();
   }
 
   Future<void> _toggle(int prayerIndex, int rakaaNumber) async {
@@ -199,6 +190,7 @@ class _PlanScreenState extends State<PlanScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
+    final palette = context.palette;
     final checkedByPrayer = _checkedByPrayer();
     final allDone = _allDoneOf(checkedByPrayer);
     final checkedCount = _checkedCountOf(checkedByPrayer);
@@ -218,9 +210,9 @@ class _PlanScreenState extends State<PlanScreen> {
             actions: [
               if (widget.onChangePlan != null)
                 IconButton(
-                  icon: const Icon(Icons.tune),
-                  tooltip: S.modifierPlan,
-                  onPressed: () => _confirmChangePlan(context),
+                  icon: const Icon(Icons.refresh),
+                  tooltip: S.refairePlan,
+                  onPressed: _confirmRefairePlan,
                 ),
             ],
             bottom: PreferredSize(
@@ -261,43 +253,32 @@ class _PlanScreenState extends State<PlanScreen> {
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            height: 56,
-            child: _completionButton(allDone, checkedCount),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('$checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
+                  style: TextStyle(fontSize: 12, color: palette.textMuted)),
+              const SizedBox(height: 8),
+              SizedBox(height: 56, child: _completionButton(allDone)),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Future<void> _showCompletionSummary() async {
-    final state = context.read<AppState>();
-    // +1 anticipe la session d'aujourd'hui, pas encore enregistrée à ce stade.
-    final streakFuture = AyahFactsService.currentStreak(
-            pauseDates: state.pauseDates, riwaya: state.riwaya)
-        .then((s) => s + 1);
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CompletionCelebrationSheet(
-        session: widget.session,
-        streakFuture: streakFuture,
-      ),
-    );
-    if (mounted) {
-      await widget.onComplete!(widget.session.totalUnits, _allCoveredUnits);
-    }
-  }
-
-  Widget _completionButton(bool allDone, int checkedCount) {
+  /// « Clôturer ma journée » — **toujours actif** (cadrage 2026-09-07) : le
+  /// check-out est précisément l'endroit où l'on corrige ce qui n'a pas été
+  /// fait comme ce qui l'a été en plus, le verrouiller tant que toutes les
+  /// rakaas ne sont pas cochées obligerait à cocher faux pour pouvoir
+  /// clôturer sa journée. L'animation de célébration ne se déclenche, elle,
+  /// que quand tout est effectivement coché.
+  Widget _completionButton(bool allDone) {
     final button = PrimaryCtaButton(
-      onPressed: allDone ? _showCompletionSummary : null,
-      icon: allDone ? Icons.check_circle : Icons.check_circle_outline,
-      label: allDone
-          ? S.revisionComplete
-          : '$checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
+      onPressed: widget.onCloturer,
+      icon: allDone ? Icons.check_circle : Icons.nightlight_outlined,
+      label: S.cloturerMaJournee,
     );
 
     if (!allDone) return button;
@@ -315,11 +296,14 @@ class _PlanScreenState extends State<PlanScreen> {
             delay: 100.ms);
   }
 
+  /// Bandeau de résumé — en **pages réelles** depuis la Phase 9 Sprint 2, la
+  /// même unité que le rythme réglé. Lit `pagesPosition`/`pagesTotal` du
+  /// `DailySession` au lieu de reprojeter localement une fin de cycle : cet
+  /// écran était le dernier des trois (avec Accueil et Récap) à refaire
+  /// l'arithmétique de cycle dans son coin — dette §8.5 de la doc technique.
   Widget _summaryBar() {
     final session = widget.session;
     final palette = context.palette;
-    final cycleEnd =
-        (session.cyclePosition + session.totalUnits).clamp(0, session.cycleTotal);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -333,7 +317,7 @@ class _PlanScreenState extends State<PlanScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            S.unitesRakaas(session.totalUnits, session.totalRakaas),
+            S.pagesRakaas(session.pagesToday, session.totalRakaas),
             style: TextStyle(
                 color: palette.textPrimary,
                 fontWeight: FontWeight.w600,
@@ -343,7 +327,7 @@ class _PlanScreenState extends State<PlanScreen> {
           Row(
             children: [
               Text(
-                '${S.cycleEnCours} : $cycleEnd / ${session.cycleTotal}',
+                '${S.cycleEnCours} : ${session.pagesPosition} / ${session.pagesTotal}',
                 style: TextStyle(color: palette.textMuted, fontSize: 11),
               ),
               const SizedBox(width: 8),
@@ -351,9 +335,9 @@ class _PlanScreenState extends State<PlanScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(3),
                   child: LinearProgressIndicator(
-                    value: session.cycleTotal == 0
+                    value: session.pagesTotal == 0
                         ? 0
-                        : cycleEnd / session.cycleTotal,
+                        : session.pagesPosition / session.pagesTotal,
                     minHeight: 3,
                     backgroundColor: palette.textPrimary.withValues(alpha: 0.1),
                     color: palette.gold,
@@ -365,313 +349,5 @@ class _PlanScreenState extends State<PlanScreen> {
         ],
       ),
     );
-  }
-}
-
-// ─── Écran waouh (gamification) ───────────────────────────────────────────────
-
-class _CompletionCelebrationSheet extends StatelessWidget {
-  final DailySession session;
-  final Future<int> streakFuture;
-
-  const _CompletionCelebrationSheet({
-    required this.session,
-    required this.streakFuture,
-  });
-
-  List<RevisionUnit> _unitsForPrayer(PrayerPlan pp) {
-    final seen = <String>{};
-    final result = <RevisionUnit>[];
-    for (final r in pp.rakaas) {
-      if (r.unit != null && seen.add(r.unit!.label)) {
-        result.add(r.unit!);
-      }
-    }
-    return result;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          // Animation célébration
-          const Text('✨', style: TextStyle(fontSize: 52))
-              .animate()
-              .scale(
-                  begin: const Offset(0.3, 0.3),
-                  duration: 600.ms,
-                  curve: Curves.elasticOut)
-              .then()
-              .shimmer(duration: 800.ms),
-          const SizedBox(height: 12),
-          Text(S.waouhIslamic,
-              style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: context.palette.primary)),
-          const SizedBox(height: 4),
-          Text(S.waouhSubtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant)),
-          const SizedBox(height: 16),
-          // Streak
-          FutureBuilder<int>(
-            future: streakFuture,
-            builder: (_, snap) {
-              if (!snap.hasData) return const SizedBox(height: 40);
-              final streak = snap.data!;
-              return _StreakBadge(streak: streak)
-                  .animate()
-                  .fadeIn(delay: 300.ms)
-                  .slideY(begin: 0.2);
-            },
-          ),
-          const SizedBox(height: 20),
-          const Divider(),
-          const SizedBox(height: 8),
-          // Résumé session
-          ...session.plan.map((pp) => _prayerRow(cs, pp)),
-          const SizedBox(height: 20),
-          PrimaryCtaButton(
-            label: S.terminer,
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    ).animate().slideY(begin: 0.15, duration: 350.ms, curve: Curves.easeOut);
-  }
-
-  Widget _prayerRow(ColorScheme cs, PrayerPlan pp) {
-    final units = _unitsForPrayer(pp);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: cs.primaryContainer,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.mosque_outlined,
-                size: 16, color: cs.primary),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(pp.prayer.nameFr,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: cs.onSurface)),
-                Text(
-                  units.isEmpty
-                      ? S.alFatihaSeul
-                      : units.map((u) => u.label).join(' · '),
-                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StreakBadge extends StatelessWidget {
-  final int streak;
-  const _StreakBadge({required this.streak});
-
-  @override
-  Widget build(BuildContext context) {
-    String message;
-    if (streak == 1) {
-      message = S.premierJour;
-    } else if (AppRules.streakMilestones.contains(streak)) {
-      message = S.nouveauPalier;
-    } else {
-      message = S.streakJours(streak);
-    }
-
-    final palette = context.palette;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: palette.gold.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.gold.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('🔥', style: TextStyle(fontSize: 22)),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(message,
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: palette.textPrimary)),
-              Text(S.streakLabel,
-                  style: TextStyle(fontSize: 11, color: palette.goldDark)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Commitment modal ─────────────────────────────────────────────────────────
-
-class _CommitmentSheet extends StatefulWidget {
-  final int totalRakaas;
-  final Future<void> Function() onToutFait;
-  final Future<void> Function(int n) onPartFait;
-  final VoidCallback onRienFait;
-
-  const _CommitmentSheet({
-    required this.totalRakaas,
-    required this.onToutFait,
-    required this.onPartFait,
-    required this.onRienFait,
-  });
-
-  @override
-  State<_CommitmentSheet> createState() => _CommitmentSheetState();
-}
-
-class _CommitmentSheetState extends State<_CommitmentSheet> {
-  int _partialN = 1;
-  bool _showPartial = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(S.engagementTitre,
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: cs.onSurface)),
-          const SizedBox(height: 20),
-          if (!_showPartial) ...[
-            PrimaryCtaButton(
-              height: 50,
-              icon: Icons.check_circle_outline,
-              label: S.toutFait,
-              onPressed: widget.onToutFait,
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: () => setState(() {
-                _showPartial = true;
-                // clamp(1, totalRakaas) exigerait totalRakaas >= 1 : un plan
-                // sans aucune unité assignée (aucune sourate sélectionnée,
-                // cf. RevisionEngine) donnerait un intervalle 1..0 invalide.
-                final maxRakaas = widget.totalRakaas > 0 ? widget.totalRakaas : 1;
-                _partialN = (widget.totalRakaas * AppRules.defaultPartialFraction)
-                    .round()
-                    .clamp(1, maxRakaas);
-              }),
-              icon: const Icon(Icons.remove_circle_outline),
-              label: Text(S.unePart,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-              style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
-            ),
-            const SizedBox(height: 10),
-            TextButton.icon(
-              onPressed: widget.onRienFait,
-              icon: Icon(Icons.cancel_outlined, color: cs.error),
-              label: Text(S.rienFait,
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: cs.error)),
-              style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
-            ),
-          ] else ...[
-            Text(S.combienRakaas,
-                style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant)),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton.filled(
-                  onPressed: _partialN > 1
-                      ? () => setState(() => _partialN--)
-                      : null,
-                  icon: const Icon(Icons.remove),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text('$_partialN',
-                      style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          color: cs.onSurface)),
-                ),
-                IconButton.filled(
-                  onPressed: _partialN < widget.totalRakaas
-                      ? () => setState(() => _partialN++)
-                      : null,
-                  icon: const Icon(Icons.add),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => widget.onPartFait(_partialN),
-              child: Text(S.valider,
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w700)),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => setState(() => _showPartial = false),
-              child: Text(S.annuler),
-            ),
-          ],
-        ],
-      ),
-    ).animate().slideY(begin: 0.2, duration: 300.ms, curve: Curves.easeOut);
   }
 }

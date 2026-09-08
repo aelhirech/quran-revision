@@ -137,21 +137,9 @@ class AyahFactsService {
     return result.first['c'] as int? ?? 0;
   }
 
-  /// Moyenne de versets révisés par jour actif, sur les [lastN] derniers
-  /// jours actifs (remplace l'ancienne moyenne "unités par session" — nommée
-  /// explicitement "verses" pour ne pas la confondre avec une unité
-  /// RevisionEngine, dont la taille varie par sourate).
-  static Future<double> avgVersesPerDay(
-      {int lastN = 14, required Riwaya riwaya}) async {
-    final counts = await recentDayVerseCounts(limit: lastN, riwaya: riwaya);
-    if (counts.isEmpty) return 0.0;
-    final total = counts.values.fold(0, (sum, c) => sum + c);
-    return total / counts.length;
-  }
-
   /// Nombre de versets révisés par jour (date ISO → compte), les [limit]
-  /// derniers jours actifs les plus récents — pour `avgVersesPerDay`
-  /// (moyenne sur jours actifs uniquement).
+  /// derniers jours actifs les plus récents — base de [recentDayVerseStats]
+  /// (jours actifs uniquement, un jour sans aucun verset fait n'y figure pas).
   static Future<Map<String, int>> recentDayVerseCounts(
       {int limit = 14, required Riwaya riwaya}) async {
     final db = await _open();
@@ -191,10 +179,6 @@ class AyahFactsService {
   }
 
   // --- Apprentissage ---
-
-  static Future<void> learnVerse(int surahId, int ayahId, Riwaya riwaya) async {
-    await learnVerses(surahId, [ayahId], riwaya);
-  }
 
   /// Marque plusieurs versets appris en un seul batch (une transaction, un
   /// aller-retour SQLite) — utilisé pour un bloc de versets (1/3/5) marqué
@@ -623,6 +607,31 @@ class AyahFactsService {
     await db.update('ayah_facts', {'checked_out': 1},
         where: 'date = ? AND riwaya = ? AND type = ?',
         whereArgs: [date, riwaya.name, AyahFactType.revise.name]);
+  }
+
+  /// La journée [date] a-t-elle déjà été scellée ? `false` s'il n'y a aucune
+  /// ligne de révision ce jour-là — une journée sans plan n'est pas une
+  /// journée clôturée. Sert au garde-fou de `AppState.checkOut` (le cycle
+  /// n'avance qu'une fois par jour) et à l'état "au repos" de l'accueil,
+  /// depuis que « Clôturer ma journée » permet de sceller le jour courant
+  /// sans attendre le lendemain (Phase 9 Sprint 2).
+  ///
+  /// Prédicat **monotone** — « il existe une ligne scellée », pas « toutes
+  /// les lignes le sont » : une journée peut redevenir mixte après son
+  /// scellement (une ligne fraîche `checked_out = 0` écrite par
+  /// [proposeUnits]), et un `MIN(checked_out)` répondrait alors « pas
+  /// scellée », désarmant le garde-fou anti-double-comptage de `checkOut`
+  /// exactement quand il sert. À ne pas confondre avec [pendingDate], qui
+  /// pose la question inverse (« reste-t-il quelque chose à clôturer ? ») et
+  /// doit, elle, rester sensible à ces lignes fraîches.
+  static Future<bool> isDaySealed(String date, Riwaya riwaya) async {
+    final db = await _open();
+    final rows = await db.rawQuery(
+      'SELECT 1 FROM ayah_facts '
+      'WHERE date = ? AND riwaya = ? AND type = ? AND checked_out = 1 LIMIT 1',
+      [date, riwaya.name, AyahFactType.revise.name],
+    );
+    return rows.isNotEmpty;
   }
 
   /// Reconstruit le plan du jour en lignes groupées par sourate — une entrée

@@ -61,8 +61,12 @@ void main() {
     await PageMetadataService.initialize();
   });
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    // Les tests de ce fichier partagent une seule `history.db` et réutilisent
+    // les mêmes dates relatives — sans ce nettoyage, l'un hérite du
+    // `checked_out` posé par le précédent sur la même date.
+    await clearFactsBetweenTests();
   });
 
   test('ensureDayPlan gèle le moteur tant qu\'un jour précédent est en attente', () async {
@@ -387,5 +391,46 @@ void main() {
             '2 et désynchronisé cyclePosition de cycleTotal (2 groupes)');
     expect(wrapped, isFalse,
         reason: '1 groupe complété sur 2 : pas de bouclage');
+  });
+
+  test(
+      "clôturer deux fois la même journée ne fait avancer le cycle qu'une "
+      "fois — « Clôturer ma journée » (Phase 9 Sprint 2) permet de sceller "
+      "aujourd'hui puis de relancer une manche, et le second check-out "
+      "sauterait sinon du contenu jamais révisé", () async {
+    final config = UserConfig(
+      selections: [
+        SourateSelection.whole(_sourate(73)),
+        SourateSelection.whole(_sourate(74)),
+        SourateSelection.whole(_sourate(76)),
+      ],
+      pagesPerDay: 1,
+      startDate: DateTime.now().subtract(const Duration(days: 5)),
+      shuffleEnabled: false,
+      riwaya: Riwaya.hafs,
+    );
+    final state = AppState(config, riwaya: Riwaya.hafs);
+    final today = _isoDate(DateTime.now());
+
+    final selection = await RevisionEngine.buildDayUnits(
+      config: config,
+      cyclePosition: state.cyclePosition,
+      today: DateTime.now(),
+      pageMetadata: _hafsPages,
+    );
+    await AyahFactsService.proposeUnits(today, Riwaya.hafs, selection.units);
+    await state.markUnitsReached(selection.units, date: today);
+
+    await state.checkOut(today);
+    final afterFirst = state.cyclePosition;
+    expect(afterFirst, 1, reason: "la première clôture avance d'un groupe");
+    expect(state.todayClosed, isTrue);
+
+    // Seconde clôture du MÊME jour : les corrections de reach resteraient
+    // possibles, mais le curseur ne doit plus bouger.
+    await state.checkOut(today);
+    expect(state.cyclePosition, afterFirst,
+        reason: "sans le garde-fou `isDaySealed`, le cycle avancerait une "
+            "seconde fois sur un contenu déjà compté");
   });
 }
