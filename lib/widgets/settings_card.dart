@@ -7,6 +7,7 @@ import '../models/riwaya.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../state/app_state.dart';
+import 'confirm_dialog.dart';
 
 class SettingsCard extends StatefulWidget {
   const SettingsCard({super.key});
@@ -107,24 +108,14 @@ class _SettingsCardState extends State<SettingsCard> {
           .showSnackBar(SnackBar(content: Text(S.warshUnavailable)));
       return;
     }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(S.switchRiwayaTitle),
-        content: Text(S.switchRiwayaConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(S.annuler),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(S.confirmer),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDialog(
+      context,
+      title: S.switchRiwayaTitle,
+      message: S.switchRiwayaConfirm,
+      confirmLabel: S.confirmer,
     );
-    if (confirmed == true) await state.setRiwaya(riwaya);
+    if (!mounted || !confirmed) return;
+    await state.setRiwaya(riwaya);
   }
 
   Widget _riwayaChip(

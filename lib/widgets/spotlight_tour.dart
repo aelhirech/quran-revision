@@ -6,7 +6,12 @@ import '../core/strings.dart';
 /// [KeyedSubtree] aux widgets réels dans HomeScreen/ShellScreen, sans avoir
 /// à faire remonter de GlobalKey à travers les constructeurs.
 class TourKeys {
-  static final navBar = GlobalKey();
+  /// Une clé par onglet plutôt qu'une seule pour toute la barre (Phase 9
+  /// Sprint 2) : le tour surligne l'onglet dont il parle, et non les trois à
+  /// la fois pendant trois étapes identiques.
+  static final tabPlan = GlobalKey();
+  static final tabRecap = GlobalKey();
+  static final tabReglages = GlobalKey();
   static final voirPlanButton = GlobalKey();
 }
 
@@ -15,38 +20,75 @@ class TourStep {
   final String title;
   final String body;
 
-  const TourStep({required this.targetKey, required this.title, required this.body});
+  /// Marge du halo autour de la cible. Une icône d'onglet a besoin de plus
+  /// d'air qu'un bouton pleine largeur pour rester confortablement tapable.
+  final double padding;
+
+  const TourStep({
+    required this.targetKey,
+    required this.title,
+    required this.body,
+    this.padding = 8,
+  });
 }
 
 /// Tour guidé avec surbrillance : assombrit l'écran sauf autour du widget
 /// ciblé par l'étape courante, avec une bulle d'explication et des contrôles
 /// Suivant/Passer. Ne nécessite aucune dépendance externe — juste les
 /// GlobalKeys déjà posées sur les widgets à mettre en avant.
+///
+/// **Le halo est traversant** (Phase 9 Sprint 2) : les taps qui tombent
+/// dedans atteignent le vrai widget en dessous, ce qui laisse la dernière
+/// étape ouvrir directement l'écran qu'elle présente. Tout ce qui tombe à
+/// côté est en revanche absorbé, pour que le reste de l'écran ne réagisse pas
+/// pendant le tour — les onglets compris, d'où l'enchaînement par
+/// « Suivant ». Composant **contrôlé** : l'étape courante ([index]) est tenue
+/// par le parent, seul à savoir quel onglet est affiché sous le halo.
 class SpotlightOverlay extends StatefulWidget {
   final List<TourStep> steps;
+  final int index;
+  final VoidCallback onNext;
   final VoidCallback onDone;
 
-  const SpotlightOverlay({super.key, required this.steps, required this.onDone});
+  /// Tap tombé **dans** le halo — le vrai widget l'a reçu aussi. Sert au
+  /// parent à réagir à une action qu'il ne peut pas observer autrement (la
+  /// dernière étape, dont la cible ouvre un écran plein écran).
+  final VoidCallback? onTargetTap;
+
+  const SpotlightOverlay({
+    super.key,
+    required this.steps,
+    required this.index,
+    required this.onNext,
+    required this.onDone,
+    this.onTargetTap,
+  });
 
   @override
   State<SpotlightOverlay> createState() => _SpotlightOverlayState();
 }
 
 class _SpotlightOverlayState extends State<SpotlightOverlay> {
-  int _index = 0;
-
   @override
   void initState() {
     super.initState();
     _ensureTargetVisible();
   }
 
-  Rect? _targetRect(GlobalKey key) {
-    final ctx = key.currentContext;
+  @override
+  void didUpdateWidget(SpotlightOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // L'étape peut changer sans passer par [_next] : le parent la fait
+    // avancer quand l'utilisateur touche lui-même la cible.
+    if (oldWidget.index != widget.index) _ensureTargetVisible();
+  }
+
+  Rect? _targetRect(TourStep step) {
+    final ctx = step.targetKey.currentContext;
     final box = ctx?.findRenderObject() as RenderBox?;
-    if (box == null || !box.attached) return null;
+    if (box == null || !box.attached || !box.hasSize) return null;
     final topLeft = box.localToGlobal(Offset.zero);
-    return (topLeft & box.size).inflate(8);
+    return (topLeft & box.size).inflate(step.padding);
   }
 
   /// Scrolle la cible de l'étape courante dans le viewport si elle est dans
@@ -56,7 +98,7 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
   void _ensureTargetVisible() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final ctx = widget.steps[_index].targetKey.currentContext;
+      final ctx = widget.steps[widget.index].targetKey.currentContext;
       if (ctx == null) return;
       await Scrollable.ensureVisible(ctx,
           alignment: 0.5, duration: const Duration(milliseconds: 250));
@@ -65,18 +107,17 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
   }
 
   void _next() {
-    if (_index >= widget.steps.length - 1) {
+    if (widget.index >= widget.steps.length - 1) {
       widget.onDone();
     } else {
-      setState(() => _index++);
-      _ensureTargetVisible();
+      widget.onNext();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final step = widget.steps[_index];
-    final rect = _targetRect(step.targetKey);
+    final step = widget.steps[widget.index];
+    final rect = _targetRect(step);
     final screen = MediaQuery.of(context).size;
     final palette = context.palette;
 
@@ -93,13 +134,33 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
         color: Colors.transparent,
         child: Stack(
           children: [
+            // Le voile absorbe les taps partout SAUF dans le halo — c'est
+            // `_SpotlightPainter.hitTest` qui le décide, à partir de la même
+            // géométrie que celle qu'il peint (coins arrondis compris). Un
+            // `IgnorePointer` laisserait tout passer, et découper le voile en
+            // bandes rectangulaires autour du halo décrirait la même forme
+            // une seconde fois, sans ses arrondis.
             Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _SpotlightPainter(rect),
+              child: CustomPaint(painter: _SpotlightPainter(rect)),
+            ),
+            if (rect != null)
+              Positioned.fromRect(
+                rect: rect,
+                // `translucent` : le Listener voit le pointeur ET le laisse
+                // continuer vers le widget réel, en dessous dans le Stack de
+                // ShellScreen. Un GestureDetector, lui, l'absorberait.
+                //
+                // Sur `up`, et seulement si le doigt est encore DANS le halo :
+                // sur `down`, un appui suivi d'un glissement (scroll démarré
+                // sur le bouton) terminait le tour définitivement — il est
+                // persisté — alors que le bouton réel n'avait rien reçu.
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerUp: (e) {
+                    if (rect.contains(e.position)) widget.onTargetTap?.call();
+                  },
                 ),
               ),
-            ),
             Positioned(
               left: 20,
               right: 20,
@@ -117,7 +178,7 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      S.etapeN(_index + 1, widget.steps.length),
+                      S.etapeN(widget.index + 1, widget.steps.length),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -150,7 +211,7 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
                         FilledButton(
                           onPressed: _next,
                           child: Text(
-                            _index == widget.steps.length - 1
+                            widget.index == widget.steps.length - 1
                                 ? S.tourTerminer
                                 : S.tourSuivant,
                           ),
@@ -168,6 +229,11 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
   }
 }
 
+/// Corner radius of the highlight, shared by the paint pass and the hit
+/// test — testing a plain Rect while painting a rounded one let taps
+/// through the four corners the scrim visibly covers.
+const Radius _holeRadius = Radius.circular(16);
+
 class _SpotlightPainter extends CustomPainter {
   final Rect? hole;
 
@@ -184,9 +250,19 @@ class _SpotlightPainter extends CustomPainter {
     }
 
     final holePath = Path()
-      ..addRRect(RRect.fromRectAndRadius(hole!, const Radius.circular(16)));
+      ..addRRect(RRect.fromRectAndRadius(hole!, _holeRadius));
     final result = Path.combine(PathOperation.difference, barrier, holePath);
     canvas.drawPath(result, paint);
+  }
+
+  /// `RenderCustomPaint` routes its `hitTestSelf` here: the scrim swallows
+  /// everything outside the highlight and lets everything inside through to
+  /// the real widget in `ShellScreen`'s stack.
+  @override
+  bool hitTest(Offset position) {
+    final rect = hole;
+    if (rect == null) return true;
+    return !RRect.fromRectAndRadius(rect, _holeRadius).contains(position);
   }
 
   @override

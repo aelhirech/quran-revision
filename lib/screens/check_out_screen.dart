@@ -30,26 +30,38 @@ class CheckOutScreen extends StatefulWidget {
 }
 
 class _CheckOutScreenState extends State<CheckOutScreen> {
-  List<({RevisionUnit unit, Set<int> needsWorkVerses})>? _items;
+  List<({RevisionUnit unit, Set<int> needsWorkVerses, bool reach})>? _items;
   // Unités décochées par l'utilisateur (exceptions) — tout le reste est
   // "fait" par défaut, écrit en base seulement à la clôture ([_close]).
+  // Pré-rempli depuis le `reach` persisté quand la journée a DÉJÀ été
+  // scellée : rouvrir une clôture doit repartir de ce qui a été déclaré, pas
+  // tout recocher (voir [_load]).
   final Set<RevisionUnit> _unchecked = {};
   // Portion à apprendre proposée ce jour-là (Phase 9), et les versets que
   // l'utilisateur déclare NE PAS avoir acquis — même patron d'exception que
   // `_unchecked` côté révision : tout est "appris" par défaut, décocher
   // signale un verset à continuer d'apprendre (il sera reproposé).
-  ({Sourate sourate, List<int> ayahIds})? _learnPlan;
+  ({Sourate sourate, List<int> ayahIds, Set<int> reachedVerses})? _learnPlan;
   final Set<int> _notLearned = {};
   int _step = 1;
+  // Les exceptions persistées n'ont été reprises qu'une fois (voir [_load]).
+  bool _prefilled = false;
   bool _addToday = false;
   bool _sealing = false;
-  // Mis en cache au premier accès plutôt que recréé à chaque rebuild de
-  // `_part2Body` — un simple `setState` (ex. le Switch "ajouter aujourd'hui")
-  // recréerait sinon inutilement le Future et rejouerait le chargement.
-  Future<List<RevisionUnit>>? _previewFuture;
 
-  bool get _isMultiDay =>
-      DateTime.now().difference(DateTime.parse(widget.date)).inDays > 1;
+  /// Calculé une fois : `DateTime.parse` sur une date locale résout le
+  /// fuseau horaire, de loin la primitive la plus chère de cet écran, et les
+  /// libellés le relisaient une dizaine de fois par build.
+  late final int _gapDays =
+      DateTime.now().difference(DateTime.parse(widget.date)).inDays;
+
+  bool get _isMultiDay => _gapDays > 1;
+
+  /// Clôture du jour courant (« Clôturer ma journée », Phase 9 Sprint 2) par
+  /// opposition au rattrapage d'un jour passé : même écran, même mécanique de
+  /// scellement — seuls les libellés changent, parler d'« hier » à quelqu'un
+  /// qui clôture le soir même serait faux.
+  bool get _isToday => _gapDays == 0;
 
   @override
   void initState() {
@@ -61,12 +73,30 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     final state = context.read<AppState>();
     final itemsF = state.dayUnitsWithStatus(date: widget.date);
     final learnF = state.learningPlanFor(widget.date);
+    final sealedF = state.isDaySealed(widget.date);
     final items = await itemsF;
     final learn = await learnF;
+    final sealed = await sealedF;
     if (!mounted) return;
     setState(() {
       _items = items;
       _learnPlan = learn;
+      // "Tout fait par défaut" ne vaut que pour une PREMIÈRE clôture. Sur une
+      // journée déjà scellée, repartir de zéro effacerait en silence les
+      // exceptions déjà déclarées dès que l'utilisateur re-clôture. Une seule
+      // fois : `_load` est rejoué au retour de l'écran détail, et réappliquer
+      // la base écraserait ce que l'utilisateur vient de recocher.
+      if (sealed && !_prefilled) {
+        _prefilled = true;
+        _unchecked.addAll([
+          for (final it in items)
+            if (!it.reach) it.unit,
+        ]);
+        if (learn != null) {
+          _notLearned.addAll(
+              learn.ayahIds.where((v) => !learn.reachedVerses.contains(v)));
+        }
+      }
     });
   }
 
@@ -198,15 +228,15 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   }
 
   Widget _hero(AppPalette palette, bool showPart2) {
-    final gapDays = DateTime.now()
-        .difference(DateTime.parse(widget.date))
-        .inDays;
-    final title = showPart2
-        ? S.checkOutTitreAujourdhui
-        : (_isMultiDay ? S.checkOutTitreEnAttente : S.checkOutTitreHier);
-    final badge = showPart2
-        ? S.checkOutPartieOptionnelle
-        : (_isMultiDay ? S.checkOutIlYaNJours(gapDays) : S.checkOutHier);
+    // Titre et badge suivent la même cascade : un seul choix plutôt que deux
+    // ternaires jumeaux à garder synchronisés quand un cas s'ajoute.
+    final (title, badge) = showPart2
+        ? (S.checkOutTitreAujourdhui, S.checkOutPartieOptionnelle)
+        : _isMultiDay
+            ? (S.checkOutTitreEnAttente, S.checkOutIlYaNJours(_gapDays))
+            : _isToday
+                ? (S.checkOutTitreCeJour, S.checkOutAujourdhui)
+                : (S.checkOutTitreHier, S.checkOutHier);
 
     return CheckHero(
       eyebrow: _isMultiDay ? S.checkOutRattrapageEyebrow : S.checkOutEyebrow,
@@ -367,115 +397,102 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   }
 
   Widget _part2Body(AppPalette palette) {
-    _previewFuture ??= context.read<AppState>().previewTodayUnits();
-    return FutureBuilder<List<RevisionUnit>>(
-      future: _previewFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text(S.checkOutAjouterErreur));
-        }
-        final preview = snapshot.data ?? [];
-
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          children: [
+    final preview = context.read<AppState>().todayPreviewUnits;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: palette.surfaceCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: palette.cardBorder),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      S.checkOutAjouterAujourdhui,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      S.checkOutAjouterDesc,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: palette.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _addToday,
+                onChanged: (v) => setState(() => _addToday = v),
+                activeThumbColor: palette.primary,
+              ),
+            ],
+          ),
+        ),
+        if (_addToday) ...[
+          const SizedBox(height: 10),
+          for (final unit in preview)
             Container(
-              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 11,
+              ),
               decoration: BoxDecoration(
-                color: palette.surfaceCard,
+                color: palette.surfaceCardSolid,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: palette.cardBorder),
               ),
               child: Row(
                 children: [
+                  Text(
+                    unit.sourate.nameAr,
+                    style: GoogleFonts.amiri(
+                      fontSize: 15,
+                      color: palette.goldDark,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          S.checkOutAjouterAujourdhui,
+                          unit.sourate.nameFr,
                           style: TextStyle(
-                            fontSize: 13.5,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: palette.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          S.checkOutAjouterDesc,
+                          'v.${unit.verseStart}–${unit.verseEnd}',
                           style: TextStyle(
                             fontSize: 11,
+                            fontStyle: FontStyle.italic,
                             color: palette.textMuted,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Switch(
-                    value: _addToday,
-                    onChanged: (v) => setState(() => _addToday = v),
-                    activeThumbColor: palette.primary,
-                  ),
                 ],
               ),
             ),
-            if (_addToday) ...[
-              const SizedBox(height: 10),
-              for (final unit in preview)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 11,
-                  ),
-                  decoration: BoxDecoration(
-                    color: palette.surfaceCardSolid,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: palette.cardBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        unit.sourate.nameAr,
-                        style: GoogleFonts.amiri(
-                          fontSize: 15,
-                          color: palette.goldDark,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              unit.sourate.nameFr,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: palette.textPrimary,
-                              ),
-                            ),
-                            Text(
-                              'v.${unit.verseStart}–${unit.verseEnd}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontStyle: FontStyle.italic,
-                                color: palette.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ],
-        );
-      },
+        ],
+      ],
     );
   }
 
@@ -483,7 +500,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     String label;
     VoidCallback? onPressed;
     if (!_isMultiDay) {
-      label = S.checkOutCloturerHier;
+      label = _isToday ? S.cloturerMaJournee : S.checkOutCloturerHier;
       onPressed = _sealing ? null : _close;
     } else if (!showPart2) {
       label = S.checkOutCloturerJour;

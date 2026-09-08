@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/riwaya.dart';
 import '../models/session_record.dart';
 import '../services/ayah_facts_service.dart';
 import '../state/app_state.dart';
-import '../widgets/dome_progress_card.dart';
+import '../widgets/confirm_dialog.dart';
+import '../widgets/cycle_progress_card.dart';
 import '../widgets/history_card.dart';
 import '../widgets/learning_progress_card.dart';
 import '../widgets/ornamental_divider.dart';
@@ -32,7 +32,6 @@ class _RecapScreenState extends State<RecapScreen> {
   List<LearningProgress> _learningProgress = [];
   Set<String> _lastPauseDates = {};
   Riwaya? _lastRiwaya;
-  DaySelection? _daySelection;
 
   @override
   void didChangeDependencies() {
@@ -59,13 +58,11 @@ class _RecapScreenState extends State<RecapScreen> {
     // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
     // sans être passé par un plan du jour cette session.
     final freshnessF = state.refreshFreshness(notify: false);
-    final daySelectionF = state.getDaySelectionForToday();
     final streak = await streakF;
     final total = await totalF;
     final stats = await statsF;
     final progress = await progressF;
     await freshnessF;
-    final daySelection = await daySelectionF;
 
     // totalUnits = versets proposés ce jour-là (pas le total du cycle) —
     // sinon le % quotidien reste écrasé près de 0 (bug retour TestFlight).
@@ -84,7 +81,6 @@ class _RecapScreenState extends State<RecapScreen> {
         _totalDays = total;
         _sessions = sessions;
         _learningProgress = progress;
-        _daySelection = daySelection;
       });
     }
   }
@@ -94,11 +90,14 @@ class _RecapScreenState extends State<RecapScreen> {
     final state = context.watch<AppState>();
     final cs = Theme.of(context).colorScheme;
 
-    if (state.config == null || _daySelection == null) {
+    if (state.config == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final cycle = _daySelection!;
+    // Read straight from AppState: it is a pure computation, so caching it in
+    // a field only bought a full-screen spinner and a value that went stale
+    // after each check-out.
+    final cycle = state.daySelection;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -120,11 +119,15 @@ class _RecapScreenState extends State<RecapScreen> {
                 ),
                 StreakCard(streak: _streak, totalDays: _totalDays),
                 const SizedBox(height: 16),
-                _cycleCard(
-                    cs,
-                    cycle.cycleTotal > 0 ? cycle.cyclePosition / cycle.cycleTotal : 0.0,
-                    cycle.cyclePosition,
-                    cycle.cycleTotal),
+                CycleProgressCard(
+                  progress: cycle.cycleTotal > 0
+                      ? cycle.cyclePosition / cycle.cycleTotal
+                      : 0.0,
+                  pos: cycle.cyclePosition,
+                  total: cycle.cycleTotal,
+                  label: S.cycleActuel,
+                  topRadius: 150,
+                ),
                 const SizedBox(height: 16),
                 _repartitionCard(cs, state),
                 const SizedBox(height: 16),
@@ -193,84 +196,16 @@ class _RecapScreenState extends State<RecapScreen> {
 
   Future<void> _deleteLearning(LearningProgress p) async {
     final state = context.read<AppState>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(S.supprimerApprentissage),
-        content: Text("Supprimer l'apprentissage de ${p.sourate.nameFr} ?"),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(S.annuler)),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: context.palette.danger),
-            child: Text(S.supprimer),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDialog(
+      context,
+      title: S.supprimerApprentissage,
+      message: S.supprimerApprentissageDe(p.sourate.nameFr),
+      confirmLabel: S.supprimer,
+      danger: true,
     );
-    if (confirmed != true) return;
+    if (!mounted || !confirmed) return;
     await AyahFactsService.deleteLearnFacts(p.sourate.id, state.riwaya);
     if (mounted) await _load(state.pauseDates);
-  }
-
-  Widget _cycleCard(ColorScheme cs, double progress, int pos, int total) {
-    final percent = (progress * 100).round();
-    final palette = context.palette;
-    final onPrimary = palette.onPrimary;
-    return DomeProgressCard(
-      topRadius: 150,
-      bottomRadius: 16,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(S.cycleActuel,
-              style: TextStyle(
-                  color: onPrimary.withValues(alpha: 0.65),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.5)),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('$percent',
-                  style: TextStyle(
-                      color: onPrimary,
-                      fontSize: 50,
-                      fontWeight: FontWeight.w600,
-                      height: 1)),
-              Text('%',
-                  style: TextStyle(color: palette.gold, fontSize: 22, fontWeight: FontWeight.w600)),
-            ],
-          ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
-          const SizedBox(height: 6),
-          Text('$pos / $total ${S.unitesLabel}',
-              style: TextStyle(color: onPrimary.withValues(alpha: 0.75), fontSize: 13, fontStyle: FontStyle.italic)),
-          const SizedBox(height: 16),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 220),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: progress,
-                backgroundColor: onPrimary.withValues(alpha: 0.18),
-                color: palette.gold,
-                minHeight: 3,
-              ),
-            ),
-          ).animate().scaleX(
-                begin: 0,
-                alignment: Alignment.center,
-                duration: 700.ms,
-                curve: Curves.easeOut,
-                delay: 200.ms,
-              ),
-        ],
-      ),
-    ).animate().fadeIn().slideY(begin: 0.08);
   }
 
   Widget _repartitionCard(ColorScheme cs, AppState state) {
@@ -343,7 +278,7 @@ class _RecapScreenState extends State<RecapScreen> {
     );
   }
 
-  Widget _statsRow(ColorScheme cs, AppState state, int unitTotal) {
+  Widget _statsRow(ColorScheme cs, AppState state, int cycleTotal) {
     final selections = state.config!.selections;
     final totalVerses = selections.fold(0, (sum, s) => sum + s.verseCount);
 
@@ -355,7 +290,8 @@ class _RecapScreenState extends State<RecapScreen> {
         _statChip(cs, '$totalVerses', S.versetsLabel,
             Icons.format_list_numbered, 100),
         const SizedBox(width: 12),
-        _statChip(cs, '$unitTotal', S.unitesLabel, Icons.grid_view, 200),
+        _statChip(cs, '$cycleTotal', S.pagesLabel,
+            Icons.auto_stories_outlined, 200),
       ],
     );
   }

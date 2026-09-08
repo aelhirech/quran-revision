@@ -102,7 +102,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   Future<void> _remove(RevisionUnit unit) async {
-    await context.read<AppState>().removeFromDayPlan(unit.sourate.id);
+    await context.read<AppState>().removeFromDayPlan(unit.sourate.id,
+        verseStart: unit.verseStart, verseEnd: unit.verseEnd);
     await _load();
   }
 
@@ -243,7 +244,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
           children: [
             for (final p in pagesPerDayPresets)
               PillChip(
-                label: S.checkInPagesParJour(p),
+                label: S.pagesParJour(p),
                 selected: p == current,
                 onTap: () => _setPagesPerDay(p),
               ),

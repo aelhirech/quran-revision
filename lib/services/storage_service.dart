@@ -8,6 +8,7 @@ import 'riwaya_key.dart';
 class StorageService {
   static const _keyConfig = 'user_config';
   static const _keyCyclePosition = 'cycle_position';
+  static const _keyCycleInPages = 'cycle_position_in_pages';
   static const _keyLocale = 'locale';
   static const _keyNotifEnabled = 'notif_enabled';
   static const _keyPauseDates = 'pause_dates';
@@ -15,6 +16,7 @@ class StorageService {
   static const _keyTourSeen = 'onboarding_tour_seen';
   static const _keyLastSessionPrayers = 'last_session_prayers';
   static const _keyActivePrayers = 'active_round_prayers';
+  static const _keySealedDate = 'last_sealed_date';
 
   /// Hafs et Warsh sont deux parcours indépendants (config, cycle, pauses)
   /// — ces clés sont donc préfixées par riwaya. Langue/riwaya-
@@ -110,6 +112,21 @@ class StorageService {
   static Future<int> loadCyclePosition(Riwaya riwaya) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_track(_keyCyclePosition, riwaya)) ?? 0;
+  }
+
+  /// Last day the user closed, as a `YYYY-MM-DD` string. `ayah_facts` already
+  /// records the sealing (`checked_out`), but only on rows that exist: a day
+  /// whose portions were all removed at check-in, or that produced nothing but
+  /// learning, has no revision row to mark and would read as never closed on
+  /// the next launch. This is a display flag only — it never feeds the cycle.
+  static Future<void> saveSealedDate(String date, Riwaya riwaya) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_track(_keySealedDate, riwaya), date);
+  }
+
+  static Future<String?> loadSealedDate(Riwaya riwaya) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_track(_keySealedDate, riwaya));
   }
 
   static Future<void> saveLocale(String locale) async {
@@ -218,7 +235,25 @@ class StorageService {
       prefs.remove(_track(_keyPauseDates, riwaya)),
       prefs.remove(_track(_keyLastSessionPrayers, riwaya)),
       prefs.remove(_track(_keyActivePrayers, riwaya)),
+      prefs.remove(_track(_keySealedDate, riwaya)),
     ]);
+  }
+
+  /// The cycle cursor changed unit on 2026-09-08: it used to index surah
+  /// groups, it now indexes mushaf pages (see `CLAUDE.md`, "Règle du plan
+  /// quotidien"). An old value would point at an unrelated page, so the cycle
+  /// restarts once — deliberate product decision, not a conversion.
+  ///
+  /// Runs AFTER [migrateLegacyTrackData] (see `main.dart`): both touch
+  /// `cycle_position`, and the legacy rename must move the untracked key onto
+  /// the Hafs track before this wipe can clear it.
+  static Future<void> migrateCycleToPages() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_keyCycleInPages) == true) return;
+    for (final riwaya in Riwaya.values) {
+      await prefs.remove(_track(_keyCyclePosition, riwaya));
+    }
+    await prefs.setBool(_keyCycleInPages, true);
   }
 
   /// Migration one-shot pour les installations existantes : avant l'ajout des

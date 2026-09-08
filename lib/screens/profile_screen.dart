@@ -9,7 +9,8 @@ import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../state/app_state.dart';
-import '../widgets/preset_dropdown.dart';
+import '../widgets/confirm_dialog.dart';
+import '../widgets/pages_per_day_dropdown.dart';
 import '../widgets/profile_info_card.dart';
 import '../widgets/settings_card.dart';
 
@@ -104,12 +105,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PresetDropdown(
+              PagesPerDayDropdown(
                 value: tempPages,
-                presets: pagesPerDayPresets,
-                labelBuilder: (n) => '$n ${S.pagesParJourValeur}',
-                customDialogTitle: S.pagesCustomTitle,
-                customSuffix: S.pagesSuffix,
                 onChanged: (v) => setS(() => tempPages = v),
               ),
             ],
@@ -155,31 +152,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             centerTitle: false,
-            actions: [
-              if (!_editing) ...[
-                TextButton.icon(
-                  icon: const Icon(Icons.timer_outlined, size: 18),
-                  label: Text(S.rythmeLabelCourt),
-                  onPressed: _showDurationDialog,
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.playlist_add_check_outlined, size: 18),
-                  label: Text(S.souratesLabelCourt),
-                  onPressed: () => setState(() => _editing = true),
-                ),
-                const SizedBox(width: 4),
-              ] else ...[
-                TextButton(
-                  onPressed: () => setState(() => _editing = false),
-                  child: Text(S.annuler),
-                ),
-                FilledButton(
-                  onPressed: _selectedIds.isEmpty ? null : _save,
-                  child: Text(S.sauver),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ],
+            // Rythme et sourates ne sont plus des boutons d'AppBar (Phase 9
+            // Sprint 2) : ce sont deux lignes de `ProfileInfoCard`, la carte
+            // qui affiche déjà ces deux valeurs. Ne restent ici que les
+            // actions du mode édition, qui n'ont pas de place dans la liste.
+            actions: _editing
+                ? [
+                    TextButton(
+                      onPressed: () => setState(() => _editing = false),
+                      child: Text(S.annuler),
+                    ),
+                    FilledButton(
+                      onPressed: _selectedIds.isEmpty ? null : _save,
+                      child: Text(S.sauver),
+                    ),
+                    const SizedBox(width: 8),
+                  ]
+                : null,
           ),
           if (!_editing) _viewBody(cs, state) else _editBody(cs),
         ],
@@ -196,13 +185,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       sliver: SliverList(
         delegate: SliverChildListDelegate([
           ProfileInfoCard(
-              config: config,
-              elapsed: daysElapsed,
-              memorisees: _memorisees),
+            config: config,
+            elapsed: daysElapsed,
+            memorisees: _memorisees,
+            onEditRythme: _showDurationDialog,
+            onEditSourates: () => setState(() => _editing = true),
+          ),
           const SizedBox(height: 16),
           const SettingsCard(),
-          const SizedBox(height: 16),
-          _adaptiveCycleCard(cs, state),
           const SizedBox(height: 16),
           _pauseCard(cs, state),
           const SizedBox(height: 16),
@@ -210,41 +200,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ]),
       ),
     );
-  }
-
-  Widget _adaptiveCycleCard(ColorScheme cs, AppState state) {
-    final config = state.config!;
-    final isAdaptive = config.adaptiveCycle;
-    final estimatedDays = state.adaptiveCycleDays;
-
-    return Card(
-      elevation: 0,
-      color: isAdaptive
-          ? cs.primaryContainer.withValues(alpha: 0.6)
-          : cs.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SwitchListTile.adaptive(
-        value: isAdaptive,
-        onChanged: (v) => state.setAdaptiveCycle(
-          v,
-          totalVerses: config.totalSelectedVerses,
-        ),
-        secondary: Icon(
-          Icons.auto_awesome_outlined,
-          color: isAdaptive ? cs.primary : cs.onSurfaceVariant,
-        ),
-        title: Text(S.cycleAdaptatif,
-            style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: isAdaptive ? cs.onPrimaryContainer : cs.onSurface)),
-        subtitle: Text(
-          isAdaptive && estimatedDays != null
-              ? '${S.cycleEstime(estimatedDays)} · ${S.cycleAdaptatifBase}'
-              : S.cycleAdaptatifDesc,
-          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-        ),
-      ),
-    ).animate().fadeIn(delay: 100.ms);
   }
 
   Widget _pauseCard(ColorScheme cs, AppState state) {
@@ -296,27 +251,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ).animate().fadeIn(delay: 200.ms);
   }
 
-  void _showResetDialog(AppState state) {
-    final cs = Theme.of(context).colorScheme;
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(S.reinitDialog),
-        content: Text(S.reinitConfirm),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context), child: Text(S.annuler)),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: cs.error),
-            onPressed: () async {
-              Navigator.pop(context);
-              await context.read<AppState>().clearConfig();
-            },
-            child: Text(S.reinitDialog),
-          ),
-        ],
-      ),
+  Future<void> _showResetDialog(AppState state) async {
+    final confirmed = await confirmDialog(
+      context,
+      title: S.reinitDialog,
+      message: S.reinitConfirm,
+      confirmLabel: S.reinitDialog,
+      danger: true,
     );
+    if (!mounted || !confirmed) return;
+    await state.clearConfig();
   }
 
   Widget _editBody(ColorScheme cs) {
@@ -332,12 +276,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(S.reviserEn,
                     style: TextStyle(color: cs.onPrimaryContainer)),
                 const SizedBox(width: 8),
-                // Non-interactif : le rythme s'édite uniquement via le
-                // bouton "Rythme" de l'AppBar (_showDurationDialog) — deux
-                // façons d'éditer le même réglage sur cette page créait une
-                // redondance non harmonisée (retour TestFlight 2026-09-01).
+                // Non-interactif : le rythme s'édite depuis la ligne
+                // « Rythme » de la carte parcours — deux façons d'éditer le
+                // même réglage sur cette page créait une redondance non
+                // harmonisée (retour TestFlight 2026-09-01).
                 Text(
-                  '$_pagesPerDay ${S.pagesParJourValeur}',
+                  S.pagesParJour(_pagesPerDay),
                   style: TextStyle(
                       color: cs.onPrimaryContainer, fontWeight: FontWeight.w600),
                 ),

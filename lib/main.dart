@@ -8,7 +8,7 @@ import 'core/app_theme.dart';
 import 'core/strings.dart';
 import 'models/riwaya.dart';
 import 'models/user_config.dart';
-import 'screens/onboarding_screen.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/shell_screen.dart';
 import 'services/hafs_service.dart';
 import 'services/hizb_metadata_service.dart';
@@ -80,6 +80,7 @@ void main() async {
   // cycle, pauses) vers le parcours Hafs — doit tourner avant toute lecture
   // ci-dessous.
   await StorageService.migrateLegacyTrackData();
+  await StorageService.migrateCycleToPages();
 
   // La riwaya active doit être connue avant de charger le reste : chaque
   // parcours (Hafs/Warsh) a sa propre config/cycle/sessions/pauses. Si le

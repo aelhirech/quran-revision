@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:quran_revision/models/revision_unit.dart';
 import 'package:quran_revision/models/sourate.dart';
@@ -28,4 +29,21 @@ Future<Directory> initFfiTestDb(String tempDirPrefix) async {
   final tempDir = await Directory.systemTemp.createTemp(tempDirPrefix);
   await databaseFactory.setDatabasesPath(tempDir.path);
   return tempDir;
+}
+
+/// Vide `ayah_facts` entre deux tests d'un même fichier. `initFfiTestDb`
+/// isole les fichiers de test les uns des autres, pas les tests d'un même
+/// fichier : ils partagent une seule `history.db` pour tout le process, et
+/// plusieurs réutilisent les mêmes dates relatives (J-1, J-3…). Sans ce
+/// nettoyage, un test hérite des lignes — y compris de leur `checked_out` —
+/// écrites par le précédent sur la même date.
+Future<void> clearFactsBetweenTests() async {
+  final path = p.join(await databaseFactory.getDatabasesPath(), 'history.db');
+  if (!await databaseFactory.databaseExists(path)) return;
+  // `openDatabase` renvoie l'instance déjà en cache pour ce chemin — la même
+  // que celle mémorisée par `AyahFactsService._db`. La fermer ici laisserait
+  // le service sur un handle clos (`database_closed` au test suivant) : on
+  // supprime les lignes et on laisse la connexion ouverte.
+  final db = await databaseFactory.openDatabase(path);
+  await db.delete('ayah_facts');
 }

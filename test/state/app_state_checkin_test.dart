@@ -61,8 +61,12 @@ void main() {
     await PageMetadataService.initialize();
   });
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    // Les tests de ce fichier partagent une seule `history.db` et réutilisent
+    // les mêmes dates relatives — sans ce nettoyage, l'un hérite du
+    // `checked_out` posé par le précédent sur la même date.
+    await clearFactsBetweenTests();
   });
 
   test('ensureDayPlan gèle le moteur tant qu\'un jour précédent est en attente', () async {
@@ -111,9 +115,17 @@ void main() {
 
     final wrapped = await state.checkOut(yesterday);
     expect(wrapped, isFalse,
-        reason: '1 unité complétée sur 2 dans le cycle : pas de bouclage');
-    expect(state.cyclePosition, 1,
-        reason: 'la seule unité reach=1 fait avancer le cycle de 1');
+        reason: 'une seule sourate faite sur les deux du cycle : pas de bouclage');
+    // Le curseur est en PAGES depuis le 2026-09-08 : la sourate 60 en couvre
+    // plusieurs, et les faire toutes doit avancer d'autant.
+    final pagesFaites = RevisionEngine.pagesOf([
+      RevisionUnit(
+          sourate: _sourate(60), verseStart: 1, verseEnd: 10, isWhole: true)
+    ], _hafsPages);
+    expect(pagesFaites, greaterThan(1),
+        reason: 'sinon ce test ne prouverait rien sur la progression en pages');
+    expect(state.cyclePosition, pagesFaites,
+        reason: 'le curseur avance du nombre de pages réellement faites');
     expect(state.pendingDate, isNull);
 
     await state.ensureDayPlan();
@@ -152,10 +164,9 @@ void main() {
     final units = await RevisionEngine.buildDayUnits(
       config: config,
       cyclePosition: 0,
-      today: DateTime.parse(yesterday),
       pageMetadata: _hafsPages,
     );
-    expect(units.units, hasLength(3),
+    expect(units.units.map((u) => u.sourate.id).toSet(), {67, 69, 71},
         reason: 'les 3 sourates entières tiennent dans le budget de 8 pages');
     await AyahFactsService.proposeUnits(yesterday, Riwaya.hafs, units.units);
     // 67 et 71 faites ; 69 retirée au check-in (plus aucune ligne).
@@ -167,19 +178,23 @@ void main() {
     expect(state.pendingDate, yesterday);
 
     await state.checkOut(yesterday);
-    expect(state.cyclePosition, 2,
-        reason: '67 et 71 comptées (2 groupes) ; 69 retirée est ignorée '
-            'sans bloquer le comptage de 71 qui la suit — sans le fix, le '
-            'comptage se serait arrêté à 69 et cyclePosition serait resté à 1');
+    final attendu = RevisionEngine.pagesOf(
+            units.units.where((u) => u.sourate.id == 67), _hafsPages) +
+        RevisionEngine.pagesOf(
+            units.units.where((u) => u.sourate.id == 71), _hafsPages);
+    expect(state.cyclePosition, attendu,
+        reason: 'les pages de 67 et de 71 sont comptées ; 69 retirée est '
+            'ignorée sans bloquer le comptage de 71 qui la suit — sans le fix, '
+            'le comptage se serait arrêté aux pages de 69');
   });
 
   test(
-      'check-out "fait par défaut" (comportement CheckOutScreen sans exception) '
-      'avance le cycle jour après jour — régression bug "cycle figé, même '
-      'sourate en boucle" (backlog 2026-09-04)', () async {
-    // Sourates 73/74/76, chacune multi-page : avec pagesPerDay=1, chacune
-    // dépasse toujours le budget → 1 unité (partielle) par jour, cycle sur 3
-    // jours (3 groupes distincts, aucune ne partage de page).
+      'check-out "fait par défaut" : le cycle avance page par page et couvre '
+      'chaque sourate EN ENTIER avant de passer à la suivante — régression du '
+      'bug 2026-09-08 (la page 1 était reproposée indéfiniment)', () async {
+    // Sourates 73/74/76, chacune multi-page. Avec pagesPerDay=1 le cycle
+    // compte une position PAR PAGE : l'ancien moteur en faisait 3 positions
+    // (une par sourate) et sautait tout ce qui suivait la première page.
     final config = UserConfig(
       selections: [
         SourateSelection.whole(_sourate(73)),
@@ -187,43 +202,73 @@ void main() {
         SourateSelection.whole(_sourate(76)),
       ],
       pagesPerDay: 1,
-      startDate: DateTime.now().subtract(const Duration(days: 5)),
+      startDate: DateTime.now().subtract(const Duration(days: 20)),
       shuffleEnabled: false,
       riwaya: Riwaya.hafs,
     );
-    final state = AppState(config, riwaya: Riwaya.hafs);
-    final proposedSourateIds = <int>[];
+    final cycle =
+        RevisionEngine.buildCycle(config: config, pageMetadata: _hafsPages);
+    expect(cycle.length, greaterThan(3),
+        reason: 'trois sourates multi-pages : plus de 3 positions de cycle');
 
-    var day = DateTime.now().subtract(const Duration(days: 3));
-    for (var i = 0; i < 3; i++) {
+    final state = AppState(config, riwaya: Riwaya.hafs);
+    final proposees = <String>[];
+
+    var day = DateTime.now().subtract(Duration(days: cycle.length + 1));
+    for (var i = 0; i < cycle.length; i++) {
       final dateStr = _isoDate(day);
-      final selection = await RevisionEngine.buildDayUnits(
-          config: config,
-          cyclePosition: state.cyclePosition,
-          today: day,
-          pageMetadata: _hafsPages,
-        );
-      expect(selection.units, hasLength(1),
-          reason: 'pagesPerDay=1 pour 3 unités : dailyTarget doit rester à 1/jour');
-      proposedSourateIds.add(selection.units.single.sourate.id);
+      final selection = RevisionEngine.buildDayUnits(
+        config: config,
+        cyclePosition: state.cyclePosition,
+        pageMetadata: _hafsPages,
+      );
+      expect(selection.groups, hasLength(1),
+          reason: 'pagesPerDay=1 : exactement une page par jour');
+      for (final u in selection.units) {
+        proposees.add('${u.sourate.id}:${u.verseStart}-${u.verseEnd}');
+      }
 
       await AyahFactsService.proposeUnits(dateStr, Riwaya.hafs, selection.units);
-      // Simule CheckOutScreen : clôture sans rien décocher → tout est
-      // confirmé "fait" avant d'appeler checkOut (voir _close()).
       await state.markUnitsReached(selection.units, date: dateStr);
       await state.checkOut(dateStr);
 
-      expect(state.cyclePosition, (i + 1) % 3,
-          reason: 'sans le fix (reach jamais écrit), cyclePosition resterait '
-              'gelé à 0 pour toujours — le modulo 3 au dernier tour est le '
-              'bouclage normal du cycle (3 unités/3 jours), pas le bug');
+      expect(state.cyclePosition, (i + 1) % cycle.length,
+          reason: 'une page faite = une position de cycle');
       day = day.add(const Duration(days: 1));
     }
 
-    expect(proposedSourateIds.toSet(), hasLength(3),
-        reason: '3 sourates distinctes proposées sur 3 jours — avant le fix, '
-            'cyclePosition figé aurait reproposé la sourate 73 les 3 jours '
-            '(symptôme backlog : "ça propose toujours la même sourate")');
+    // Aucune page reproposée avant le bouclage.
+    expect(proposees.toSet(), hasLength(proposees.length),
+        reason: 'aucune portion ne revient deux fois dans un même cycle');
+
+    // Aucune sourate sélectionnée n'est absente du cycle — sans cette
+    // assertion, une sourate jamais proposée donnerait une liste de versets
+    // vide, que la boucle ci-dessous validerait sans broncher.
+    expect(proposees.map((c) => int.parse(c.split(':')[0])).toSet(),
+        {73, 74, 76});
+
+    // Chaque sourate est couverte en entier, ses pages dans l'ordre du mushaf.
+    // L'attendu vient de la SÉLECTION, pas du résultat observé : le comparer à
+    // `List.generate(versets.length, ...)` ne vérifiait que la contiguïté, et
+    // une dernière page tronquée passait au vert.
+    for (final selection in config.selections) {
+      final id = selection.sourate.id;
+      final versets = <int>[];
+      for (final cle in proposees) {
+        final parts = cle.split(':');
+        if (int.parse(parts[0]) != id) continue;
+        final bornes = parts[1].split('-').map(int.parse).toList();
+        for (var v = bornes[0]; v <= bornes[1]; v++) {
+          versets.add(v);
+        }
+      }
+      expect(
+          versets,
+          List.generate(selection.verseEnd - selection.verseStart + 1,
+              (k) => selection.verseStart + k),
+          reason: 'sourate $id couverte de son verset ${selection.verseStart} '
+              'à ${selection.verseEnd}, dans l\'ordre et sans trou');
+    }
   });
 
   test(
@@ -251,7 +296,6 @@ void main() {
     final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime.parse(day),
         pageMetadata: _hafsPages,
       );
     expect(selection.units, hasLength(1));
@@ -299,7 +343,6 @@ void main() {
     final selection = await RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
-        today: DateTime.parse(day),
         pageMetadata: _hafsPages,
       );
     expect(selection.units, hasLength(2));
@@ -310,8 +353,9 @@ void main() {
     // scellé et ne devienne "en attente".
     await state.markUnitsReached(selection.units, date: day);
     expect(
-        await AyahFactsService.isRangeReached(day, Riwaya.hafs,
-            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd),
+        (await AyahFactsService.rangeStatus(day, Riwaya.hafs,
+            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd))
+            .reached,
         isTrue);
 
     // Dans CheckOutScreen, l'utilisateur décoche la 2e unité (il constate
@@ -322,8 +366,9 @@ void main() {
     await state.markUnitsReached([selection.units[1]], date: day, reach: false);
 
     expect(
-        await AyahFactsService.isRangeReached(day, Riwaya.hafs,
-            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd),
+        (await AyahFactsService.rangeStatus(day, Riwaya.hafs,
+            selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd))
+            .reached,
         isFalse,
         reason: 'décocher une unité déjà reach=1 doit explicitement écrire '
             'reach=0, pas laisser l\'ancienne valeur en place');
@@ -361,7 +406,6 @@ void main() {
     final selection = await RevisionEngine.buildDayUnits(
       config: config,
       cyclePosition: 0,
-      today: DateTime.parse(day),
       pageMetadata: _hafsPages,
     );
     expect(selection.units, hasLength(3),
@@ -387,5 +431,77 @@ void main() {
             '2 et désynchronisé cyclePosition de cycleTotal (2 groupes)');
     expect(wrapped, isFalse,
         reason: '1 groupe complété sur 2 : pas de bouclage');
+  });
+
+  test(
+      "clôturer deux fois la même journée ne fait avancer le cycle qu'une "
+      "fois — « Clôturer ma journée » (Phase 9 Sprint 2) permet de sceller "
+      "aujourd'hui puis de relancer une manche, et le second check-out "
+      "sauterait sinon du contenu jamais révisé", () async {
+    final config = UserConfig(
+      selections: [
+        SourateSelection.whole(_sourate(73)),
+        SourateSelection.whole(_sourate(74)),
+        SourateSelection.whole(_sourate(76)),
+      ],
+      pagesPerDay: 1,
+      startDate: DateTime.now().subtract(const Duration(days: 5)),
+      shuffleEnabled: false,
+      riwaya: Riwaya.hafs,
+    );
+    final state = AppState(config, riwaya: Riwaya.hafs);
+    final today = _isoDate(DateTime.now());
+
+    final selection = await RevisionEngine.buildDayUnits(
+      config: config,
+      cyclePosition: state.cyclePosition,
+      pageMetadata: _hafsPages,
+    );
+    await AyahFactsService.proposeUnits(today, Riwaya.hafs, selection.units);
+    await state.markUnitsReached(selection.units, date: today);
+
+    await state.checkOut(today);
+    final afterFirst = state.cyclePosition;
+    expect(afterFirst, 1, reason: "la première clôture avance d'un groupe");
+    expect(state.todayClosed, isTrue);
+
+    // Seconde clôture du MÊME jour : les corrections de reach resteraient
+    // possibles, mais le curseur ne doit plus bouger.
+    await state.checkOut(today);
+    expect(state.cyclePosition, afterFirst,
+        reason: "sans le garde-fou `isDaySealed`, le cycle avancerait une "
+            "seconde fois sur un contenu déjà compté");
+  });
+
+  test(
+      'retirer un fragment au check-in ne retire que celui-là : depuis que le '
+      'cycle est une liste de pages, une même journée peut porter deux plages '
+      'non adjacentes de la même sourate', () async {
+    final s2 = testSourate(2, verses: 286, words: 6000);
+    final config = UserConfig(
+      selections: [SourateSelection.whole(s2)],
+      pagesPerDay: 1,
+      startDate: DateTime.now().subtract(const Duration(days: 5)),
+      shuffleEnabled: false,
+      riwaya: Riwaya.hafs,
+    );
+    final state = AppState(config, riwaya: Riwaya.hafs);
+    final today = _isoDate(DateTime.now());
+
+    // Deux plages disjointes de la même sourate proposées le même jour.
+    final garde =
+        RevisionUnit(sourate: s2, verseStart: 1, verseEnd: 5, isWhole: false);
+    final retire = RevisionUnit(
+        sourate: s2, verseStart: 200, verseEnd: 203, isWhole: false);
+    await AyahFactsService.proposeUnits(today, Riwaya.hafs, [garde, retire]);
+    expect(await state.dayUnits(), hasLength(2));
+
+    await state.removeFromDayPlan(s2.id,
+        verseStart: retire.verseStart, verseEnd: retire.verseEnd);
+
+    final restant = await state.dayUnits();
+    expect(restant, hasLength(1),
+        reason: 'sans la plage, le DELETE effaçait les DEUX fragments');
+    expect([restant.first.verseStart, restant.first.verseEnd], [1, 5]);
   });
 }

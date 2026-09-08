@@ -7,285 +7,157 @@ import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 
-/// Résultat de [RevisionEngine.buildDayUnits] — quelles unités composent le
-/// plan du jour, avant toute répartition en rakaas. Consommé à la fois par
-/// [RevisionEngine.buildDayPlan] (répartition immédiate) et par le moteur
-/// quotidien (Phase 6 Sprint 2, qui écrit ces unités dans `ayah_facts` sans
-/// les répartir par prière).
+/// One day of the cycle, before any rakaa layout.
+///
+/// See `CLAUDE.md` section "Règle du plan quotidien" — that pseudo-code is the
+/// spec, this file implements it.
 class DaySelection {
-  /// Une entrée = une seule position de cycle. La plupart du temps un
-  /// groupe = 1 sourate = 1 unité, mais plusieurs courtes sourates qui
-  /// partagent la même page réelle du mushaf forment un seul groupe de
-  /// plusieurs unités (voir cadrage "regroupement par page partagée",
-  /// 2026-09-05) : `AppState.checkOut` doit avancer `cyclePosition` par
-  /// groupe complété, jamais par unité individuelle, sous peine de
-  /// désynchroniser `cyclePosition` de `cycleTotal` (qui compte des groupes).
+  /// The pages proposed for today. One entry = one real mushaf page = one
+  /// cycle position, holding every selected fragment that falls on it.
   final List<List<RevisionUnit>> groups;
-  final int cyclePosition; // position normalisée (mod cycleTotal)
-  final int cycleTotal;
+
+  /// The whole cycle [groups] was taken from. Carried along so the check-out
+  /// walks the very list the day plan came from, instead of rebuilding it and
+  /// risking a second, silently different derivation of the same state.
+  final List<List<RevisionUnit>> cycle;
+
+  /// Index of the next page to revise. Counted in PAGES, never in surahs: a
+  /// surah larger than the daily budget must be resumable at page 2 tomorrow.
+  final int cyclePosition;
 
   const DaySelection({
     required this.groups,
+    required this.cycle,
     required this.cyclePosition,
-    required this.cycleTotal,
   });
 
-  /// Vue aplatie de [groups] — pour tout consommateur (proposition dans
-  /// `ayah_facts`, répartition en rakaas, aperçu check-out) à qui la
-  /// frontière entre groupes ne dit rien.
+  /// How many pages the whole selection spans.
+  int get cycleTotal => cycle.length;
+
+  /// Flattened view, for consumers that do not care about the page boundary
+  /// (writing the proposal into `ayah_facts`, rakaa layout, check-out preview).
   List<RevisionUnit> get units => [for (final g in groups) ...g];
 }
 
-/// Une sourate sélectionnée qui tient sur exactement 1 page réelle du
-/// mushaf, avec le numéro de cette page — sert à [_groupSelectionsByPage] à
-/// détecter quelles sourates sélectionnées partagent une même page.
-class _SinglePageSelection {
-  final SourateSelection selection;
-  final int page;
-  const _SinglePageSelection(this.selection, this.page);
-}
-
-/// Regroupe les sourates sélectionnées qui tiennent chacune sur exactement 1
-/// page et partagent ce même numéro de page mushaf — l'utilisateur reçoit
-/// toutes les sourates de la page en une fois plutôt qu'étalées sur plusieurs
-/// jours artificiellement (ex. Al-Kawthar/Al-Ma'un/Quraysh, souvent sur la
-/// même page). Ne regroupe jamais une sourate non sélectionnée par
-/// l'utilisateur (choix de cadrage 2026-09-05). Fonction pure, indépendante
-/// du budget pagesPerDay/de la position de cycle — testable isolément.
-List<List<SourateSelection>> _groupSelectionsByPage(
-  List<SourateSelection> surahList,
-  Map<int, Map<int, int>> pageMetadata,
-) {
-  _SinglePageSelection? singlePageOf(SourateSelection selection) {
-    final pages = pageMetadata[selection.sourate.id]?.values.toSet();
-    if (pages == null || pages.length != 1) return null;
-    return _SinglePageSelection(selection, pages.first);
-  }
-
-  final singlePage = surahList.map(singlePageOf).toList();
-  final Map<int, List<int>> pageToIndices = {};
-  for (int i = 0; i < surahList.length; i++) {
-    final entry = singlePage[i];
-    if (entry != null) pageToIndices.putIfAbsent(entry.page, () => []).add(i);
-  }
-
-  final Set<int> grouped = {};
-  final List<List<SourateSelection>> groups = [];
-  for (int i = 0; i < surahList.length; i++) {
-    if (grouped.contains(i)) continue;
-    final entry = singlePage[i];
-    final indices = (entry != null ? pageToIndices[entry.page] : null) ?? [i];
-    groups.add([for (final idx in indices) surahList[idx]]);
-    grouped.addAll(indices);
-  }
-  return groups;
-}
-
-/// Seuil en-dessous duquel une sous-plage issue de la subdivision d'une unité
-/// pour remplir des rakaas n'a plus de sens (voir [RevisionEngine._materialize]).
 const double _minLinesPerSlot = 5.0;
 
 class RevisionEngine {
-  /// Détermine quelles unités composent le plan du jour basé sur un budget de
-  /// pages/jour. Étapes 1-2 de l'ancien `buildDayPlan` monolithique,
-  /// extraites pour être réutilisables par le moteur quotidien
-  /// indépendamment de l'affichage prière-par-prière. [pageMetadata] (numéro
-  /// de page mushaf par sourate/ayah) est un paramètre requis plutôt qu'un
-  /// chargement interne — `lib/core/` reste Dart pur, zéro I/O (voir
-  /// CLAUDE.md) ; l'appelant le fournit via `PageMetadataService`
-  /// (`lib/services/`), qui charge et met en cache les vraies métadonnées.
-  static Future<DaySelection> buildDayUnits({
-    required UserConfig config,
-    required int cyclePosition,
-    required DateTime today,
-    required Map<int, Map<int, int>> pageMetadata,
-  }) async {
-    final selections = config.selections;
-    final int pagesPerDay = config.pagesPerDay;
-    final bool shuffleEnabled = config.shuffleEnabled;
-
-    // Créer la liste des sourates sélectionnées (potentiellement mélangée)
-    final List<SourateSelection> surahList = List.from(selections);
-    if (shuffleEnabled) {
-      surahList.shuffle(math.Random(config.startDate.millisecondsSinceEpoch));
-    }
-
-    // Aucune sourate sélectionnée : rien à faire avancer dans le cycle
-    if (surahList.isEmpty) {
-      return const DaySelection(
-        groups: [],
-        cyclePosition: 0,
-        cycleTotal: 0,
-      );
-    }
-
-    final List<List<SourateSelection>> groups =
-        _groupSelectionsByPage(surahList, pageMetadata);
-    final int groupCount = groups.length;
-
-    // Calculer la position actuelle dans le cycle (gérer le dépassement) —
-    // indexe les groupes, pas les sourates individuelles.
-    final int pos = cyclePosition % groupCount;
-
-    // Accumuler les groupes du jour basé sur le budget de pages
-    final List<List<RevisionUnit>> todayGroups = <List<RevisionUnit>>[];
-    int remainingPages = pagesPerDay;
-
-    // Parcourir les groupes en commençant par la position actuelle, en
-    // enveloppant (retour à l'index 0) si le budget du jour n'est pas épuisé
-    // avant la fin de la liste — sinon un budget pagesPerDay non multiple du
-    // nombre de pages restantes gaspillerait le reliquat près de la fin du
-    // cycle au lieu de continuer depuis le début de la sélection (bug trouvé
-    // en revue de code). Borné à `groupCount` tours pour ne jamais reproposer
-    // deux fois le même groupe le même jour (budget excédant toute la
-    // sélection).
-    for (int step = 0; step < groupCount && remainingPages > 0; step++) {
-      final int i = (pos + step) % groupCount;
-      final List<SourateSelection> group = groups[i];
-
-      if (group.length > 1) {
-        // Page partagée entre plusieurs sourates : atomique, coûte 1 page,
-        // jamais découpée (par construction chaque membre tient déjà sur
-        // cette unique page).
-        todayGroups.add([
-          for (final selection in group)
-            RevisionUnit(
-              sourate: selection.sourate,
-              verseStart: selection.verseStart,
-              verseEnd: selection.verseEnd,
-              isWhole: selection.isWhole,
-            ),
-        ]);
-        remainingPages -= 1;
-        continue;
-      }
-
-      final SourateSelection selection = group.single;
-      final Sourate sourate = selection.sourate;
-      final Map<int, int>? surahPagesMap = pageMetadata[sourate.id];
-      if (surahPagesMap == null || surahPagesMap.isEmpty) {
-        // Pas de métadonnées disponibles pour cette sourate : passer à la suivante
-        continue;
-      }
-
-      // Nombre de pages RÉELLES distinctes occupées par cette sourate — les
-      // valeurs de la map sont des numéros de page absolus du mushaf (ex.
-      // 601), pas un compte de pages : `reduce(math.max)` retournerait ce
-      // numéro absolu et rendrait la branche "tient en entier" quasi
-      // inatteignable pour un budget pagesPerDay réaliste (bug trouvé en
-      // écrivant les tests de régression du sprint pages/jour).
-      final int totalPages = surahPagesMap.values.toSet().length;
-
-      if (remainingPages >= totalPages) {
-        // La sourate entière tient dans le budget restant
-        todayGroups.add([
-          RevisionUnit(
-            sourate: sourate,
-            verseStart: selection.verseStart,
-            verseEnd: selection.verseEnd,
-            isWhole: selection.isWhole,
-          ),
-        ]);
-        remainingPages -= totalPages;
-      } else {
-        // Seulement une partie de la sourate tient dans le budget restant
-        // Nous devons calculer quels versets correspondent à remainingPages
-
-        // Créer une map inverse : page -> liste des ayahs
-        final Map<int, List<int>> pageToAyahs = <int, List<int>>{};
-        surahPagesMap.forEach((int ayah, int page) {
-          pageToAyahs.putIfAbsent(page, () => []).add(ayah);
-        });
-
-        // Prendre les 'remainingPages' premières pages
-        final List<int> takenPages = pageToAyahs.keys.toList()..sort();
-        final pagesToKeep = takenPages.take(remainingPages);
-
-        final List<int> ayahsInPages = [
-          for (final page in pagesToKeep) ...pageToAyahs[page]!,
-        ];
-
-        if (ayahsInPages.isNotEmpty) {
-          todayGroups.add([
-            RevisionUnit(
-              sourate: sourate,
-              verseStart: ayahsInPages.reduce(math.min),
-              verseEnd: ayahsInPages.reduce(math.max),
-              isWhole: false,
-            ),
-          ]);
-        }
-
-        // Le reste de la sourate sera traité demain (on sort de la boucle)
-        break;
+  /// Number of distinct mushaf pages covered by [units] over their exact verse
+  /// range. Counts page numbers, not (surah, page) pairs: several short surahs
+  /// sharing one physical page cost one page, which is what the daily budget
+  /// spends on them.
+  static int pagesOf(
+    Iterable<RevisionUnit> units,
+    Map<int, Map<int, int>> pageMetadata,
+  ) {
+    final pages = <int>{};
+    for (final unit in units) {
+      final surahPages = pageMetadata[unit.sourate.id];
+      if (surahPages == null) continue;
+      for (int v = unit.verseStart; v <= unit.verseEnd; v++) {
+        final page = surahPages[v];
+        if (page != null) pages.add(page);
       }
     }
-
-    return DaySelection(
-      groups: todayGroups,
-      cyclePosition: pos,
-      cycleTotal: groupCount,
-    );
+    return pages.length;
   }
 
-  /// Tous les groupes du cycle, dans l'ordre du cycle (shuffle déterministe
-  /// puis regroupement par page partagée) — pas seulement ceux qui tiennent
-  /// dans le budget d'un jour. `buildDayUnits` en consomme un préfixe à
-  /// partir de `cyclePosition` ; `AppState.checkOut` a besoin de la liste
-  /// entière pour continuer à compter au-delà de ce qui avait été proposé
-  /// quand l'utilisateur déclare en avoir fait plus (cadrage 2026-09-07).
+  /// Deterministic per-surah shuffle rank — same seed and same surah give the
+  /// same rank whatever else the selection holds.
+  static int _shuffleKey(int seed, int surahId) =>
+      math.Random(seed + surahId).nextInt(1 << 31);
+
+  /// The whole cycle, as an ordered list of mushaf pages — each entry holding
+  /// every selected fragment sitting on that page.
   ///
-  /// Un groupe = une position de cycle (voir [DaySelection.groups]).
-  static List<List<RevisionUnit>> cycleGroups({
+  /// Pure and deterministic: [pageMetadata] is injected, `lib/core/` does no
+  /// I/O. Shuffling happens at SURAH level only, so a surah's pages always
+  /// stay in mushaf order; a page shared by several selected surahs collapses
+  /// into a single entry, which is why page grouping is no longer a special
+  /// case of its own.
+  ///
+  /// A selection whose surah has no pagination metadata is skipped — callers
+  /// that can surface it should, rather than silently proposing nothing.
+  static List<List<RevisionUnit>> buildCycle({
     required UserConfig config,
     required Map<int, Map<int, int>> pageMetadata,
   }) {
-    final List<SourateSelection> surahList = List.from(config.selections);
+    final order = List<SourateSelection>.from(config.selections);
     if (config.shuffleEnabled) {
-      surahList.shuffle(math.Random(config.startDate.millisecondsSinceEpoch));
+      // Sorted on a per-surah key rather than shuffled as a list: a
+      // Fisher-Yates pass over n+1 elements shares nothing with the pass over
+      // n, so adding one surah (`handOffLearnedSurahs`) reordered every other
+      // one while `cyclePosition` stayed put — pages skipped, pages repeated.
+      final seed = config.startDate.millisecondsSinceEpoch;
+      order.sort((a, b) {
+        final byKey = _shuffleKey(seed, a.sourate.id)
+            .compareTo(_shuffleKey(seed, b.sourate.id));
+        return byKey != 0 ? byKey : a.sourate.id.compareTo(b.sourate.id);
+      });
     }
-    if (surahList.isEmpty) return const [];
-    return [
-      for (final group in _groupSelectionsByPage(surahList, pageMetadata))
-        [
-          for (final selection in group)
-            RevisionUnit(
+
+    final fragmentsByPage = <int, List<RevisionUnit>>{};
+    final rankByPage = <int, int>{};
+
+    for (int rank = 0; rank < order.length; rank++) {
+      final selection = order[rank];
+      final surahPages = pageMetadata[selection.sourate.id];
+      if (surahPages == null || surahPages.isEmpty) continue;
+
+      // Only the verses the user actually selected. Reading the whole surah
+      // here is what used to answer "v.1-5" to a request for "v.255-260".
+      final versesByPage = <int, List<int>>{};
+      for (int v = selection.verseStart; v <= selection.verseEnd; v++) {
+        final page = surahPages[v];
+        if (page != null) versesByPage.putIfAbsent(page, () => []).add(v);
+      }
+
+      versesByPage.forEach((page, verses) {
+        // Verses of one surah on one page are contiguous, so min..max is exact.
+        final start = verses.reduce(math.min);
+        final end = verses.reduce(math.max);
+        fragmentsByPage.putIfAbsent(page, () => []).add(RevisionUnit(
               sourate: selection.sourate,
-              verseStart: selection.verseStart,
-              verseEnd: selection.verseEnd,
-              isWhole: selection.isWhole,
-            ),
-        ],
-    ];
+              verseStart: start,
+              verseEnd: end,
+              isWhole: start == 1 && end == selection.sourate.verses,
+            ));
+        final known = rankByPage[page];
+        if (known == null || rank < known) rankByPage[page] = rank;
+      });
+    }
+
+    final pages = fragmentsByPage.keys.toList()
+      ..sort((a, b) {
+        // Surah order first (shuffled or not), then mushaf order inside a surah.
+        final byRank = rankByPage[a]!.compareTo(rankByPage[b]!);
+        return byRank != 0 ? byRank : a.compareTo(b);
+      });
+
+    return [for (final page in pages) fragmentsByPage[page]!];
   }
 
-  /// Construit le plan complet du jour (sélection + répartition en rakaas)
-  /// en un seul appel — composition pure de [buildDayUnits] +
-  /// [distributeToRakaas], sans effet de bord.
-  static Future<DailySession> buildDayPlan({
+  /// The pages to propose today: [UserConfig.pagesPerDay] consecutive entries
+  /// of [buildCycle], starting at [cyclePosition] and wrapping.
+  ///
+  /// Never returns more entries than the cycle holds, so no page is proposed
+  /// twice before the cycle has wrapped.
+  static DaySelection buildDayUnits({
     required UserConfig config,
-    required List<Prayer> prayersAlone,
     required int cyclePosition,
-    required DateTime today,
     required Map<int, Map<int, int>> pageMetadata,
-  }) async {
-    final selection = await buildDayUnits(
-      config: config,
-      cyclePosition: cyclePosition,
-      today: today,
-      pageMetadata: pageMetadata,
-    );
-    final plan = distributeToRakaas(
-      units: selection.units,
-      prayersAlone: prayersAlone,
-    );
-    return DailySession(
-      date: today,
-      prayersAlone: prayersAlone,
-      plan: plan,
-      totalUnits: selection.units.length,
-      cyclePosition: selection.cyclePosition,
-      cycleTotal: selection.cycleTotal,
+  }) {
+    final cycle = buildCycle(config: config, pageMetadata: pageMetadata);
+    if (cycle.isEmpty) {
+      return const DaySelection(groups: [], cycle: [], cyclePosition: 0);
+    }
+    final total = cycle.length;
+    final pos = cyclePosition % total;
+    final take = math.min(config.pagesPerDay, total);
+    return DaySelection(
+      groups: [for (int i = 0; i < take; i++) cycle[(pos + i) % total]],
+      cycle: cycle,
+      cyclePosition: pos,
     );
   }
 
@@ -301,7 +173,14 @@ class RevisionEngine {
   /// budget de rakaas laissé à la révision est donc réduit d'une unité, sans
   /// quoi la dernière portion de révision serait simplement écrasée par
   /// l'apprentissage au lieu d'être redistribuée.
-  static List<PrayerPlan> distributeToRakaas({
+  ///
+  /// Returns the layout AND the units it could not place (`outside`), rule D
+  /// of `CLAUDE.md`: only this function knows whether it subdivided (nothing
+  /// is left out) or ran out of rakaas (the tail is shown apart). Re-deriving
+  /// that outside by comparing values gets it wrong — a subdivided unit is
+  /// never equal to the sub-ranges that replaced it.
+  static ({List<PrayerPlan> plan, List<RevisionUnit> outside})
+      distributeToRakaas({
     required List<RevisionUnit> units,
     required List<Prayer> prayersAlone,
     RevisionUnit? learningUnit,
@@ -309,8 +188,8 @@ class RevisionEngine {
     final totalSuratRakaas =
         prayersAlone.fold(0, (sum, p) => sum + p.suratRakaas);
     final hasLearning = learningUnit != null && totalSuratRakaas > 0;
-    final pool = _UnitPool(
-        _expandToRakaas(units, totalSuratRakaas - (hasLearning ? 1 : 0)));
+    final budget = totalSuratRakaas - (hasLearning ? 1 : 0);
+    final pool = _UnitPool(_expandToRakaas(units, budget));
 
     // Décompte des rakaas récitées restantes : la dernière (recitedLeft == 0
     // après décrément) est celle de l'apprentissage. Compter à rebours évite
@@ -338,7 +217,14 @@ class RevisionEngine {
       plan.add(PrayerPlan(prayer: prayer, rakaas: rakaas));
     }
 
-    return plan;
+    // Below the budget `_expandToRakaas` subdivides and pads, so every unit is
+    // on screen — and the pool's leftovers would be sub-ranges, not the day's
+    // units. Only a genuine shortage of rakaas leaves whole units unplaced.
+    return (
+      plan: plan,
+      outside:
+          units.length > budget ? pool.unconsumed : const <RevisionUnit>[],
+    );
   }
 
   /// Subdivise les unités pour remplir [targetCount] rakaas.
@@ -414,29 +300,6 @@ class RevisionEngine {
     return (currentPosition + unitsCompleted) % cycleTotal;
   }
 
-  /// Unités (échelle attendue par [advanceCycle]) et unités réellement
-  /// couvertes par les [n] premières rakaas de [plan] (dans l'ordre) —
-  /// utilisé pour la déclaration manuelle "une part fait" de `PlanScreen`, où
-  /// l'utilisateur pense en rakaas récitées, pas en unités de cycle.
-  static ({int units, List<RevisionUnit> coveredUnits}) coverageForFirstRakaas(
-      List<PrayerPlan> plan, int n) {
-    final seenLabels = <String>{};
-    final coveredUnits = <RevisionUnit>[];
-    int counted = 0;
-    for (final pp in plan) {
-      for (final r in pp.rakaas) {
-        // La rakaa d'apprentissage n'est pas une unité de révision : elle ne
-        // fait pas avancer le cycle et se confirme au check-out, pas ici.
-        if (r.unit == null || r.isLearning) continue;
-        if (counted >= n) break;
-        counted++;
-        seenLabels.add(r.unit!.label);
-        coveredUnits.add(r.unit!);
-      }
-      if (counted >= n) break;
-    }
-    return (units: seenLabels.length, coveredUnits: coveredUnits);
-  }
 }
 
 /// Distribue une liste d'unités déjà expansées (une par rakaa cible) rakaa
@@ -457,6 +320,9 @@ class _UnitPool {
   final List<RevisionUnit> _units;
   int _consumed = 0;
   Set<RevisionUnit> _usedInPrayer = {};
+
+  /// Units no rakaa ever took — the day's content that did not fit.
+  List<RevisionUnit> get unconsumed => _units.sublist(_consumed);
 
   void startPrayer() => _usedInPrayer = {};
 
