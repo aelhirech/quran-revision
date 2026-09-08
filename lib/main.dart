@@ -8,7 +8,7 @@ import 'core/app_theme.dart';
 import 'core/strings.dart';
 import 'models/riwaya.dart';
 import 'models/user_config.dart';
-import 'screens/onboarding_screen.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/shell_screen.dart';
 import 'services/hafs_service.dart';
 import 'services/hizb_metadata_service.dart';

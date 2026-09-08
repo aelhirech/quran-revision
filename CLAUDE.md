@@ -82,6 +82,38 @@ précis — deux précédents réels l'ont révélée dans des domaines différe
 - Texte affiché à l'utilisateur → `lib/core/strings.dart` (FR/EN) ; texte arabe → `lib/services/verse_service.dart`. Jamais d'appel direct à `package:quran` dans un écran/widget.
 - Couleurs/typo → toujours via `AppPalette` (`lib/core/app_colors.dart`), jamais de couleur en dur dans un widget.
 
+## Taille et découpage des fichiers
+
+Ajouté le 2026-09-08 suite à un audit (`onboarding_screen.dart` à 1229 lignes, `app_state.dart` à
+861 lignes) : la décomposition **logique** du code était bonne (classes/méthodes déjà séparées),
+mais rien n'imposait de la faire correspondre à des fichiers séparés — un fichier grossit par
+petits ajouts successifs (50-100 lignes/sprint) sans qu'aucun diff individuel ne semble excessif.
+
+- **Plafond ~300-350 lignes par fichier.** Au-delà, extraire avant de continuer à empiler dans le
+  même fichier — pas après. Un fichier qui approche déjà cette taille ne reçoit pas de nouvelle
+  classe/méthode sans être d'abord découpé.
+- **Flow multi-étapes (wizard, écran à plusieurs pages internes) → dossier dédié, un fichier par
+  étape/classe**, plutôt qu'un fichier plat dans `lib/screens/`. Ex. `lib/screens/onboarding/
+  onboarding_screen.dart` + `lib/screens/onboarding/steps/{intro,riwaya,selection,rhythm,
+  notifications,recap,celebration}_page.dart`.
+- **`AppState` se découpe en `extension` par domaine, sur `part`/`part of`** (ex.
+  `extension AppStateCheckInOut on AppState { ... }` dans un fichier séparé), **pas en `mixin`** :
+  un vrai `mixin M on AppState` combiné à `class AppState ... with M` est rejeté par l'analyseur
+  Dart (héritage d'interface circulaire — vérifié empiriquement le 2026-09-08), et la variante qui
+  marche (mixins chaînés sur un mixin de base portant les champs partagés) obligerait à sortir les
+  champs du corps de `AppState` et à réécrire son constructeur (`this.champ`/liste d'initialisation
+  cassent pour un champ qui n'est plus déclaré dans la classe elle-même) — bien plus risqué qu'un
+  découpage de fichiers pour un simple problème de taille. Les fichiers `part of` partagent la
+  même bibliothèque que `app_state.dart` : les champs privés (`_config`, `_riwaya`, ...) et
+  méthodes privées restent visibles tels quels dans chaque extension, aucun renommage ni
+  changement de constructeur nécessaire. Ça respecte la règle « Provider comme unique gestion
+  d'état » ci-dessus (toujours un seul `ChangeNotifier`/`Provider`, aucune nouvelle dépendance)
+  tout en plafonnant la taille de chaque fichier.
+- **Fin de sprint : si un fichier touché dépasse 400 lignes après le sprint, l'ajouter au Backlog
+  de `docs/CHANGELOG.md` comme item d'extraction** (à faire dans un sprint dédié, pas à la volée) —
+  pour attraper la dérive progressive avant qu'elle n'atteigne le même point que
+  `onboarding_screen.dart`/`app_state.dart`.
+
 ## Commentaires : priment sur "match existing style"
 Le code existant contient beaucoup de commentaires en français — ne pas reproduire ce style dans le nouveau code, ni l'imiter par mimétisme malgré la règle générale "colle au style existant" (`d:\Prog\CLAUDE.md` §3, qui ne s'applique pas ici).
 - Anglais, pas français.
