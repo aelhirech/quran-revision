@@ -170,6 +170,9 @@ class AppState extends ChangeNotifier {
     _sourates = _souratesFor(_riwaya);
     _todaySession = null;
     _pendingDate = null;
+    // `ensureDayPlan` returns early when the track has no config, so it
+    // would leave a stale closed-day flag from the previous riwaya.
+    _closedDate = null;
     await refreshFreshness(notify: false);
     await ensureDayPlan(notify: false);
   }
@@ -774,14 +777,12 @@ class AppState extends ChangeNotifier {
       final group = cycle[(selection.cyclePosition + step) % cycle.length];
       bool anyExists = false;
       for (final unit in group) {
-        final exists = await AyahFactsService.rangeExists(
+        final status = await AyahFactsService.rangeStatus(
             date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
-        if (!exists) continue; // retirée au check-in — ne bloque pas le groupe
+        if (!status.exists) continue; // retirée au check-in — ne bloque pas
         anyExists = true;
-        final reached = await AyahFactsService.isRangeReached(
-            date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
         // Unité présente mais pas faite : le groupe, et toute la suite, bloque.
-        if (!reached) return pagesCompleted;
+        if (!status.reached) return pagesCompleted;
       }
       if (!anyExists) {
         // Aucune ligne pour ce groupe. Dans la proposition du jour, c'est un

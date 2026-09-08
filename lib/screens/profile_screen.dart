@@ -263,7 +263,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       confirmLabel: S.reinitDialog,
       danger: true,
     );
-    if (confirmed) await state.clearConfig();
+    if (!mounted || !confirmed) return;
+    await state.clearConfig();
   }
 
   Widget _editBody(ColorScheme cs) {

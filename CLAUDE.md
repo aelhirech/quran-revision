@@ -103,9 +103,9 @@ Le code existant contient beaucoup de commentaires en français — ne pas repro
 
 ## Règle du plan quotidien : quelles pages, et comment elles arrivent dans les rakaas
 
-> **Le code s'y conforme depuis la Phase 9 Sprint 3 (2026-09-08)**, à une exception près, listée
-> plus bas : une portion sans métadonnée de pagination est ignorée **sans être signalée** (Backlog
-> P3). En cas d'écart entre ce bloc et le code, **c'est le code qui est faux**, pas ce bloc.
+> **Le code s'y conforme depuis la Phase 9 Sprint 3 (2026-09-08)**, signalement des sourates sans
+> pagination compris (Sprint 4). En cas d'écart entre ce bloc et le code, **c'est le code qui est
+> faux**, pas ce bloc.
 >
 > Cette règle est écrite ici parce que son absence a laissé passer trois bugs majeurs pendant
 > plusieurs sprints : la doc technique affirmait une continuation que rien n'implémentait, et
@@ -234,7 +234,7 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
 
 | Cas | Comportement attendu |
 |---|---|
-| Portion sans métadonnée de page | Ignorée du cycle. **Le signalement reste à faire** (Backlog P3) : aujourd'hui un plan vide est silencieux. |
+| Portion sans métadonnée de page | Ignorée du cycle. Si plus rien ne reste alors que des sourates sont sélectionnées, l'accueil le **signale** au lieu d'afficher « 0 / 0 pages ». |
 | `pagesParJour` > `cycleTotal` | Le jour propose tout le cycle, une seule fois (pas de répétition). |
 | Page partagée par 2 sourates sélectionnées | Une seule entrée, donc une seule journée, et **une seule page** dans les compteurs. |
 | Page partagée dont une seule sourate est sélectionnée | Entrée normale ; la sourate non sélectionnée n'y entre jamais. |

@@ -114,7 +114,8 @@ class _SettingsCardState extends State<SettingsCard> {
       message: S.switchRiwayaConfirm,
       confirmLabel: S.confirmer,
     );
-    if (confirmed) await state.setRiwaya(riwaya);
+    if (!mounted || !confirmed) return;
+    await state.setRiwaya(riwaya);
   }
 
   Widget _riwayaChip(

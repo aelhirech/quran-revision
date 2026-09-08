@@ -231,6 +231,9 @@ class S {
   static String blocRange(int from, int to) => 'v.$from–$to';
 
   // Journée clôturée (état au repos de l'accueil)
+  static String get paginationIndisponible => _t(
+      "Impossible de découper tes sourates en pages : les données du mushaf n'ont pas pu être chargées. Redémarre l'app ; si le problème persiste, réinstalle-la.",
+      'Your surahs cannot be split into pages: the mushaf data failed to load. Restart the app; if it persists, reinstall it.');
   static String get journeeCloturee =>
       _t('Journée clôturée', 'Day closed out');
   static String get journeeClotureeSousTitre => _t(

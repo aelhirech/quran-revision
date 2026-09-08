@@ -157,7 +157,8 @@ class _PlanScreenState extends State<PlanScreen> {
       message: S.refairePlanConfirm,
       confirmLabel: S.refairePlan,
     );
-    if (confirmed) widget.onChangePlan?.call();
+    if (!mounted || !confirmed) return;
+    widget.onChangePlan?.call();
   }
 
   Future<void> _toggle(int prayerIndex, int rakaaNumber) async {

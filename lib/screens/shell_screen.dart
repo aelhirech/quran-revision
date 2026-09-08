@@ -106,10 +106,11 @@ class _ShellScreenState extends State<ShellScreen> {
         ),
       ];
 
-  /// Un onglet touché pendant le tour fait suivre le tour, plutôt que de le
-  /// laisser parler du Récap alors qu'on est sur les Réglages.
+  /// A tab tap moves the tour with it — including from the last step, whose
+  /// target lives on tab 0: staying there would leave the highlight chasing a
+  /// button the `IndexedStack` no longer lays out.
   void _onDestinationSelected(int i) {
-    if (_showTour && _tourStep < _tourCtaStep) return _goToTourStep(i);
+    if (_showTour) return _goToTourStep(i);
     setState(() => _index = i);
   }
 

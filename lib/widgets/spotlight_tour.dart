@@ -222,6 +222,11 @@ class _SpotlightOverlayState extends State<SpotlightOverlay> {
   }
 }
 
+/// Corner radius of the highlight, shared by the paint pass and the hit
+/// test — testing a plain Rect while painting a rounded one let taps
+/// through the four corners the scrim visibly covers.
+const Radius _holeRadius = Radius.circular(16);
+
 class _SpotlightPainter extends CustomPainter {
   final Rect? hole;
 
@@ -238,16 +243,20 @@ class _SpotlightPainter extends CustomPainter {
     }
 
     final holePath = Path()
-      ..addRRect(RRect.fromRectAndRadius(hole!, const Radius.circular(16)));
+      ..addRRect(RRect.fromRectAndRadius(hole!, _holeRadius));
     final result = Path.combine(PathOperation.difference, barrier, holePath);
     canvas.drawPath(result, paint);
   }
 
-  /// `RenderCustomPaint` délègue son `hitTestSelf` ici : le voile capture
-  /// tout ce qui tombe en dehors du halo et laisse passer ce qui tombe
-  /// dedans, jusqu'au widget réel du `Stack` de `ShellScreen`.
+  /// `RenderCustomPaint` routes its `hitTestSelf` here: the scrim swallows
+  /// everything outside the highlight and lets everything inside through to
+  /// the real widget in `ShellScreen`'s stack.
   @override
-  bool hitTest(Offset position) => hole?.contains(position) != true;
+  bool hitTest(Offset position) {
+    final rect = hole;
+    if (rect == null) return true;
+    return !RRect.fromRectAndRadius(rect, _holeRadius).contains(position);
+  }
 
   @override
   bool shouldRepaint(covariant _SpotlightPainter oldDelegate) =>

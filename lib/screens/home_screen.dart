@@ -77,6 +77,29 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  /// The cycle can only be empty while surahs are selected if the mushaf
+  /// pagination failed to load. Saying so beats a silent "0 / 0 pages" that
+  /// looks like a finished cycle (`CLAUDE.md`, "Règle du plan quotidien").
+  Widget _cycleIndisponible(AppPalette palette) => Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: palette.danger.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: palette.danger.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: palette.danger, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(S.paginationIndisponible,
+                  style: TextStyle(fontSize: 12, color: palette.textPrimary)),
+            ),
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -118,6 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 10),
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
+                if (_daySelection != null &&
+                    _daySelection!.cycleTotal == 0 &&
+                    state.config!.selections.isNotEmpty)
+                  _cycleIndisponible(palette),
                 CycleProgressCard(
                   progress: (_daySelection?.cycleTotal ?? 0) > 0
                       ? _daySelection!.cyclePosition / _daySelection!.cycleTotal

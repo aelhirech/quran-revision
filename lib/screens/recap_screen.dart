@@ -205,7 +205,7 @@ class _RecapScreenState extends State<RecapScreen> {
       confirmLabel: S.supprimer,
       danger: true,
     );
-    if (!confirmed) return;
+    if (!mounted || !confirmed) return;
     await AyahFactsService.deleteLearnFacts(p.sourate.id, state.riwaya);
     if (mounted) await _load(state.pauseDates);
   }
