@@ -91,7 +91,7 @@ Depuis Phase 6 Sprint 2, éclaté en deux fonctions pures indépendantes plutôt
 
 **`buildDayUnits()`** — quelles unités composent le plan du jour :
 1. **Regroupement par page partagée** (`_groupSelectionsByPage`, fonction pure top-level, testable isolément) : parmi les sourates sélectionnées, celles qui tiennent chacune sur **exactement 1 page réelle** et partagent ce même numéro de page (ex. Al-Kawthar/Al-Ma'un/Quraysh, souvent voisines sur le mushaf) sont fusionnées en un seul groupe — proposées ensemble le même jour, jamais étalées artificiellement. Une sourate voisine **non sélectionnée** par l'utilisateur ne rejoint jamais un groupe (choix de cadrage explicite). Le reste (sourates multi-pages, ou sans voisine partageant leur page) forme des groupes d'une seule sourate. **Un groupe = une seule position de cycle**, quel que soit son nombre de membres — voir `DaySelection.groups` ci-dessous.
-2. **Consommation du budget de pages** : parcourt les groupes en partant de `cyclePosition % groupCount`, en **enveloppant** (`% groupCount`, borné à `groupCount` tours) si le budget n'est pas épuisé avant la fin de la liste — sinon un reliquat de pages en fin de sélection serait perdu au lieu de reprendre au début (bug trouvé en `/code-review`, Sprint 3). Un groupe multi-sourates est atomique (coûte 1 page, jamais découpé — chaque membre tient déjà sur cette unique page). Un groupe d'une seule sourate : si son nombre de pages réelles distinctes (`surahPagesMap.values.toSet().length` — **jamais** `reduce(math.max)`, qui retournerait le numéro de page absolu du mushaf et rendrait la branche "tient en entier" quasi inatteignable, bug trouvé en écrivant les tests de ce sprint) tient dans le budget restant, elle est prise **entière** ; sinon, découpée par pages réelles (les premières pages qui rentrent), le reste continuant le(s) jour(s) suivant(s).
+2. **Consommation du budget de pages** : parcourt les groupes en partant de `cyclePosition % groupCount`, en **enveloppant** (`% groupCount`, borné à `groupCount` tours) si le budget n'est pas épuisé avant la fin de la liste — sinon un reliquat de pages en fin de sélection serait perdu au lieu de reprendre au début (bug trouvé en `/code-review`, Sprint 3). Un groupe multi-sourates est atomique (coûte 1 page, jamais découpé — chaque membre tient déjà sur cette unique page). Un groupe d'une seule sourate : si son nombre de pages réelles distinctes (`surahPagesMap.values.toSet().length` — **jamais** `reduce(math.max)`, qui retournerait le numéro de page absolu du mushaf et rendrait la branche "tient en entier" quasi inatteignable, bug trouvé en écrivant les tests de ce sprint) tient dans le budget restant, elle est prise **entière** ; sinon, découpée par pages réelles (les premières pages qui rentrent) — **et c'est tout : le reste n'est jamais repris**, voir l'avertissement ci-dessous.
 
 Retourne un `DaySelection` (`{groups, cyclePosition, cycleTotal}`) — `groups: List<List<RevisionUnit>>` (pas juste une liste plate) pour que `AppState.checkOut` (§7) puisse compter les groupes complétés sans avoir à re-déduire leurs frontières ; `units` (vue aplatie, `[for (final g in groups) ...g]`) reste disponible pour tout consommateur à qui cette frontière ne dit rien (proposition dans `ayah_facts`, répartition en rakaas, aperçu check-out).
 
@@ -116,6 +116,35 @@ Retourne un `DaySelection` (`{groups, cyclePosition, cycleTotal}`) — `groups: 
 **Ordre aléatoire** : si `config.shuffleEnabled` (activé par défaut), les sourates sont mélangées avec `Random(config.startDate.millisecondsSinceEpoch)` — déterministe par date de démarrage, appliqué **avant** le regroupement par page partagée. Depuis Phase 8 Sprint 3, ce shuffle opère au niveau **sourate** (jamais un morceau de sourate découpée) et le moteur construit nativement des jours sourate-par-sourate contigus — l'ancien piège Sprint 2 (`dayFacts`/`MIN`/`MAX(ayah_id)` supposant une sourate contiguë pour le jour, cassé si le shuffle séparait deux morceaux non-adjacents sur deux jours différents) ne peut plus se produire.
 
 **`daysRemaining`/`isOnTrack` supprimés (Phase 8 Sprint 3)** — le modèle pages/jour n'a plus de date cible ni de notion de "retard" : `DaySelection`/`DailySession` n'exposent plus ces champs, voir CHANGELOG pour le détail des UI retirées (badge `PlanScreen`, texte "jours restants" Accueil/Récap/Profil).
+
+> ### ⚠️ Le moteur ne fait PAS ce que cette section décrivait (scoping du 2026-09-08)
+>
+> Trois bugs confirmés par reproduction, une seule cause racine : **le curseur de cycle adresse
+> des _groupes_ (une sourate = une position) alors que l'unité de travail quotidienne est la
+> _page_.** Rien dans le modèle ne représente « où j'en suis à l'intérieur d'une sourate ».
+>
+> 1. **Une sourate multi-pages n'est jamais poursuivie.** Sélection [Al-Baqara (48 pages),
+>    Al-Ikhlas], 1 page/jour : le moteur propose `S2 v.1-5` au jour 0, puis **à nouveau
+>    `S2 v.1-5` au jour 2**. Les pages 2 à 48 sont inatteignables. `buildDayUnits` reprend
+>    toujours les N *premières* pages, sans mémoire du déjà-fait, et `AppState._completedGroupsFor`
+>    compte le groupe complété dès que la portion *proposée ce jour-là* est `reach=1`.
+> 2. **Une sélection partielle est ignorée** dès que la sourate déborde du budget : demander
+>    Al-Baqara v.255-260 propose **v.1-5**.
+> 3. **Le curseur n'a aucun effet à l'intérieur d'un groupe** : une seule sourate sélectionnée
+>    donne `cycleTotal = 1`, donc `pos = cyclePosition % 1 = 0` pour toujours.
+>
+> C'est ce qui explique le « parfois ça marche, parfois pas » remonté par l'utilisateur : tout va
+> bien tant que **chaque sourate tient dans le budget quotidien**.
+>
+> **La règle cible est désormais écrite en pseudo-code dans `CLAUDE.md` § « Règle du plan
+> quotidien »** — c'est elle qui fait foi, pas cette section ni le code. Le plan de correction
+> vit dans le Backlog de `docs/CHANGELOG.md` (trois entrées P1). Cette section décrit le
+> comportement **actuel**, défectueux ; elle sera réécrite quand la refonte sera livrée.
+>
+> Leçon retenue : cette section affirmait « le reste continuant le(s) jour(s) suivant(s) » alors
+> qu'aucun mécanisme ne le portait. Une doc qui décrit une intention plutôt que le code observé
+> rend le bug indétectable — c'est précisément pourquoi la règle est passée en pseudo-code testable
+> dans `CLAUDE.md`.
 
 ### 5.2 `FreshnessEngine` (`lib/core/freshness_engine.dart`)
 
