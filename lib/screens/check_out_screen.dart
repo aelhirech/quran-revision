@@ -48,8 +48,19 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   // recréerait sinon inutilement le Future et rejouerait le chargement.
   Future<List<RevisionUnit>>? _previewFuture;
 
-  bool get _isMultiDay =>
-      DateTime.now().difference(DateTime.parse(widget.date)).inDays > 1;
+  /// Calculé une fois : `DateTime.parse` sur une date locale résout le
+  /// fuseau horaire, de loin la primitive la plus chère de cet écran, et les
+  /// libellés le relisaient une dizaine de fois par build.
+  late final int _gapDays =
+      DateTime.now().difference(DateTime.parse(widget.date)).inDays;
+
+  bool get _isMultiDay => _gapDays > 1;
+
+  /// Clôture du jour courant (« Clôturer ma journée », Phase 9 Sprint 2) par
+  /// opposition au rattrapage d'un jour passé : même écran, même mécanique de
+  /// scellement — seuls les libellés changent, parler d'« hier » à quelqu'un
+  /// qui clôture le soir même serait faux.
+  bool get _isToday => _gapDays == 0;
 
   @override
   void initState() {
@@ -198,15 +209,15 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   }
 
   Widget _hero(AppPalette palette, bool showPart2) {
-    final gapDays = DateTime.now()
-        .difference(DateTime.parse(widget.date))
-        .inDays;
-    final title = showPart2
-        ? S.checkOutTitreAujourdhui
-        : (_isMultiDay ? S.checkOutTitreEnAttente : S.checkOutTitreHier);
-    final badge = showPart2
-        ? S.checkOutPartieOptionnelle
-        : (_isMultiDay ? S.checkOutIlYaNJours(gapDays) : S.checkOutHier);
+    // Titre et badge suivent la même cascade : un seul choix plutôt que deux
+    // ternaires jumeaux à garder synchronisés quand un cas s'ajoute.
+    final (title, badge) = showPart2
+        ? (S.checkOutTitreAujourdhui, S.checkOutPartieOptionnelle)
+        : _isMultiDay
+            ? (S.checkOutTitreEnAttente, S.checkOutIlYaNJours(_gapDays))
+            : _isToday
+                ? (S.checkOutTitreCeJour, S.checkOutAujourdhui)
+                : (S.checkOutTitreHier, S.checkOutHier);
 
     return CheckHero(
       eyebrow: _isMultiDay ? S.checkOutRattrapageEyebrow : S.checkOutEyebrow,
@@ -483,7 +494,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     String label;
     VoidCallback? onPressed;
     if (!_isMultiDay) {
-      label = S.checkOutCloturerHier;
+      label = _isToday ? S.cloturerMaJournee : S.checkOutCloturerHier;
       onPressed = _sealing ? null : _close;
     } else if (!showPart2) {
       label = S.checkOutCloturerJour;

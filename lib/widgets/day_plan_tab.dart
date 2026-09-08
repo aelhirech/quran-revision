@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/strings.dart';
 import '../models/prayer.dart';
-import '../models/revision_unit.dart';
 import '../screens/check_in_screen.dart';
 import '../screens/check_out_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/plan_screen.dart';
-import '../services/storage_service.dart';
 import '../state/app_state.dart';
-import '../widgets/manual_session_sheet.dart';
 
 /// Gère la logique de routing de l'onglet "Plan du jour" :
 ///   - Jour en attente (non scellé) → popup CheckOutScreen (rattrapage)
@@ -36,58 +32,17 @@ class DayPlanTab extends StatefulWidget {
 class _DayPlanTabState extends State<DayPlanTab> {
   bool _checkOutShown = false;
 
-  /// Manche PlanScreen complétée : marque les unités couvertes comme
-  /// "faites" (`reach=1`). N'avance plus `cyclePosition` — c'est le
-  /// check-out qui le fait, une fois par jour scellé (voir AppState.checkOut).
-  Future<void> _onComplete(BuildContext context, AppState state,
-      int unitsCompleted, List<RevisionUnit> coveredUnits) async {
-    final prayersAlone = state.todaySession!.prayersAlone;
-    await state.markUnitsReached(coveredUnits);
-    // Indépendantes — lancées en parallèle plutôt qu'en série.
-    await Future.wait([
-      state.refreshAdaptiveCycle(state.config!.totalSelectedVerses, notify: false),
-      state.refreshFreshness(notify: false),
-      StorageService.saveLastSessionPrayers(DateTime.now(), prayersAlone, state.riwaya),
-    ]);
-    await state.clearTodaySession();
-  }
-
-  Future<void> _showManualSheet(BuildContext context, AppState state) async {
-    if (state.config == null) return;
-    final dayUnits = await state.dayUnits();
-    if (dayUnits.isEmpty || !context.mounted) return;
-    final units = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ManualSessionSheet(maxUnits: dayUnits.length),
-    );
-    if (units != null && context.mounted) {
-      await _onManualSession(context, state, units, dayUnits);
-    }
-  }
-
-  /// Saisie manuelle : marque les [units] premières unités du plan du jour
-  /// déjà validé au check-in comme "faites" — même hypothèse d'ordre que
-  /// PlanScreen (les unités du plan, dans l'ordre où le check-in les liste).
-  Future<void> _onManualSession(BuildContext context, AppState state,
-      int units, List<RevisionUnit> dayUnits) async {
-    if (units <= 0) return;
-    final covered = dayUnits.take(units).toList();
-    await state.markUnitsReached(covered);
-    await Future.wait([
-      state.refreshAdaptiveCycle(state.config!.totalSelectedVerses, notify: false),
-      state.refreshFreshness(notify: true),
-    ]);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(S.sessionLoggee),
-          behavior: SnackBarBehavior.floating,
+  /// Pousse le check-out sur [date]. Deux entrées, un seul écran : le
+  /// rattrapage automatique d'un jour en attente ([_maybeShowCheckOut]) et le
+  /// bouton « Clôturer ma journée » de PlanScreen, qui scelle aujourd'hui
+  /// sans attendre le lendemain (Phase 9 Sprint 2).
+  Future<void> _openCheckOut(String date) =>
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => CheckOutScreen(date: date),
         ),
       );
-    }
-  }
 
   void _maybeShowCheckOut(AppState state) {
     if (state.pendingDate == null || _checkOutShown) return;
@@ -95,12 +50,7 @@ class _DayPlanTabState extends State<DayPlanTab> {
     final date = state.pendingDate!;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      await Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(
-          fullscreenDialog: true,
-          builder: (_) => CheckOutScreen(date: date),
-        ),
-      );
+      await _openCheckOut(date);
       _checkOutShown = false;
     });
   }
@@ -133,20 +83,24 @@ class _DayPlanTabState extends State<DayPlanTab> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (state.todaySession != null) {
+    final session = state.todaySession;
+    if (session != null) {
+      // Date figée à la construction du plan, pas relue au moment du tap :
+      // l'app laissée ouverte au passage de minuit clôturerait sinon la
+      // journée neuve (vide) au lieu de celle qui vient d'être révisée.
+      final sessionDate = session.date.toIso8601String().substring(0, 10);
       return PlanScreen(
-        key: ValueKey(state.todaySession),
-        session: state.todaySession!,
+        key: ValueKey(session),
+        session: session,
         freshnessOf: state.freshnessFor,
-        onComplete: (unitsCompleted, coveredUnits) =>
-            _onComplete(context, state, unitsCompleted, coveredUnits),
+        onCloturer: () => _openCheckOut(sessionDate),
         onChangePlan: () => state.clearTodaySession(),
       );
     }
 
     return HomeScreen(
       onIlluminer: () => _openCheckIn(state),
-      onSaisirManuel: () => _showManualSheet(context, state),
+      onRouvrirCloture: () => _openCheckOut(state.todayStr),
     );
   }
 }

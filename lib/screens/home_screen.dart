@@ -23,9 +23,18 @@ import '../widgets/spotlight_tour.dart';
 /// confirment au même endroit, juste avant que le plan ne soit réparti.
 class HomeScreen extends StatefulWidget {
   final VoidCallback onIlluminer;
-  final VoidCallback? onSaisirManuel;
 
-  const HomeScreen({super.key, required this.onIlluminer, this.onSaisirManuel});
+  /// Reopens today's check-out once the day is sealed. Sealing used to be a
+  /// dead end until midnight, so a mistyped check-out could not be fixed;
+  /// `AppState.checkOut` is idempotent on the cycle, so reopening never
+  /// credits anything twice.
+  final VoidCallback onRouvrirCloture;
+
+  const HomeScreen({
+    super.key,
+    required this.onIlluminer,
+    required this.onRouvrirCloture,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -68,6 +77,29 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  /// The cycle can only be empty while surahs are selected if the mushaf
+  /// pagination failed to load. Saying so beats a silent "0 / 0 pages" that
+  /// looks like a finished cycle (`CLAUDE.md`, "Règle du plan quotidien").
+  Widget _cycleIndisponible(AppPalette palette) => Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: palette.danger.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: palette.danger.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: palette.danger, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(S.paginationIndisponible,
+                  style: TextStyle(fontSize: 12, color: palette.textPrimary)),
+            ),
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -77,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (state.config == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final closed = state.todayClosed;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -108,6 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 10),
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
+                if (_daySelection != null &&
+                    _daySelection!.cycleTotal == 0 &&
+                    state.config!.selections.isNotEmpty)
+                  _cycleIndisponible(palette),
                 CycleProgressCard(
                   progress: (_daySelection?.cycleTotal ?? 0) > 0
                       ? _daySelection!.cyclePosition / _daySelection!.cycleTotal
@@ -115,29 +152,36 @@ class _HomeScreenState extends State<HomeScreen> {
                   pos: _daySelection?.cyclePosition ?? 0,
                   total: _daySelection?.cycleTotal ?? 0,
                   streak: _streak,
+                  label: S.cycleEnCours,
                 ),
                 const SizedBox(height: 16),
                 HadithCard(hadith: hadithDuJour(DateTime.now())),
                 const SizedBox(height: 28),
+                // Journée déjà clôturée : le CTA reste à sa place (le tour
+                // guidé le cible) mais devient inerte — réinviter à
+                // « illuminer » une journée scellée relancerait un check-in
+                // sur un plan qui ne peut plus faire avancer le cycle.
                 KeyedSubtree(
                   key: TourKeys.voirPlanButton,
                   child: PrimaryCtaButton(
-                    onPressed: widget.onIlluminer,
-                    icon: Icons.wb_sunny_outlined,
-                    label: S.illuminerMaJournee,
+                    onPressed:
+                        closed ? widget.onRouvrirCloture : widget.onIlluminer,
+                    icon: closed
+                        ? Icons.nightlight_outlined
+                        : Icons.wb_sunny_outlined,
+                    label:
+                        closed ? S.journeeCloturee : S.illuminerMaJournee,
                   ),
                 ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
                 const SizedBox(height: 8),
                 Center(
-                  child: Text(S.illuminerSousTitre,
+                  child: Text(
+                      closed
+                          ? S.journeeClotureeSousTitre
+                          : S.illuminerSousTitre,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: palette.textMuted)),
                 ).animate().fadeIn(delay: 300.ms),
-                if (widget.onSaisirManuel != null)
-                  TextButton(
-                    onPressed: widget.onSaisirManuel,
-                    child: Text(S.saisirManuellement),
-                  ).animate().fadeIn(delay: 350.ms),
               ]),
             ),
           ),

@@ -243,7 +243,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
           children: [
             for (final p in pagesPerDayPresets)
               PillChip(
-                label: S.checkInPagesParJour(p),
+                label: S.pagesParJour(p),
                 selected: p == current,
                 onTap: () => _setPagesPerDay(p),
               ),

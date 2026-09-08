@@ -26,7 +26,6 @@ class UserConfig {
   final int versesToLearnPerDay;
   final DateTime startDate;
   final bool shuffleEnabled;
-  final bool adaptiveCycle;
   final Riwaya riwaya;
 
   const UserConfig({
@@ -35,7 +34,6 @@ class UserConfig {
     this.versesToLearnPerDay = defaultVersesToLearnPerDay,
     required this.startDate,
     this.shuffleEnabled = true,
-    this.adaptiveCycle = false,
     this.riwaya = Riwaya.hafs,
   });
 
@@ -48,7 +46,6 @@ class UserConfig {
     int? versesToLearnPerDay,
     DateTime? startDate,
     bool? shuffleEnabled,
-    bool? adaptiveCycle,
     Riwaya? riwaya,
   }) =>
       UserConfig(
@@ -57,7 +54,6 @@ class UserConfig {
         versesToLearnPerDay: versesToLearnPerDay ?? this.versesToLearnPerDay,
         startDate: startDate ?? this.startDate,
         shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
-        adaptiveCycle: adaptiveCycle ?? this.adaptiveCycle,
         riwaya: riwaya ?? this.riwaya,
       );
 
@@ -67,7 +63,6 @@ class UserConfig {
         'versesToLearnPerDay': versesToLearnPerDay,
         'startDate': startDate.toIso8601String(),
         'shuffleEnabled': shuffleEnabled,
-        'adaptiveCycle': adaptiveCycle,
         'riwaya': riwaya.name,
       };
 
@@ -92,7 +87,6 @@ class UserConfig {
         startDate:
             DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
         shuffleEnabled: j['shuffleEnabled'] as bool? ?? true,
-        adaptiveCycle: j['adaptiveCycle'] as bool? ?? false,
         riwaya: Riwaya.values.firstWhere(
             (r) => r.name == j['riwaya'],
             orElse: () => Riwaya.hafs),

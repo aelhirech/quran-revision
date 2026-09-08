@@ -5,18 +5,32 @@ import '../core/app_colors.dart';
 import '../core/strings.dart';
 import 'dome_progress_card.dart';
 
+/// Carte de progression du cycle (dôme, pourcentage, « pos / total pages »,
+/// barre, streak optionnel). Partagée par l'Accueil et le Récap depuis la
+/// Phase 9 Sprint 2 — le Récap en tenait une copie quasi ligne à ligne, au
+/// point que le passage des KPI en pages a dû être fait deux fois et que
+/// l'explication « Pourquoi des pages ? » n'existait que côté Accueil.
 class CycleProgressCard extends StatelessWidget {
   final double progress;
   final int pos;
   final int total;
+
+  /// `0` = pas de badge (le Récap affiche déjà le streak dans sa propre carte).
   final int streak;
+
+  /// Eyebrow de la carte : « Cycle en cours » sur l'Accueil, « Cycle actuel »
+  /// sur le Récap — seule vraie divergence entre les deux copies d'origine.
+  final String label;
+  final double topRadius;
 
   const CycleProgressCard({
     super.key,
     required this.progress,
     required this.pos,
     required this.total,
-    required this.streak,
+    this.streak = 0,
+    required this.label,
+    this.topRadius = 170,
   });
 
   @override
@@ -26,12 +40,12 @@ class CycleProgressCard extends StatelessWidget {
     final percent = (progress * 100).round();
 
     return DomeProgressCard(
-      topRadius: 170,
+      topRadius: topRadius,
       bottomRadius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(S.cycleEnCours,
+          Text(label,
               style: GoogleFonts.lora(
                   color: onPrimary.withValues(alpha: 0.65),
                   fontSize: 11,
@@ -58,9 +72,9 @@ class CycleProgressCard extends StatelessWidget {
           ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
           const SizedBox(height: 6),
           InkWell(
-            onTap: () => _showUnitesInfo(context),
+            onTap: () => _showPagesInfo(context),
             child: Text(
-              '$pos / $total ${S.unitesLabel}',
+              '$pos / $total ${S.pagesLabel}',
               style: GoogleFonts.lora(
                   color: onPrimary.withValues(alpha: 0.75),
                   fontStyle: FontStyle.italic,
@@ -104,12 +118,12 @@ class CycleProgressCard extends StatelessWidget {
     ).animate().fadeIn().slideY(begin: 0.06);
   }
 
-  void _showUnitesInfo(BuildContext context) {
+  void _showPagesInfo(BuildContext context) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(S.unitesExplTitle),
-        content: Text(S.unitesExplBody),
+        title: Text(S.pagesExplTitle),
+        content: Text(S.pagesExplBody),
         actions: [
           FilledButton(
             onPressed: () => Navigator.pop(context),

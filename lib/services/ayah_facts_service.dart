@@ -137,21 +137,9 @@ class AyahFactsService {
     return result.first['c'] as int? ?? 0;
   }
 
-  /// Moyenne de versets révisés par jour actif, sur les [lastN] derniers
-  /// jours actifs (remplace l'ancienne moyenne "unités par session" — nommée
-  /// explicitement "verses" pour ne pas la confondre avec une unité
-  /// RevisionEngine, dont la taille varie par sourate).
-  static Future<double> avgVersesPerDay(
-      {int lastN = 14, required Riwaya riwaya}) async {
-    final counts = await recentDayVerseCounts(limit: lastN, riwaya: riwaya);
-    if (counts.isEmpty) return 0.0;
-    final total = counts.values.fold(0, (sum, c) => sum + c);
-    return total / counts.length;
-  }
-
   /// Nombre de versets révisés par jour (date ISO → compte), les [limit]
-  /// derniers jours actifs les plus récents — pour `avgVersesPerDay`
-  /// (moyenne sur jours actifs uniquement).
+  /// derniers jours actifs les plus récents — base de [recentDayVerseStats]
+  /// (jours actifs uniquement, un jour sans aucun verset fait n'y figure pas).
   static Future<Map<String, int>> recentDayVerseCounts(
       {int limit = 14, required Riwaya riwaya}) async {
     final db = await _open();
@@ -173,28 +161,26 @@ class AyahFactsService {
   /// toujours proche de 0.
   static Future<Map<String, ({int done, int total})>> recentDayVerseStats(
       {int limit = 14, required Riwaya riwaya}) async {
-    final done = await recentDayVerseCounts(limit: limit, riwaya: riwaya);
-    if (done.isEmpty) return {};
+    // Conditional aggregation gives both numbers in one pass; the "active
+    // days only" filter stays, so a day where nothing was done is still
+    // absent rather than showing up as 0/N.
     final db = await _open();
-    final placeholders = List.filled(done.length, '?').join(',');
     final rows = await db.rawQuery(
-      'SELECT date, COUNT(*) as c FROM ayah_facts '
-      'WHERE riwaya = ? AND type = ? AND date IN ($placeholders) '
-      'GROUP BY date',
-      [riwaya.name, AyahFactType.revise.name, ...done.keys],
+      'SELECT date, COUNT(*) as total, SUM(reach) as done FROM ayah_facts '
+      'WHERE riwaya = ? AND type = ? '
+      'GROUP BY date HAVING done > 0 ORDER BY date DESC LIMIT ?',
+      [riwaya.name, AyahFactType.revise.name, limit],
     );
-    final totals = {for (final row in rows) row['date'] as String: row['c'] as int};
     return {
-      for (final date in done.keys)
-        date: (done: done[date]!, total: totals[date] ?? done[date]!),
+      for (final row in rows)
+        row['date'] as String: (
+          done: (row['done'] as int?) ?? 0,
+          total: (row['total'] as int?) ?? 0,
+        ),
     };
   }
 
   // --- Apprentissage ---
-
-  static Future<void> learnVerse(int surahId, int ayahId, Riwaya riwaya) async {
-    await learnVerses(surahId, [ayahId], riwaya);
-  }
 
   /// Marque plusieurs versets appris en un seul batch (une transaction, un
   /// aller-retour SQLite) — utilisé pour un bloc de versets (1/3/5) marqué
@@ -231,11 +217,23 @@ class AyahFactsService {
   /// [startLearning]) la faisait disparaître, reproduisant le même bug par un
   /// autre chemin. Cohérent avec `revise` (`setReach`), qui ne supprime
   /// jamais non plus une ligne pour revenir à "pas fait".
+  /// Steps one verse back to "not acquired yet".
+  ///
+  /// Only the MOST RECENT dated row is downgraded: a verse learned on day 1
+  /// and unlearned later is two rows by design, and rewriting them all would
+  /// erase the history those separate dates exist to preserve.
   static Future<void> unlearnVerse(int surahId, int ayahId, Riwaya riwaya) async {
     final db = await _open();
+    final latest = await db.rawQuery(
+      'SELECT MAX(date) as d FROM ayah_facts '
+      'WHERE surah_id = ? AND ayah_id = ? AND riwaya = ? AND type = ?',
+      [surahId, ayahId, riwaya.name, AyahFactType.learn.name],
+    );
+    final date = latest.first['d'] as String?;
+    if (date == null) return;
     await db.update('ayah_facts', {'reach': 0},
-        where: 'surah_id = ? AND ayah_id = ? AND riwaya = ? AND type = ?',
-        whereArgs: [surahId, ayahId, riwaya.name, AyahFactType.learn.name]);
+        where: 'date = ? AND surah_id = ? AND ayah_id = ? AND riwaya = ? AND type = ?',
+        whereArgs: [date, surahId, ayahId, riwaya.name, AyahFactType.learn.name]);
   }
 
   static Future<Map<int, Set<int>>> learnedVersesBySourate(
@@ -558,10 +556,20 @@ class AyahFactsService {
   /// sert à AppState.checkOut pour compter combien des unités proposées par
   /// le moteur ont réellement été faites (voir doc de `checkOut`). `false`
   /// aussi bien si rien n'est fait que si la plage a été entièrement retirée
-  /// au check-in ([removeFromDayPlan]) — voir [rangeExists] pour distinguer
+  /// au check-in ([removeFromDayPlan]) — voir [rangeStatus] pour distinguer
   /// les deux.
   static Future<bool> isRangeReached(String date, Riwaya riwaya, int surahId,
-      int verseStart, int verseEnd) async {
+          int verseStart, int verseEnd) async =>
+      (await rangeStatus(date, riwaya, surahId, verseStart, verseEnd)).reached;
+
+  /// Both questions the check-out asks about a range, in ONE query: does it
+  /// still have rows (kept at check-in), and are they all reached?
+  ///
+  /// They used to be two round-trips with a byte-identical `WHERE`, and the
+  /// cycle now walks pages rather than surahs — that is several hundred
+  /// sequential queries on a full check-out instead of a few dozen.
+  static Future<({bool exists, bool reached})> rangeStatus(String date,
+      Riwaya riwaya, int surahId, int verseStart, int verseEnd) async {
     final db = await _open();
     final rows = await db.rawQuery(
       'SELECT COUNT(*) as total, SUM(reach) as reached FROM ayah_facts '
@@ -570,7 +578,7 @@ class AyahFactsService {
     );
     final total = rows.first['total'] as int? ?? 0;
     final reached = rows.first['reached'] as int? ?? 0;
-    return total > 0 && total == reached;
+    return (exists: total > 0, reached: total > 0 && total == reached);
   }
 
   /// Versets `reach = 1` du jour, par sourate — une seule requête (même
@@ -592,20 +600,6 @@ class AyahFactsService {
     return result;
   }
 
-  /// `true` s'il reste au moins une ligne pour cette plage ce jour-là.
-  /// Sert à AppState.checkOut à distinguer "retiré au check-in" (aucune
-  /// ligne — à ignorer, pas un blocage) de "pas encore fait" (des lignes
-  /// existent mais `reach = 0` — bloque le comptage, voir [isRangeReached]).
-  static Future<bool> rangeExists(String date, Riwaya riwaya, int surahId,
-      int verseStart, int verseEnd) async {
-    final db = await _open();
-    final rows = await db.rawQuery(
-      'SELECT COUNT(*) as total FROM ayah_facts '
-      'WHERE date = ? AND riwaya = ? AND surah_id = ? AND ayah_id BETWEEN ? AND ? AND type = ?',
-      [date, riwaya.name, surahId, verseStart, verseEnd, AyahFactType.revise.name],
-    );
-    return (rows.first['total'] as int? ?? 0) > 0;
-  }
 
   /// Scelle une journée : `checked_out = 1` pour ses lignes de révision.
   /// **Volontairement borné à `type = 'revise'`** : `checked_out` n'est lu
@@ -625,6 +619,31 @@ class AyahFactsService {
         whereArgs: [date, riwaya.name, AyahFactType.revise.name]);
   }
 
+  /// La journée [date] a-t-elle déjà été scellée ? `false` s'il n'y a aucune
+  /// ligne de révision ce jour-là — une journée sans plan n'est pas une
+  /// journée clôturée. Sert au garde-fou de `AppState.checkOut` (le cycle
+  /// n'avance qu'une fois par jour) et à l'état "au repos" de l'accueil,
+  /// depuis que « Clôturer ma journée » permet de sceller le jour courant
+  /// sans attendre le lendemain (Phase 9 Sprint 2).
+  ///
+  /// Prédicat **monotone** — « il existe une ligne scellée », pas « toutes
+  /// les lignes le sont » : une journée peut redevenir mixte après son
+  /// scellement (une ligne fraîche `checked_out = 0` écrite par
+  /// [proposeUnits]), et un `MIN(checked_out)` répondrait alors « pas
+  /// scellée », désarmant le garde-fou anti-double-comptage de `checkOut`
+  /// exactement quand il sert. À ne pas confondre avec [pendingDate], qui
+  /// pose la question inverse (« reste-t-il quelque chose à clôturer ? ») et
+  /// doit, elle, rester sensible à ces lignes fraîches.
+  static Future<bool> isDaySealed(String date, Riwaya riwaya) async {
+    final db = await _open();
+    final rows = await db.rawQuery(
+      'SELECT 1 FROM ayah_facts '
+      'WHERE date = ? AND riwaya = ? AND type = ? AND checked_out = 1 LIMIT 1',
+      [date, riwaya.name, AyahFactType.revise.name],
+    );
+    return rows.isNotEmpty;
+  }
+
   /// Reconstruit le plan du jour en lignes groupées par sourate — une entrée
   /// par plage contiguë de versets écrite ce jour-là (`DayFactGroup`), pour
   /// l'affichage check-in/check-out et PlanScreen. Groupe en Dart plutôt
@@ -637,23 +656,44 @@ class AyahFactsService {
         where: 'date = ? AND riwaya = ? AND type = ?',
         whereArgs: [date, riwaya.name, AyahFactType.revise.name],
         orderBy: 'surah_id, ayah_id');
-    final bySourate = <int, List<Map<String, Object?>>>{};
-    for (final row in rows) {
-      bySourate.putIfAbsent(row['surah_id'] as int, () => []).add(row);
+    // One entry per CONTIGUOUS run, not one MIN..MAX range per surah: since
+    // the cycle became a page list, a single day can hold two non-adjacent
+    // fragments of the same surah (the cycle wrapping onto its own first
+    // page). Collapsing them would show — and credit at check-out — every
+    // verse in between, none of which was ever proposed.
+    final groups = <DayFactGroup>[];
+    List<Map<String, Object?>> run = [];
+    int? runSurah;
+
+    void flush() {
+      if (run.isEmpty) return;
+      groups.add(DayFactGroup(
+        surahId: runSurah!,
+        verseStart: run.first['ayah_id'] as int,
+        verseEnd: run.last['ayah_id'] as int,
+        reach: run.every((r) => (r['reach'] as int) == 1),
+        needsWorkVerses: {
+          for (final r in run)
+            if ((r['needs_work'] as int) == 1) r['ayah_id'] as int,
+        },
+      ));
+      run = [];
     }
-    return [
-      for (final entry in bySourate.entries)
-        DayFactGroup(
-          surahId: entry.key,
-          verseStart: entry.value.map((r) => r['ayah_id'] as int).reduce(min),
-          verseEnd: entry.value.map((r) => r['ayah_id'] as int).reduce(max),
-          reach: entry.value.every((r) => (r['reach'] as int) == 1),
-          needsWorkVerses: {
-            for (final r in entry.value)
-              if ((r['needs_work'] as int) == 1) r['ayah_id'] as int,
-          },
-        ),
-    ];
+
+    for (final row in rows) {
+      final surah = row['surah_id'] as int;
+      final ayah = row['ayah_id'] as int;
+      final continues = run.isNotEmpty &&
+          surah == runSurah &&
+          ayah == (run.last['ayah_id'] as int) + 1;
+      if (!continues) {
+        flush();
+        runSurah = surah;
+      }
+      run.add(row);
+    }
+    flush();
+    return groups;
   }
 }
 

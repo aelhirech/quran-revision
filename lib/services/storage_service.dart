@@ -8,6 +8,7 @@ import 'riwaya_key.dart';
 class StorageService {
   static const _keyConfig = 'user_config';
   static const _keyCyclePosition = 'cycle_position';
+  static const _keyCycleInPages = 'cycle_position_in_pages';
   static const _keyLocale = 'locale';
   static const _keyNotifEnabled = 'notif_enabled';
   static const _keyPauseDates = 'pause_dates';
@@ -226,6 +227,19 @@ class StorageService {
   /// Hafs (Warsh n'était qu'un affichage alternatif du même texte). On les
   /// renomme donc telles quelles vers le parcours Hafs. Idempotent : les
   /// anciennes clés n'existent plus après le premier passage.
+  /// The cycle cursor changed unit on 2026-09-08: it used to index surah
+  /// groups, it now indexes mushaf pages (see `CLAUDE.md`, "Règle du plan
+  /// quotidien"). An old value would point at an unrelated page, so the cycle
+  /// restarts once — deliberate product decision, not a conversion.
+  static Future<void> migrateCycleToPages() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_keyCycleInPages) == true) return;
+    for (final riwaya in Riwaya.values) {
+      await prefs.remove(_track(_keyCyclePosition, riwaya));
+    }
+    await prefs.setBool(_keyCycleInPages, true);
+  }
+
   static Future<void> migrateLegacyTrackData() async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey(_keyConfig)) {

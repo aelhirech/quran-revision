@@ -13,15 +13,7 @@ class AppRules {
   /// d'unités complétées, une journée est mise en avant visuellement.
   static const double goodDayThreshold = 0.8;
 
-  /// Paliers de streak qui déclenchent le message "nouveau palier" au lieu
-  /// du décompte classique (`PlanScreen`, écran de complétion).
-  static const Set<int> streakMilestones = {7, 30, 100};
-
   /// Nombre maximum d'entrées "Tahiyyat al-Masjid" sélectionnables
   /// (`PrayerSelector`) — au-delà, compter les passages n'a plus de sens.
   static const int maxTahiyyatCount = 5;
-
-  /// Fraction des rakaas proposée par défaut quand l'utilisateur déclare
-  /// avoir fait "une part" plutôt que tout ou rien (modale d'engagement).
-  static const double defaultPartialFraction = 0.5;
 }

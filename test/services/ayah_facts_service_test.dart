@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quran_revision/models/riwaya.dart';
+import 'package:quran_revision/models/revision_unit.dart';
+import 'package:quran_revision/models/ayah_fact.dart';
 import 'package:quran_revision/services/ayah_facts_service.dart';
 
 import 'test_helpers.dart';
@@ -166,7 +168,7 @@ void main() {
     test('reste "en cours" même si le seul verset appris est ensuite désappris',
         () async {
       await AyahFactsService.proposeLearnVerses(today, Riwaya.hafs, 31, [1]);
-      await AyahFactsService.learnVerse(31, 1, Riwaya.hafs);
+      await AyahFactsService.learnVerses(31, [1], Riwaya.hafs);
       await AyahFactsService.unlearnVerse(31, 1, Riwaya.hafs);
       final progress = await AyahFactsService.loadMainLearningProgress(
           riwaya: Riwaya.hafs, sourates: [testSourate(31)]);
@@ -180,6 +182,66 @@ void main() {
       final progress = await AyahFactsService.loadMainLearningProgress(
           riwaya: Riwaya.hafs, sourates: [testSourate(32)]);
       expect(progress, isEmpty);
+    });
+  });
+
+  group('dette technique — sprint 4 (2026-09-08)', () {
+    test(
+        "dayFacts rend une entrée par PLAGE CONTIGUË, pas une plage MIN..MAX "
+        "par sourate : depuis que le cycle est une liste de pages, deux "
+        "fragments non adjacents de la même sourate peuvent tomber le même "
+        "jour, et les fusionner créditerait des versets jamais proposés",
+        () async {
+      const jour = '2031-03-01';
+      final s2 = testSourate(2, verses: 286, words: 6000);
+      await AyahFactsService.proposeUnits(jour, Riwaya.hafs, [
+        RevisionUnit(sourate: s2, verseStart: 1, verseEnd: 5, isWhole: false),
+        RevisionUnit(sourate: s2, verseStart: 200, verseEnd: 203, isWhole: false),
+      ]);
+
+      final groupes = await AyahFactsService.dayFacts(jour, Riwaya.hafs);
+      expect(groupes, hasLength(2),
+          reason: 'deux plages disjointes de la sourate 2, pas une seule');
+      expect(groupes.map((g) => [g.verseStart, g.verseEnd]).toList(),
+          [[1, 5], [200, 203]]);
+      expect(groupes.every((g) => g.surahId == 2), isTrue);
+    });
+
+    test('dayFacts fusionne bien deux plages ADJACENTES en une seule entrée',
+        () async {
+      const jour = '2031-03-02';
+      final s2 = testSourate(2, verses: 286, words: 6000);
+      await AyahFactsService.proposeUnits(jour, Riwaya.hafs, [
+        RevisionUnit(sourate: s2, verseStart: 1, verseEnd: 5, isWhole: false),
+        RevisionUnit(sourate: s2, verseStart: 6, verseEnd: 9, isWhole: false),
+      ]);
+      final groupes = await AyahFactsService.dayFacts(jour, Riwaya.hafs);
+      expect(groupes, hasLength(1));
+      expect([groupes.first.verseStart, groupes.first.verseEnd], [1, 9]);
+    });
+
+    test(
+        "unlearnVerse ne retrograde que la ligne la plus recente — deux dates "
+        "distinctes existent justement pour preserver l historique",
+        () async {
+      const j1 = '2031-04-01';
+      const j2 = '2031-04-09';
+      for (final jour in [j1, j2]) {
+        await AyahFactsService.proposeLearnVerses(jour, Riwaya.hafs, 40, [1]);
+        await AyahFactsService.setReach(jour, Riwaya.hafs, 40, 1, 1, true,
+            type: AyahFactType.learn);
+      }
+
+      await AyahFactsService.unlearnVerse(40, 1, Riwaya.hafs);
+
+      // `learnedVersesBySourate` lit toutes les dates : le verset y reste
+      // parce que la ligne du J1 garde reach=1. Avec l'ancien UPDATE sans
+      // clause de date, les DEUX lignes retombaient a 0 et le verset
+      // disparaissait — l'historique etait reecrit.
+      final appris = await AyahFactsService.learnedVersesBySourate(
+          riwaya: Riwaya.hafs);
+      expect(appris[40], contains(1),
+          reason: "la ligne du J1 doit survivre au desapprentissage du J2");
     });
   });
 }

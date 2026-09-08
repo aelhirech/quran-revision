@@ -80,6 +80,7 @@ void main() async {
   // cycle, pauses) vers le parcours Hafs — doit tourner avant toute lecture
   // ci-dessous.
   await StorageService.migrateLegacyTrackData();
+  await StorageService.migrateCycleToPages();
 
   // La riwaya active doit être connue avant de charger le reste : chaque
   // parcours (Hafs/Warsh) a sa propre config/cycle/sessions/pauses. Si le
