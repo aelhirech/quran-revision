@@ -173,9 +173,24 @@ CONSTRUIRE_LE_CYCLE(sélection, pagination, mélange, graine) -> [entrées]
                           fin:      min(portion.fin,   dernier verset de p),
                           rang:     index de la portion dans `ordre` }
 
-3. entrées := regrouper les fragments par numéro de page
-   # Plusieurs courtes sourates sur une même page physique = UNE entrée,
-   # donc UNE journée. Le regroupement tombe du modèle, ce n'est pas un cas particulier.
+3. entrées := regrouper les fragments par numéro de page,
+   MAIS un fragment ne rejoint le groupe de sa page QUE si toute la portion
+   dont il vient tient ENTIÈREMENT sur cette page (un seul fragment pour
+   cette portion). Sinon il forme sa propre entrée, exclusive à
+   (sourate, page) — jamais partagée avec une autre sourate.
+   # Plusieurs sourates COMPLÈTES sur une même page physique = UNE entrée,
+   # donc UNE journée (ex. Al-Kawthar/Al-Ma'un/Quraysh sur une même page).
+   # Mais une sourate qui déborde sur une page (elle y a un fragment PARTIEL)
+   # n'entre jamais dans le groupe de cette page, même si une autre sourate,
+   # elle, y est entière : on révise sourate par sourate, la page n'est
+   # qu'une aide mémoire pour le débit quotidien, pas une unité de fusion.
+   # Piège corrigé (retour utilisateur 2026-09-08) : fusionner sans cette
+   # garde faisait hériter le fragment débordant du rang MINIMUM de la page
+   # partagée — un verset isolé (la fin d'Al-Inshiqaq, sur la même page
+   # qu'Al-Buruj) se retrouvait alors proposé à un autre moment du cycle que
+   # le reste de sa propre sourate, dès que le mélange plaçait le voisin
+   # avant elle. Conséquence assumée : une page-frontière entre une sourate
+   # entière et une sourate qui déborde coûte alors 2 entrées au lieu d'1.
 
 4. trier les entrées par (plus petit `rang` de leurs fragments, puis n° de page croissant)
    # Le mélange ordonne les sourates ; à l'intérieur d'une sourate,
