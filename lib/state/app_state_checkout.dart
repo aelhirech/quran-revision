@@ -145,7 +145,15 @@ extension AppStateCheckOut on AppState {
   /// sourates qui partagent la même page réelle du mushaf forment un seul
   /// groupe/une seule position de cycle (voir cadrage "regroupement par page
   /// partagée", 2026-09-05) — les compter une par une désynchroniserait
-  /// `cyclePosition` de `cycleTotal` (qui compte des groupes). Au sein d'un
+  /// `cyclePosition` de `cycleTotal` (qui compte des groupes).
+  ///
+  /// That grouping only holds when a surah fits ENTIRELY on the shared page —
+  /// one that only spills onto it forms its own cycle position instead, never
+  /// merged with a neighbour that does fit whole (see `RevisionEngine.
+  /// buildCycle`, `CLAUDE.md` § "Règle du plan quotidien" part A; fixed
+  /// 2026-09-08).
+  ///
+  /// Au sein d'un
   /// groupe, une unité entièrement retirée au check-in ([removeFromDayPlan])
   /// n'a plus aucune ligne en base : elle est ignorée (ni comptée ni
   /// bloquante) — seule une unité *présente* mais non faite bloque le groupe

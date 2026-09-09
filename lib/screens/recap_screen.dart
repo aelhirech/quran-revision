@@ -96,8 +96,9 @@ class _RecapScreenState extends State<RecapScreen> {
 
     // Read straight from AppState: it is a pure computation, so caching it in
     // a field only bought a full-screen spinner and a value that went stale
-    // after each check-out.
-    final cycle = state.daySelection;
+    // after each check-out. In TRUE pages (`pagesProgress`), not cycle
+    // entries — this screen literally promises a page count to the user.
+    final pagesProgress = state.pagesProgress;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -120,18 +121,18 @@ class _RecapScreenState extends State<RecapScreen> {
                 StreakCard(streak: _streak, totalDays: _totalDays),
                 const SizedBox(height: 16),
                 CycleProgressCard(
-                  progress: cycle.cycleTotal > 0
-                      ? cycle.cyclePosition / cycle.cycleTotal
+                  progress: pagesProgress.total > 0
+                      ? pagesProgress.pos / pagesProgress.total
                       : 0.0,
-                  pos: cycle.cyclePosition,
-                  total: cycle.cycleTotal,
+                  pos: pagesProgress.pos,
+                  total: pagesProgress.total,
                   label: S.cycleActuel,
                   topRadius: 150,
                 ),
                 const SizedBox(height: 16),
                 _repartitionCard(cs, state),
                 const SizedBox(height: 16),
-                _statsRow(cs, state, cycle.cycleTotal),
+                _statsRow(cs, state, pagesProgress.total),
                 const SizedBox(height: 16),
                 HistoryCard(sessions: _sessions),
                 const SizedBox(height: 16),

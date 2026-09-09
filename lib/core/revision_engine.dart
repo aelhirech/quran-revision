@@ -12,8 +12,10 @@ import '../models/user_config.dart';
 /// See `CLAUDE.md` section "Règle du plan quotidien" — that pseudo-code is the
 /// spec, this file implements it.
 class DaySelection {
-  /// The pages proposed for today. One entry = one real mushaf page = one
-  /// cycle position, holding every selected fragment that falls on it.
+  /// The pages proposed for today. One entry usually = one real mushaf page,
+  /// holding every selected fragment that fills it entirely — EXCEPT a surah
+  /// straddling a page boundary, whose fragment there never merges with a
+  /// neighbour, and so gets an entry of its own (see `buildCycle`).
   final List<List<RevisionUnit>> groups;
 
   /// The whole cycle [groups] was taken from. Carried along so the check-out
@@ -31,8 +33,48 @@ class DaySelection {
     required this.cyclePosition,
   });
 
-  /// How many pages the whole selection spans.
+  /// How many cycle entries the whole selection spans — usually, but not
+  /// always, the count of distinct real mushaf pages (see [groups]).
   int get cycleTotal => cycle.length;
+
+  /// Progress in TRUE distinct mushaf pages — as opposed to
+  /// [cyclePosition]/[cycleTotal], which count cycle ENTRIES, sometimes more
+  /// numerous than real pages (a surah straddling a page it shares with a
+  /// fully-fitting neighbour costs 2 entries for 1 physical page, see
+  /// [buildCycle]). Screens that literally promise a page count to the user
+  /// (`CycleProgressCard`, the Récap stat chip, `PlanScreen`'s summary bar)
+  /// must use this instead of the raw fields.
+  ///
+  /// A real page counts as covered only once EVERY entry touching it has
+  /// been passed — simply deduping page numbers over a prefix of [cycle]
+  /// (an earlier version of this method did that) let a small straddling
+  /// fragment mark the WHOLE shared page done the moment it alone was
+  /// completed, well before its unrelated, not-yet-due neighbour on that
+  /// same page (found in review: Al-Inshiqaq's last verse, sharing page 590
+  /// with Al-Buruj — a full 22-verse surah — made the pair read "100%" right
+  /// after Al-Inshiqaq alone was finished).
+  ({int pos, int total}) realPages(Map<int, Map<int, int>> pageMetadata) {
+    // Per real page, the index of the LAST cycle entry that touches it —
+    // that page is only fully covered once the cursor has passed it too.
+    //
+    // One lookup per UNIT, not per verse: `buildCycle` only ever puts a
+    // (start, end) range in a single entry when every verse in it shares one
+    // real page (see its "min..max is exact" comment) — so `verseStart`
+    // alone already names that page, and this stays cheap even on a full
+    // Quran selection, unlike the equivalent scan over every raw verse.
+    final lastEntryOfPage = <int, int>{};
+    for (var i = 0; i < cycle.length; i++) {
+      for (final unit in cycle[i]) {
+        final page = pageMetadata[unit.sourate.id]?[unit.verseStart];
+        if (page == null) continue;
+        final known = lastEntryOfPage[page];
+        if (known == null || i > known) lastEntryOfPage[page] = i;
+      }
+    }
+    final covered =
+        lastEntryOfPage.values.where((last) => last < cyclePosition).length;
+    return (pos: covered, total: lastEntryOfPage.length);
+  }
 
   /// Flattened view, for consumers that do not care about the page boundary
   /// (writing the proposal into `ayah_facts`, rakaa layout, check-out preview).
@@ -73,8 +115,18 @@ class RevisionEngine {
   /// Pure and deterministic: [pageMetadata] is injected, `lib/core/` does no
   /// I/O. Shuffling happens at SURAH level only, so a surah's pages always
   /// stay in mushaf order; a page shared by several selected surahs collapses
-  /// into a single entry, which is why page grouping is no longer a special
-  /// case of its own.
+  /// into a single entry **only when every one of them fits entirely on that
+  /// page** — pages are a mnemonic aid, revision happens surah by surah.
+  ///
+  /// A surah that only partly lands on a shared page (its selection spans
+  /// several pages) never joins that page's shared entry: it would borrow the
+  /// shared entry's rank — the MIN across everyone on it — and a neighbour
+  /// shuffled earlier could then pull the surah's tail ahead of its own
+  /// beginning, splitting it across two non-adjacent points of the cycle
+  /// (found in production: Al-Inshiqaq's last verse, sharing a page with
+  /// Al-Buruj, was proposed on its own while the rest of Al-Inshiqaq sat
+  /// elsewhere in the cycle). Such a fragment gets its own private entry
+  /// instead — see `_privatePageKey`.
   ///
   /// A selection whose surah has no pagination metadata is skipped — callers
   /// that can surface it should, rather than silently proposing nothing.
@@ -96,8 +148,11 @@ class RevisionEngine {
       });
     }
 
-    final fragmentsByPage = <int, List<RevisionUnit>>{};
-    final rankByPage = <int, int>{};
+    // Keyed by real page number when a fragment fills its page entirely, or
+    // by `_privatePageKey` otherwise — an "entry" is not always a real page,
+    // see [DaySelection.groups].
+    final fragmentsByEntry = <int, List<RevisionUnit>>{};
+    final rankByEntry = <int, int>{};
 
     for (int rank = 0; rank < order.length; rank++) {
       final selection = order[rank];
@@ -112,30 +167,52 @@ class RevisionEngine {
         if (page != null) versesByPage.putIfAbsent(page, () => []).add(v);
       }
 
+      // The whole selection fits on one page only when this surah touches a
+      // single page in total — not per fragment, since a fragment is by
+      // definition confined to its own page.
+      final wholeOnOnePage = versesByPage.length == 1;
+
       versesByPage.forEach((page, verses) {
         // Verses of one surah on one page are contiguous, so min..max is exact.
         final start = verses.reduce(math.min);
         final end = verses.reduce(math.max);
-        fragmentsByPage.putIfAbsent(page, () => []).add(RevisionUnit(
+        final key = wholeOnOnePage
+            ? page
+            : _privatePageKey(page, selection.sourate.id);
+        fragmentsByEntry.putIfAbsent(key, () => []).add(RevisionUnit(
               sourate: selection.sourate,
               verseStart: start,
               verseEnd: end,
               isWhole: start == 1 && end == selection.sourate.verses,
             ));
-        final known = rankByPage[page];
-        if (known == null || rank < known) rankByPage[page] = rank;
+        final known = rankByEntry[key];
+        if (known == null || rank < known) rankByEntry[key] = rank;
       });
     }
 
-    final pages = fragmentsByPage.keys.toList()
+    final entries = fragmentsByEntry.keys.toList()
       ..sort((a, b) {
         // Surah order first (shuffled or not), then mushaf order inside a surah.
-        final byRank = rankByPage[a]!.compareTo(rankByPage[b]!);
+        final byRank = rankByEntry[a]!.compareTo(rankByEntry[b]!);
         return byRank != 0 ? byRank : a.compareTo(b);
       });
 
-    return [for (final page in pages) fragmentsByPage[page]!];
+    return [for (final key in entries) fragmentsByEntry[key]!];
   }
+
+  /// Group key for a fragment that does NOT fill its whole page — exclusive
+  /// to (surah, page) so it can never collide with a real page number nor
+  /// with another surah's own private fragment. Plain arithmetic rather than
+  /// a composite (page, surahId) key type: both bounds it relies on are
+  /// Quran-structural constants, not runtime data that could grow —
+  /// `page * 1000` alone already exceeds any real mushaf page count (604 on
+  /// both riwayat, and the Quran will not gain more), and `surahId` is
+  /// always one of exactly 114 fixed surahs, forever < 1000. Stays monotonic
+  /// in [page] so a surah's own several private fragments keep mushaf order
+  /// relative to each other under the (rank, key) sort above — they all
+  /// carry the SAME rank (only this surah ever writes to its own private
+  /// keys), so that sort falls through to this key as the tiebreak.
+  static int _privatePageKey(int page, int surahId) => page * 1000 + surahId;
 
   /// The pages to propose today: [UserConfig.pagesPerDay] consecutive entries
   /// of [buildCycle], starting at [cyclePosition] and wrapping.

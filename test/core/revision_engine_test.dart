@@ -657,31 +657,203 @@ void main() {
     });
 
     test(
-        "une page physique partagée par deux GROUPES n'est comptée qu'une fois "
-        "dans cycleTotal — la sommer gonflerait le cycle complet à 659 pages "
-        "au lieu des 604 du mushaf Hafs", () async {
-      // 2 sourates multi-pages (donc jamais regroupées ensemble) qui se
-      // partagent la page 2 : la première finit dessus, la seconde y commence.
+        "une page partagée par deux sourates dont AUCUNE n'y est entière ne "
+        "fusionne plus (revue 2026-09-08) : chacune garde son propre décompte "
+        "— on révise sourate par sourate, la page n'est qu'une aide mémoire",
+        () async {
+      // 2 sourates multi-pages qui se partagent la page 2 : la première finit
+      // dessus (verset 3 seul), la seconde y commence (verset 1 seul) — ni
+      // l'une ni l'autre n'y est ENTIÈRE. Avant la revue, ce partage
+      // fusionnait les deux fragments en 1 groupe (cycleTotal=3, "659 pages
+      // au lieu de 604" évité par la somme-en-pages) ; mais fusionner faisait
+      // dépendre l'ordre d'apparition de la sourate 20 du rang de mélange de
+      // la sourate 21 (bug réel : Al-Inshiqaq v.25, sur la même page
+      // qu'Al-Buruj, proposé séparément du reste d'Al-Inshiqaq).
       final straddling = {
         20: {1: 1, 2: 1, 3: 2},
         21: {1: 2, 2: 3, 3: 3},
       };
+      final config = UserConfig(
+        selections: [
+          SourateSelection.whole(_sourate(20, 3, 30)),
+          SourateSelection.whole(_sourate(21, 3, 30)),
+        ],
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
       final selection = await RevisionEngine.buildDayUnits(
-        config: UserConfig(
-          selections: [
-            SourateSelection.whole(_sourate(20, 3, 30)),
-            SourateSelection.whole(_sourate(21, 3, 30)),
-          ],
-          pagesPerDay: 1,
-          startDate: DateTime(2026, 1, 1),
-          riwaya: Riwaya.hafs,
-          shuffleEnabled: false,
-        ),
+        config: config,
         cyclePosition: 0,
         pageMetadata: straddling,
       );
-      expect(selection.cycleTotal, 3,
-          reason: "pages 1, 2 et 3 — la somme par groupe en compterait 4");
+      expect(selection.cycleTotal, 4,
+          reason: "4 fragments désormais distincts : (20,p1) (20,p2) (21,p2) "
+              "(21,p3) — plus de fusion sur la page 2 partagée");
+
+      // Malgré l'éclatement de la page 2, chaque sourate garde ses fragments
+      // consécutifs et dans l'ordre du mushaf (rien n'est perdu ni mélangé).
+      List<RevisionUnit> dayAt(int pos) => RevisionEngine.buildDayUnits(
+            config: config,
+            cyclePosition: pos,
+            pageMetadata: straddling,
+          ).units;
+      expect([dayAt(0).single.verseStart, dayAt(0).single.verseEnd], [1, 2]);
+      expect(dayAt(0).single.sourate.id, 20);
+      expect(dayAt(1).single.verseStart, 3);
+      expect(dayAt(1).single.sourate.id, 20);
+      expect(dayAt(2).single.verseStart, 1);
+      expect(dayAt(2).single.sourate.id, 21);
+      expect([dayAt(3).single.verseStart, dayAt(3).single.verseEnd], [2, 3]);
+      expect(dayAt(3).single.sourate.id, 21);
+    });
+
+    test(
+        "une page partagée par deux sourates dont AU MOINS UNE tient "
+        "ENTIÈREMENT dedans continue de fusionner — seule la sourate qui "
+        "déborde en est exclue (règle de la revue 2026-09-08)", () async {
+      // Reprend la page 590 réelle du mushaf Hafs : Al-Buruj (85, 22 v.) y
+      // tient en entier ; Al-Inshiqaq (84, 25 v.) y déborde seulement de son
+      // dernier verset (25), le reste (1-24) étant sur la page 589.
+      final pageMeta = {
+        84: {for (var v = 1; v <= 24; v++) v: 589, 25: 590},
+        85: {for (var v = 1; v <= 22; v++) v: 590},
+      };
+      final config = UserConfig(
+        selections: [
+          SourateSelection.whole(_sourate(84, 25, 90)),
+          SourateSelection.whole(_sourate(85, 22, 80)),
+        ],
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+      final cycle =
+          RevisionEngine.buildCycle(config: config, pageMetadata: pageMeta);
+
+      expect(cycle.length, 3,
+          reason: "(84,p589) + (84,p590 privée) + (85,p590 réelle, entière) "
+              "— jamais 2, sinon 84 et 85 fusionneraient malgré le débord");
+      // Al-Inshiqaq reste intact : ses 25 versets sortent groupés, entiers,
+      // jamais mélangés à Al-Buruj.
+      final versetsInshiqaq = [
+        for (final group in cycle)
+          for (final u in group)
+            if (u.sourate.id == 84) ...[u.verseStart, u.verseEnd],
+      ];
+      expect(versetsInshiqaq, [1, 24, 25, 25]);
+      // Al-Buruj forme sa propre entrée, jamais fusionnée avec le fragment
+      // d'Al-Inshiqaq qui partage pourtant sa page.
+      final groupeBuruj =
+          cycle.firstWhere((g) => g.any((u) => u.sourate.id == 85));
+      expect(groupeBuruj.length, 1,
+          reason: "Al-Buruj seule dans son groupe, malgré la page partagée");
+    });
+
+    test(
+        "DaySelection.realPages reste exacte malgré l'éclatement d'une page "
+        "frontière en 2 entrées (revue 2026-09-08)", () async {
+      // Mêmes données Inshiqaq/Buruj : 3 entrées de cycle (cycleTotal=3) pour
+      // seulement 2 pages réelles distinctes (589 et 590).
+      final pageMeta = {
+        84: {for (var v = 1; v <= 24; v++) v: 589, 25: 590},
+        85: {for (var v = 1; v <= 22; v++) v: 590},
+      };
+      final config = UserConfig(
+        selections: [
+          SourateSelection.whole(_sourate(84, 25, 90)),
+          SourateSelection.whole(_sourate(85, 22, 80)),
+        ],
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+      final atStart = await RevisionEngine.buildDayUnits(
+          config: config, cyclePosition: 0, pageMetadata: pageMeta);
+      expect(atStart.cycleTotal, 3,
+          reason: "3 entrées : (84,589) (84,590 privée) (85,590 réelle)");
+      expect(atStart.realPages(pageMeta).total, 2,
+          reason: "mais seulement 2 pages réelles distinctes (589 et 590) — "
+              "l'écran ne doit jamais promettre 3 pages à l'utilisateur");
+      expect(atStart.realPages(pageMeta).pos, 0);
+
+      // Après les 2 premières entrées : Al-Inshiqaq est entièrement fait
+      // (pages 589 ET 590 touchées par ses versets), mais Al-Buruj — une
+      // sourate entière de 22 versets, elle aussi sur la page 590 — ne l'est
+      // pas encore. Dédupliquer par simple numéro de page (bug trouvé en
+      // revue) aurait compté la page 590 comme "faite" via le seul verset 25
+      // d'Al-Inshiqaq, affichant 100 % avant qu'Al-Buruj ait été touchée.
+      final afterInshiqaq = await RevisionEngine.buildDayUnits(
+          config: config, cyclePosition: 2, pageMetadata: pageMeta);
+      expect(afterInshiqaq.realPages(pageMeta).pos, 1,
+          reason: "seule la page 589 (entièrement couverte par les 2 "
+              "premières entrées) compte comme faite ; la page 590 attend "
+              "encore Al-Buruj (3e entrée), pas seulement le verset 25");
+
+      // Le tour complet (curseur au bout des 3 entrées, AVANT le rebouclage
+      // modulo de `buildDayUnits`) doit retomber exactement sur le total
+      // réel — la barre de progression doit atteindre 100 %, jamais rester
+      // bloquée sous prétexte que 3 entrées ont été comptées pour 2 pages.
+      final cycle =
+          RevisionEngine.buildCycle(config: config, pageMetadata: pageMeta);
+      final full = DaySelection(
+          groups: cycle, cycle: cycle, cyclePosition: cycle.length);
+      expect(full.realPages(pageMeta).pos, full.realPages(pageMeta).total,
+          reason: "cyclePosition == cycleTotal (tour complet) doit donner "
+              "pos == total en vraies pages aussi, pas seulement en entrées");
+    });
+
+    test(
+        "reproduction du signalement utilisateur : Al-Adiyat (débord 599/600) "
+        "reste intacte, Al-Qari'a et At-Takathur (chacune entière sur 600) "
+        "continuent de fusionner entre elles", () {
+      // Pages réelles du mushaf Hafs (quran-metadata-page-hafs.json).
+      final pageMeta = {
+        99: {for (var v = 1; v <= 8; v++) v: 599}, // Az-Zalzalah, entière/599
+        100: {
+          for (var v = 1; v <= 5; v++) v: 599,
+          for (var v = 6; v <= 11; v++) v: 600,
+        }, // Al-Adiyat : déborde 599/600
+        101: {for (var v = 1; v <= 11; v++) v: 600}, // Al-Qari'a, entière/600
+        102: {for (var v = 1; v <= 8; v++) v: 600}, // At-Takathur, entière/600
+      };
+      final config = UserConfig(
+        selections: [99, 100, 101, 102]
+            .map((id) => SourateSelection.whole(_sourate(id, pageMeta[id]!.length, 40)))
+            .toList(),
+        pagesPerDay: 1,
+        startDate: DateTime(2026, 1, 1),
+        riwaya: Riwaya.hafs,
+        shuffleEnabled: false,
+      );
+      final cycle =
+          RevisionEngine.buildCycle(config: config, pageMetadata: pageMeta);
+
+      // Al-Adiyat n'apparaît jamais dans un groupe avec une autre sourate.
+      for (final group in cycle) {
+        final hasAdiyat = group.any((u) => u.sourate.id == 100);
+        if (hasAdiyat) {
+          expect(group.map((u) => u.sourate.id).toSet(), {100},
+              reason: "Al-Adiyat déborde des deux pages : jamais fusionnée, "
+                  "ni avec Az-Zalzalah (599) ni avec Al-Qari'a/At-Takathur (600)");
+        }
+      }
+      // Ses 11 versets ressortent entiers et dans l'ordre malgré l'exclusion.
+      final versetsAdiyat = [
+        for (final group in cycle)
+          for (final u in group)
+            if (u.sourate.id == 100) ...[u.verseStart, u.verseEnd],
+      ];
+      expect(versetsAdiyat, [1, 5, 6, 11]);
+      // Qari'a et Takathur, chacune ENTIÈRE sur la page 600, fusionnent bien
+      // — c'est le cas légitime que la règle doit continuer à couvrir.
+      final groupe600 = cycle.firstWhere(
+          (g) => g.any((u) => u.sourate.id == 101));
+      expect(groupe600.map((u) => u.sourate.id).toSet(), {101, 102},
+          reason: "Qari'a et Takathur partagent réellement toute la page 600");
     });
 
     test('sans sourate sélectionnée, le cycle en pages vaut 0/0', () async {

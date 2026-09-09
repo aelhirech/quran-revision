@@ -70,6 +70,14 @@ extension AppStateDayPlan on AppState {
       ? const DaySelection(groups: [], cycle: [], cyclePosition: 0)
       : _selection;
 
+  /// Cycle progress in TRUE mushaf pages, for display — use this wherever a
+  /// screen promises a page count to the user (`CycleProgressCard`, the
+  /// Récap stat chip, PlanScreen's summary bar). `daySelection.cyclePosition`
+  /// / `cycleTotal` count cycle ENTRIES, not always real pages (see
+  /// `DaySelection.realPages`).
+  ({int pos, int total}) get pagesProgress =>
+      daySelection.realPages(PageMetadataService.pageMetadataFor(_riwaya));
+
   /// Aperçu (aucune écriture) de ce que le moteur quotidien proposerait s'il
   /// tournait maintenant — utilisé par le check-out multi-jours (Partie 2,
   /// "ajouter aussi aujourd'hui") pour montrer un aperçu avant de sceller.
@@ -233,16 +241,20 @@ extension AppStateDayPlan on AppState {
       prayersAlone: prayersAlone,
       learningUnit: await learningF,
     );
+    final pageMetadata = PageMetadataService.pageMetadataFor(_riwaya);
+    // In TRUE pages (see `DaySelection.realPages`): the field already
+    // documents "same unit as pagesToday", i.e. real pages, not cycle
+    // entries (which can count more, see `buildCycle`).
+    final pagesProgress = selection.realPages(pageMetadata);
     _todaySession = DailySession(
       date: DateTime.now(),
       prayersAlone: prayersAlone,
       plan: layout.plan,
       // Sur les unités réellement retenues (`dayUnits()`, donc après édition
       // au check-in), pas sur la proposition d'origine de `selection`.
-      pagesToday: RevisionEngine.pagesOf(
-          units, PageMetadataService.pageMetadataFor(_riwaya)),
-      cyclePosition: selection.cyclePosition,
-      cycleTotal: selection.cycleTotal,
+      pagesToday: RevisionEngine.pagesOf(units, pageMetadata),
+      cyclePosition: pagesProgress.pos,
+      cycleTotal: pagesProgress.total,
       outsidePrayers: layout.outside,
     );
     // `saveActivePrayers` = reprendre la manche en cours après un

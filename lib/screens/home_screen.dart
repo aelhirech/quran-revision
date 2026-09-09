@@ -101,8 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final closed = state.todayClosed;
     // Read straight from AppState in `build`: a cached copy stayed stale after
     // a check-out moved the cursor, since `_loadHistory` only reruns when the
-    // riwaya changes.
-    final daySelection = state.daySelection;
+    // riwaya changes. In TRUE pages (`AppState.pagesProgress`), not cycle
+    // entries (`daySelection.cyclePosition`/`cycleTotal`) — this banner
+    // literally promises a page count to the user.
+    final pagesProgress = state.pagesProgress;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -134,15 +136,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 10),
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
-                if (daySelection.cycleTotal == 0 &&
+                if (pagesProgress.total == 0 &&
                     state.config!.selections.isNotEmpty)
                   _cycleIndisponible(palette),
                 CycleProgressCard(
-                  progress: daySelection.cycleTotal > 0
-                      ? daySelection.cyclePosition / daySelection.cycleTotal
+                  progress: pagesProgress.total > 0
+                      ? pagesProgress.pos / pagesProgress.total
                       : 0.0,
-                  pos: daySelection.cyclePosition,
-                  total: daySelection.cycleTotal,
+                  pos: pagesProgress.pos,
+                  total: pagesProgress.total,
                   streak: _streak,
                   label: S.cycleEnCours,
                 ),
