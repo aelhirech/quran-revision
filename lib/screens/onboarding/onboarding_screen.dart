@@ -6,26 +6,35 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_sticky_header/flutter_sticky_header.dart';
 import '../../core/app_colors.dart';
+import '../../core/revision_engine.dart';
 import '../../core/strings.dart';
+import '../../models/daily_session.dart';
+import '../../models/prayer.dart';
+import '../../models/revision_unit.dart';
 import '../../models/riwaya.dart';
 import '../../models/sourate.dart';
 import '../../models/sourate_selection.dart';
 import '../../models/user_config.dart';
 import '../../services/hizb_metadata_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/page_metadata_service.dart';
 import '../../state/app_state.dart';
 import '../../widgets/index_badge.dart';
 import '../../widgets/ornamental_divider.dart';
 import '../../widgets/pill_chip.dart';
 import '../../widgets/pages_per_day_dropdown.dart';
+import '../../widgets/prayer_plan_card.dart';
 import '../../widgets/primary_cta_button.dart';
+import '../../widgets/unit_row.dart';
 import '../../widgets/verse_range_picker.dart';
 
 part 'steps/intro_page.dart';
 part 'steps/riwaya_page.dart';
+part 'steps/demo_page.dart';
 part 'steps/selection_page.dart';
 part 'steps/rhythm_page.dart';
 part 'steps/notifications_page.dart';
+part 'steps/preview_page.dart';
 part 'steps/recap_page.dart';
 part 'steps/celebration_page.dart';
 part 'widgets/step_header.dart';
@@ -37,6 +46,17 @@ part 'widgets/recap_card.dart';
 /// n'y figurent pas (pages d'accueil, pas de config), Célébration non plus
 /// (aboutissement, poussé hors du PageView).
 const int _kOnboardingSteps = 4;
+
+/// Wiring shared by `_DemoPage`/`_PreviewPage`: builds the day plan for a
+/// config (fake or real, never persisted at this point) without duplicating
+/// the page-metadata resolution twice — same wiring as `AppState._selection`,
+/// but for a config that doesn't exist in `AppState` yet (found in sprint
+/// review: each page had reimplemented it separately).
+DaySelection _dayUnitsFor(UserConfig config) => RevisionEngine.buildDayUnits(
+      config: config,
+      cyclePosition: 0,
+      pageMetadata: PageMetadataService.pageMetadataFor(config.riwaya),
+    );
 
 class OnboardingScreen extends StatefulWidget {
   /// Non-null quand l'utilisateur bascule vers un parcours (riwaya) jamais
@@ -223,7 +243,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       startDate: DateTime.now(),
       riwaya: _riwaya,
     );
-    await context.read<AppState>().saveConfig(config);
+    final state = context.read<AppState>();
+    await state.saveConfig(config);
+    // Marks the onboarding flow as already completed once — `main.dart`
+    // uses this to skip Intro/Riwaya/Demo on a future switch to a
+    // never-configured riwaya. Formerly set by the old guided tour
+    // (`ShellScreen._dismissTour`, removed along with it): this is now the
+    // one true completion point of onboarding.
+    await state.markTourSeen();
   }
 
   /// Pousse l'écran de célébration AVANT de persister la config — la config
@@ -258,6 +285,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           if (showIntroAndRiwaya) _IntroPage(onNext: _nextPage),
           if (showIntroAndRiwaya) _RiwayaPage(onSelect: _confirmRiwaya),
+          // Demo mini-cycle (US-1 criterion 2) — only on the very first
+          // onboarding: switching to a riwaya already configured once
+          // doesn't need to "feel" the app a second time, that would just
+          // add friction (criterion adjustment confirmed at scoping,
+          // 2026-09-13).
+          if (showIntroAndRiwaya) _DemoPage(onNext: _nextPage),
           _SelectionPage(
             selections: _selections,
             totalVerses: _totalVerses,
@@ -279,6 +312,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             onNext: _nextPage,
           ),
           _NotificationsPage(onBack: _prevPage, onNext: _nextPage),
+          // Real preview of day-1's plan (US-1 criterion 4) — derived from
+          // the actual selection/pace already chosen, never skippable.
+          _PreviewPage(
+            selections: _selections,
+            pagesPerDay: _pagesPerDay,
+            riwaya: _riwaya,
+            onNext: _nextPage,
+          ),
           _RecapPage(
             selections: _selections,
             totalVerses: _totalVerses,

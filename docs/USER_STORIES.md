@@ -23,26 +23,37 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-_Aucune._ Le blueprint du 2026-09-06 a été entièrement livré par la Phase 9 Sprint 1 (2026-09-07). Le prochain « Début de blueprint » remplira cette section.
+### US-1 — Premier lancement et prise en main de l'app [priorité: P1] [état: en sprint]
+**Historique** : configuration (langue, riwaya, sourates, rythme) livrée Phase 6 Sprint 3 ; tour guidé post-onboarding (halo sur les 3 onglets) livré Phase 9 Sprint 1. Rouverte le 2026-09-13 : constat que la collecte de choix ne suffit pas à faire comprendre la valeur de l'app avant que l'utilisateur ne s'en serve seul, et que le tour guidé ne remplit pas son rôle (opacité des explications trop faible pour être lues, annulé dès qu'un tap touche un bouton sous le halo).
+
+**Statement** : En tant que nouvel utilisateur, je veux configurer mes préférences de base (langue, riwaya, sourates à réviser, rythme) et **ressentir concrètement comment l'app va m'accompagner au quotidien** avant de m'en servir seul, afin d'adhérer dès le premier contact plutôt que de terminer l'onboarding avec une config valide mais sans avoir compris ce qu'elle va m'apporter.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given un premier lancement sans configuration existante, When l'utilisateur configure sa langue, sa riwaya, sa sélection de sourates et son rythme, Then il dispose d'une configuration valide sans être jamais bloqué par une étape qu'il ne peut pas compléter.
+2. Given un premier lancement sans configuration existante, When l'utilisateur choisit sa riwaya puis avant de sélectionner ses vraies sourates, Then il vit un mini-cycle complet (plan du jour → répartition dans les rakaas → clôture) sur un contenu de démonstration universellement connu (An-Nas / Al-Falaq / Al-Ikhlas), sans que cette démonstration ne touche jamais à ses données réelles de progression.
+3. Given la démonstration en cours, When l'utilisateur est dedans, Then elle ne peut pas être passée (obligatoire) — elle reste néanmoins courte et ne bloque pas indéfiniment l'accès à la suite de l'onboarding.
+4. Given sa vraie sélection de sourates et son rythme configurés, When l'utilisateur arrive en fin d'onboarding, Then il voit un aperçu réel (pas une description textuelle) de ce que sera son premier plan du jour, avant le bouton qui termine l'onboarding — cet aperçu n'est pas non plus escamotable. **Ajusté au scoping (2026-09-13)** : cet aperçu montre la liste des sourates/portions du jour 1 (même contenu que la vue check-in), sans répartition en rakaas — l'onboarding ne demande jamais les prières du jour (ça n'arrive qu'au check-in, écran différent), simuler des prières factices pour cet aperçu contredirait "aperçu réel". Confirmé par l'utilisateur au scoping.
+5. Given l'onboarding terminé, When l'utilisateur atteint pour la première fois en usage réel un moment clé de l'app — premier tap sur « Illuminer ma journée avec le Coran » (check-in), premier tap sur « Clôturer ma journée » (check-out), premier accès à l'onglet Récap, premier accès à l'onglet Profil/Réglages, et tout autre point d'entrée structurant équivalent —, Then l'app lui explique sur le moment ce que ce moment lui apporte, plutôt que de l'avoir expliqué à l'avance pendant l'onboarding ou de ne jamais l'expliquer. **Précisé au scoping (2026-09-13)** : inventaire exhaustif après deep-dive code — exactement ces 4 points d'entrée (aucun autre écran plein-écran structurant équivalent identifié dans `ShellScreen`/`DayPlanTab`), chacun avec son propre flag "vu" indépendant.
+6. Given l'onboarding terminé, When l'utilisateur arrive sur l'écran d'accueil pour la première fois, Then il n'est plus confronté à l'ancien tour guidé (halo sur les onglets) — retiré au profit des critères 2 à 5 ci-dessus, jamais réintroduit sous sa forme actuelle.
+7. Given une configuration déjà existante, When l'utilisateur relance l'app, Then ses préférences sont restaurées automatiquement sans repasser par l'onboarding ni par la démonstration.
+
+**Exclusions explicites** : la démonstration factice n'est jamais personnalisée avec la vraie sélection de l'utilisateur (toujours les 3 mêmes sourates courtes) ; elle ne doit produire aucune ligne dans `ayah_facts`. La liste des points clés du critère 5 est indicative (« et tout autre point d'entrée structurant équivalent ») — l'inventaire exhaustif des hooks et leur contenu précis reviennent à `quran-scoping`. Aucun bouton « revoir le tutoriel » n'est demandé par ce blueprint (l'ancien existait déjà sans, voir Backlog CHANGELOG).
+
+**Scoping technique** (2026-09-13) :
+
+- **Décision data model** : rien de nouveau dans `ayah_facts` (exigence explicite de la story). Le mini-cycle de démo (critère 2) et l'aperçu fin d'onboarding (critère 4) sont construits en mémoire à partir d'un `UserConfig`/`SourateSelection` **jamais persisté**, via `RevisionEngine.buildDayUnits`/`distributeToRakaas` (fonctions pures, `lib/core/`) — aucun appel `AyahFactsService`. Les flags "premier accès vu" (critère 5) vivent en `SharedPreferences` via une paire générique `StorageService.hasSeenHook(hookId)`/`setHookSeen(hookId)` (état UI sans valeur historique), miroir `AppState.hasSeenHook`/`markHookSeen` — pas 4-5 paires de méthodes dupliquées.
+- **Fichiers concernés** : nouveau `steps/demo_page.dart` (PageView, entre Riwaya et Sélection, seulement si `presetRiwaya == null`) et `steps/preview_page.dart` (juste avant Récap) dans `lib/screens/onboarding/` ; extraction de `_UnitRow` (`check_in_screen.dart`) vers `lib/widgets/unit_row.dart`, réutilisée par `CheckInScreen` et la page d'aperçu ; suppression complète de `lib/widgets/spotlight_tour.dart` et de son usage dans `shell_screen.dart` ; hooks contextuels sur `check_in_screen.dart`, `check_out_screen.dart`, `recap_screen.dart`, `profile_screen.dart`.
+- **Risque identifié et à corriger dans l'implémentation** : `main.dart` (`_AppRoot`) utilise `AppState.hasSeenTour` comme proxy de "onboarding déjà terminé une fois" pour sauter Intro/Riwaya lors d'un changement de riwaya (`presetRiwaya: state.hasSeenTour ? state.riwaya : null`). Aujourd'hui `markTourSeen()` n'est appelé que par l'ancien tour (`ShellScreen._dismissTour`) — supprimé par cette story. Sans déplacer cet appel dans `OnboardingScreen._confirm()`, un changement de riwaya vers un parcours neuf réafficherait Intro+Riwaya en boucle. La clé/le nom `hasSeenTour`/`onboarding_tour_seen` sont conservés tels quels (sémantique déjà correcte), seul le point d'appel change.
+- **Ajustements aux critères** : voir critères 2 (démo seulement si `presetRiwaya == null`), 4 (aperçu = liste sourates/portions, pas de rakaas — confirmé par l'utilisateur), 5 (liste des 4 hooks confirmée exhaustive par le code) ci-dessus.
+- **Découpage proposé** : Sprint A (démo + aperçu + retrait ancien tour + correctif `markTourSeen`) puis Sprint B (4 hooks contextuels), indépendants l'un de l'autre. Détail complet et item prêt à implémenter dans `docs/CHANGELOG.md` (Backlog, entrée "US-1").
+- Confiance globale du scoping : haute sur le mapping/data model, moyenne sur le détail UI exact des nouvelles pages (briques pures déjà identifiées).
+- **Sprint A livré le 2026-09-13 (Phase 11 Sprint 1)** : critères 2, 3, 4 et 6 couverts (démo + aperçu + retrait du tour guidé). Critère 7 déjà couvert par l'existant (config persistée = pas de repassage par l'onboarding), vérifié manuellement. Reste le critère 5 (hooks contextuels), voir Sprint B dans le Backlog de `docs/CHANGELOG.md`.
 
 ---
 
 ## Archivées
 
 Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
-
-### US-1 — Premier lancement et prise en main de l'app
-**État** : terminée — onboarding (langue, riwaya, sourates, rythme) déjà en place ; Phase 9 Sprint 1 ramène le tour guidé à 3 onglets et rend le démarrage d'un apprentissage accessible dès le check-in (critère 3).
-
-**Statement** : En tant que nouvel utilisateur, je veux configurer mes préférences de base (langue, riwaya, sourates à réviser, rythme) et comprendre comment utiliser l'app au premier lancement, afin de pouvoir m'en servir seul dès la fin de l'onboarding, sans blocage ni confusion sur les gestes de base 
-
-**Critères d'acceptation** (haut niveau) :
-1. Given un premier lancement sans configuration existante, When l'utilisateur termine   l'onboarding, Then il dispose d'une configuration valide (langue, riwaya, sélection de   sourates, rythme) sans être jamais bloqué par une étape qu'il ne peut pas compléter. 
-2. Given l'onboarding terminé, When l'utilisateur arrive sur l'écran d'accueil pour la première fois, Then un tour guidé lui présente les points d'entrée essentiels de l'app, et peut être ignoré à tout moment sans dégrader l'utilisabilité de l'app.
-3. Given l'onboarding terminé (ou le tour ignoré), When l'utilisateur utilise l'app normalement, Then il peut immédiatement engager un plan du jour, faire un check-in puis un check-out, et démarrer l'apprentissage d'au moins une sourate.
-4. Given une configuration déjà existante, When l'utilisateur relance l'app, Then ses préférences sont restaurées automatiquement sans repasser par l'onboarding.
-
----
 
 ### US-2 — Plan quotidien réparti dans la journées grâce aux prières
 **État** : terminée — moteur pages/jour (Phase 8 Sprint 3) + répartition en rakaas ; Phase 9 Sprint 1 y ajoute la rakaa d'apprentissage en dernière position.
