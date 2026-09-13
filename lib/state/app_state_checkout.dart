@@ -8,60 +8,57 @@ part of 'app_state.dart';
 // the cycle.
 
 extension AppStateCheckOut on AppState {
-  /// Marque `reach` (par défaut `true`) en batch pour [units] — soit une
-  /// manche PlanScreen complétée (date implicite : aujourd'hui, `reach`
-  /// toujours vrai), soit la clôture d'un CheckOutScreen ([date] explicite) :
-  /// `reach: true` pour confirmer "fait par défaut", `reach: false` pour
-  /// annuler explicitement une unité déjà à `reach=1` (ex. cochée par erreur
-  /// plus tôt dans PlanScreen) — voir CLAUDE.md § « Modèle de données
-  /// central » : annuler une progression repasse `reach` à 0, jamais un
-  /// simple no-op. N'avance jamais `cyclePosition` elle-même (voir
-  /// [checkOut]) ; pas de `notifyListeners` ici, laissé aux appelants qui
-  /// enchaînent d'autres écritures avant de notifier une seule fois pour
-  /// toute l'opération.
+  /// Batch-marks `reach` (default `true`) for [units] — either a completed
+  /// PlanScreen round (implicit date: today, `reach` always true), or a
+  /// CheckOutScreen seal (explicit [date]): `reach: true` confirms "done by
+  /// default", `reach: false` explicitly undoes a unit already at
+  /// `reach=1` (e.g. checked by mistake earlier in PlanScreen) — see
+  /// CLAUDE.md § "Modèle de données central": undoing progress resets
+  /// `reach` to 0, never a plain no-op. Never advances `cyclePosition`
+  /// itself (see [checkOut]); no `notifyListeners` here, left to callers
+  /// that chain further writes before a single notify for the whole
+  /// operation.
   Future<void> markUnitsReached(List<RevisionUnit> units,
       {String? date, bool reach = true}) async {
     await AyahFactsRitual.setReachForUnits(date ?? todayStr, _riwaya, units, reach);
   }
 
-  /// Bascule "fait/pas fait" pour une rakaa de PlanScreen — remplace
-  /// l'ancien état en mémoire/SharedPreferences (`_checkedRakaas`) par une
-  /// écriture directe dans `ayah_facts` pour aujourd'hui (voir [setUnitReach]
-  /// pour une date arbitraire). Si [unit] est assigné à plusieurs rakaas de
-  /// la manche (pénurie de matière, cf. `RevisionEngine._padCyclically`),
-  /// cocher l'une coche automatiquement les autres — `reach` est une vérité
-  /// par verset/jour, pas par rakaa, comportement voulu.
-  /// [learning] cible la rakaa d'apprentissage (lignes `type='learn'`) au
-  /// lieu de la révision — c'est le même geste ("j'ai fait cette rakaa") sur
-  /// les deux natures de contenu.
+  /// Toggles "done/not done" for a PlanScreen rakaa — replaces the old
+  /// in-memory/SharedPreferences state (`_checkedRakaas`) with a direct
+  /// write into `ayah_facts` for today (see [setUnitReach] for an
+  /// arbitrary date). If [unit] is assigned to several rakaas of the round
+  /// (content shortage, cf. `RevisionEngine._padCyclically`), checking one
+  /// automatically checks the others — `reach` is a per-verse/per-day
+  /// truth, not per-rakaa, by design.
+  /// [learning] targets the learning rakaa (`type='learn'` rows) instead of
+  /// revision — same gesture ("I did this rakaa") on both content types.
   Future<void> toggleTodayUnitReach(RevisionUnit unit, bool reach,
       {bool learning = false}) async {
     if (!learning) return setUnitReach(todayStr, unit, reach);
-    // La portion à apprendre n'est pas forcément contiguë (un verset du
-    // milieu peut avoir été appris en avance, ou désappris) : on écrit la
-    // liste exacte des versets proposés, pas la plage `BETWEEN` qui
-    // engloberait des versets sans ligne en base.
+    // The portion being learned isn't necessarily contiguous (a middle verse
+    // may have been learned ahead, or un-learned): write the exact list of
+    // proposed verses, not the `BETWEEN` range, which would include verses
+    // with no row in the database.
     final plan = await learningPlanFor(todayStr);
     if (plan == null) return;
     await markLearnVerses(todayStr, plan.sourate.id, plan.ayahIds, reach);
     _notify();
   }
 
-  /// Statut `reach` d'aujourd'hui pour chaque unité unique de [units] — une
-  /// seule requête ([AyahFactsRitual.reachedVersesToday]), le résultat
-  /// exact par plage étant recalculé en Dart (pas par sourate comme
-  /// [dayUnitsWithStatus], qui agrégerait à tort deux plages distinctes de la
-  /// même sourate assignées à des rakaas différents). Consommé par
-  /// PlanScreen pour l'état "coché" de chaque rakaa.
+  /// Today's `reach` status for each unique unit in [units] — a single
+  /// query ([AyahFactsRitual.reachedVersesToday]), with the exact per-range
+  /// result recomputed in Dart (not per-surah like [dayUnitsWithStatus],
+  /// which would wrongly merge two distinct ranges of the same surah
+  /// assigned to different rakaas). Consumed by PlanScreen for each
+  /// rakaa's "checked" state.
   Future<Map<RevisionUnit, bool>> reachStatusFor(Iterable<RevisionUnit> units,
       {bool learning = false}) async {
     final reachedByVerse = await AyahFactsRitual.reachedVersesToday(
         todayStr, _riwaya,
         type: learning ? AyahFactType.learn : AyahFactType.revise);
-    // Côté apprentissage, la vérité est la liste des versets réellement
-    // proposés — pas tous ceux de la plage : une portion à trous
-    // ([2, 4, 5]) ne serait sinon jamais considérée comme faite, le verset 3
-    // n'ayant aucune ligne à passer à `reach = 1`.
+    // For learning, the truth is the list of verses actually proposed — not
+    // the whole range: a portion with gaps ([2, 4, 5]) would otherwise never
+    // be considered done, since verse 3 has no row to set to `reach = 1`.
     final learnVerses =
         learning ? (await learningPlanFor(todayStr))?.ayahIds : null;
     bool isReached(RevisionUnit unit) {
@@ -75,16 +72,16 @@ extension AppStateCheckOut on AppState {
     return {for (final unit in units.toSet()) unit: isReached(unit)};
   }
 
-  /// Bascule "à retravailler" pour un verset précis — écran détail du
-  /// check-out, granularité verset (pas la sourate entière).
+  /// Toggles "needs work" for a specific verse — check-out detail screen,
+  /// verse granularity (not the whole surah).
   Future<void> setVerseNeedsWork(
       String date, int surahId, int ayahId, bool needsWork) async {
     await AyahFactsRitual.setNeedsWork(date, _riwaya, surahId, ayahId, needsWork);
     _notify();
   }
 
-  /// Bascule "fait/pas fait" pour une sourate/portion du check-out — ou, si
-  /// [learning], pour une portion à apprendre (`type='learn'`).
+  /// Toggles "done/not done" for a surah/portion of the check-out — or, if
+  /// [learning], for a portion being learned (`type='learn'`).
   Future<void> setUnitReach(String date, RevisionUnit unit, bool reach,
       {bool learning = false}) async {
     await AyahFactsRitual.setReach(date, _riwaya, unit.sourate.id,
@@ -115,15 +112,15 @@ extension AppStateCheckOut on AppState {
       for (final unit in group) {
         final status = await AyahFactsRitual.rangeStatus(
             date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
-        if (!status.exists) continue; // retirée au check-in — ne bloque pas
+        if (!status.exists) continue; // removed at check-in — not blocking
         anyExists = true;
-        // Unité présente mais pas faite : le groupe, et toute la suite, bloque.
+        // Unit present but not done: this group, and everything after, blocks.
         if (!status.reached) return pagesCompleted;
       }
       if (!anyExists) {
-        // Aucune ligne pour ce groupe. Dans la proposition du jour, c'est un
-        // retrait au check-in : ni compté ni bloquant. Au-delà, c'est
-        // simplement du contenu non fait : le cycle s'arrête là.
+        // No row for this group. Within the day's proposal, that's a
+        // check-in removal: neither counted nor blocking. Beyond it, it's
+        // simply content not done: the cycle stops there.
         if (step < proposedCount) continue;
         return pagesCompleted;
       }
@@ -132,20 +129,19 @@ extension AppStateCheckOut on AppState {
     return pagesCompleted;
   }
 
-  /// Scelle la journée [date] (check-out) : verrouille ses lignes et fait
-  /// avancer le cycle une seule fois pour toute la journée, à partir des
-  /// GROUPES proposés par le moteur qui ont effectivement `reach=1` (dans
-  /// l'ordre — même logique que la déclaration partielle historique de
-  /// PlanScreen : un ajout hors-sélection au check-in alimente l'historique/
-  /// la fraîcheur mais ne fait pas avancer `cyclePosition` au-delà de ce que
-  /// le moteur avait initialement proposé ce jour-là — le cadrage n'a pas
-  /// tranché de règle plus précise pour les ajouts hors-cycle, voir
-  /// CHANGELOG). `cyclePosition` avance par GROUPE complété
-  /// (`DaySelection.groups`), pas par unité individuelle : plusieurs courtes
-  /// sourates qui partagent la même page réelle du mushaf forment un seul
-  /// groupe/une seule position de cycle (voir cadrage "regroupement par page
-  /// partagée", 2026-09-05) — les compter une par une désynchroniserait
-  /// `cyclePosition` de `cycleTotal` (qui compte des groupes).
+  /// Seals day [date] (check-out): locks its rows and advances the cycle
+  /// once for the whole day, based on the engine-proposed GROUPS that
+  /// actually reached `reach=1` (in order — same logic as PlanScreen's
+  /// historical partial declaration: an out-of-selection addition at
+  /// check-in feeds history/freshness but does not advance `cyclePosition`
+  /// beyond what the engine originally proposed that day — the cadrage
+  /// hasn't settled a more precise rule for out-of-cycle additions, see
+  /// CHANGELOG). `cyclePosition` advances by completed GROUP
+  /// (`DaySelection.groups`), not by individual unit: several short surahs
+  /// sharing the same real mushaf page form a single group/cycle position
+  /// (see "grouping by shared page" cadrage, 2026-09-05) — counting them one
+  /// by one would desync `cyclePosition` from `cycleTotal` (which counts
+  /// groups).
   ///
   /// That grouping only holds when a surah fits ENTIRELY on the shared page —
   /// one that only spills onto it forms its own cycle position instead, never
@@ -153,32 +149,30 @@ extension AppStateCheckOut on AppState {
   /// buildCycle`, `CLAUDE.md` § "Règle du plan quotidien" part A; fixed
   /// 2026-09-08).
   ///
-  /// Au sein d'un
-  /// groupe, une unité entièrement retirée au check-in ([removeFromDayPlan])
-  /// n'a plus aucune ligne en base : elle est ignorée (ni comptée ni
-  /// bloquante) — seule une unité *présente* mais non faite bloque le groupe
-  /// (et arrête le comptage des groupes suivants), sans quoi elle romprait à
-  /// tort le comptage des groupes suivants réellement complétés (bug trouvé
-  /// en revue de code). Un groupe dont TOUTES les unités ont été retirées est
-  /// lui-même ignoré (ni compté ni bloquant), pour la même raison.
+  /// Within a group, a unit fully removed at check-in ([removeFromDayPlan])
+  /// no longer has any row in the database: it is ignored (neither counted
+  /// nor blocking) — only a unit that is *present* but not done blocks the
+  /// group (and stops the count of subsequent groups), otherwise it would
+  /// wrongly break the count of subsequent, genuinely completed groups (bug
+  /// found in code review). A group whose units were ALL removed is itself
+  /// ignored (neither counted nor blocking), for the same reason.
   ///
-  /// **Idempotent sur le cycle** (Phase 9 Sprint 2) : re-clôturer une journée
-  /// déjà scellée réécrit les `reach` corrigés mais ne fait plus avancer
-  /// `cyclePosition` — voir le commentaire dans le corps. Retourne `true` si
-  /// le cycle vient de boucler (milestone à afficher côté écran).
+  /// **Idempotent on the cycle** (Phase 9 Sprint 2): re-sealing an
+  /// already-sealed day rewrites corrected `reach` values but no longer
+  /// advances `cyclePosition` — see the comment in the body. Returns `true`
+  /// if the cycle just wrapped (milestone to show on screen).
   Future<bool> checkOut(String date) async {
     if (_config == null) return false;
-    // Passe moteur (CPU pur) et lecture SQLite indépendantes — démarrées
-    // ensemble plutôt qu'en série.
+    // Engine pass (pure CPU) and SQLite read are independent — started
+    // together instead of in series.
     final sealedF = AyahFactsRitual.isDaySealed(date, _riwaya);
     final selection = _selection;
-    // Une journée déjà scellée peut être re-clôturée : « Clôturer ma journée »
-    // (Phase 9 Sprint 2) n'empêche pas de relancer une manche derrière, et le
-    // check-out qui suivrait scellerait le même jour une seconde fois. Les
-    // corrections de `reach` continuent de s'écrire normalement, mais le
-    // cycle ne doit avancer qu'une seule fois pour un jour donné — sinon le
-    // curseur sauterait du contenu jamais révisé, exactement ce que le
-    // garde-fou de [_completedPagesFor] cherche à éviter.
+    // An already-sealed day can be re-sealed: "Seal my day" (Phase 9
+    // Sprint 2) doesn't prevent running another round afterward, and the
+    // following check-out would seal the same day a second time. `reach`
+    // corrections keep writing normally, but the cycle must only advance
+    // once per day — otherwise the cursor would skip never-revised content,
+    // exactly what [_completedPagesFor]'s guard is meant to prevent.
     final pagesCompleted =
         await sealedF ? 0 : await _completedPagesFor(date, selection);
     final cycleWraps = pagesCompleted > 0 &&
@@ -189,8 +183,8 @@ extension AppStateCheckOut on AppState {
     // otherwise overwrite the flag and make an already-sealed today look
     // open again, re-arming the very guards that flag protects.
     if (date == todayStr) _closedDate = date;
-    // Écritures indépendantes (table ayah_facts, prefs, cycle) — lancées en
-    // parallèle plutôt qu'en série.
+    // Independent writes (ayah_facts table, prefs, cycle) — fired in
+    // parallel instead of in series.
     await Future.wait([
       AyahFactsRitual.sealDay(date, _riwaya),
       StorageService.saveSealedDate(date, _riwaya),
@@ -198,11 +192,10 @@ extension AppStateCheckOut on AppState {
       clearTodaySession(notify: false),
       advanceCycle(pagesCompleted, selection.cycleTotal, notify: false),
     ]);
-    // Après le scellement seulement : une sourate dont le dernier verset
-    // vient d'être confirmé appris rejoint la révision (voir
-    // [handOffLearnedSurahs]).
+    // Only after sealing: a surah whose last verse was just confirmed
+    // learned joins revision (see [handOffLearnedSurahs]).
     await handOffLearnedSurahs(notify: false);
-    _notify(); // seul notify de toute l'opération
+    _notify(); // the only notify of the whole operation
     return cycleWraps;
   }
 }

@@ -12,22 +12,22 @@ import '../widgets/outside_prayers_block.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/primary_cta_button.dart';
 
-/// Répartition en rakaas d'un plan déjà validé au check-in (Phase 6 Sprint
-/// 2, voir cadrage "Moteur quotidien") — checklist active uniquement,
-/// l'ancien mode "aperçu avant engagement" a disparu : le check-in en tient
-/// désormais lieu (`CheckInScreen`).
+/// Rakaa layout of a plan already validated at check-in (Phase 6 Sprint 2,
+/// see "Moteur quotidien" scoping) — active checklist only, the old
+/// "preview before committing" mode is gone: check-in now stands in for it
+/// (`CheckInScreen`).
 class PlanScreen extends StatefulWidget {
   final DailySession session;
 
-  /// « Clôturer ma journée » — ouvre le check-out du jour (voir `DayPlanTab`).
-  /// Depuis la Phase 9 Sprint 2, c'est la seule sortie normale de l'écran :
-  /// l'ancien `onComplete` (déclaration "tout fait / une part / rien fait" +
-  /// écran de célébration) a disparu, ce que l'utilisateur a réellement fait
-  /// se confirme au check-out et nulle part ailleurs.
+  /// "Close my day" — opens today's check-out (see `DayPlanTab`). Since
+  /// Phase 9 Sprint 2, this is the screen's only normal exit: the old
+  /// `onComplete` (declaring "all done / partly done / nothing done" + a
+  /// celebration screen) is gone — what the user actually did is confirmed
+  /// at check-out, and nowhere else.
   final VoidCallback onCloturer;
 
-  /// « Refaire le plan » — abandonne la répartition en cours et revient à
-  /// l'accueil pour un nouveau check-in.
+  /// "Redo the plan" — discards the current layout and returns to the home
+  /// screen for a new check-in.
   final VoidCallback? onChangePlan;
   final FreshnessLevel Function(int sourateId, int verseStart, int verseEnd)? freshnessOf;
 
@@ -44,20 +44,19 @@ class PlanScreen extends StatefulWidget {
 }
 
 class _PlanScreenState extends State<PlanScreen> {
-  // Chargé une fois puis tenu à jour localement par [_toggle] — pas de
-  // `context.watch`, donc pas réactif à une écriture `ayah_facts` faite
-  // ailleurs pour aujourd'hui. Un seul écran peut écrire `reach` par-dessus
-  // PlanScreen resté monté : le check-out d'aujourd'hui, poussé par
-  // « Clôturer ma journée ». `DayPlanTab._closeDay` reconstruit donc la
-  // manche à son retour, ce qui remonte un nouveau `DailySession`, une
-  // nouvelle `ValueKey` et un `_load()` frais. À revoir si un autre écran
-  // gagne cette capacité.
+  // Loaded once, then kept up to date locally by [_toggle] — no
+  // `context.watch`, so this is not reactive to an `ayah_facts` write made
+  // elsewhere for today. Only one screen can write `reach` over a PlanScreen
+  // left mounted: today's check-out, triggered by "Close my day".
+  // `DayPlanTab._closeDay` rebuilds the round on return, which remounts a
+  // new `DailySession`, a new `ValueKey`, and a fresh `_load()`. Revisit if
+  // another screen gains that ability.
   Map<RevisionUnit, bool>? _reached;
 
-  /// Statut de la rakaa d'apprentissage, tenu à part de [_reached] : ses
-  /// faits vivent sous `type='learn'` dans `ayah_facts`, et deux plages
-  /// identiques (même sourate, mêmes versets) n'auraient sinon qu'une seule
-  /// entrée dans une Map clée par `RevisionUnit`.
+  /// Status of the learning rakaa, kept apart from [_reached]: its facts
+  /// live under `type='learn'` in `ayah_facts`, and two identical ranges
+  /// (same surah, same verses) would otherwise collapse to a single entry in
+  /// a Map keyed by `RevisionUnit`.
   bool _learningReached = false;
 
   @override
@@ -66,7 +65,7 @@ class _PlanScreenState extends State<PlanScreen> {
     _load();
   }
 
-  /// Rakaa d'apprentissage du jour (la dernière récitée), s'il y en a une.
+  /// Today's learning rakaa (the last recited one), if there is one.
   RevisionUnit? get _learningUnit {
     for (final pp in widget.session.plan) {
       for (final r in pp.rakaas) {
@@ -79,8 +78,8 @@ class _PlanScreenState extends State<PlanScreen> {
   Future<void> _load() async {
     final state = context.read<AppState>();
     final learningUnit = _learningUnit;
-    // Deux lectures indépendantes (révision / apprentissage) démarrées en
-    // parallèle plutôt qu'en série.
+    // Two independent reads (revision / learning) started in parallel
+    // rather than sequentially.
     final reachedF = state.reachStatusFor(_allCoveredUnits);
     final learningF = learningUnit == null
         ? Future.value(const <RevisionUnit, bool>{})
@@ -131,24 +130,24 @@ class _PlanScreenState extends State<PlanScreen> {
   int _checkedCountOf(Map<int, Set<int>> checkedByPrayer) =>
       checkedByPrayer.values.fold(0, (sum, s) => sum + s.length);
 
-  /// Toutes les unités de **révision** couvertes par le plan du jour
-  /// (déclaration "tout fait") — plages verseStart/verseEnd précises,
-  /// nécessaires pour écrire des faits par verset dans `ayah_facts` (Phase
-  /// 6). La rakaa d'apprentissage en est exclue : elle ne fait pas avancer
-  /// le cycle et se confirme au check-out (Phase 9).
+  /// All **revision** units covered by the day's plan (the "all done"
+  /// declaration) — precise verseStart/verseEnd ranges, needed to write
+  /// per-verse facts into `ayah_facts` (Phase 6). The learning rakaa is
+  /// excluded: it does not advance the cycle and is confirmed at check-out
+  /// (Phase 9).
   List<RevisionUnit> get _allCoveredUnits => [
         for (final pp in widget.session.plan)
           for (final r in pp.rakaas)
             if (r.unit != null && !r.isLearning) r.unit!,
       ];
 
-  /// « Refaire le plan » — remplace l'ancien volet non-fermable « Tout fait /
-  /// Une part / Rien fait » (Phase 9 Sprint 2). Faire déclarer ici ce qui a
-  /// été révisé faisait doublon avec le check-out, seul endroit qui scelle la
-  /// journée et fait avancer le cycle ; il ne reste donc que le geste « je
-  /// veux une autre répartition », derrière une confirmation parce qu'il
-  /// renvoie à l'accueil. Les rakaas déjà cochées restent écrites dans
-  /// `ayah_facts` : rien n'est perdu, seule la répartition en rakaas l'est.
+  /// "Redo the plan" — replaces the old non-dismissable "All done / Partly
+  /// done / Nothing done" panel (Phase 9 Sprint 2). Having the user declare
+  /// what was revised here duplicated check-out, the only place that seals
+  /// the day and advances the cycle; so all that remains is the "I want a
+  /// different layout" gesture, behind a confirmation because it returns to
+  /// the home screen. Rakaas already checked stay written in `ayah_facts`:
+  /// nothing is lost, only the rakaa layout is.
   Future<void> _confirmRefairePlan() async {
     final confirmed = await confirmDialog(
       context,
@@ -167,10 +166,9 @@ class _PlanScreenState extends State<PlanScreen> {
     if (unit == null) return;
     final newReach = !_isReached(assignment);
     final appState = context.read<AppState>();
-    // Coche affichée avant l'écriture disque (comme l'ancien
-    // `toggleChecked`) pour que le tap reste instantané — `setReach` est une
-    // affectation directe (pas de lecture-modification), la valeur locale
-    // est donc déjà celle qui sera écrite.
+    // Checkbox shown before the disk write (like the old `toggleChecked`)
+    // so the tap stays instant — `setReach` is a direct assignment (no
+    // read-modify), so the local value is already what gets written.
     setState(() {
       if (assignment.isLearning) {
         _learningReached = newReach;
@@ -193,9 +191,9 @@ class _PlanScreenState extends State<PlanScreen> {
     }
     final palette = context.palette;
     final checkedByPrayer = _checkedByPrayer();
-    // Le contenu qui n'a pas tenu dans les prières est bien du contenu du
-    // jour : tant qu'il en reste, la journée n'est pas "tout fait", même si
-    // toutes les rakaas sont cochées.
+    // Content that did not fit in the prayers is still today's content:
+    // as long as any remains, the day is not "all done", even if every
+    // rakaa is checked.
     final allDone = _allDoneOf(checkedByPrayer) &&
         widget.session.outsidePrayers.isEmpty;
     final checkedCount = _checkedCountOf(checkedByPrayer);
@@ -275,12 +273,11 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
-  /// « Clôturer ma journée » — **toujours actif** (cadrage 2026-09-07) : le
-  /// check-out est précisément l'endroit où l'on corrige ce qui n'a pas été
-  /// fait comme ce qui l'a été en plus, le verrouiller tant que toutes les
-  /// rakaas ne sont pas cochées obligerait à cocher faux pour pouvoir
-  /// clôturer sa journée. L'animation de célébration ne se déclenche, elle,
-  /// que quand tout est effectivement coché.
+  /// "Close my day" — **always active** (2026-09-07 scoping decision):
+  /// check-out is precisely the place to correct what wasn't done as well as
+  /// what was done extra; locking it until every rakaa is checked would
+  /// force a false check just to close the day. The celebration animation,
+  /// though, only fires once everything is actually checked.
   Widget _completionButton(bool allDone) {
     final button = PrimaryCtaButton(
       onPressed: widget.onCloturer,
@@ -303,11 +300,11 @@ class _PlanScreenState extends State<PlanScreen> {
             delay: 100.ms);
   }
 
-  /// Bandeau de résumé — en **pages réelles** depuis la Phase 9 Sprint 2, la
-  /// même unité que le rythme réglé. Lit `cyclePosition`/`cycleTotal` du
-  /// `DailySession` au lieu de reprojeter localement une fin de cycle : cet
-  /// écran était le dernier des trois (avec Accueil et Récap) à refaire
-  /// l'arithmétique de cycle dans son coin — dette §8.5 de la doc technique.
+  /// Summary bar — in **real pages** since Phase 9 Sprint 2, the same unit
+  /// as the configured pace. Reads `cyclePosition`/`cycleTotal` off the
+  /// `DailySession` instead of re-deriving cycle progress locally: this
+  /// screen was the last of the three (with Home and Récap) still doing its
+  /// own cycle arithmetic — tech debt §8.5 of the tech doc.
   Widget _summaryBar() {
     final session = widget.session;
     final palette = context.palette;
