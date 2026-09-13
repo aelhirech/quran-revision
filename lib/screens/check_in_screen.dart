@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
-import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/prayer.dart';
@@ -18,21 +17,21 @@ import '../widgets/prayer_selector.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/hook_banner.dart';
 import '../widgets/sourate_picker_sheet.dart';
+import '../widgets/step_dots.dart';
 import '../widgets/unit_row.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_chips_scaffold.dart';
 
 /// « Illuminer ma journée avec le Coran » — le rituel d'ouverture de la
-/// journée (Phase 9), poussé depuis l'onglet Plan du jour. Confirme, dans
-/// cet ordre, les quatre décisions du jour :
-///   1. le rythme de révision (pages/jour) — ajuster régénère la proposition ;
-///   2. ce qu'il y a à réviser (lignes `ayah_facts` déjà écrites par le
+/// journée (Phase 9), poussé depuis l'onglet Plan du jour. Confirme, en
+/// 3 étapes (`_step`, cf. `StepDots` dans le hero), les décisions du jour :
+///   1. Révision — rythme (pages/jour, ajuster régénère la proposition) et
+///      ce qu'il y a à réviser (lignes `ayah_facts` déjà écrites par le
 ///      moteur quotidien, `reach=0`) : ajouter/retirer/étendre écrit
 ///      directement dans la table, il n'y a pas d'objet "plan" à promouvoir ;
-///   3. ce qu'il y a à apprendre (sourate + nombre de versets) — récité dans
-///      la dernière rakaa du plan ;
-///   4. les prières du jour, celles où c'est l'utilisateur qui récite (seul
-///      ou en imam).
+///   2. Apprentissage — sourate + nombre de versets, récité dans la dernière
+///      rakaa du plan ;
+///   3. Prières — celles où l'utilisateur récite (seul ou en imam).
 ///
 /// Se ferme en renvoyant la liste de prières choisies : c'est l'appelant
 /// (`DayPlanTab`) qui déclenche la répartition en rakaas.
@@ -44,6 +43,8 @@ class CheckInScreen extends StatefulWidget {
 }
 
 class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin {
+  static const _stepCount = 3;
+
   List<RevisionUnit>? _units;
   LearningProgress? _learning;
   RevisionUnit? _learningUnit;
@@ -51,6 +52,7 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
   int _tahiyyatCount = 0;
   List<Prayer>? _lastPrayers;
   bool _isYesterday = false;
+  int _step = 0;
 
   @override
   String get hookId => 'check_in';
@@ -174,15 +176,6 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
     final state = context.watch<AppState>();
     final palette = context.palette;
     final units = _units;
-    // Une seule classification par unité pour tout le build — évite de
-    // rappeler FreshnessEngine.computeForRange jusqu'à 3x pour la même unité
-    // (liste principale + filtre et rendu de la section "À prioriser").
-    final freshnessByUnit = units == null
-        ? const <RevisionUnit, FreshnessLevel>{}
-        : {
-            for (final u in units)
-              u: state.freshnessFor(u.sourate.id, u.verseStart, u.verseEnd),
-          };
 
     return Scaffold(
       backgroundColor: palette.cream,
@@ -202,31 +195,7 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      children: [
-                        _rhythmSection(palette, state),
-                        const SizedBox(height: 22),
-                        ..._watchSection(palette, freshnessByUnit, units),
-                        _sectionLabel(palette, S.checkInVueDuJour),
-                        const SizedBox(height: 8),
-                        for (final unit in units)
-                          UnitRow(
-                            unit: unit,
-                            subtitle:
-                                freshnessDiscreetLabel(freshnessByUnit[unit]!),
-                            onTap: () => _openDetail(unit),
-                            trailingIcon: Icons.close,
-                            onTrailing: () => _remove(unit),
-                          ),
-                        const SizedBox(height: 14),
-                        OutlinedActionButton(
-                            icon: Icons.add,
-                            label: S.checkInAjouterSourate,
-                            onTap: _openAddSheet),
-                        const SizedBox(height: 22),
-                        _learningSection(palette, state),
-                        const SizedBox(height: 22),
-                        _prayerSection(palette),
-                      ],
+                      children: _stepChildren(palette, state, units),
                     ),
                   ),
                   _ctaBar(palette),
@@ -238,9 +207,46 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
 
   Widget _hero(int totalVerses) => CheckHero(
         eyebrow: S.checkInEyebrow,
+        extra: StepDots(count: _stepCount, current: _step),
         title: S.checkInTitle,
         badge: S.checkInVersesProposed(totalVerses),
       );
+
+  // Freshness classification computed only in case 0, the only step reading it.
+  List<Widget> _stepChildren(
+      AppPalette palette, AppState state, List<RevisionUnit> units) {
+    switch (_step) {
+      case 0:
+        final freshnessByUnit = {
+          for (final u in units)
+            u: state.freshnessFor(u.sourate.id, u.verseStart, u.verseEnd),
+        };
+        return [
+          _rhythmSection(palette, state),
+          const SizedBox(height: 22),
+          _sectionLabel(palette, S.checkInVueDuJour),
+          const SizedBox(height: 8),
+          for (final unit in units)
+            UnitRow(
+              unit: unit,
+              subtitle: freshnessDiscreetLabel(freshnessByUnit[unit]!),
+              onTap: () => _openDetail(unit),
+              trailingIcon: Icons.close,
+              onTrailing: () => _remove(unit),
+            ),
+          const SizedBox(height: 14),
+          OutlinedActionButton(
+              icon: Icons.add,
+              label: S.checkInAjouterSourate,
+              onTap: _openAddSheet),
+        ];
+      case 1:
+        return [_learningSection(palette, state)];
+      case 2:
+      default: // _step is a plain int, never statically exhaustive
+        return [_prayerSection(palette)];
+    }
+  }
 
   Widget _rhythmSection(AppPalette palette, AppState state) {
     final current = state.config?.pagesPerDay ?? 1;
@@ -362,44 +368,6 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
     });
   }
 
-  List<Widget> _watchSection(AppPalette palette,
-      Map<RevisionUnit, FreshnessLevel> freshnessByUnit, List<RevisionUnit> units) {
-    final watch =
-        units.where((u) => freshnessNeedsAttention(freshnessByUnit[u]!)).toList();
-    if (watch.isEmpty) return const [];
-    return [
-      Container(
-        padding: const EdgeInsets.all(14),
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: palette.surfaceCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.cardBorder),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionLabel(palette, S.checkInAPrioriser),
-            const SizedBox(height: 8),
-            for (final u in watch)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(u.sourate.nameFr,
-                        style: TextStyle(fontSize: 12.5, color: palette.textPrimary)),
-                    Text(freshnessDiscreetLabel(freshnessByUnit[u]!),
-                        style: TextStyle(fontSize: 11, color: palette.danger)),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    ];
-  }
-
   Widget _sectionLabel(AppPalette palette, String text) => Text(
         text.toUpperCase(),
         style: TextStyle(
@@ -411,28 +379,54 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
 
 
   Widget _ctaBar(AppPalette palette) {
+    final onLastStep = _step == _stepCount - 1;
     final ready = _effectivePrayers.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!ready)
+          if (onLastStep && !ready)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(S.checkInPrieresManquantes,
                   style: TextStyle(fontSize: 11, color: palette.textMuted)),
             ),
           SizedBox(
-            height: 52,
-            child: PrimaryCtaButton(
-              label: S.checkInLancerPlan,
-              icon: Icons.check_rounded,
-              // Les ajustements (rythme, ajouts/retraits, apprentissage) sont
-              // déjà écrits en direct dans ayah_facts — "Valider" ne fait que
-              // rendre les prières à l'appelant, qui répartit en rakaas.
-              onPressed:
-                  ready ? () => Navigator.of(context).pop(_effectivePrayers) : null,
+            height: 54,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_step > 0) ...[
+                  Expanded(
+                    child: OutlinedActionButton(
+                        icon: Icons.arrow_back,
+                        label: S.retour,
+                        onTap: () => setState(() => _step--)),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  flex: 2,
+                  child: onLastStep
+                      ? PrimaryCtaButton(
+                          label: S.checkInLancerPlan,
+                          icon: Icons.check_rounded,
+                          // Les ajustements (rythme, ajouts/retraits,
+                          // apprentissage) sont déjà écrits en direct dans
+                          // ayah_facts — "Valider" ne fait que rendre les
+                          // prières à l'appelant, qui répartit en rakaas.
+                          onPressed: ready
+                              ? () => Navigator.of(context).pop(_effectivePrayers)
+                              : null,
+                        )
+                      : PrimaryCtaButton(
+                          label: S.suivant,
+                          icon: Icons.arrow_forward,
+                          onPressed: () => setState(() => _step++),
+                        ),
+                ),
+              ],
             ),
           ),
         ],

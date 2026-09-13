@@ -3,8 +3,8 @@ import '../core/app_colors.dart';
 
 /// Bandeau "hero" partagé entre `CheckInScreen` et `CheckOutScreen` — même
 /// structure (eyebrow, titre, badge à bordure) pour les deux ; `extra` est le
-/// seul point de variation (step dots multi-jours de `CheckOutScreen`,
-/// absent en check-in).
+/// seul point de variation (`StepDots` : 3 étapes en check-in, 2 en
+/// check-out multi-jours seulement).
 class CheckHero extends StatelessWidget {
   final String eyebrow;
   final Widget? extra;
