@@ -224,7 +224,7 @@ class _RecapScreenState extends State<RecapScreen> with HookVisibilityMixin {
       danger: true,
     );
     if (!mounted || !confirmed) return;
-    await AyahFactsService.deleteLearnFacts(p.sourate.id, state.riwaya);
+    await AyahFactsLearning.deleteLearnFacts(p.sourate.id, state.riwaya);
     if (mounted) await _load(state.pauseDates);
   }
 

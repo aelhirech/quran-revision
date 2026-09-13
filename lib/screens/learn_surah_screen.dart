@@ -65,7 +65,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
     // bloc à moitié persisté si l'app est interrompue entre deux écritures
     // individuelles.
     final riwaya = context.read<AppState>().riwaya;
-    await AyahFactsService.learnVerses(_progress.sourate.id, block, riwaya);
+    await AyahFactsLearning.learnVerses(_progress.sourate.id, block, riwaya);
     if (!mounted) return;
     setState(() {
       _progress = updated;
@@ -80,7 +80,7 @@ class _LearnSurahScreenState extends State<LearnSurahScreen> {
 
   Future<void> _unmarkVerse(int verse) async {
     final updated = _progress.withVerseUnlearned(verse);
-    await AyahFactsService.unlearnVerse(
+    await AyahFactsLearning.unlearnVerse(
         _progress.sourate.id, verse, context.read<AppState>().riwaya);
     if (!mounted) return;
     setState(() => _progress = updated);

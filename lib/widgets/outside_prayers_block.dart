@@ -3,6 +3,7 @@ import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import 'unit_range_label.dart';
+import 'verse_bottom_sheet.dart';
 
 /// Content that did not fit in the chosen prayers, shown read-only — the
 /// rakaa layout is a display and must not hide day content the check-out
@@ -40,7 +41,19 @@ class OutsidePrayersBlock extends StatelessWidget {
           for (final u in units)
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: UnitRangeLabel(unit: u, nameColor: palette.textPrimary),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: UnitRangeLabel(unit: u, nameColor: palette.textPrimary),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 18),
+                    tooltip: S.voirLeTexte,
+                    onPressed: () => VerseBottomSheet.show(
+                        context, u.sourate, u.verseStart, u.verseEnd),
+                  ),
+                ],
+              ),
             ),
         ],
       ),

@@ -27,15 +27,14 @@ class AppState extends ChangeNotifier {
   UserConfig? _config;
   int _cyclePosition;
   DailySession? _todaySession;
-  // Date (YYYY-MM-DD) du jour de révision non encore scellé le plus ancien,
-  // ou null — voir `ensureDayPlan`. Tant qu'elle est non-null, le moteur
-  // quotidien ne génère pas de nouveau plan (voir cadrage Phase 6, "Moteur
-  // quotidien — source unique de vérité").
+  // Date (YYYY-MM-DD) of the oldest not-yet-sealed revision day, or null —
+  // see `ensureDayPlan`. While non-null, the daily engine won't generate a
+  // new plan (see Phase 6 cadrage, "daily engine — single source of truth").
   String? _pendingDate;
-  // Date (YYYY-MM-DD) dont on sait qu'elle est scellée — PAS un booléen :
-  // un `bool` resterait vrai après le passage de minuit avec l'app
-  // résidente, et l'accueil afficherait « Journée clôturée » avec un CTA
-  // inerte sur une journée neuve, sans autre issue que tuer l'app.
+  // Date (YYYY-MM-DD) known to be sealed — NOT a bool: a bool would stay
+  // true past midnight with the app still resident, showing "Day closed"
+  // with a dead-end CTA on a brand new day, no way out short of killing
+  // the app.
   String? _closedDate;
   Set<String> _pauseDates;
   String _locale;
@@ -43,12 +42,12 @@ class AppState extends ChangeNotifier {
   final bool warshAvailable;
   bool _hasSeenTour;
   List<Sourate> _sourates;
-  // Dernière date de révision par verset (surahId → ayahId → date), grain le
-  // plus fin disponible — voir `refreshFreshness`/`freshnessFor`.
-  // FreshnessEngine.computeForRange classe à la demande sur la plage exacte
-  // demandée (sourate entière ou sélection partielle), pas de Map précalculée
-  // par sourate : la plage change selon l'appelant (RecapCard = sélection,
-  // PlanScreen/check-in = unité du jour, potentiellement subdivisée).
+  // Last revision date per verse (surahId → ayahId → date), finest grain
+  // available — see `refreshFreshness`/`freshnessFor`. FreshnessEngine.
+  // computeForRange buckets on demand over the exact requested range (whole
+  // surah or partial selection), not a precomputed per-surah map: the range
+  // varies by caller (RecapCard = selection, PlanScreen/check-in = today's
+  // unit, possibly subdivided).
   Map<int, Map<int, DateTime>> _lastRevisionByAyah = {};
 
   AppState(
@@ -95,7 +94,7 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  /// Sélection du jour, pure (aucune écriture).
+  /// Today's selection, pure (no writes).
   ///
   /// The cycle does not depend on the date at all: it is a pure function of
   /// the selection, the pace and the cursor. Every caller
@@ -133,22 +132,21 @@ class AppState extends ChangeNotifier {
   Future<bool> hasSeenHook(String hookId) => StorageService.hasSeenHook(hookId);
 
   Future<void> markHookSeen(String hookId) => StorageService.setHookSeen(hookId);
-  /// Sourates du parcours actif, avec comptes de versets/mots corrects pour
-  /// la riwaya active (Hafs 6236 versets au total, Warsh 6214 — les comptes
-  /// par sourate diffèrent en conséquence). À utiliser à la place de
-  /// `quran_data.dart`'s data brute partout où une liste de sourates est
-  /// nécessaire.
+  /// Sourates for the active track, with verse/word counts correct for the
+  /// active riwaya (Hafs 6236 verses total, Warsh 6214 — per-surah counts
+  /// differ accordingly). Use this instead of `quran_data.dart`'s raw data
+  /// wherever a surah list is needed.
   List<Sourate> get sourates => _sourates;
-  /// La journée d'aujourd'hui a-t-elle déjà été clôturée ? Depuis que
-  /// « Clôturer ma journée » scelle le jour courant sans attendre le
-  /// lendemain (Phase 9 Sprint 2), l'accueil doit pouvoir le dire — sinon il
-  /// réinviterait à « illuminer » une journée déjà close. Dérivé
-  /// d'`ayah_facts` (`checked_out`), jamais tenu en parallèle, et comparé à
-  /// la date du jour pour qu'un changement de date le périme tout seul.
+  /// Has today already been sealed? Since "Seal my day" seals the current
+  /// day without waiting for tomorrow (Phase 9 Sprint 2), the home screen
+  /// needs to know — otherwise it would re-invite the user to "light up" an
+  /// already-closed day. Derived from `ayah_facts` (`checked_out`), never
+  /// kept in parallel, and compared against today's date so a date change
+  /// invalidates it automatically.
   bool get todayClosed => _closedDate == todayStr;
 
-  /// Niveau de fraîcheur d'une sourate/sélection sur sa plage exacte de
-  /// versets [verseStart]..[verseEnd] (pas `1..sourate.verses`) — voir
+  /// Freshness level of a surah/selection over its exact verse range
+  /// [verseStart]..[verseEnd] (not `1..sourate.verses`) — see
   /// `FreshnessEngine.computeForRange`.
   FreshnessLevel freshnessFor(int sourateId, int verseStart, int verseEnd) =>
       FreshnessEngine.computeForRange(
@@ -158,10 +156,10 @@ class AppState extends ChangeNotifier {
         today: DateTime.now(),
       );
 
-  /// Date du jour au format `YYYY-MM-DD` — clé de toutes les lignes
-  /// `ayah_facts` d'aujourd'hui. Publique depuis la Phase 9 Sprint 2 :
-  /// `DayPlanTab` en a besoin pour pousser le check-out sur aujourd'hui, et
-  /// la recalculer côté UI recréerait une seconde source de vérité.
+  /// Today's date as `YYYY-MM-DD` — key of all of today's `ayah_facts` rows.
+  /// Public since Phase 9 Sprint 2: `DayPlanTab` needs it to push check-out
+  /// onto today, and recomputing it in the UI would recreate a second
+  /// source of truth.
   String get todayStr =>
       DateTime.now().toIso8601String().substring(0, 10);
 
@@ -194,14 +192,14 @@ class AppState extends ChangeNotifier {
     _notify();
   }
 
-  /// Bascule le parcours actif (Hafs <-> Warsh). Chaque riwaya est un
-  /// parcours indépendant (config, cycle, plan du jour, progression,
-  /// historique séparés) — rien n'est traduit d'un parcours vers l'autre. Si
-  /// le parcours cible n'a jamais été configuré, `config` redevient `null` et
-  /// l'app retombe naturellement sur l'onboarding (voir main.dart).
-  /// Retourne `false` sans rien changer si la riwaya demandée n'a pas pu
-  /// être chargée au démarrage (texte Warsh indisponible) — évite de planter
-  /// sur `WarshService.verseCounts` en essayant de construire les sourates.
+  /// Switches the active track (Hafs <-> Warsh). Each riwaya is an
+  /// independent track (separate config, cycle, day plan, progress,
+  /// history) — nothing is translated from one track to the other. If the
+  /// target track was never configured, `config` becomes `null` again and
+  /// the app naturally falls back to onboarding (see main.dart). Returns
+  /// `false` without changing anything if the requested riwaya couldn't be
+  /// loaded at startup (Warsh text unavailable) — avoids crashing on
+  /// `WarshService.verseCounts` while building the surah list.
   Future<bool> setRiwaya(Riwaya riwaya) async {
     if (riwaya == _riwaya) return true;
     if (riwaya == Riwaya.warsh && !warshAvailable) return false;
@@ -213,8 +211,8 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _loadTrackState() async {
-    // Lectures indépendantes démarrées en parallèle — un seul aller-retour
-    // au lieu de plusieurs en série (même principe qu'au boot, main.dart).
+    // Independent reads kicked off in parallel — one round-trip instead of
+    // several in series (same pattern as boot, main.dart).
     final configF = StorageService.loadConfig(_riwaya);
     final cyclePositionF = StorageService.loadCyclePosition(_riwaya);
     final pauseDatesF = StorageService.loadPauseDates(_riwaya);
@@ -231,9 +229,9 @@ class AppState extends ChangeNotifier {
     await ensureDayPlan(notify: false);
   }
 
-  /// Ne remet le cycle à zéro que si les sourates sélectionnées ont vraiment
-  /// changé — un simple ajustement du rythme (durée, lignes/jour) ne doit pas
-  /// effacer la progression ni le plan du jour en cours.
+  /// Only resets the cycle when the selected surahs actually changed — a
+  /// mere pace adjustment (duration, lines/day) must not erase progress or
+  /// the current day plan.
   Future<void> saveConfig(UserConfig config) async {
     final selectionsChanged =
         _config == null || !_sameSelections(_config!.selections, config.selections);
@@ -254,10 +252,10 @@ class AppState extends ChangeNotifier {
     return a.map(key).toSet().containsAll(b.map(key));
   }
 
-  /// Fait avancer `cyclePosition` — délègue le calcul à `RevisionEngine`,
-  /// source unique de vérité pour la progression. Depuis Phase 6 Sprint 2,
-  /// n'est appelée que par [checkOut] (une fois par jour scellé), plus à
-  /// chaque manche PlanScreen.
+  /// Advances `cyclePosition` — delegates the calculation to
+  /// `RevisionEngine`, the single source of truth for progress. Since
+  /// Phase 6 Sprint 2, only called by [checkOut] (once per sealed day), no
+  /// longer on every PlanScreen round.
   Future<void> advanceCycle(int unitsCompleted, int cycleTotal,
       {bool notify = true}) async {
     if (cycleTotal == 0) return;
@@ -270,9 +268,9 @@ class AppState extends ChangeNotifier {
     if (notify) _notify();
   }
 
-  /// Recharge les dernières dates de révision par verset depuis l'historique
-  /// — voir [freshnessFor]. Appelé quand une session démarre et après chaque
-  /// session complétée.
+  /// Reloads last revision dates per verse from history — see
+  /// [freshnessFor]. Called when a session starts and after each completed
+  /// session.
   Future<void> refreshFreshness({bool notify = true}) async {
     _lastRevisionByAyah = await AyahFactsService.lastRevisionDatesPerVerse(riwaya: _riwaya);
     if (notify) _notify();

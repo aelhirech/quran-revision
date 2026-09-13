@@ -21,17 +21,16 @@ extension AppStateDayPlan on AppState {
     );
   }
 
-  /// Unités du plan du jour (date passée, `todayStr` par défaut), telles que
-  /// validées au check-in — reconstruites depuis `ayah_facts`, jamais
-  /// recalculées indépendamment (voir cadrage).
+  /// Day plan units (pass `date`, defaults to `todayStr`) as validated at
+  /// check-in — rebuilt from `ayah_facts`, never recomputed independently.
   Future<List<RevisionUnit>> dayUnits({String? date}) async {
-    final groups = await AyahFactsService.dayFacts(date ?? todayStr, _riwaya);
+    final groups = await AyahFactsRitual.dayFacts(date ?? todayStr, _riwaya);
     return groups.map(_unitFor).whereType<RevisionUnit>().toList();
   }
 
-  /// Comme [dayUnits], avec les versets flagués "à retravailler" de chaque
-  /// unité (`needsWorkVerses`) et son `reach` persisté — c'est cette version
-  /// que consomme CheckOutScreen.
+  /// Same as [dayUnits], plus each unit's "needs work" flagged verses
+  /// (`needsWorkVerses`) and its persisted `reach` — this is the version
+  /// CheckOutScreen consumes.
   ///
   /// `reach` is back (it had been dropped in Sprint 7): the check-out shows
   /// everything as done BY DEFAULT — Backlog "Check-out : reach fait par
@@ -41,7 +40,7 @@ extension AppStateDayPlan on AppState {
   /// re-credit what they had unchecked.
   Future<List<({RevisionUnit unit, Set<int> needsWorkVerses, bool reach})>>
       dayUnitsWithStatus({String? date}) async {
-    final groups = await AyahFactsService.dayFacts(date ?? todayStr, _riwaya);
+    final groups = await AyahFactsRitual.dayFacts(date ?? todayStr, _riwaya);
     return [
       for (final g in groups)
         if (_unitFor(g) case final unit?)
@@ -49,23 +48,22 @@ extension AppStateDayPlan on AppState {
     ];
   }
 
-  /// La journée [date] a-t-elle déjà été scellée ? Voir
-  /// [AyahFactsService.isDaySealed] — exposé pour que CheckOutScreen sache
-  /// s'il rouvre une clôture ou s'il en fait une première.
+  /// Has day [date] already been sealed? See [AyahFactsRitual.isDaySealed]
+  /// — exposed so CheckOutScreen knows whether it's reopening a closed day
+  /// or closing it for the first time.
   Future<bool> isDaySealed(String date) =>
-      AyahFactsService.isDaySealed(date, _riwaya);
+      AyahFactsRitual.isDaySealed(date, _riwaya);
 
-  /// Position/total du cycle en cours, à afficher (bandeau HomeScreen, carte
-  /// cycle RecapScreen) — dérivés du même [_selection] que le plan du jour
-  /// (`DailySession`, PlanScreen), pour que les 3 écrans ne recalculent plus
-  /// chacun leur propre `RevisionEngine.buildDayUnits(...)` (source de
-  /// divergence silencieuse, retour TestFlight 2026-09-01 sur les chiffres du
-  /// récapitulatif).
+  /// Current cycle position/total, for display (HomeScreen banner, RecapScreen
+  /// cycle card) — derived from the same [_selection] as the day plan
+  /// (`DailySession`, PlanScreen), so the 3 screens stop each recomputing
+  /// their own `RevisionEngine.buildDayUnits(...)` (a silent divergence
+  /// source — see the 2026-09-01 TestFlight report on wrong récap numbers).
   ///
-  /// Synchrone : c'est un calcul pur sur `_config`/`_cyclePosition`, déjà en
-  /// mémoire. Les écrans le lisent donc dans leur `build` — un champ de cache
-  /// rempli par un `await` restait périmé après un check-out qui vient
-  /// justement de faire avancer le curseur.
+  /// Synchronous: a pure computation over `_config`/`_cyclePosition`, already
+  /// in memory. Screens read it straight from `build` — a cached field
+  /// filled by an `await` would stay stale right after a check-out that just
+  /// advanced the cursor.
   DaySelection get daySelection => _config == null
       ? const DaySelection(groups: [], cycle: [], cyclePosition: 0)
       : _selection;
@@ -78,29 +76,28 @@ extension AppStateDayPlan on AppState {
   ({int pos, int total}) get pagesProgress =>
       daySelection.realPages(PageMetadataService.pageMetadataFor(_riwaya));
 
-  /// Aperçu (aucune écriture) de ce que le moteur quotidien proposerait s'il
-  /// tournait maintenant — utilisé par le check-out multi-jours (Partie 2,
-  /// "ajouter aussi aujourd'hui") pour montrer un aperçu avant de sceller.
-  /// Exposé ici pour que les écrans n'importent jamais `RevisionEngine`.
+  /// Preview (no write) of what the daily engine would propose if it ran
+  /// now — used by the multi-day check-out ("also add today") to show a
+  /// preview before sealing. Exposed here so screens never import
+  /// `RevisionEngine` directly.
   List<RevisionUnit> get todayPreviewUnits => daySelection.units;
 
-  /// Point d'entrée du moteur quotidien — à appeler à l'ouverture/reprise de
-  /// l'app (voir ShellScreen). Gated sur un éventuel jour en attente
-  /// STRICTEMENT antérieur à aujourd'hui (voir `AyahFactsService.pendingDate`) :
-  /// tant qu'il n'est pas scellé, aucun nouveau plan n'est généré (sinon
-  /// `cyclePosition` n'aurait pas encore avancé pour ce jour-là, et le
-  /// nouveau plan proposerait les mêmes versets une seconde fois).
+  /// Daily engine entry point — call on app open/resume (see ShellScreen).
+  /// Gated on a pending day STRICTLY before today (see
+  /// `AyahFactsRitual.pendingDate`): until it's sealed, no new plan is
+  /// generated — otherwise `cyclePosition` wouldn't have advanced for that
+  /// day yet, and the new plan would propose the same verses a second time.
   ///
-  /// Depuis la Phase 9, propose aussi les versets à **apprendre** du jour
-  /// (sourate déjà en cours, `config.versesToLearnPerDay` versets) — le
-  /// check-in confirme ou ajuste les deux propositions, il ne les crée pas.
+  /// Since Phase 9, also proposes today's verses to **learn** (surah already
+  /// in progress, `config.versesToLearnPerDay` verses) — check-in confirms
+  /// or adjusts both proposals, it doesn't create them.
   Future<void> ensureDayPlan({bool notify = true}) async {
     if (_config == null) return;
     final today = todayStr;
-    // Deux lectures indépendantes — démarrées ensemble, comme le bloc
-    // ci-dessous : c'est le chemin d'ouverture de l'app.
-    final pendingF = AyahFactsService.pendingDate(riwaya: _riwaya);
-    final sealedF = AyahFactsService.isDaySealed(today, _riwaya);
+    // Two independent reads, started together (like the block below) — this
+    // is the app-open path.
+    final pendingF = AyahFactsRitual.pendingDate(riwaya: _riwaya);
+    final sealedF = AyahFactsRitual.isDaySealed(today, _riwaya);
     final sealedDateF = StorageService.loadSealedDate(_riwaya);
     _pendingDate = await pendingF;
     final sealed = await sealedF;
@@ -110,21 +107,20 @@ extension AppStateDayPlan on AppState {
     // stored date as a fallback — see `StorageService.saveSealedDate`.
     _closedDate = sealed || sealedDate == today ? today : null;
     if (_pendingDate == null) {
-      // Lectures indépendantes démarrées ensemble plutôt qu'en série — c'est
-      // le chemin d'ouverture de l'app (ShellScreen.initState).
-      final existingF = AyahFactsService.dayFacts(today, _riwaya);
-      final learnPlanF = AyahFactsService.learnPlanFor(today, _riwaya);
+      // Independent reads started together rather than in series — this is
+      // the app-open path (ShellScreen.initState).
+      final existingF = AyahFactsRitual.dayFacts(today, _riwaya);
+      final learnPlanF = AyahFactsLearning.learnPlanFor(today, _riwaya);
       final activePrayersF = StorageService.loadActivePrayers(_riwaya);
-      // Le plan du jour n'est généré qu'une fois par jour — la proposition
-      // d'apprentissage est gatée sur ce même moment, pas seulement sur
-      // « aucune ligne learn aujourd'hui » : sinon « Je n'apprends rien
-      // aujourd'hui » (check-in) serait silencieusement annulé à la
-      // prochaine ouverture de l'app, qui reproposerait la même portion.
-      // Cas limite connu : sans aucune sourate en révision, `proposeUnits`
-      // n'écrit rien, la journée reste vue comme neuve et le refus est
-      // reproposé à chaque ouverture — sans conséquence sur les données.
+      // The day plan is only generated once a day — the learning proposal
+      // is gated on that same moment, not merely on "no learn row today":
+      // otherwise "I'm not learning anything today" (check-in) would be
+      // silently undone on the next app open, re-proposing the same portion.
+      // Known edge case: with no surah under revision, `proposeUnits` writes
+      // nothing, so the day still looks new and the refusal gets re-proposed
+      // on every open — harmless, no data consequence.
       if ((await existingF).isEmpty) {
-        await AyahFactsService.proposeUnits(
+        await AyahFactsRitual.proposeUnits(
             today, _riwaya, _selection.units);
         if (await learnPlanF == null) {
           final inProgress = await learningInProgress();
@@ -135,8 +131,9 @@ extension AppStateDayPlan on AppState {
           }
         }
       }
-      // Reprend la manche en cours si l'app a redémarré après un début de
-      // check-in/PlanScreen le même jour (prières déjà choisies).
+      // Resumes the in-progress session if the app restarted after a
+      // check-in/PlanScreen start earlier the same day (prayers already
+      // chosen).
       final activePrayers = await activePrayersF;
       if (activePrayers != null && activePrayers.isNotEmpty) {
         await buildTodaySession(activePrayers, notify: false);
@@ -145,61 +142,57 @@ extension AppStateDayPlan on AppState {
     if (notify) _notify();
   }
 
-  /// Check-in (et ligne « Rythme » des Réglages) : ajuste le budget de
-  /// pages/jour et régénère la proposition de révision du jour en conséquence
-  /// (les lignes déjà `reach=1` sont conservées, voir
-  /// `AyahFactsService.clearDayProposal`).
+  /// Check-in (and the "Rythme" row in Settings): adjusts the pages/day
+  /// budget and regenerates today's revision proposal accordingly (rows
+  /// already at `reach=1` are kept, see `AyahFactsRitual.clearDayProposal`).
   ///
-  /// **Sauf si la journée est déjà clôturée** : depuis « Clôturer ma journée »
-  /// (Phase 9 Sprint 2), aujourd'hui peut être scellé alors qu'il est encore
-  /// aujourd'hui. Y réécrire une proposition fraîche (`checked_out = 0`)
-  /// rouvrirait un jour déjà compté — il redeviendrait « en attente » demain,
-  /// et son second check-out ferait avancer le cycle une seconde fois sur du
-  /// contenu déjà crédité. Le nouveau rythme est persisté quand même : il
-  /// s'appliquera au plan de demain.
+  /// **Unless the day is already sealed**: since "Close my day" (Phase 9
+  /// Sprint 2), today can be sealed while it's still today. Writing a fresh
+  /// proposal (`checked_out = 0`) over it would reopen an already-counted
+  /// day — it would go back to "pending" tomorrow, and its second check-out
+  /// would advance the cycle a second time over content already credited.
+  /// The new rhythm is persisted regardless: it applies to tomorrow's plan.
   Future<void> setPagesPerDay(int pagesPerDay) async {
     if (_config == null || _config!.pagesPerDay == pagesPerDay) return;
     _config = _config!.copyWith(pagesPerDay: pagesPerDay);
     await StorageService.saveConfig(_config!, _riwaya);
     if (!todayClosed) {
       final today = todayStr;
-      await AyahFactsService.clearDayProposal(today, _riwaya);
-      await AyahFactsService.proposeUnits(
+      await AyahFactsRitual.clearDayProposal(today, _riwaya);
+      await AyahFactsRitual.proposeUnits(
           today, _riwaya, _selection.units);
-      // Une manche déjà répartie en rakaas porterait des unités qui viennent
-      // d'être effacées de la table — ses cases cochées reviendraient en
-      // arrière sans explication. On la referme, comme `saveConfig` le fait
-      // quand la sélection de sourates change.
+      // A session already laid out across rakaas would carry units just
+      // erased from the table — its checked boxes would revert with no
+      // explanation. Close it, same as `saveConfig` does when the surah
+      // selection changes.
       await clearTodaySession(notify: false);
     }
     _notify();
   }
 
-  /// Ferme la manche en cours (« Refaire le plan », changement de rythme,
-  /// clôture) — implémentation unique du couple `_todaySession` +
-  /// `active_prayers`, que trois appelants recopiaient sinon chacun de leur
-  /// côté. [notify] `false` pour les appelants qui enchaînent d'autres
-  /// écritures avant de notifier une seule fois.
+  /// Closes the in-progress session ("redo plan", rhythm change, sealing) —
+  /// single implementation of the `_todaySession` + `active_prayers` pair,
+  /// which three callers otherwise each duplicated. [notify] `false` for
+  /// callers chaining more writes before a single notify.
   Future<void> clearTodaySession({bool notify = true}) async {
     _todaySession = null;
     await StorageService.clearActivePrayers(_riwaya);
     if (notify) _notify();
   }
 
-  /// Ajoute une sourate/portion au plan du jour depuis le check-in.
-  /// [date] par défaut aujourd'hui (check-in). Le check-out la passe
-  /// explicitement pour déclarer une sourate **révisée en plus** ce jour-là :
-  /// même écriture, l'unité rejoint simplement le plan d'une journée passée,
-  /// où le "fait par défaut" du check-out la confirmera à la clôture. Comme
-  /// tout ajout hors-sélection, elle alimente historique et fraîcheur mais
-  /// ne fait pas avancer `cyclePosition` au-delà de ce que le moteur avait
-  /// proposé (voir [checkOut]).
+  /// Adds a surah/portion to the day plan from check-in.
+  /// [date] defaults to today (check-in). Check-out passes it explicitly to
+  /// declare a surah **revised in addition** that day: same write, the unit
+  /// simply joins a past day's plan, where check-out's "done by default"
+  /// will confirm it at sealing. Like any out-of-selection addition, it
+  /// feeds history and freshness but doesn't advance `cyclePosition` beyond
+  /// what the engine had proposed (see [checkOut]).
   Future<void> addToDayPlan(RevisionUnit unit, {String? date}) async {
-    await AyahFactsService.proposeUnits(date ?? todayStr, _riwaya, [unit]);
+    await AyahFactsRitual.proposeUnits(date ?? todayStr, _riwaya, [unit]);
     _notify();
   }
 
-  /// Retire une sourate/portion du plan du jour depuis le check-in.
+  /// Removes a surah/portion from the day plan from check-in.
   ///
   /// The range is not optional in practice: since the cycle became a page
   /// list, one day can hold two non-adjacent fragments of the same surah, and
@@ -207,31 +200,31 @@ extension AppStateDayPlan on AppState {
   /// get it back (re-adding writes the WHOLE surah).
   Future<void> removeFromDayPlan(int surahId,
       {int? verseStart, int? verseEnd}) async {
-    await AyahFactsService.removeFromDayPlan(todayStr, _riwaya, surahId,
+    await AyahFactsRitual.removeFromDayPlan(todayStr, _riwaya, surahId,
         verseStart: verseStart, verseEnd: verseEnd);
     _notify();
   }
 
-  /// Étend d'un verset la portée d'une sourate du plan du jour (chip "+" de
-  /// l'écran détail du check-in).
+  /// Extends a day plan surah's range by one verse (the "+" chip on the
+  /// check-in detail screen).
   Future<void> extendDayPlanVerse(int surahId, int newVerse) async {
     final s = _sourateById(surahId);
     if (s == null) return;
-    await AyahFactsService.proposeUnits(todayStr, _riwaya,
+    await AyahFactsRitual.proposeUnits(todayStr, _riwaya,
         [RevisionUnit(sourate: s, verseStart: newVerse, verseEnd: newVerse, isWhole: false)]);
     _notify();
   }
 
-  /// Construit (ou reconstruit) le plan du jour réparti en rakaas pour les
-  /// prières données — répartit les unités déjà validées au check-in
-  /// ([dayUnits]), ne les régénère pas. Persiste la sélection de prières
-  /// pour survivre à un redémarrage de l'app avant la fin de la manche.
+  /// Builds (or rebuilds) the day plan laid out across rakaas for the given
+  /// prayers — distributes units already validated at check-in ([dayUnits]),
+  /// doesn't regenerate them. Persists the prayer selection to survive an
+  /// app restart before the session ends.
   Future<void> buildTodaySession(List<Prayer> prayersAlone,
       {bool notify = true}) async {
     if (_config == null || prayersAlone.isEmpty) return;
-    // Deux lectures SQLite indépendantes, démarrées ensemble plutôt qu'en
-    // série ; la sélection du cycle est un calcul pur, elle vient après pour
-    // ne pas retarder leur départ.
+    // Two independent SQLite reads, started together rather than in series;
+    // the cycle selection is a pure computation, done after so it doesn't
+    // delay their start.
     final unitsF = dayUnits();
     final learningF = todayLearningUnit();
     final selection = _selection;
@@ -250,19 +243,18 @@ extension AppStateDayPlan on AppState {
       date: DateTime.now(),
       prayersAlone: prayersAlone,
       plan: layout.plan,
-      // Sur les unités réellement retenues (`dayUnits()`, donc après édition
-      // au check-in), pas sur la proposition d'origine de `selection`.
+      // Computed on the actually-kept units (`dayUnits()`, i.e. after
+      // check-in edits), not on `selection`'s original proposal.
       pagesToday: RevisionEngine.pagesOf(units, pageMetadata),
       cyclePosition: pagesProgress.pos,
       cycleTotal: pagesProgress.total,
       outsidePrayers: layout.outside,
     );
-    // `saveActivePrayers` = reprendre la manche en cours après un
-    // redémarrage ; `saveLastSessionPrayers` = alimenter « reprendre les
-    // prières d'hier » au prochain check-in. Écrit ici, au moment où les
-    // prières sont choisies, plutôt qu'à la fin d'une manche « complétée » —
-    // depuis la Phase 9 Sprint 2 il n'y a plus de complétion de manche, la
-    // journée se termine au check-out (voir `PlanScreen.onCloturer`).
+    // `saveActivePrayers` = resume the in-progress session after a restart;
+    // `saveLastSessionPrayers` = feeds "resume yesterday's prayers" at the
+    // next check-in. Written here, when prayers are chosen, rather than at
+    // session "completion" — since Phase 9 Sprint 2 there's no more session
+    // completion, the day ends at check-out (see `PlanScreen.onCloturer`).
     await Future.wait([
       StorageService.saveActivePrayers(prayersAlone, _riwaya),
       StorageService.saveLastSessionPrayers(

@@ -14,15 +14,25 @@ import '../widgets/outlined_action_button.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/step_dots.dart';
-import '../widgets/unit_range_label.dart';
 import '../widgets/verse_chip.dart';
-import '../widgets/verse_chips_scaffold.dart';
 import '../widgets/verse_range_picker.dart';
+import 'check_out_detail_screen.dart';
+import 'check_out_row.dart';
+
+part 'check_out_sections.dart';
 
 /// Popup de rattrapage : scelle un jour de révision non encore clôturé
 /// (`checked_out = 0`) — c'est le seul moment où `cyclePosition` avance
 /// (voir `AppState.checkOut`). Tant qu'un jour est en attente, aucun nouveau
 /// check-in n'est proposé (voir cadrage Phase 6, gating du moteur quotidien).
+///
+/// Écran à SECTIONS simultanées (révision + volet apprentissage, plus une
+/// deuxième partie optionnelle pour le rattrapage multi-jours), pas un
+/// wizard séquentiel : le découpage en fichiers suit cette logique
+/// (contrôleur ici, sections "ajouter en plus"/apprentissage/partie 2 dans
+/// `check_out_sections.dart` via `part`/`part of`, ligne de liste et
+/// sous-écran de détail dans leurs propres fichiers) plutôt que le pattern
+/// "une page par étape" de l'onboarding.
 class CheckOutScreen extends StatefulWidget {
   final String date; // YYYY-MM-DD, jour en attente à clôturer
   const CheckOutScreen({super.key, required this.date});
@@ -53,6 +63,11 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
 
   @override
   String get hookId => 'check_out';
+
+  // `setState` is `@protected`, not callable from `_CheckOutSections` (an
+  // extension, not a State subclass member despite sharing this library) —
+  // this forwards it instead of scattering `// ignore:` comments there.
+  void _setState(VoidCallback fn) => setState(fn);
 
   /// Calculé une fois : `DateTime.parse` sur une date locale résout le
   /// fuseau horaire, de loin la primitive la plus chère de cet écran, et les
@@ -115,7 +130,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
   Future<void> _openDetail(RevisionUnit unit, Set<int> needsWorkVerses) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => _CheckOutDetailScreen(
+        builder: (_) => CheckOutDetailScreen(
           date: widget.date,
           unit: unit,
           initialNeedsWork: needsWorkVerses,
@@ -214,7 +229,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
                               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                               children: [
                                 for (final it in items)
-                                  _CheckOutRow(
+                                  CheckOutRow(
                                     unit: it.unit,
                                     reach: !_unchecked.contains(it.unit),
                                     onToggle: () => _toggleReach(it.unit),
@@ -259,231 +274,6 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
     );
   }
 
-  /// « J'ai révisé une sourate en plus » — le pendant du décochage : le
-  /// check-out confirme ce qui a réellement été fait, en moins **comme en
-  /// plus**. La sourate rejoint le plan de ce jour-là et son "fait par
-  /// défaut" la confirmera à la clôture ; comme tout ajout hors-sélection,
-  /// elle alimente historique et fraîcheur sans faire avancer le cycle
-  /// au-delà de ce que le moteur avait proposé (voir `AppState.checkOut`).
-  /// Choix de la sourate puis de la **portion** réellement révisée
-  /// (`VerseRangePicker`, le même sélecteur que l'onboarding) — on peut
-  /// n'avoir fait qu'une partie de la sourate en plus. Fermer le sélecteur
-  /// de plage sans confirmer annule l'ajout : la sourate n'a été
-  /// présélectionnée que pour pouvoir l'ouvrir.
-  Future<void> _addRevisedSourate() async {
-    final state = context.read<AppState>();
-    final present = _items!.map((it) => it.unit.sourate.id).toSet();
-    final candidates =
-        state.sourates.where((s) => !present.contains(s.id)).toList();
-    final picked = await showModalBottomSheet<Sourate>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SouratePickerSheet(
-          sourates: candidates, title: S.checkOutSourateEnPlusTitre),
-    );
-    if (picked == null || !mounted) return;
-    final range = await showModalBottomSheet<SourateSelection>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => VerseRangePicker(
-          sourate: picked, current: SourateSelection.whole(picked)),
-    );
-    if (range == null || !mounted) return;
-    await state.addToDayPlan(
-      RevisionUnit(
-        sourate: picked,
-        verseStart: range.verseStart,
-        verseEnd: range.verseEnd,
-        isWhole: range.isWhole,
-      ),
-      date: widget.date,
-    );
-    await _load();
-  }
-
-  Future<void> _addLearnedVerse() async {
-    await context.read<AppState>().extendLearningForDate(widget.date);
-    await _load();
-  }
-
-  /// Volet apprentissage (Phase 9) : les versets proposés à la mémorisation
-  /// ce jour-là, cochés par défaut. Décocher un verset le laisse `reach = 0`
-  /// — il repassera dans la proposition du lendemain. Le chip « + » déclare
-  /// un verset appris **en plus** de ce qui était prévu.
-  List<Widget> _learnSection(AppPalette palette) {
-    final learn = _learnPlan;
-    if (learn == null || learn.ayahIds.isEmpty) return const [];
-    return [
-      const SizedBox(height: 18),
-      Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: palette.surfaceCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.cardBorder),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(S.checkOutApprentissage.toUpperCase(),
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.4,
-                    color: palette.textMuted)),
-            const SizedBox(height: 6),
-            Text('${learn.sourate.nameFr} · ${learn.sourate.nameAr}',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: palette.textPrimary)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final v in learn.ayahIds)
-                  VerseChip(
-                    borderColor: _notLearned.contains(v)
-                        ? palette.cardBorder
-                        : palette.gold.withValues(alpha: 0.8),
-                    onTap: () => setState(() {
-                      if (!_notLearned.add(v)) _notLearned.remove(v);
-                    }),
-                    child: Text('$v',
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: _notLearned.contains(v)
-                                ? palette.textMuted
-                                : palette.goldDark)),
-                  ),
-                if (learn.ayahIds.length < learn.sourate.verses)
-                  VerseChip(
-                    borderColor: palette.gold.withValues(alpha: 0.7),
-                    onTap: _addLearnedVerse,
-                    child: Icon(Icons.add, size: 14, color: palette.textPrimary),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(S.checkOutApprentissageDesc,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
-                    color: palette.textMuted)),
-            Text(S.checkOutApprisEnPlusHint,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
-                    color: palette.textMuted)),
-          ],
-        ),
-      ),
-    ];
-  }
-
-  Widget _part2Body(AppPalette palette) {
-    final preview = context.read<AppState>().todayPreviewUnits;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: palette.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.cardBorder),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      S.checkOutAjouterAujourdhui,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: palette.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      S.checkOutAjouterDesc,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: palette.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: _addToday,
-                onChanged: (v) => setState(() => _addToday = v),
-                activeThumbColor: palette.primary,
-              ),
-            ],
-          ),
-        ),
-        if (_addToday) ...[
-          const SizedBox(height: 10),
-          for (final unit in preview)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 11,
-              ),
-              decoration: BoxDecoration(
-                color: palette.surfaceCardSolid,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: palette.cardBorder),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    unit.sourate.nameAr,
-                    style: GoogleFonts.amiri(
-                      fontSize: 15,
-                      color: palette.goldDark,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          unit.sourate.nameFr,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: palette.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          'v.${unit.verseStart}–${unit.verseEnd}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
-                            color: palette.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ],
-    );
-  }
-
   Widget _ctaBar(AppPalette palette, bool showPart2) {
     String label;
     VoidCallback? onPressed;
@@ -503,170 +293,6 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
         height: 52,
         child: PrimaryCtaButton(label: label, onPressed: onPressed),
       ),
-    );
-  }
-}
-
-class _CheckOutRow extends StatelessWidget {
-  final RevisionUnit unit;
-  final bool reach;
-  final VoidCallback onToggle;
-  final VoidCallback onDetail;
-
-  const _CheckOutRow({
-    required this.unit,
-    required this.reach,
-    required this.onToggle,
-    required this.onDetail,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.cardBorder),
-        ),
-        child: Column(
-          children: [
-            InkWell(
-              onTap: onToggle,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: palette.surfaceCardSolid,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 26,
-                      height: 26,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: reach ? palette.primary : Colors.transparent,
-                        border: Border.all(
-                          color: reach ? palette.primary : palette.cardBorder,
-                        ),
-                      ),
-                      child: reach
-                          ? Icon(
-                              Icons.check,
-                              size: 15,
-                              color: palette.onPrimary,
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: UnitRangeLabel(
-                        unit: unit,
-                        nameColor: reach
-                            ? palette.textPrimary
-                            : palette.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            InkWell(
-              onTap: onDetail,
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-                child: Row(
-                  children: [
-                    Text(
-                      S.checkOutVoirVersets(unit.verseCount),
-                      style: TextStyle(fontSize: 11.5, color: palette.goldDark),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CheckOutDetailScreen extends StatefulWidget {
-  final String date;
-  final RevisionUnit unit;
-  final Set<int> initialNeedsWork;
-
-  const _CheckOutDetailScreen({
-    required this.date,
-    required this.unit,
-    required this.initialNeedsWork,
-  });
-
-  @override
-  State<_CheckOutDetailScreen> createState() => _CheckOutDetailScreenState();
-}
-
-class _CheckOutDetailScreenState extends State<_CheckOutDetailScreen> {
-  late Set<int> _needsWork;
-
-  @override
-  void initState() {
-    super.initState();
-    _needsWork = {...widget.initialNeedsWork};
-  }
-
-  Future<void> _toggle(int verse) async {
-    final flagged = !_needsWork.contains(verse);
-    await context.read<AppState>().setVerseNeedsWork(
-      widget.date,
-      widget.unit.sourate.id,
-      verse,
-      flagged,
-    );
-    if (!mounted) return;
-    setState(() {
-      flagged ? _needsWork.add(verse) : _needsWork.remove(verse);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final unit = widget.unit;
-    return VerseChipsScaffold(
-      title: '${unit.sourate.nameFr} · v.${unit.verseStart}–${unit.verseEnd}',
-      headerLabel: S.checkOutARetravailler,
-      chips: [
-        for (int v = unit.verseStart; v <= unit.verseEnd; v++)
-          VerseChip(
-            onTap: () => _toggle(v),
-            borderColor: _needsWork.contains(v)
-                ? palette.gold
-                : palette.cardBorder,
-            fillColor: _needsWork.contains(v) ? palette.gold : null,
-            child: _needsWork.contains(v)
-                ? Icon(Icons.bookmark, size: 14, color: palette.onPrimary)
-                : Text(
-                    '$v',
-                    style: TextStyle(fontSize: 11, color: palette.textMuted),
-                  ),
-          ),
-      ],
     );
   }
 }

@@ -40,10 +40,10 @@ void main() {
 
   test('appareil pré-ayah_facts (version < 4) : upgrade direct vers 5 ne plante pas', () async {
     // N'importe quel appel public déclenche `_open()` — ne doit pas lever.
-    await AyahFactsService.proposeUnits(
+    await AyahFactsRitual.proposeUnits(
         '2020-01-01', Riwaya.hafs, [testUnit(1, 1, 3)]);
-    await AyahFactsService.setNeedsWork('2020-01-01', Riwaya.hafs, 1, 2, true);
-    final facts = await AyahFactsService.dayFacts('2020-01-01', Riwaya.hafs);
+    await AyahFactsRitual.setNeedsWork('2020-01-01', Riwaya.hafs, 1, 2, true);
+    final facts = await AyahFactsRitual.dayFacts('2020-01-01', Riwaya.hafs);
     expect(facts, hasLength(1));
     expect(facts.first.needsWorkVerses, {2});
   });
