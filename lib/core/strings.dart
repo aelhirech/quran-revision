@@ -306,9 +306,10 @@ class S {
   static String checkInVersesProposed(int n) => _t(
       '$n verset${n > 1 ? 's' : ''} proposé${n > 1 ? 's' : ''} aujourd\'hui',
       '$n verse${n > 1 ? 's' : ''} proposed today');
-  static String get checkInAPrioriser => _t('À prioriser', 'To prioritize');
   static String get checkInVueDuJour => _t('Vue du jour', 'Today\'s view');
   static String get checkInAjouterSourate => _t('Ajouter une sourate', 'Add a surah');
+  static String get suivant => _t('Suivant', 'Next');
+  static String get retour => _t('Retour', 'Back');
 
   // « Illuminer ma journée » (Phase 9) — rythme, apprentissage et prières
   // confirmés dans le même check-in que la liste de révision.

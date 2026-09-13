@@ -63,30 +63,11 @@ String freshnessDiscreetLabel(FreshnessLevel level) {
   }
 }
 
-/// À surveiller au check-in (section "À prioriser") — jamais révisée ou
-/// clairement à l'abandon (6 mois+), pas les paliers intermédiaires. Switch
+/// Sous-titre de rakaa (`PrayerPlanCard`) : tout sauf "récente" — ce badge
+/// signale "pas complètement à jour" en continu dans PlanScreen. Switch
 /// exhaustif (pas un `==`/`||`) comme [freshnessColor]/[freshnessLabel] —
 /// ajouter un niveau à [FreshnessLevel] doit casser la compilation ici aussi,
-/// pas retomber silencieusement sur `false`.
-bool freshnessNeedsAttention(FreshnessLevel level) {
-  switch (level) {
-    case FreshnessLevel.neverRevised:
-    case FreshnessLevel.sixMonths:
-    case FreshnessLevel.oneYear:
-      return true;
-    case FreshnessLevel.partiallyRecent:
-    case FreshnessLevel.recent:
-    case FreshnessLevel.oneMonth:
-    case FreshnessLevel.threeMonths:
-      return false;
-  }
-}
-
-/// Sous-titre de rakaa (`PrayerPlanCard`) : tout sauf "récente" — seuil plus
-/// permissif que [freshnessNeedsAttention] (contexte UI différent : ce badge
-/// signale "pas complètement à jour" en continu dans PlanScreen, la section
-/// "À prioriser" du check-in ne remonte que les cas sévères). Switch exhaustif
-/// pour la même raison que ci-dessus.
+/// pas retomber silencieusement sur `true`/`false`.
 bool freshnessShowsBadge(FreshnessLevel level) {
   switch (level) {
     case FreshnessLevel.recent:

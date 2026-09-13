@@ -13,6 +13,7 @@ import '../widgets/hook_banner.dart';
 import '../widgets/outlined_action_button.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
+import '../widgets/step_dots.dart';
 import '../widgets/unit_range_label.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_chips_scaffold.dart';
@@ -252,7 +253,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
 
     return CheckHero(
       eyebrow: _isMultiDay ? S.checkOutRattrapageEyebrow : S.checkOutEyebrow,
-      extra: _isMultiDay ? _stepDots(palette, showPart2) : null,
+      extra: _isMultiDay ? StepDots(count: 2, current: showPart2 ? 1 : 0) : null,
       title: title,
       badge: badge,
     );
@@ -381,31 +382,6 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
         ),
       ),
     ];
-  }
-
-  Widget _stepDots(AppPalette palette, bool showPart2) {
-    Widget dot(bool active, String label) => Container(
-      width: 22,
-      height: 22,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: active ? palette.gold : Colors.transparent,
-        border: Border.all(color: palette.gold),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 11, color: palette.onPrimary),
-      ),
-    );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        dot(!showPart2, '1'),
-        Container(width: 24, height: 1, color: palette.gold),
-        dot(showPart2, '2'),
-      ],
-    );
   }
 
   Widget _part2Body(AppPalette palette) {
