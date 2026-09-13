@@ -8,9 +8,9 @@ import '../models/daily_session.dart';
 import '../models/revision_unit.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/outside_prayers_block.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/primary_cta_button.dart';
-import '../widgets/unit_range_label.dart';
 
 /// Répartition en rakaas d'un plan déjà validé au check-in (Phase 6 Sprint
 /// 2, voir cadrage "Moteur quotidien") — checklist active uniquement,
@@ -233,7 +233,8 @@ class _PlanScreenState extends State<PlanScreen> {
             ),
           ),
           SliverToBoxAdapter(child: _summaryBar()),
-          SliverToBoxAdapter(child: _outsidePrayersBlock()),
+          SliverToBoxAdapter(
+              child: OutsidePrayersBlock(units: widget.session.outsidePrayers)),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
             sliver: SliverList(
@@ -270,43 +271,6 @@ class _PlanScreenState extends State<PlanScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// Content that did not fit in the chosen prayers, shown read-only: the
-  /// rakaa layout is a display and must not hide day content the check-out
-  /// will still credit (cadrage 2026-09-08).
-  Widget _outsidePrayersBlock() {
-    final extra = widget.session.outsidePrayers;
-    if (extra.isEmpty) return const SizedBox.shrink();
-    final palette = context.palette;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: palette.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(S.horsPrieresTitre,
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: palette.textPrimary)),
-          const SizedBox(height: 4),
-          Text(S.horsPrieresDesc,
-              style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
-          const SizedBox(height: 10),
-          for (final u in extra)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: UnitRangeLabel(unit: u, nameColor: palette.textPrimary),
-            ),
-        ],
       ),
     );
   }

@@ -123,6 +123,16 @@ class AppState extends ChangeNotifier {
     await StorageService.setTourSeen();
     _notify();
   }
+
+  /// "Seen once" contextual hooks (US-1 criterion 5) — screens call
+  /// [hasSeenHook] to decide whether to show their first-visit banner, then
+  /// [markHookSeen] once it's dismissed. No local cache like [hasSeenTour]:
+  /// each hook is read once per screen visit, not on every rebuild, so the
+  /// extra SharedPreferences round-trip isn't worth a `Map` field to keep in
+  /// sync across the 4 hook ids.
+  Future<bool> hasSeenHook(String hookId) => StorageService.hasSeenHook(hookId);
+
+  Future<void> markHookSeen(String hookId) => StorageService.setHookSeen(hookId);
   /// Sourates du parcours actif, avec comptes de versets/mots corrects pour
   /// la riwaya active (Hafs 6236 versets au total, Warsh 6214 — les comptes
   /// par sourate diffèrent en conséquence). À utiliser à la place de

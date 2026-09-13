@@ -16,6 +16,7 @@ import '../widgets/outlined_action_button.dart';
 import '../widgets/pill_chip.dart';
 import '../widgets/prayer_selector.dart';
 import '../widgets/primary_cta_button.dart';
+import '../widgets/hook_banner.dart';
 import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/unit_row.dart';
 import '../widgets/verse_chip.dart';
@@ -42,7 +43,7 @@ class CheckInScreen extends StatefulWidget {
   State<CheckInScreen> createState() => _CheckInScreenState();
 }
 
-class _CheckInScreenState extends State<CheckInScreen> {
+class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin {
   List<RevisionUnit>? _units;
   LearningProgress? _learning;
   RevisionUnit? _learningUnit;
@@ -50,6 +51,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
   int _tahiyyatCount = 0;
   List<Prayer>? _lastPrayers;
   bool _isYesterday = false;
+
+  @override
+  String get hookId => 'check_in';
 
   /// Liste effective : prières sélectionnées + tahiyyatMasjid répété n fois.
   /// Les doublons sont intentionnels — chaque entrée à la mosquée est une
@@ -64,6 +68,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
     super.initState();
     _load();
     _loadLastPrayers();
+    loadHook();
   }
 
   /// Ce qui change au fil des ajustements de l'écran (unités du jour +
@@ -187,6 +192,13 @@ class _CheckInScreenState extends State<CheckInScreen> {
               child: Column(
                 children: [
                   _hero(units.fold(0, (s, u) => s + u.verseCount)),
+                  if (showHook)
+                    HookBanner(
+                      icon: Icons.wb_sunny_outlined,
+                      title: S.hookCheckInTitle,
+                      body: S.hookCheckInBody,
+                      onDismiss: dismissHook,
+                    ),
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),

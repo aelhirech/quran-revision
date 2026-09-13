@@ -39,7 +39,6 @@ class _OnboardingListStep extends StatelessWidget {
   final String subtitle;
   final List<Widget> children;
   final String ctaLabel;
-  final IconData? ctaIcon;
   final VoidCallback onCta;
 
   const _OnboardingListStep({
@@ -47,7 +46,6 @@ class _OnboardingListStep extends StatelessWidget {
     required this.subtitle,
     required this.children,
     required this.ctaLabel,
-    this.ctaIcon,
     required this.onCta,
   });
 
@@ -69,8 +67,7 @@ class _OnboardingListStep extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
             child: SizedBox(
               width: double.infinity,
-              child:
-                  PrimaryCtaButton(label: ctaLabel, icon: ctaIcon, onPressed: onCta),
+              child: PrimaryCtaButton(label: ctaLabel, onPressed: onCta),
             ),
           ),
         ],

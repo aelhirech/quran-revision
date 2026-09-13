@@ -17,6 +17,7 @@ class StorageService {
   static const _keyLastSessionPrayers = 'last_session_prayers';
   static const _keyActivePrayers = 'active_round_prayers';
   static const _keySealedDate = 'last_sealed_date';
+  static const _keyHookSeenPrefix = 'hook_seen_';
 
   /// Hafs et Warsh sont deux parcours indépendants (config, cycle, pauses)
   /// — ces clés sont donc préfixées par riwaya. Langue/riwaya-
@@ -221,6 +222,19 @@ class StorageService {
   static Future<void> setTourSeen() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyTourSeen, true);
+  }
+
+  /// "Seen once" flags for the contextual onboarding hooks (US-1 criterion
+  /// 5) — one boolean per [hookId], global like [hasSeenTour] (UI state, no
+  /// historical value, so no riwaya prefix).
+  static Future<bool> hasSeenHook(String hookId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('$_keyHookSeenPrefix$hookId') ?? false;
+  }
+
+  static Future<void> setHookSeen(String hookId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('$_keyHookSeenPrefix$hookId', true);
   }
 
   /// Réinitialise uniquement la configuration de révision (sourates, cycle,
