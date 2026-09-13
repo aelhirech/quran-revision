@@ -285,12 +285,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           if (showIntroAndRiwaya) _IntroPage(onNext: _nextPage),
           if (showIntroAndRiwaya) _RiwayaPage(onSelect: _confirmRiwaya),
-          // Demo mini-cycle (US-1 criterion 2) — only on the very first
-          // onboarding: switching to a riwaya already configured once
-          // doesn't need to "feel" the app a second time, that would just
-          // add friction (criterion adjustment confirmed at scoping,
-          // 2026-09-13).
-          if (showIntroAndRiwaya) _DemoPage(onNext: _nextPage),
           _SelectionPage(
             selections: _selections,
             totalVerses: _totalVerses,
@@ -312,6 +306,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             onNext: _nextPage,
           ),
           _NotificationsPage(onBack: _prevPage, onNext: _nextPage),
+          // Demo mini-cycle (US-1 criterion 2) — moved to the end of the
+          // wizard (2026-09-13, user feedback after trying the first
+          // placement right after Riwaya: it felt ungrounded there, with no
+          // context yet about the user's own surahs/pace). Only on the very
+          // first onboarding: switching to a riwaya already configured once
+          // doesn't need to "feel" the app a second time, that would just
+          // add friction.
+          if (showIntroAndRiwaya) _DemoPage(onNext: _nextPage),
           // Real preview of day-1's plan (US-1 criterion 4) — derived from
           // the actual selection/pace already chosen, never skippable.
           _PreviewPage(
