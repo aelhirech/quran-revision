@@ -43,6 +43,9 @@ class S {
   static String get souratesMemoriees => _t('Sourates mémorisées', 'Memorized surahs');
   static String get reinitialiser => _t('Réinitialiser la configuration', 'Reset configuration');
   static String get reinitDesc => _t('Repart de zéro avec une nouvelle sélection', 'Start over with a new selection');
+  static String get configBloqueeJourEnAttente => _t(
+      'Une journée précédente attend encore sa clôture — termine-la avant de changer ta configuration.',
+      'A previous day is still waiting to be closed out — finish it before changing your setup.');
   static String get modifierDuree => _t('Modifier le rythme', 'Edit pace');
   static String get rythmeLabelCourt => _t('Rythme', 'Pace');
   static String get dureePersonnalisee => _t('Personnalisé…', 'Custom…');

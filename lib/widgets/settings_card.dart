@@ -39,6 +39,15 @@ class _SettingsCardState extends State<SettingsCard> {
     }
   }
 
+  Future<void> _toggleShuffle(bool val) async {
+    final saved = await context.read<AppState>().setShuffleEnabled(val);
+    if (!mounted) return;
+    if (!saved) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(S.configBloqueeJourEnAttente)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -84,7 +93,7 @@ class _SettingsCardState extends State<SettingsCard> {
               title: Text(S.aleatoireLabel),
               subtitle: Text(S.aleatoireSubtitle),
               value: context.watch<AppState>().config?.shuffleEnabled ?? true,
-              onChanged: (val) => context.read<AppState>().setShuffleEnabled(val),
+              onChanged: _toggleShuffle,
             ),
             const Divider(height: 1, indent: 56),
             SwitchListTile(

@@ -89,7 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> with HookVisibilityMixin 
     // tout champ oublié (c'est arrivé à `versesToLearnPerDay`, Phase 9) et
     // c'est la règle CLAUDE.md « mise à jour uniquement via copyWith() ».
     final existing = state.config;
-    await state.saveConfig(existing != null
+    final saved = await state.saveConfig(existing != null
         ? existing.copyWith(
             selections: selections,
             pagesPerDay: _pagesPerDay,
@@ -101,7 +101,13 @@ class _ProfileScreenState extends State<ProfileScreen> with HookVisibilityMixin 
             startDate: DateTime.now(),
             riwaya: state.riwaya,
           ));
-    if (mounted) setState(() => _editing = false);
+    if (!mounted) return;
+    if (!saved) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(S.configBloqueeJourEnAttente)));
+      return;
+    }
+    setState(() => _editing = false);
   }
 
   Future<void> _showDurationDialog() async {
