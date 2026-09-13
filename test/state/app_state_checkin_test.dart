@@ -504,4 +504,73 @@ void main() {
         reason: 'sans la plage, le DELETE effaçait les DEUX fragments');
     expect([restant.first.verseStart, restant.first.verseEnd], [1, 5]);
   });
+
+  test(
+      'saveConfig refuse un changement de sélection tant qu\'un jour '
+      'précédent est en attente de check-out — régression backlog P1 '
+      '"config modifiable pendant un jour en attente" : sceller ce jour lit '
+      '`_selection` depuis la config COURANTE (checkOut), donc changer la '
+      'sélection avant de le sceller le ferait recompter sur un cycle que sa '
+      'propre proposition n\'a jamais produit', () async {
+    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final config = _config();
+    final state = AppState(config, riwaya: Riwaya.hafs);
+
+    await AyahFactsRitual.proposeUnits(yesterday, Riwaya.hafs,
+        [RevisionUnit(sourate: _sourate(60), verseStart: 1, verseEnd: 5, isWhole: false)]);
+    await state.ensureDayPlan();
+    expect(state.pendingDate, yesterday);
+
+    final nouvelleSelection = config.copyWith(
+        selections: [SourateSelection.whole(_sourate(70))]);
+    final saved = await state.saveConfig(nouvelleSelection);
+
+    expect(saved, isFalse,
+        reason: 'la sélection ne doit pas changer tant que le jour en '
+            'attente n\'a pas été scellé');
+    expect(state.config!.selections.map((s) => s.sourate.id).toSet(), {60, 65},
+        reason: 'la config doit rester celle qui a produit la proposition en attente');
+    expect(state.cyclePosition, 0,
+        reason: 'aucun effet de bord : le curseur ne doit pas avoir bougé');
+
+    await state.checkOut(yesterday);
+    expect(state.pendingDate, isNull);
+
+    final apresScellement =
+        await state.saveConfig(nouvelleSelection);
+    expect(apresScellement, isTrue,
+        reason: 'une fois le jour en attente scellé, la sélection redevient modifiable');
+    expect(state.config!.selections.map((s) => s.sourate.id).toSet(), {70});
+  });
+
+  test(
+      'setShuffleEnabled refuse le changement tant qu\'un jour précédent est '
+      'en attente de check-out — même risque que saveConfig : buildCycle '
+      'réordonne aussi sur shuffleEnabled, pas seulement sur selections '
+      '(trouvé en /code-review du sprint config-lock-pending)', () async {
+    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final config = _config(); // shuffleEnabled: false
+    final state = AppState(config, riwaya: Riwaya.hafs);
+
+    await AyahFactsRitual.proposeUnits(yesterday, Riwaya.hafs,
+        [RevisionUnit(sourate: _sourate(60), verseStart: 1, verseEnd: 5, isWhole: false)]);
+    await state.ensureDayPlan();
+    expect(state.pendingDate, yesterday);
+
+    final saved = await state.setShuffleEnabled(true);
+
+    expect(saved, isFalse,
+        reason: 'le mélange ne doit pas changer tant que le jour en attente n\'a pas été scellé');
+    expect(state.config!.shuffleEnabled, isFalse,
+        reason: 'la config doit rester celle qui a produit la proposition en attente');
+    expect(state.cyclePosition, 0,
+        reason: 'aucun effet de bord : le curseur ne doit pas avoir bougé');
+
+    await state.checkOut(yesterday);
+
+    final apresScellement = await state.setShuffleEnabled(true);
+    expect(apresScellement, isTrue,
+        reason: 'une fois le jour en attente scellé, le mélange redevient modifiable');
+    expect(state.config!.shuffleEnabled, isTrue);
+  });
 }

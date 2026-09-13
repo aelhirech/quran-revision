@@ -232,9 +232,20 @@ class AppState extends ChangeNotifier {
   /// Only resets the cycle when the selected surahs actually changed — a
   /// mere pace adjustment (duration, lines/day) must not erase progress or
   /// the current day plan.
-  Future<void> saveConfig(UserConfig config) async {
+  ///
+  /// Returns `false` (config left untouched) if the selection changes while
+  /// an older day is still pending check-out ([pendingDate]): that day's
+  /// `ayah_facts` rows were proposed from the CURRENT cycle, and sealing it
+  /// reads `_selection` fresh from `_config` (see `checkOut`) — a selection
+  /// change here (plus the `cyclePosition` reset below) would seal it against
+  /// a cycle its own proposal never came from. A pace-only change is exempt
+  /// ([setPagesPerDay] already guards its own, narrower risk on `todayClosed`
+  /// instead of `pendingDate`: today's plan can still be re-proposed, an
+  /// older pending day never touches `_selection` again once sealed).
+  Future<bool> saveConfig(UserConfig config) async {
     final selectionsChanged =
         _config == null || !_sameSelections(_config!.selections, config.selections);
+    if (selectionsChanged && _pendingDate != null) return false;
     _config = config;
     await StorageService.saveConfig(config, _riwaya);
     if (selectionsChanged) {
@@ -243,6 +254,7 @@ class AppState extends ChangeNotifier {
       await StorageService.saveCyclePosition(0, _riwaya);
     }
     _notify();
+    return true;
   }
 
   bool _sameSelections(List<SourateSelection> a, List<SourateSelection> b) {
@@ -279,14 +291,21 @@ class AppState extends ChangeNotifier {
   /// Toggling the shuffle rebuilds the cycle in a completely different order,
   /// so the cursor no longer designates the page it used to — it restarts,
   /// exactly like [saveConfig] does when the selection changes.
-  Future<void> setShuffleEnabled(bool enabled) async {
-    if (_config == null || _config!.shuffleEnabled == enabled) return;
+  ///
+  /// Returns `false` (config left untouched) under the same [pendingDate]
+  /// guard as [saveConfig]: `buildCycle` reorders on `shuffleEnabled` just as
+  /// it does on `selections`, so flipping this mid-pending-day would corrupt
+  /// that day's seal the same way an unguarded selection change would.
+  Future<bool> setShuffleEnabled(bool enabled) async {
+    if (_config == null || _config!.shuffleEnabled == enabled) return true;
+    if (_pendingDate != null) return false;
     _config = _config!.copyWith(shuffleEnabled: enabled);
     _cyclePosition = 0;
     _todaySession = null;
     await StorageService.saveConfig(_config!, _riwaya);
     await StorageService.saveCyclePosition(0, _riwaya);
     _notify();
+    return true;
   }
 
   Future<void> clearConfig() async {
