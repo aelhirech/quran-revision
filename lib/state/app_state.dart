@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../core/freshness_engine.dart';
 import '../core/quran_data.dart';
+import '../core/rakaa_distributor.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/ayah_fact.dart';

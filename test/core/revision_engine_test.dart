@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quran_revision/core/rakaa_distributor.dart';
 import 'package:quran_revision/core/revision_engine.dart';
 import 'package:quran_revision/models/daily_session.dart';
 import 'package:quran_revision/models/prayer.dart';
@@ -442,7 +443,7 @@ void main() {
         cyclePosition: 0,
         pageMetadata: mockPageMetadata,
       );
-      final layout = RevisionEngine.distributeToRakaas(
+      final layout = RakaaDistributor.distributeToRakaas(
         units: selection.units,
         prayersAlone: [Prayer.fajr],
       );
@@ -457,7 +458,7 @@ void main() {
     });
   });
 
-  group('RevisionEngine.distributeToRakaas — contenu hors prières (règle D)',
+  group('RakaaDistributor.distributeToRakaas — contenu hors prières (règle D)',
       () {
     test(
         'une unité subdivisée pour remplir les rakaas ne produit jamais de '
@@ -465,7 +466,7 @@ void main() {
         'toute la journée en double (bug 2026-09-08)', () {
       // 1 unité de 20 versets, 2 rakaas récitées : le moteur la coupe en deux
       // sous-plages, qu'aucune égalité de valeur ne rattache à l'unité mère.
-      final layout = RevisionEngine.distributeToRakaas(
+      final layout = RakaaDistributor.distributeToRakaas(
         units: [
           RevisionUnit(
               sourate: _sourate(2, 286, 6000),
@@ -496,7 +497,7 @@ void main() {
               isWhole: true),
       ];
       // Fajr = 2 rakaas récitées, donc 2 unités placées et 3 laissées de côté.
-      final layout = RevisionEngine.distributeToRakaas(
+      final layout = RakaaDistributor.distributeToRakaas(
           units: units, prayersAlone: [Prayer.fajr]);
       expect(layout.outside, hasLength(3));
       final placed = {
@@ -511,7 +512,7 @@ void main() {
     });
   });
 
-  group('RevisionEngine.distributeToRakaas — apprentissage (Phase 9)', () {
+  group('RakaaDistributor.distributeToRakaas — apprentissage (Phase 9)', () {
     // Fajr (2 rakaas récitées) + Maghrib (3 rakaas, 2 récitées) = 4 rakaas
     // récitées au total, dont la dernière revient à l'apprentissage.
     final prayers = [Prayer.fajr, Prayer.maghrib];
@@ -532,7 +533,7 @@ void main() {
 
     test("la portion à apprendre occupe la toute dernière rakaa récitée du jour",
         () {
-      final layout = RevisionEngine.distributeToRakaas(
+      final layout = RakaaDistributor.distributeToRakaas(
         units: revision,
         prayersAlone: prayers,
         learningUnit: learning,
@@ -551,7 +552,7 @@ void main() {
 
     test('sans portion à apprendre, la dernière rakaa reste de la révision', () {
       final plan =
-          RevisionEngine.distributeToRakaas(units: revision, prayersAlone: prayers).plan;
+          RakaaDistributor.distributeToRakaas(units: revision, prayersAlone: prayers).plan;
       final filled = recited(plan);
       expect(filled.length, 4);
       expect(filled.every((r) => !r.isLearning), isTrue);
@@ -571,7 +572,7 @@ void main() {
         cyclePosition: 0,
         pageMetadata: const {},
       );
-      final layout = RevisionEngine.distributeToRakaas(
+      final layout = RakaaDistributor.distributeToRakaas(
         units: selection.units,
         prayersAlone: [Prayer.fajr],
       );

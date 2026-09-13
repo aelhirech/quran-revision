@@ -103,7 +103,11 @@ Depuis Phase 6 Sprint 2, éclaté en deux fonctions pures indépendantes plutôt
 - **`pagesOf()`** compte des numéros de page distincts sur une plage exacte — utilisé pour `DailySession.pagesToday`, calculé sur les unités réellement retenues (donc après édition au check-in).
 - **Migration** : le curseur ayant changé d'unité, `StorageService.migrateCycleToPages()` remet `cyclePosition` à 0 une fois pour toutes les riwayas (décision produit explicite, pas une conversion).
 
-**`distributeToRakaas()`** (étapes 3-4 de l'ancien algorithme, inchangées par le passage aux pages/jour — confirmé au cadrage) — répartit des unités déjà choisies (par `buildDayUnits()`, ou lues depuis `ayah_facts` après édition au check-in) dans les rakaas des prières données.
+### 5.1bis `RakaaDistributor` (`lib/core/rakaa_distributor.dart`)
+
+Extrait de `revision_engine.dart` au sprint du 2026-09-13 (§8.5/backlog technique, fichier passé de 428 à 243 lignes) — répartition en rakaas pure, sans dépendance vers la construction du cycle : ne lit que `RevisionUnit`/`Prayer`/`PrayerPlan`/`RakaaAssignment`. Purement mécanique (aucune règle métier changée), les appelants passent de `RevisionEngine.distributeToRakaas` à `RakaaDistributor.distributeToRakaas`.
+
+**`distributeToRakaas()`** (étapes 3-4 de l'ancien algorithme, inchangées par le passage aux pages/jour — confirmé au cadrage) — répartit des unités déjà choisies (par `RevisionEngine.buildDayUnits()`, ou lues depuis `ayah_facts` après édition au check-in) dans les rakaas des prières données.
 
 Retourne `({plan, outside})` depuis la revue de fin de Phase 9 : `outside` est le contenu du jour qui **n'a pas tenu** dans les rakaas (règle D de `CLAUDE.md`), et alimente `DailySession.outsidePrayers`. Seul le moteur peut le dire — lui seul sait s'il a *subdivisé* (`units.length <= budget` : chaque unité est éclatée en sous-plages, rien n'est laissé de côté) ou *tronqué* (`units.length > budget` : les unités que `_UnitPool` n'a jamais consommées partent hors prières). Le re-dériver côté `AppState` par différence d'ensembles était faux dès qu'une subdivision avait lieu : `RevisionUnit.==` porte sur la plage de versets, donc une sous-plage n'est jamais égale à son unité mère et **toute la journée** retombait dans « hors prières ».
 
@@ -520,7 +524,8 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 
 | Je veux… | Fichier |
 |---|---|
-| Comprendre/modifier l'algorithme de distribution du plan du jour | `lib/core/revision_engine.dart` |
+| Comprendre/modifier la construction du cycle (pages/jour) | `lib/core/revision_engine.dart` |
+| Comprendre/modifier la répartition en rakaas | `lib/core/rakaa_distributor.dart` |
 | Comprendre le calcul de fraîcheur (SRS léger) | `lib/core/freshness_engine.dart` |
 | Comprendre le calcul de streak | `lib/core/streak_engine.dart` |
 | Ajouter/modifier une chaîne affichée à l'utilisateur | `lib/core/strings.dart` |

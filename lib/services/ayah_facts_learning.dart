@@ -138,7 +138,7 @@ class AyahFactsLearning {
   /// (`reach = 0` = visé, pas encore acquis ; `ConflictAlgorithm.ignore` pour
   /// ne jamais écraser un verset déjà marqué appris). C'est ce que la
   /// dernière rakaa du plan du jour fait réciter (voir
-  /// `RevisionEngine.distributeToRakaas`).
+  /// `RakaaDistributor.distributeToRakaas`).
   static Future<void> proposeLearnVerses(
       String date, Riwaya riwaya, int surahId, List<int> ayahIds) async {
     if (ayahIds.isEmpty) return;
