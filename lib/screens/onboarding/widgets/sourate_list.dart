@@ -1,5 +1,10 @@
 part of '../onboarding_screen.dart';
 
+// Sticky Hizb headers via SliverStickyHeader (sliver_tools): plain
+// SliverPersistentHeader(pinned: true) per section doesn't coordinate
+// across sibling slivers — short Hizb sections leave old headers stacked
+// on screen instead of being replaced, eventually hiding the list.
+
 /// Segment de la liste des sourates : `header` non-null = groupe Hizb
 /// (rendu en en-tête épinglé), `header == null` = liste plate (recherche
 /// active ou groupement désactivé).
@@ -51,23 +56,47 @@ class _SourateList extends StatelessWidget {
     final sections = _sectionize(items);
     return CustomScrollView(
       slivers: [
-        for (final section in sections) ...[
+        for (final section in sections)
           if (section.header != null)
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _HizbHeaderDelegate(
-                label: S.hizb(section.header!),
-                palette: palette,
+            SliverStickyHeader(
+              header: _hizbHeader(palette, S.hizb(section.header!)),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) => _tile(palette, section.entries[i]),
+                  childCount: section.entries.length,
+                ),
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => _tile(palette, section.entries[i]),
+                childCount: section.entries.length,
               ),
             ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, i) => _tile(palette, section.entries[i]),
-              childCount: section.entries.length,
-            ),
-          ),
-        ],
       ],
+    );
+  }
+
+  Widget _hizbHeader(AppPalette palette, String label) {
+    return Container(
+      height: 28,
+      color: Color.alphaBlend(palette.gold.withValues(alpha: 0.14), palette.cream),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      // FittedBox : l'en-tête épinglé a une hauteur fixe (height ci-dessus) —
+      // sans ça, un réglage d'accessibilité "texte agrandi" ferait déborder
+      // le label hors de sa bande.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: palette.goldDark,
+                letterSpacing: 0.8)),
+      ),
     );
   }
 
@@ -124,42 +153,4 @@ class _SourateList extends StatelessWidget {
       ),
     );
   }
-}
-
-class _HizbHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final String label;
-  final AppPalette palette;
-
-  const _HizbHeaderDelegate({required this.label, required this.palette});
-
-  @override
-  double get minExtent => 28;
-  @override
-  double get maxExtent => 28;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: Color.alphaBlend(palette.gold.withValues(alpha: 0.14), palette.cream),
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      // FittedBox : l'en-tête épinglé a une hauteur fixe (minExtent/maxExtent
-      // ci-dessus) — sans ça, un réglage d'accessibilité "texte agrandi"
-      // ferait déborder le label hors de sa bande.
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: palette.goldDark,
-                letterSpacing: 0.8)),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _HizbHeaderDelegate oldDelegate) =>
-      label != oldDelegate.label || palette != oldDelegate.palette;
 }
