@@ -75,14 +75,14 @@ void main() {
             'le nombre choisi au check-in pré-remplit les jours suivants '
             '(UserConfig.versesToLearnPerDay)');
 
-    await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });
 
   test('les versets déjà acquis un jour précédent sont sautés, pas reproposés',
       () async {
     final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
-    await AyahFactsService.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
-    await AyahFactsService.setReachForVerses(
+    await AyahFactsLearning.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
+    await AyahFactsRitual.setReachForVerses(
         yesterday, Riwaya.hafs, 108, [1], true,
         type: AyahFactType.learn);
 
@@ -93,7 +93,7 @@ void main() {
         reason: 'le verset 1 est déjà acquis : la portion du jour démarre à 2');
     expect((await state.todayLearningUnit())!.verseEnd, 3);
 
-    await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });
 
   test(
@@ -101,20 +101,20 @@ void main() {
       "d'apprentissage", () async {
     final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
     // Sourate démarrée hier, aucun verset encore acquis (reach=0).
-    await AyahFactsService.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
+    await AyahFactsLearning.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
 
     final state = newState();
     await state.ensureDayPlan();
 
     expect(state.pendingDate, isNull,
         reason: 'des lignes `learn` ne rendent pas un jour "en attente" — '
-            'seul le type `revise` compte (AyahFactsService.pendingDate)');
+            'seul le type `revise` compte (AyahFactsRitual.pendingDate)');
     expect(await state.todayLearningUnit(), isNotNull);
     expect((await state.todayLearningUnit())!.sourate.id, 108);
     expect((await state.todayLearningUnit())!.verseEnd, 3,
         reason: 'versesToLearnPerDay par défaut = 3, la sourate en fait 3');
 
-    await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });
 
   test(
@@ -144,7 +144,7 @@ void main() {
     expect(await state.handOffLearnedSurahs(), isEmpty,
         reason: 'la bascule est idempotente : rien à re-signaler');
 
-    await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });
 
   test(
@@ -157,25 +157,25 @@ void main() {
     // `checked_out = 1`, et son id est plus petit que 108 — sans le filtre,
     // l'`ORDER BY surah_id` la ferait passer pour la portion du jour et le
     // check-out proposerait de « désapprendre » ces versets acquis.
-    await AyahFactsService.learnVerses(30, [1, 2], Riwaya.hafs);
+    await AyahFactsLearning.learnVerses(30, [1, 2], Riwaya.hafs);
 
-    final plan = await AyahFactsService.learnPlanFor(today, Riwaya.hafs);
+    final plan = await AyahFactsLearning.learnPlanFor(today, Riwaya.hafs);
     expect(plan!.surahId, 108);
     expect(plan.ayahIds, [1, 2]);
 
-    await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
-    await AyahFactsService.deleteLearnFacts(30, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(30, Riwaya.hafs);
   });
 
   test(
       '« Je n\'apprends rien aujourd\'hui » survit à une réouverture de l\'app',
       () async {
     final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
-    await AyahFactsService.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
+    await AyahFactsLearning.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
     // Les tests de ce fichier partagent la même base : repartir d'une
     // journée réellement neuve, sinon `ensureDayPlan` considère le plan du
     // jour comme déjà généré (c'est justement ce que ce test vérifie).
-    await AyahFactsService.clearDayProposal(_isoDate(DateTime.now()), Riwaya.hafs);
+    await AyahFactsRitual.clearDayProposal(_isoDate(DateTime.now()), Riwaya.hafs);
 
     final state = newState();
     await state.ensureDayPlan(); // génère le plan du jour + propose la suite
@@ -189,7 +189,7 @@ void main() {
         reason: 'la proposition n\'est faite qu\'au moment où le plan du jour '
             'est généré — sinon le refus serait annulé à chaque ouverture');
 
-    await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });
 
   test(
@@ -209,7 +209,7 @@ void main() {
     await state.extendLearningForDate(today);
     expect((await state.learningPlanFor(today))!.ayahIds, [1, 2, 3]);
 
-    await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });
 
   test(
@@ -228,7 +228,7 @@ void main() {
     // Le moteur n'en propose qu'un (pagesPerDay = 1) ; l'utilisateur déclare
     // aussi le suivant, et coche tout.
     for (final group in groups) {
-      await AyahFactsService.proposeUnits(day, Riwaya.hafs, group);
+      await AyahFactsRitual.proposeUnits(day, Riwaya.hafs, group);
     }
     await state.markUnitsReached(
         [for (final g in groups) ...g], date: day);
@@ -254,7 +254,7 @@ void main() {
       config: state.config!,
       pageMetadata: PageMetadataService.pageMetadataFor(Riwaya.hafs),
     );
-    await AyahFactsService.proposeUnits(day, Riwaya.hafs, groups.first);
+    await AyahFactsRitual.proposeUnits(day, Riwaya.hafs, groups.first);
     await state.addToDayPlan(
         RevisionUnit(
             sourate: extra, verseStart: 1, verseEnd: extra.verses, isWhole: true),
@@ -280,12 +280,12 @@ void main() {
     await state.markLearnVerses(today, 108, [1, 2], true);
     await state.markLearnVerses(today, 108, [3], false);
 
-    final plan = await AyahFactsService.learnPlanFor(today, Riwaya.hafs);
+    final plan = await AyahFactsLearning.learnPlanFor(today, Riwaya.hafs);
     expect(plan!.reachedVerses, {1, 2});
     final handed = await state.handOffLearnedSurahs();
     expect(handed, isEmpty,
         reason: 'sourate incomplète : pas de bascule en révision');
 
-    await AyahFactsService.deleteLearnFacts(108, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });
 }

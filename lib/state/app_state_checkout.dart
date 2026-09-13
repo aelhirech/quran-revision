@@ -21,7 +21,7 @@ extension AppStateCheckOut on AppState {
   /// toute l'opération.
   Future<void> markUnitsReached(List<RevisionUnit> units,
       {String? date, bool reach = true}) async {
-    await AyahFactsService.setReachForUnits(date ?? todayStr, _riwaya, units, reach);
+    await AyahFactsRitual.setReachForUnits(date ?? todayStr, _riwaya, units, reach);
   }
 
   /// Bascule "fait/pas fait" pour une rakaa de PlanScreen — remplace
@@ -48,14 +48,14 @@ extension AppStateCheckOut on AppState {
   }
 
   /// Statut `reach` d'aujourd'hui pour chaque unité unique de [units] — une
-  /// seule requête ([AyahFactsService.reachedVersesToday]), le résultat
+  /// seule requête ([AyahFactsRitual.reachedVersesToday]), le résultat
   /// exact par plage étant recalculé en Dart (pas par sourate comme
   /// [dayUnitsWithStatus], qui agrégerait à tort deux plages distinctes de la
   /// même sourate assignées à des rakaas différents). Consommé par
   /// PlanScreen pour l'état "coché" de chaque rakaa.
   Future<Map<RevisionUnit, bool>> reachStatusFor(Iterable<RevisionUnit> units,
       {bool learning = false}) async {
-    final reachedByVerse = await AyahFactsService.reachedVersesToday(
+    final reachedByVerse = await AyahFactsRitual.reachedVersesToday(
         todayStr, _riwaya,
         type: learning ? AyahFactType.learn : AyahFactType.revise);
     // Côté apprentissage, la vérité est la liste des versets réellement
@@ -79,7 +79,7 @@ extension AppStateCheckOut on AppState {
   /// check-out, granularité verset (pas la sourate entière).
   Future<void> setVerseNeedsWork(
       String date, int surahId, int ayahId, bool needsWork) async {
-    await AyahFactsService.setNeedsWork(date, _riwaya, surahId, ayahId, needsWork);
+    await AyahFactsRitual.setNeedsWork(date, _riwaya, surahId, ayahId, needsWork);
     _notify();
   }
 
@@ -87,7 +87,7 @@ extension AppStateCheckOut on AppState {
   /// [learning], pour une portion à apprendre (`type='learn'`).
   Future<void> setUnitReach(String date, RevisionUnit unit, bool reach,
       {bool learning = false}) async {
-    await AyahFactsService.setReach(date, _riwaya, unit.sourate.id,
+    await AyahFactsRitual.setReach(date, _riwaya, unit.sourate.id,
         unit.verseStart, unit.verseEnd, reach,
         type: learning ? AyahFactType.learn : AyahFactType.revise);
     _notify();
@@ -113,7 +113,7 @@ extension AppStateCheckOut on AppState {
       final group = cycle[(selection.cyclePosition + step) % cycle.length];
       bool anyExists = false;
       for (final unit in group) {
-        final status = await AyahFactsService.rangeStatus(
+        final status = await AyahFactsRitual.rangeStatus(
             date, _riwaya, unit.sourate.id, unit.verseStart, unit.verseEnd);
         if (!status.exists) continue; // retirée au check-in — ne bloque pas
         anyExists = true;
@@ -170,7 +170,7 @@ extension AppStateCheckOut on AppState {
     if (_config == null) return false;
     // Passe moteur (CPU pur) et lecture SQLite indépendantes — démarrées
     // ensemble plutôt qu'en série.
-    final sealedF = AyahFactsService.isDaySealed(date, _riwaya);
+    final sealedF = AyahFactsRitual.isDaySealed(date, _riwaya);
     final selection = _selection;
     // Une journée déjà scellée peut être re-clôturée : « Clôturer ma journée »
     // (Phase 9 Sprint 2) n'empêche pas de relancer une manche derrière, et le
@@ -192,7 +192,7 @@ extension AppStateCheckOut on AppState {
     // Écritures indépendantes (table ayah_facts, prefs, cycle) — lancées en
     // parallèle plutôt qu'en série.
     await Future.wait([
-      AyahFactsService.sealDay(date, _riwaya),
+      AyahFactsRitual.sealDay(date, _riwaya),
       StorageService.saveSealedDate(date, _riwaya),
       refreshFreshness(notify: false),
       clearTodaySession(notify: false),

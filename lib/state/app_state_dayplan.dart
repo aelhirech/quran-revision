@@ -25,7 +25,7 @@ extension AppStateDayPlan on AppState {
   /// validées au check-in — reconstruites depuis `ayah_facts`, jamais
   /// recalculées indépendamment (voir cadrage).
   Future<List<RevisionUnit>> dayUnits({String? date}) async {
-    final groups = await AyahFactsService.dayFacts(date ?? todayStr, _riwaya);
+    final groups = await AyahFactsRitual.dayFacts(date ?? todayStr, _riwaya);
     return groups.map(_unitFor).whereType<RevisionUnit>().toList();
   }
 
@@ -41,7 +41,7 @@ extension AppStateDayPlan on AppState {
   /// re-credit what they had unchecked.
   Future<List<({RevisionUnit unit, Set<int> needsWorkVerses, bool reach})>>
       dayUnitsWithStatus({String? date}) async {
-    final groups = await AyahFactsService.dayFacts(date ?? todayStr, _riwaya);
+    final groups = await AyahFactsRitual.dayFacts(date ?? todayStr, _riwaya);
     return [
       for (final g in groups)
         if (_unitFor(g) case final unit?)
@@ -50,10 +50,10 @@ extension AppStateDayPlan on AppState {
   }
 
   /// La journée [date] a-t-elle déjà été scellée ? Voir
-  /// [AyahFactsService.isDaySealed] — exposé pour que CheckOutScreen sache
+  /// [AyahFactsRitual.isDaySealed] — exposé pour que CheckOutScreen sache
   /// s'il rouvre une clôture ou s'il en fait une première.
   Future<bool> isDaySealed(String date) =>
-      AyahFactsService.isDaySealed(date, _riwaya);
+      AyahFactsRitual.isDaySealed(date, _riwaya);
 
   /// Position/total du cycle en cours, à afficher (bandeau HomeScreen, carte
   /// cycle RecapScreen) — dérivés du même [_selection] que le plan du jour
@@ -86,7 +86,7 @@ extension AppStateDayPlan on AppState {
 
   /// Point d'entrée du moteur quotidien — à appeler à l'ouverture/reprise de
   /// l'app (voir ShellScreen). Gated sur un éventuel jour en attente
-  /// STRICTEMENT antérieur à aujourd'hui (voir `AyahFactsService.pendingDate`) :
+  /// STRICTEMENT antérieur à aujourd'hui (voir `AyahFactsRitual.pendingDate`) :
   /// tant qu'il n'est pas scellé, aucun nouveau plan n'est généré (sinon
   /// `cyclePosition` n'aurait pas encore avancé pour ce jour-là, et le
   /// nouveau plan proposerait les mêmes versets une seconde fois).
@@ -99,8 +99,8 @@ extension AppStateDayPlan on AppState {
     final today = todayStr;
     // Deux lectures indépendantes — démarrées ensemble, comme le bloc
     // ci-dessous : c'est le chemin d'ouverture de l'app.
-    final pendingF = AyahFactsService.pendingDate(riwaya: _riwaya);
-    final sealedF = AyahFactsService.isDaySealed(today, _riwaya);
+    final pendingF = AyahFactsRitual.pendingDate(riwaya: _riwaya);
+    final sealedF = AyahFactsRitual.isDaySealed(today, _riwaya);
     final sealedDateF = StorageService.loadSealedDate(_riwaya);
     _pendingDate = await pendingF;
     final sealed = await sealedF;
@@ -112,8 +112,8 @@ extension AppStateDayPlan on AppState {
     if (_pendingDate == null) {
       // Lectures indépendantes démarrées ensemble plutôt qu'en série — c'est
       // le chemin d'ouverture de l'app (ShellScreen.initState).
-      final existingF = AyahFactsService.dayFacts(today, _riwaya);
-      final learnPlanF = AyahFactsService.learnPlanFor(today, _riwaya);
+      final existingF = AyahFactsRitual.dayFacts(today, _riwaya);
+      final learnPlanF = AyahFactsLearning.learnPlanFor(today, _riwaya);
       final activePrayersF = StorageService.loadActivePrayers(_riwaya);
       // Le plan du jour n'est généré qu'une fois par jour — la proposition
       // d'apprentissage est gatée sur ce même moment, pas seulement sur
@@ -124,7 +124,7 @@ extension AppStateDayPlan on AppState {
       // n'écrit rien, la journée reste vue comme neuve et le refus est
       // reproposé à chaque ouverture — sans conséquence sur les données.
       if ((await existingF).isEmpty) {
-        await AyahFactsService.proposeUnits(
+        await AyahFactsRitual.proposeUnits(
             today, _riwaya, _selection.units);
         if (await learnPlanF == null) {
           final inProgress = await learningInProgress();
@@ -148,7 +148,7 @@ extension AppStateDayPlan on AppState {
   /// Check-in (et ligne « Rythme » des Réglages) : ajuste le budget de
   /// pages/jour et régénère la proposition de révision du jour en conséquence
   /// (les lignes déjà `reach=1` sont conservées, voir
-  /// `AyahFactsService.clearDayProposal`).
+  /// `AyahFactsRitual.clearDayProposal`).
   ///
   /// **Sauf si la journée est déjà clôturée** : depuis « Clôturer ma journée »
   /// (Phase 9 Sprint 2), aujourd'hui peut être scellé alors qu'il est encore
@@ -163,8 +163,8 @@ extension AppStateDayPlan on AppState {
     await StorageService.saveConfig(_config!, _riwaya);
     if (!todayClosed) {
       final today = todayStr;
-      await AyahFactsService.clearDayProposal(today, _riwaya);
-      await AyahFactsService.proposeUnits(
+      await AyahFactsRitual.clearDayProposal(today, _riwaya);
+      await AyahFactsRitual.proposeUnits(
           today, _riwaya, _selection.units);
       // Une manche déjà répartie en rakaas porterait des unités qui viennent
       // d'être effacées de la table — ses cases cochées reviendraient en
@@ -195,7 +195,7 @@ extension AppStateDayPlan on AppState {
   /// ne fait pas avancer `cyclePosition` au-delà de ce que le moteur avait
   /// proposé (voir [checkOut]).
   Future<void> addToDayPlan(RevisionUnit unit, {String? date}) async {
-    await AyahFactsService.proposeUnits(date ?? todayStr, _riwaya, [unit]);
+    await AyahFactsRitual.proposeUnits(date ?? todayStr, _riwaya, [unit]);
     _notify();
   }
 
@@ -207,7 +207,7 @@ extension AppStateDayPlan on AppState {
   /// get it back (re-adding writes the WHOLE surah).
   Future<void> removeFromDayPlan(int surahId,
       {int? verseStart, int? verseEnd}) async {
-    await AyahFactsService.removeFromDayPlan(todayStr, _riwaya, surahId,
+    await AyahFactsRitual.removeFromDayPlan(todayStr, _riwaya, surahId,
         verseStart: verseStart, verseEnd: verseEnd);
     _notify();
   }
@@ -217,7 +217,7 @@ extension AppStateDayPlan on AppState {
   Future<void> extendDayPlanVerse(int surahId, int newVerse) async {
     final s = _sourateById(surahId);
     if (s == null) return;
-    await AyahFactsService.proposeUnits(todayStr, _riwaya,
+    await AyahFactsRitual.proposeUnits(todayStr, _riwaya,
         [RevisionUnit(sourate: s, verseStart: newVerse, verseEnd: newVerse, isWhole: false)]);
     _notify();
   }

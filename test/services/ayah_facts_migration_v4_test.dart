@@ -55,7 +55,7 @@ void main() {
 
   test('appareil déjà en v4 (colonne `cold`) : backfill vers `needs_work` préserve les données',
       () async {
-    final facts = await AyahFactsService.dayFacts('2020-03-01', Riwaya.hafs);
+    final facts = await AyahFactsRitual.dayFacts('2020-03-01', Riwaya.hafs);
     expect(facts, hasLength(1));
     expect(facts.first.surahId, 7);
     expect(facts.first.needsWorkVerses, {4},

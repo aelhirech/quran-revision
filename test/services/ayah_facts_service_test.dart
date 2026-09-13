@@ -21,26 +21,26 @@ void main() {
 
   group('pendingDate — gating du moteur quotidien', () {
     test('null quand aucun jour non scellé', () async {
-      expect(await AyahFactsService.pendingDate(riwaya: Riwaya.hafs), isNull);
+      expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.hafs), isNull);
     });
 
     test('renvoie la date la plus ancienne non scellée', () async {
-      await AyahFactsService.proposeUnits(
+      await AyahFactsRitual.proposeUnits(
           '2020-01-05', Riwaya.hafs, [testUnit(1, 1, 5)]);
-      expect(await AyahFactsService.pendingDate(riwaya: Riwaya.hafs),
+      expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.hafs),
           '2020-01-05');
 
-      await AyahFactsService.sealDay('2020-01-05', Riwaya.hafs);
-      expect(await AyahFactsService.pendingDate(riwaya: Riwaya.hafs), isNull);
+      await AyahFactsRitual.sealDay('2020-01-05', Riwaya.hafs);
+      expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.hafs), isNull);
     });
 
     test('ne mélange pas les riwayat', () async {
-      await AyahFactsService.proposeUnits(
+      await AyahFactsRitual.proposeUnits(
           '2020-01-06', Riwaya.warsh, [testUnit(2, 1, 5)]);
-      expect(await AyahFactsService.pendingDate(riwaya: Riwaya.hafs), isNull);
-      expect(await AyahFactsService.pendingDate(riwaya: Riwaya.warsh),
+      expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.hafs), isNull);
+      expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.warsh),
           '2020-01-06');
-      await AyahFactsService.sealDay('2020-01-06', Riwaya.warsh);
+      await AyahFactsRitual.sealDay('2020-01-06', Riwaya.warsh);
     });
 
     test('ignore le plan du jour même — pas un jour en attente/rattrapage',
@@ -51,65 +51,65 @@ void main() {
       // renvoyant l'utilisateur vers l'écran de rattrapage pour son propre
       // plan du jour à chaque réouverture de l'app.
       final today = DateTime.now().toIso8601String().substring(0, 10);
-      await AyahFactsService.proposeUnits(today, Riwaya.hafs, [testUnit(3, 1, 5)]);
-      expect(await AyahFactsService.pendingDate(riwaya: Riwaya.hafs), isNull);
-      await AyahFactsService.sealDay(today, Riwaya.hafs);
+      await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [testUnit(3, 1, 5)]);
+      expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.hafs), isNull);
+      await AyahFactsRitual.sealDay(today, Riwaya.hafs);
     });
   });
 
   group('proposeUnits — idempotence', () {
     test('reach=0/checked_out=0 par défaut, ré-écrire ne duplique pas', () async {
       const date = '2020-02-01';
-      await AyahFactsService.proposeUnits(date, Riwaya.hafs, [testUnit(10, 1, 3)]);
-      await AyahFactsService.proposeUnits(date, Riwaya.hafs, [testUnit(10, 1, 3)]);
-      final facts = await AyahFactsService.dayFacts(date, Riwaya.hafs);
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(10, 1, 3)]);
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(10, 1, 3)]);
+      final facts = await AyahFactsRitual.dayFacts(date, Riwaya.hafs);
       expect(facts, hasLength(1));
       expect(facts.first.verseStart, 1);
       expect(facts.first.verseEnd, 3);
       expect(facts.first.reach, isFalse);
-      await AyahFactsService.sealDay(date, Riwaya.hafs);
+      await AyahFactsRitual.sealDay(date, Riwaya.hafs);
     });
   });
 
   group('setReach / rangeStatus', () {
     test('reach=1 seulement quand toute la plage est cochée', () async {
       const date = '2020-02-02';
-      await AyahFactsService.proposeUnits(date, Riwaya.hafs, [testUnit(11, 1, 3)]);
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(11, 1, 3)]);
       expect(
-          (await AyahFactsService.rangeStatus(date, Riwaya.hafs, 11, 1, 3)).reached,
+          (await AyahFactsRitual.rangeStatus(date, Riwaya.hafs, 11, 1, 3)).reached,
           isFalse);
 
-      await AyahFactsService.setReach(date, Riwaya.hafs, 11, 1, 3, true);
+      await AyahFactsRitual.setReach(date, Riwaya.hafs, 11, 1, 3, true);
       expect(
-          (await AyahFactsService.rangeStatus(date, Riwaya.hafs, 11, 1, 3)).reached,
+          (await AyahFactsRitual.rangeStatus(date, Riwaya.hafs, 11, 1, 3)).reached,
           isTrue);
 
-      await AyahFactsService.setReach(date, Riwaya.hafs, 11, 2, 2, false);
+      await AyahFactsRitual.setReach(date, Riwaya.hafs, 11, 2, 2, false);
       expect(
-          (await AyahFactsService.rangeStatus(date, Riwaya.hafs, 11, 1, 3)).reached,
+          (await AyahFactsRitual.rangeStatus(date, Riwaya.hafs, 11, 1, 3)).reached,
           isFalse,
           reason: 'un seul verset décoché suffit à invalider toute la plage');
-      await AyahFactsService.sealDay(date, Riwaya.hafs);
+      await AyahFactsRitual.sealDay(date, Riwaya.hafs);
     });
   });
 
   group('setNeedsWork', () {
     test('flague un verset précis sans toucher les autres', () async {
       const date = '2020-02-03';
-      await AyahFactsService.proposeUnits(date, Riwaya.hafs, [testUnit(12, 1, 3)]);
-      await AyahFactsService.setNeedsWork(date, Riwaya.hafs, 12, 2, true);
-      final facts = await AyahFactsService.dayFacts(date, Riwaya.hafs);
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(12, 1, 3)]);
+      await AyahFactsRitual.setNeedsWork(date, Riwaya.hafs, 12, 2, true);
+      final facts = await AyahFactsRitual.dayFacts(date, Riwaya.hafs);
       expect(facts.first.needsWorkVerses, {2});
-      await AyahFactsService.sealDay(date, Riwaya.hafs);
+      await AyahFactsRitual.sealDay(date, Riwaya.hafs);
     });
   });
 
   group('removeFromDayPlan', () {
     test('retire toute la sourate quand aucune plage précisée', () async {
       const date = '2020-02-04';
-      await AyahFactsService.proposeUnits(date, Riwaya.hafs, [testUnit(13, 1, 3)]);
-      await AyahFactsService.removeFromDayPlan(date, Riwaya.hafs, 13);
-      expect(await AyahFactsService.dayFacts(date, Riwaya.hafs), isEmpty);
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(13, 1, 3)]);
+      await AyahFactsRitual.removeFromDayPlan(date, Riwaya.hafs, 13);
+      expect(await AyahFactsRitual.dayFacts(date, Riwaya.hafs), isEmpty);
     });
   });
 
@@ -117,23 +117,23 @@ void main() {
     test('scelle uniquement la date/riwaya visée', () async {
       const date = '2020-02-05';
       const otherDate = '2020-02-06';
-      await AyahFactsService.proposeUnits(date, Riwaya.hafs, [testUnit(14, 1, 2)]);
-      await AyahFactsService.proposeUnits(
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(14, 1, 2)]);
+      await AyahFactsRitual.proposeUnits(
           otherDate, Riwaya.hafs, [testUnit(15, 1, 2)]);
-      await AyahFactsService.sealDay(date, Riwaya.hafs);
-      expect(await AyahFactsService.pendingDate(riwaya: Riwaya.hafs), otherDate);
-      await AyahFactsService.sealDay(otherDate, Riwaya.hafs);
+      await AyahFactsRitual.sealDay(date, Riwaya.hafs);
+      expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.hafs), otherDate);
+      await AyahFactsRitual.sealDay(otherDate, Riwaya.hafs);
     });
   });
 
   group('dayFacts — groupement par sourate', () {
     test('regroupe les versets contigus en une plage min-max', () async {
       const date = '2020-02-07';
-      await AyahFactsService.proposeUnits(date, Riwaya.hafs, [
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [
         testUnit(20, 1, 4),
         testUnit(21, 10, 12),
       ]);
-      final facts = await AyahFactsService.dayFacts(date, Riwaya.hafs)
+      final facts = await AyahFactsRitual.dayFacts(date, Riwaya.hafs)
         ..sort((a, b) => a.surahId.compareTo(b.surahId));
       expect(facts, hasLength(2));
       expect(facts[0].surahId, 20);
@@ -142,7 +142,7 @@ void main() {
       expect(facts[1].surahId, 21);
       expect(facts[1].verseStart, 10);
       expect(facts[1].verseEnd, 12);
-      await AyahFactsService.sealDay(date, Riwaya.hafs);
+      await AyahFactsRitual.sealDay(date, Riwaya.hafs);
     });
   });
 
@@ -157,8 +157,8 @@ void main() {
 
     test('apparaît dans loadMainLearningProgress avec 0 verset appris',
         () async {
-      await AyahFactsService.proposeLearnVerses(today, Riwaya.hafs, 30, [1]);
-      final progress = await AyahFactsService.loadMainLearningProgress(
+      await AyahFactsLearning.proposeLearnVerses(today, Riwaya.hafs, 30, [1]);
+      final progress = await AyahFactsLearning.loadMainLearningProgress(
           riwaya: Riwaya.hafs, sourates: [testSourate(30)]);
       expect(progress, hasLength(1));
       expect(progress.first.sourate.id, 30);
@@ -167,19 +167,19 @@ void main() {
 
     test('reste "en cours" même si le seul verset appris est ensuite désappris',
         () async {
-      await AyahFactsService.proposeLearnVerses(today, Riwaya.hafs, 31, [1]);
-      await AyahFactsService.learnVerses(31, [1], Riwaya.hafs);
-      await AyahFactsService.unlearnVerse(31, 1, Riwaya.hafs);
-      final progress = await AyahFactsService.loadMainLearningProgress(
+      await AyahFactsLearning.proposeLearnVerses(today, Riwaya.hafs, 31, [1]);
+      await AyahFactsLearning.learnVerses(31, [1], Riwaya.hafs);
+      await AyahFactsLearning.unlearnVerse(31, 1, Riwaya.hafs);
+      final progress = await AyahFactsLearning.loadMainLearningProgress(
           riwaya: Riwaya.hafs, sourates: [testSourate(31)]);
       expect(progress, hasLength(1));
       expect(progress.first.learnedVerses, isEmpty);
     });
 
     test('deleteLearnFacts retire aussi la ligne "verset 1 visé"', () async {
-      await AyahFactsService.proposeLearnVerses(today, Riwaya.hafs, 32, [1]);
-      await AyahFactsService.deleteLearnFacts(32, Riwaya.hafs);
-      final progress = await AyahFactsService.loadMainLearningProgress(
+      await AyahFactsLearning.proposeLearnVerses(today, Riwaya.hafs, 32, [1]);
+      await AyahFactsLearning.deleteLearnFacts(32, Riwaya.hafs);
+      final progress = await AyahFactsLearning.loadMainLearningProgress(
           riwaya: Riwaya.hafs, sourates: [testSourate(32)]);
       expect(progress, isEmpty);
     });
@@ -194,12 +194,12 @@ void main() {
         () async {
       const jour = '2031-03-01';
       final s2 = testSourate(2, verses: 286, words: 6000);
-      await AyahFactsService.proposeUnits(jour, Riwaya.hafs, [
+      await AyahFactsRitual.proposeUnits(jour, Riwaya.hafs, [
         RevisionUnit(sourate: s2, verseStart: 1, verseEnd: 5, isWhole: false),
         RevisionUnit(sourate: s2, verseStart: 200, verseEnd: 203, isWhole: false),
       ]);
 
-      final groupes = await AyahFactsService.dayFacts(jour, Riwaya.hafs);
+      final groupes = await AyahFactsRitual.dayFacts(jour, Riwaya.hafs);
       expect(groupes, hasLength(2),
           reason: 'deux plages disjointes de la sourate 2, pas une seule');
       expect(groupes.map((g) => [g.verseStart, g.verseEnd]).toList(),
@@ -211,11 +211,11 @@ void main() {
         () async {
       const jour = '2031-03-02';
       final s2 = testSourate(2, verses: 286, words: 6000);
-      await AyahFactsService.proposeUnits(jour, Riwaya.hafs, [
+      await AyahFactsRitual.proposeUnits(jour, Riwaya.hafs, [
         RevisionUnit(sourate: s2, verseStart: 1, verseEnd: 5, isWhole: false),
         RevisionUnit(sourate: s2, verseStart: 6, verseEnd: 9, isWhole: false),
       ]);
-      final groupes = await AyahFactsService.dayFacts(jour, Riwaya.hafs);
+      final groupes = await AyahFactsRitual.dayFacts(jour, Riwaya.hafs);
       expect(groupes, hasLength(1));
       expect([groupes.first.verseStart, groupes.first.verseEnd], [1, 9]);
     });
@@ -228,14 +228,14 @@ void main() {
       const j1 = '2031-04-01';
       const j2 = '2031-04-09';
       for (final jour in [j1, j2]) {
-        await AyahFactsService.proposeLearnVerses(jour, Riwaya.hafs, 40, [1]);
-        await AyahFactsService.setReach(jour, Riwaya.hafs, 40, 1, 1, true,
+        await AyahFactsLearning.proposeLearnVerses(jour, Riwaya.hafs, 40, [1]);
+        await AyahFactsRitual.setReach(jour, Riwaya.hafs, 40, 1, 1, true,
             type: AyahFactType.learn);
       }
 
-      await AyahFactsService.unlearnVerse(40, 1, Riwaya.hafs);
+      await AyahFactsLearning.unlearnVerse(40, 1, Riwaya.hafs);
 
-      final appris = await AyahFactsService.learnedVersesBySourate(
+      final appris = await AyahFactsLearning.learnedVersesBySourate(
           riwaya: Riwaya.hafs);
       expect(appris[40] ?? const <int>{}, isNot(contains(1)),
           reason: "le verset ne doit plus etre acquis apres desapprentissage");
@@ -243,7 +243,7 @@ void main() {
       // `reach` : les deux jours restent en base, a reach=0.
       final plans = [
         for (final jour in [j1, j2])
-          await AyahFactsService.learnPlanFor(jour, Riwaya.hafs),
+          await AyahFactsLearning.learnPlanFor(jour, Riwaya.hafs),
       ];
       expect(plans.every((p) => p?.ayahIds.contains(1) ?? false), isTrue,
           reason: "les deux lignes datees restent, seul leur reach retombe");

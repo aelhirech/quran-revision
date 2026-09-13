@@ -75,7 +75,7 @@ void main() {
 
     // Simule : hier, le moteur a proposé un plan jamais scellé (l'utilisateur
     // n'a pas fait de check-out) — un jour "en attente" pour aujourd'hui.
-    await AyahFactsService.proposeUnits(
+    await AyahFactsRitual.proposeUnits(
         yesterday, Riwaya.hafs, [RevisionUnit(sourate: _sourate(60), verseStart: 1, verseEnd: 5, isWhole: false)]);
 
     final state = AppState(_config(), riwaya: Riwaya.hafs);
@@ -83,7 +83,7 @@ void main() {
 
     expect(state.pendingDate, yesterday,
         reason: 'le jour non scellé doit être détecté');
-    final todayFacts = await AyahFactsService.dayFacts(today, Riwaya.hafs);
+    final todayFacts = await AyahFactsRitual.dayFacts(today, Riwaya.hafs);
     expect(todayFacts, isEmpty,
         reason:
             'le moteur ne doit PAS proposer le plan du jour tant que hier '
@@ -91,7 +91,7 @@ void main() {
             'proposer deux fois les mêmes versets (bug identifié en revue '
             'de cadrage Sprint 2)');
 
-    await AyahFactsService.sealDay(yesterday, Riwaya.hafs);
+    await AyahFactsRitual.sealDay(yesterday, Riwaya.hafs);
   });
 
   test(
@@ -105,9 +105,9 @@ void main() {
     // Pose un jour en attente avec la première unité du cycle (sourate 60,
     // en position 0) entièrement faite — pour vérifier que checkOut avance
     // bien le cycle d'exactement 1.
-    await AyahFactsService.proposeUnits(yesterday, Riwaya.hafs,
+    await AyahFactsRitual.proposeUnits(yesterday, Riwaya.hafs,
         [RevisionUnit(sourate: _sourate(60), verseStart: 1, verseEnd: 10, isWhole: true)]);
-    await AyahFactsService.setReach(yesterday, Riwaya.hafs, 60, 1, 10, true);
+    await AyahFactsRitual.setReach(yesterday, Riwaya.hafs, 60, 1, 10, true);
 
     await state.ensureDayPlan();
     expect(state.pendingDate, yesterday);
@@ -129,11 +129,11 @@ void main() {
     expect(state.pendingDate, isNull);
 
     await state.ensureDayPlan();
-    final todayFacts = await AyahFactsService.dayFacts(today, Riwaya.hafs);
+    final todayFacts = await AyahFactsRitual.dayFacts(today, Riwaya.hafs);
     expect(todayFacts, isNotEmpty,
         reason: 'plus de jour en attente : le moteur peut proposer aujourd\'hui');
 
-    await AyahFactsService.sealDay(today, Riwaya.hafs);
+    await AyahFactsRitual.sealDay(today, Riwaya.hafs);
   });
 
   test(
@@ -168,11 +168,11 @@ void main() {
     );
     expect(units.units.map((u) => u.sourate.id).toSet(), {67, 69, 71},
         reason: 'les 3 sourates entières tiennent dans le budget de 8 pages');
-    await AyahFactsService.proposeUnits(yesterday, Riwaya.hafs, units.units);
+    await AyahFactsRitual.proposeUnits(yesterday, Riwaya.hafs, units.units);
     // 67 et 71 faites ; 69 retirée au check-in (plus aucune ligne).
-    await AyahFactsService.setReach(yesterday, Riwaya.hafs, 67, 1, 10, true);
-    await AyahFactsService.setReach(yesterday, Riwaya.hafs, 71, 1, 10, true);
-    await AyahFactsService.removeFromDayPlan(yesterday, Riwaya.hafs, 69);
+    await AyahFactsRitual.setReach(yesterday, Riwaya.hafs, 67, 1, 10, true);
+    await AyahFactsRitual.setReach(yesterday, Riwaya.hafs, 71, 1, 10, true);
+    await AyahFactsRitual.removeFromDayPlan(yesterday, Riwaya.hafs, 69);
 
     await state.ensureDayPlan();
     expect(state.pendingDate, yesterday);
@@ -228,7 +228,7 @@ void main() {
         proposees.add('${u.sourate.id}:${u.verseStart}-${u.verseEnd}');
       }
 
-      await AyahFactsService.proposeUnits(dateStr, Riwaya.hafs, selection.units);
+      await AyahFactsRitual.proposeUnits(dateStr, Riwaya.hafs, selection.units);
       await state.markUnitsReached(selection.units, date: dateStr);
       await state.checkOut(dateStr);
 
@@ -300,7 +300,7 @@ void main() {
       );
     expect(selection.units, hasLength(1));
 
-    await AyahFactsService.proposeUnits(day, Riwaya.hafs, selection.units);
+    await AyahFactsRitual.proposeUnits(day, Riwaya.hafs, selection.units);
 
     final rebuilt = await state.dayUnits(date: day);
     expect(rebuilt.toSet(), selection.units.toSet(),
@@ -347,13 +347,13 @@ void main() {
       );
     expect(selection.units, hasLength(2));
 
-    await AyahFactsService.proposeUnits(day, Riwaya.hafs, selection.units);
+    await AyahFactsRitual.proposeUnits(day, Riwaya.hafs, selection.units);
     // Simule : les 2 unités ont déjà été cochées dans PlanScreen plus tôt
     // ce jour-là (reach=1 pour les 2), avant que le jour ne soit resté non
     // scellé et ne devienne "en attente".
     await state.markUnitsReached(selection.units, date: day);
     expect(
-        (await AyahFactsService.rangeStatus(day, Riwaya.hafs,
+        (await AyahFactsRitual.rangeStatus(day, Riwaya.hafs,
             selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd))
             .reached,
         isTrue);
@@ -366,7 +366,7 @@ void main() {
     await state.markUnitsReached([selection.units[1]], date: day, reach: false);
 
     expect(
-        (await AyahFactsService.rangeStatus(day, Riwaya.hafs,
+        (await AyahFactsRitual.rangeStatus(day, Riwaya.hafs,
             selection.units[1].sourate.id, selection.units[1].verseStart, selection.units[1].verseEnd))
             .reached,
         isFalse,
@@ -415,13 +415,13 @@ void main() {
     expect(selection.cycleTotal, 2,
         reason: '2 groupes au total (page 602, puis 101 seule)');
 
-    await AyahFactsService.proposeUnits(day, Riwaya.hafs, selection.units);
+    await AyahFactsRitual.proposeUnits(day, Riwaya.hafs, selection.units);
     // 106 et 107 faites ; 108 retirée au check-in — ne doit pas empêcher le
     // groupe de compter comme complet (seule une unité PRÉSENTE mais non
     // faite bloquerait le groupe).
-    await AyahFactsService.setReach(day, Riwaya.hafs, 106, 1, 10, true);
-    await AyahFactsService.setReach(day, Riwaya.hafs, 107, 1, 10, true);
-    await AyahFactsService.removeFromDayPlan(day, Riwaya.hafs, 108);
+    await AyahFactsRitual.setReach(day, Riwaya.hafs, 106, 1, 10, true);
+    await AyahFactsRitual.setReach(day, Riwaya.hafs, 107, 1, 10, true);
+    await AyahFactsRitual.removeFromDayPlan(day, Riwaya.hafs, 108);
 
     final wrapped = await state.checkOut(day);
     expect(state.cyclePosition, 1,
@@ -457,7 +457,7 @@ void main() {
       cyclePosition: state.cyclePosition,
       pageMetadata: _hafsPages,
     );
-    await AyahFactsService.proposeUnits(today, Riwaya.hafs, selection.units);
+    await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, selection.units);
     await state.markUnitsReached(selection.units, date: today);
 
     await state.checkOut(today);
@@ -493,7 +493,7 @@ void main() {
         RevisionUnit(sourate: s2, verseStart: 1, verseEnd: 5, isWhole: false);
     final retire = RevisionUnit(
         sourate: s2, verseStart: 200, verseEnd: 203, isWhole: false);
-    await AyahFactsService.proposeUnits(today, Riwaya.hafs, [garde, retire]);
+    await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [garde, retire]);
     expect(await state.dayUnits(), hasLength(2));
 
     await state.removeFromDayPlan(s2.id,

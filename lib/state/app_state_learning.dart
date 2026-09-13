@@ -11,7 +11,7 @@ extension AppStateLearning on AppState {
   /// Sourates dont la mémorisation est commencée mais pas terminée —
   /// reconstruites depuis `ayah_facts` (`type='learn'`).
   Future<List<LearningProgress>> learningProgressList() async =>
-      AyahFactsService.loadMainLearningProgress(
+      AyahFactsLearning.loadMainLearningProgress(
           riwaya: _riwaya, sourates: _sourates);
 
   /// Sourate en cours d'apprentissage, ou `null`. Une seule à la fois en
@@ -38,11 +38,11 @@ extension AppStateLearning on AppState {
     final resolved = progress ??
         LearningProgress(
           sourate: sourate,
-          learnedVerses: await AyahFactsService.learnedVersesForSourate(
+          learnedVerses: await AyahFactsLearning.learnedVersesForSourate(
               riwaya: _riwaya, surahId: sourate.id),
           startDate: DateTime.now(),
         );
-    await AyahFactsService.proposeLearnVerses(
+    await AyahFactsLearning.proposeLearnVerses(
         todayStr, _riwaya, sourate.id, resolved.nextBlock(count));
   }
 
@@ -77,7 +77,7 @@ extension AppStateLearning on AppState {
     }
     // Seules les lignes encore `reach=0` sont effacées — un verset déjà
     // acquis aujourd'hui ne disparaît pas parce qu'on réajuste la portion.
-    await AyahFactsService.clearDayProposal(todayStr, _riwaya,
+    await AyahFactsRitual.clearDayProposal(todayStr, _riwaya,
         type: AyahFactType.learn);
     if (sourate != null) await _proposeLearning(sourate, count);
     _notify();
@@ -90,12 +90,12 @@ extension AppStateLearning on AppState {
   Future<void> extendLearningForDate(String date) async {
     final plan = await learningPlanFor(date);
     if (plan == null) return;
-    final learned = await AyahFactsService.learnedVersesForSourate(
+    final learned = await AyahFactsLearning.learnedVersesForSourate(
         riwaya: _riwaya, surahId: plan.sourate.id);
     final taken = {...learned, ...plan.ayahIds};
     for (int v = 1; v <= plan.sourate.verses; v++) {
       if (taken.contains(v)) continue;
-      await AyahFactsService.proposeLearnVerses(
+      await AyahFactsLearning.proposeLearnVerses(
           date, _riwaya, plan.sourate.id, [v]);
       break;
     }
@@ -112,7 +112,7 @@ extension AppStateLearning on AppState {
   /// tout recocher par défaut (voir [dayUnitsWithStatus]).
   Future<({Sourate sourate, List<int> ayahIds, Set<int> reachedVerses})?>
       learningPlanFor(String date) async {
-    final plan = await AyahFactsService.learnPlanFor(date, _riwaya);
+    final plan = await AyahFactsLearning.learnPlanFor(date, _riwaya);
     final sourate = plan == null ? null : _sourateById(plan.surahId);
     if (plan == null || sourate == null || plan.ayahIds.isEmpty) return null;
     return (
@@ -129,7 +129,7 @@ extension AppStateLearning on AppState {
   /// § « Modèle de données central ».
   Future<void> markLearnVerses(
       String date, int surahId, List<int> ayahIds, bool learned) async {
-    await AyahFactsService.setReachForVerses(
+    await AyahFactsRitual.setReachForVerses(
         date, _riwaya, surahId, ayahIds, learned,
         type: AyahFactType.learn);
   }
