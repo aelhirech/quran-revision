@@ -12,7 +12,6 @@ import '../widgets/cycle_progress_card.dart';
 import '../widgets/hadith_card.dart';
 import '../widgets/ornamental_divider.dart';
 import '../widgets/primary_cta_button.dart';
-import '../widgets/spotlight_tour.dart';
 
 /// État "au repos" de l'onglet Plan du jour : ce qui donne envie d'ouvrir sa
 /// journée (progression de cycle, streak, hadith) et le point d'entrée
@@ -151,21 +150,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
                 HadithCard(hadith: hadithDuJour(DateTime.now())),
                 const SizedBox(height: 28),
-                // Journée déjà clôturée : le CTA reste à sa place (le tour
-                // guidé le cible) mais devient inerte — réinviter à
-                // « illuminer » une journée scellée relancerait un check-in
-                // sur un plan qui ne peut plus faire avancer le cycle.
-                KeyedSubtree(
-                  key: TourKeys.voirPlanButton,
-                  child: PrimaryCtaButton(
-                    onPressed:
-                        closed ? widget.onRouvrirCloture : widget.onIlluminer,
-                    icon: closed
-                        ? Icons.nightlight_outlined
-                        : Icons.wb_sunny_outlined,
-                    label:
-                        closed ? S.journeeCloturee : S.illuminerMaJournee,
-                  ),
+                // Journée déjà clôturée : le CTA reste à sa place mais
+                // devient inerte — réinviter à « illuminer » une journée
+                // scellée relancerait un check-in sur un plan qui ne peut
+                // plus faire avancer le cycle.
+                PrimaryCtaButton(
+                  onPressed:
+                      closed ? widget.onRouvrirCloture : widget.onIlluminer,
+                  icon: closed
+                      ? Icons.nightlight_outlined
+                      : Icons.wb_sunny_outlined,
+                  label: closed ? S.journeeCloturee : S.illuminerMaJournee,
                 ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
                 const SizedBox(height: 8),
                 Center(

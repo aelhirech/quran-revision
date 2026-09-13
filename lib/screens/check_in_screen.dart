@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/freshness_engine.dart';
@@ -18,7 +17,7 @@ import '../widgets/pill_chip.dart';
 import '../widgets/prayer_selector.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
-import '../widgets/unit_range_label.dart';
+import '../widgets/unit_row.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_chips_scaffold.dart';
 
@@ -198,7 +197,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                         _sectionLabel(palette, S.checkInVueDuJour),
                         const SizedBox(height: 8),
                         for (final unit in units)
-                          _UnitRow(
+                          UnitRow(
                             unit: unit,
                             subtitle:
                                 freshnessDiscreetLabel(freshnessByUnit[unit]!),
@@ -269,9 +268,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
               label: S.checkInChoisirSourate,
               onTap: _pickLearningSourate)
         else ...[
-          // Même carte que les unités de révision (`_UnitRow`) : seuls
+          // Même carte que les unités de révision (`UnitRow`) : seuls
           // l'action de fin et le choix du nombre de versets diffèrent.
-          _UnitRow(
+          UnitRow(
             unit: learningUnit,
             subtitle: _learning == null
                 ? S.checkInApprentissageDesc
@@ -429,91 +428,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
     );
   }
 }
-
-/// Carte d'une sourate du check-in — utilisée par la liste de révision
-/// (action de fin « × », retirer du jour) et par la carte d'apprentissage
-/// (action de fin « échanger », plus un [footer] pour le nombre de versets).
-/// Les deux étaient le même Container/Row copié-collé à 200 lignes d'écart.
-class _UnitRow extends StatelessWidget {
-  final RevisionUnit unit;
-  final String subtitle;
-  final VoidCallback onTap;
-  final IconData trailingIcon;
-  final VoidCallback onTrailing;
-  final Widget? footer;
-
-  const _UnitRow({
-    required this.unit,
-    required this.subtitle,
-    required this.onTap,
-    required this.trailingIcon,
-    required this.onTrailing,
-    this.footer,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: palette.surfaceCardSolid,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.cardBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _arabicInitial(palette, unit.sourate),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        UnitRangeLabel(unit: unit, nameColor: palette.textPrimary),
-                        const SizedBox(height: 1),
-                        Text(subtitle,
-                            style: TextStyle(fontSize: 11, color: palette.textMuted)),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: onTrailing,
-                    icon: Icon(trailingIcon, size: 16, color: palette.textMuted),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-              if (footer != null) ...[
-                const SizedBox(height: 10),
-                footer!,
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-Widget _arabicInitial(AppPalette palette, Sourate s) => Container(
-      width: 36,
-      height: 36,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: palette.gold.withValues(alpha: 0.55), width: 2),
-      ),
-      child: Text(s.nameAr.characters.first,
-          style: GoogleFonts.amiri(fontSize: 16, color: palette.goldDark)),
-    );
 
 class _CheckInDetailScreen extends StatefulWidget {
   final RevisionUnit unit;

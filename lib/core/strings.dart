@@ -91,6 +91,19 @@ class S {
   );
   static String get introAction => _t('Configurer mes sourates', 'Set up my surahs');
 
+  // Onboarding — demo (mini-cycle over 3 short surahs, US-1)
+  static String get demoTitle =>
+      _t('Fais l\'essai avec 3 courtes sourates', 'Try it with 3 short surahs');
+  static String get demoSubtitle => _t(
+      "Avant de choisir tes vraies sourates, vis un jour complet de révision — coche tes rakaas puis clôture ta journée, comme tu le feras chaque jour. Rien n'est encore enregistré.",
+      "Before picking your real surahs, live a full day of revision — tick your rakaas then close out your day, just like you will every day. Nothing is saved yet.");
+
+  // Onboarding — preview of the first day's plan (US-1)
+  static String get previewTitle => _t('Voici ton premier jour', "Here's your first day");
+  static String get previewSubtitle => _t(
+      "D'après ta sélection et ton rythme, voici ce que l'app te proposera dès demain.",
+      "Based on your selection and pace, here's what the app will suggest for you right away.");
+
   // Onboarding — config
   static String get rechercherSourate => _t('Rechercher une sourate...', 'Search a surah...');
   static String get commencer => _t('Commencer la révision', 'Start revision');
@@ -266,32 +279,6 @@ class S {
   static String get streakLabel => _t('Série', 'Streak');
   static String get historique => _t('Historique', 'History');
   static String get aucuneSession => _t('Aucune session enregistrée', 'No sessions recorded yet');
-
-  // Tour guidé (onboarding avec surbrillance)
-  static String get tourPasser => _t('Passer', 'Skip');
-  static String get tourSuivant => _t('Suivant', 'Next');
-  static String get tourTerminer => _t('Compris', 'Got it');
-
-  static String get tourNavTitle => _t('Plan du jour', "Today's plan");
-  static String get tourNavBody => _t(
-    'Tout part d’ici : ta journée de révision, prière par prière. Appuie sur Suivant pour visiter le reste de l’app.',
-    'Everything starts here: your revision day, prayer by prayer. Tap Next to visit the rest of the app.',
-  );
-  static String get tourRecapTitle => _t('Récap', 'Recap');
-  static String get tourRecapBody => _t(
-    'Cet onglet suit ta progression, ton apprentissage en cours, et les sourates qui commencent à refroidir.',
-    'This tab tracks your progress, your ongoing memorization, and the surahs that are starting to cool down.',
-  );
-  static String get tourReglagesTitle => _t('Réglages', 'Settings');
-  static String get tourReglagesBody => _t(
-    'Cet onglet te laisse ajuster ton rythme ou tes sourates sélectionnées, à tout moment.',
-    'This tab lets you adjust your pace or selected surahs, at any time.',
-  );
-  static String get tourVoirPlanTitle => _t('Ton plan du jour', 'Your daily plan');
-  static String get tourVoirPlanBody => _t(
-    'Appuie ici chaque jour : tu confirmes ton rythme et tes prières, puis ton plan se répartit dans tes rakaas.',
-    'Tap here every day: confirm your pace and your prayers, then your plan is spread across your rakaas.',
-  );
 
   // Check-in / check-out (Phase 6 Sprint 2)
   static String get checkInEyebrow => _t('BISMILLAH', 'BISMILLAH');
