@@ -206,6 +206,7 @@ class S {
   static String get afficherVerset => _t('Afficher le verset', 'Show verse');
   static String get masquerVerset => _t('Masquer', 'Hide');
   static String get sourateCompleted => _t('Sourate complétée ! 🎉', 'Surah completed! 🎉');
+  static String get complet => _t('✓ Complet', '✓ Complete');
   static String supprimerApprentissageDe(String nom) =>
       _t("Supprimer l'apprentissage de $nom ?",
           'Delete the memorization of $nom?');

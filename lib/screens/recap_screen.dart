@@ -63,7 +63,7 @@ class _RecapScreenState extends State<RecapScreen> with HookVisibilityMixin {
     // Démarrage en parallèle, await typé sur chacun — évite les casts dynamiques
     final streakF = AyahFactsService.currentStreak(pauseDates: pauseDates, riwaya: riwaya);
     final totalF = AyahFactsService.totalActiveDays(riwaya: riwaya);
-    final statsF = AyahFactsService.recentDayVerseStats(limit: 14, riwaya: riwaya);
+    final statsF = AyahFactsService.recentDayVerseStats(limit: 7, riwaya: riwaya);
     final progressF = state.learningProgressList();
     // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
     // sans être passé par un plan du jour cette session.
