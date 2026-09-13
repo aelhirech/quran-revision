@@ -19,8 +19,9 @@ import '../widgets/hook_banner.dart';
 import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/step_dots.dart';
 import '../widgets/unit_row.dart';
-import '../widgets/verse_chip.dart';
-import '../widgets/verse_chips_scaffold.dart';
+import 'check_in_detail_screen.dart';
+
+part 'check_in_sections.dart';
 
 /// « Illuminer ma journée avec le Coran » — le rituel d'ouverture de la
 /// journée (Phase 9), poussé depuis l'onglet Plan du jour. Confirme, en
@@ -35,6 +36,12 @@ import '../widgets/verse_chips_scaffold.dart';
 ///
 /// Se ferme en renvoyant la liste de prières choisies : c'est l'appelant
 /// (`DayPlanTab`) qui déclenche la répartition en rakaas.
+///
+/// Écran à SECTIONS simultanées (rythme+révision, apprentissage, prières),
+/// pas un wizard séquentiel : le découpage en fichiers suit cette logique
+/// (contrôleur ici, widgets de section dans `check_in_sections.dart` via
+/// `part`/`part of`, sous-écran de détail dans `check_in_detail_screen.dart`)
+/// plutôt que le pattern "une page par étape" de l'onboarding.
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
 
@@ -56,6 +63,11 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
 
   @override
   String get hookId => 'check_in';
+
+  // `setState` is `@protected`, not callable from `_CheckInSections` (an
+  // extension, not a State subclass member despite sharing this library) —
+  // this forwards it instead of scattering `// ignore:` comments there.
+  void _setState(VoidCallback fn) => setState(fn);
 
   /// Liste effective : prières sélectionnées + tahiyyatMasjid répété n fois.
   /// Les doublons sont intentionnels — chaque entrée à la mosquée est une
@@ -135,7 +147,7 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
 
   Future<void> _openDetail(RevisionUnit unit) async {
     await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => _CheckInDetailScreen(unit: unit),
+      builder: (_) => CheckInDetailScreen(unit: unit),
     ));
     await _load();
   }
@@ -212,162 +224,6 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
         badge: S.checkInVersesProposed(totalVerses),
       );
 
-  // Freshness classification computed only in case 0, the only step reading it.
-  List<Widget> _stepChildren(
-      AppPalette palette, AppState state, List<RevisionUnit> units) {
-    switch (_step) {
-      case 0:
-        final freshnessByUnit = {
-          for (final u in units)
-            u: state.freshnessFor(u.sourate.id, u.verseStart, u.verseEnd),
-        };
-        return [
-          _rhythmSection(palette, state),
-          const SizedBox(height: 22),
-          _sectionLabel(palette, S.checkInVueDuJour),
-          const SizedBox(height: 8),
-          for (final unit in units)
-            UnitRow(
-              unit: unit,
-              subtitle: freshnessDiscreetLabel(freshnessByUnit[unit]!),
-              onTap: () => _openDetail(unit),
-              trailingIcon: Icons.close,
-              onTrailing: () => _remove(unit),
-            ),
-          const SizedBox(height: 14),
-          OutlinedActionButton(
-              icon: Icons.add,
-              label: S.checkInAjouterSourate,
-              onTap: _openAddSheet),
-        ];
-      case 1:
-        return [_learningSection(palette, state)];
-      case 2:
-      default: // _step is a plain int, never statically exhaustive
-        return [_prayerSection(palette)];
-    }
-  }
-
-  Widget _rhythmSection(AppPalette palette, AppState state) {
-    final current = state.config?.pagesPerDay ?? 1;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionLabel(palette, S.checkInRythme),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final p in pagesPerDayPresets)
-              PillChip(
-                label: S.pagesParJour(p),
-                selected: p == current,
-                onTap: () => _setPagesPerDay(p),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _learningSection(AppPalette palette, AppState state) {
-    final learningUnit = _learningUnit;
-    final count =
-        state.config?.versesToLearnPerDay ?? defaultVersesToLearnPerDay;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionLabel(palette, S.checkInApprentissage),
-        const SizedBox(height: 8),
-        if (learningUnit == null)
-          OutlinedActionButton(
-              icon: Icons.school_outlined,
-              label: S.checkInChoisirSourate,
-              onTap: _pickLearningSourate)
-        else ...[
-          // Même carte que les unités de révision (`UnitRow`) : seuls
-          // l'action de fin et le choix du nombre de versets diffèrent.
-          UnitRow(
-            unit: learningUnit,
-            subtitle: _learning == null
-                ? S.checkInApprentissageDesc
-                : '${_learning!.learnedCount}/${_learning!.totalVerses} ${S.versets}',
-            trailingIcon: Icons.swap_horiz,
-            onTrailing: _pickLearningSourate,
-            onTap: _pickLearningSourate,
-            footer: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final n in versesToLearnPresets)
-                  PillChip(
-                    label: S.checkInVersetsAApprendre(n),
-                    selected: n == count,
-                    onTap: () => _setLearning(learningUnit.sourate, n),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => _setLearning(null, count),
-            child: Text(S.checkInAucunApprentissage,
-                style: TextStyle(fontSize: 12, color: palette.textMuted)),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _prayerSection(AppPalette palette) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _sectionLabel(palette, S.checkInPrieres),
-              if (_lastPrayers != null)
-                TextButton.icon(
-                  onPressed: _applyLastPrayers,
-                  icon: const Icon(Icons.history, size: 16),
-                  label: Text(_isYesterday ? S.commeHier : S.derniereSelection,
-                      style: const TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-            ],
-          ),
-          Text(S.checkInPrieresDesc,
-              style: TextStyle(fontSize: 11, color: palette.textMuted)),
-          const SizedBox(height: 10),
-          PrayerSelector(
-            selected: _prayers,
-            onToggle: (p) => setState(() {
-              _prayers.contains(p) ? _prayers.remove(p) : _prayers.add(p);
-            }),
-            tahiyyatCount: _tahiyyatCount,
-            onTahiyyatCountChanged: (n) => setState(() => _tahiyyatCount = n),
-          ),
-        ],
-      );
-
-  void _applyLastPrayers() {
-    if (_lastPrayers == null) return;
-    // tahiyyatMasjid peut apparaître plusieurs fois — on compte les occurrences
-    final tahiyyat = _lastPrayers!.where((p) => p.isTahiyyat).length;
-    final others = _lastPrayers!.where((p) => !p.isTahiyyat).toSet();
-    setState(() {
-      _prayers
-        ..clear()
-        ..addAll(others);
-      _tahiyyatCount = tahiyyat;
-    });
-  }
-
   Widget _sectionLabel(AppPalette palette, String text) => Text(
         text.toUpperCase(),
         style: TextStyle(
@@ -376,7 +232,6 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
             letterSpacing: 1.4,
             color: palette.textMuted),
       );
-
 
   Widget _ctaBar(AppPalette palette) {
     final onLastStep = _step == _stepCount - 1;
@@ -431,66 +286,6 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
           ),
         ],
       ),
-    );
-  }
-}
-
-class _CheckInDetailScreen extends StatefulWidget {
-  final RevisionUnit unit;
-  const _CheckInDetailScreen({required this.unit});
-
-  @override
-  State<_CheckInDetailScreen> createState() => _CheckInDetailScreenState();
-}
-
-class _CheckInDetailScreenState extends State<_CheckInDetailScreen> {
-  late RevisionUnit _unit;
-  bool _extending = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _unit = widget.unit;
-  }
-
-  Future<void> _extend() async {
-    if (_extending) return; // évite un double-tap qui étendrait de 2 versets
-    final next = _unit.verseEnd + 1;
-    if (next > _unit.sourate.verses) return;
-    setState(() => _extending = true);
-    await context.read<AppState>().extendDayPlanVerse(_unit.sourate.id, next);
-    if (!mounted) return;
-    setState(() {
-      _extending = false;
-      _unit = RevisionUnit(
-          sourate: _unit.sourate,
-          verseStart: _unit.verseStart,
-          verseEnd: next,
-          isWhole: false);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    return VerseChipsScaffold(
-      title: '${_unit.sourate.nameFr} · v.${_unit.verseStart}–${_unit.verseEnd}',
-      headerLabel: S.checkInVersetsInclus,
-      chips: [
-        for (int v = _unit.verseStart; v <= _unit.verseEnd; v++)
-          VerseChip(
-            borderColor: palette.cardBorder,
-            child: Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
-          ),
-        if (_unit.verseEnd < _unit.sourate.verses)
-          VerseChip(
-            borderColor: palette.gold.withValues(alpha: 0.7),
-            onTap: _extend,
-            child: Icon(Icons.add, size: 14, color: palette.textPrimary),
-          ),
-      ],
-      footer: Text(S.checkInExtendHint,
-          style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: palette.textMuted)),
     );
   }
 }
