@@ -104,6 +104,26 @@ class S {
       "D'après ta sélection et ton rythme, voici ce que l'app te proposera dès demain.",
       "Based on your selection and pace, here's what the app will suggest for you right away.");
 
+  // Contextual first-visit hooks (US-1 criterion 5)
+  static String get hookCheckInTitle =>
+      _t('Chaque jour commence ici', 'Every day starts here');
+  static String get hookCheckInBody => _t(
+      "Confirme ton rythme, ce que tu révises et apprends, et les prières où tu récites — l'app répartit tout ça dans tes rakaas.",
+      "Confirm your pace, what you're revising and learning, and the prayers where you recite — the app spreads it all across your rakaas.");
+  static String get hookCheckOutTitle => _t(
+      "C'est ce moment qui fait avancer ton cycle", "This is what moves your cycle forward");
+  static String get hookCheckOutBody => _t(
+      "Confirme ce que tu as réellement fait aujourd'hui — cette confirmation, pas la simple coche pendant la prière, fait progresser ta révision.",
+      "Confirm what you actually did today — this confirmation, not just ticking boxes during prayer, is what moves your revision forward.");
+  static String get hookRecapTitle => _t('Ta vue d\'ensemble', 'Your overview');
+  static String get hookRecapBody => _t(
+      "Suis ta progression, ton apprentissage en cours, et la fraîcheur de chaque sourate — tout au même endroit.",
+      "Track your progress, your ongoing memorization, and how fresh each surah is — all in one place.");
+  static String get hookProfileTitle => _t('Ajuste à tout moment', 'Adjust anytime');
+  static String get hookProfileBody => _t(
+      "Langue, riwaya, sourates, rythme, rappels : change tes réglages ici quand tu veux, sans repasser par l'onboarding.",
+      "Language, riwaya, surahs, pace, reminders: change your settings here whenever you want, no need to go through onboarding again.");
+
   // Onboarding — config
   static String get rechercherSourate => _t('Rechercher une sourate...', 'Search a surah...');
   static String get commencer => _t('Commencer la révision', 'Start revision');

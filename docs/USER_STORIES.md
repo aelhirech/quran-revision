@@ -23,7 +23,15 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-### US-1 — Premier lancement et prise en main de l'app [priorité: P1] [état: en sprint]
+_(vide — voir « Archivées » pour US-1, dernière story active, terminée le 2026-09-13)_
+
+---
+
+## Archivées
+
+Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
+### US-1 — Premier lancement et prise en main de l'app [priorité: P1] [état: terminée]
 **Historique** : configuration (langue, riwaya, sourates, rythme) livrée Phase 6 Sprint 3 ; tour guidé post-onboarding (halo sur les 3 onglets) livré Phase 9 Sprint 1. Rouverte le 2026-09-13 : constat que la collecte de choix ne suffit pas à faire comprendre la valeur de l'app avant que l'utilisateur ne s'en serve seul, et que le tour guidé ne remplit pas son rôle (opacité des explications trop faible pour être lues, annulé dès qu'un tap touche un bouton sous le halo).
 
 **Statement** : En tant que nouvel utilisateur, je veux configurer mes préférences de base (langue, riwaya, sourates à réviser, rythme) et **ressentir concrètement comment l'app va m'accompagner au quotidien** avant de m'en servir seul, afin d'adhérer dès le premier contact plutôt que de terminer l'onboarding avec une config valide mais sans avoir compris ce qu'elle va m'apporter.
@@ -47,13 +55,8 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 - **Ajustements aux critères** : voir critères 2 (démo seulement si `presetRiwaya == null`), 4 (aperçu = liste sourates/portions, pas de rakaas — confirmé par l'utilisateur), 5 (liste des 4 hooks confirmée exhaustive par le code) ci-dessus.
 - **Découpage proposé** : Sprint A (démo + aperçu + retrait ancien tour + correctif `markTourSeen`) puis Sprint B (4 hooks contextuels), indépendants l'un de l'autre. Détail complet et item prêt à implémenter dans `docs/CHANGELOG.md` (Backlog, entrée "US-1").
 - Confiance globale du scoping : haute sur le mapping/data model, moyenne sur le détail UI exact des nouvelles pages (briques pures déjà identifiées).
-- **Sprint A livré le 2026-09-13 (Phase 11 Sprint 1)** : critères 2, 3, 4 et 6 couverts (démo + aperçu + retrait du tour guidé). Démo repositionnée en fin de parcours après retour utilisateur post-implémentation (voir ajustement du critère 2 ci-dessus). Critère 7 déjà couvert par l'existant (config persistée = pas de repassage par l'onboarding), vérifié manuellement. Reste le critère 5 (hooks contextuels), voir Sprint B dans le Backlog de `docs/CHANGELOG.md`.
-
----
-
-## Archivées
-
-Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+- **Sprint A livré le 2026-09-13 (Phase 11 Sprint 1)** : critères 2, 3, 4 et 6 couverts (démo + aperçu + retrait du tour guidé). Démo repositionnée en fin de parcours après retour utilisateur post-implémentation (voir ajustement du critère 2 ci-dessus). Critère 7 déjà couvert par l'existant (config persistée = pas de repassage par l'onboarding), vérifié manuellement.
+- **Sprint B livré le 2026-09-13 (Phase 11 Sprint 2)** : critère 5 couvert — hooks contextuels (`HookBanner`/`HookVisibilityMixin`, `lib/widgets/hook_banner.dart`) sur les 4 points d'entrée identifiés au scoping (`CheckInScreen`, `CheckOutScreen`, `RecapScreen`, `ProfileScreen`). Vérifié par `flutter analyze` + 88 tests automatisés ; le check-in/check-out/récap/réglages dépendent de `sqflite` (non supporté sur Flutter Web, limitation préexistante documentée dans le Backlog), donc non vérifiables visuellement dans le preview navigateur de cette machine — relecture manuelle approfondie du câblage à la place. US-1 est désormais **entièrement livrée** (7/7 critères).
 
 ### US-2 — Plan quotidien réparti dans la journées grâce aux prières
 **État** : terminée — moteur pages/jour (Phase 8 Sprint 3) + répartition en rakaas ; Phase 9 Sprint 1 y ajoute la rakaa d'apprentissage en dernière position.

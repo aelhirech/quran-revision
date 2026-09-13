@@ -10,6 +10,7 @@ import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/hook_banner.dart';
 import '../widgets/pages_per_day_dropdown.dart';
 import '../widgets/profile_info_card.dart';
 import '../widgets/settings_card.dart';
@@ -21,13 +22,22 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with HookVisibilityMixin {
   bool _editing = false;
   Set<int> _selectedIds = {};
   int _pagesPerDay = 1;
   String _search = '';
   int _memorisees = 0;
   Riwaya? _lastRiwaya;
+
+  @override
+  String get hookId => 'profile';
+
+  @override
+  void initState() {
+    super.initState();
+    loadHook();
+  }
 
   Future<void> _loadMemorisees() async {
     final state = context.read<AppState>();
@@ -170,6 +180,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ]
                 : null,
           ),
+          if (showHook && !_editing)
+            SliverToBoxAdapter(
+              child: HookBanner(
+                icon: Icons.settings_outlined,
+                title: S.hookProfileTitle,
+                body: S.hookProfileBody,
+                onDismiss: dismissHook,
+              ),
+            ),
           if (!_editing) _viewBody(cs, state) else _editBody(cs),
         ],
       ),

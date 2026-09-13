@@ -9,6 +9,7 @@ import '../models/sourate_selection.dart';
 import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
 import '../widgets/cycle_milestone_dialog.dart';
+import '../widgets/hook_banner.dart';
 import '../widgets/outlined_action_button.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
@@ -29,7 +30,7 @@ class CheckOutScreen extends StatefulWidget {
   State<CheckOutScreen> createState() => _CheckOutScreenState();
 }
 
-class _CheckOutScreenState extends State<CheckOutScreen> {
+class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixin {
   List<({RevisionUnit unit, Set<int> needsWorkVerses, bool reach})>? _items;
   // Unités décochées par l'utilisateur (exceptions) — tout le reste est
   // "fait" par défaut, écrit en base seulement à la clôture ([_close]).
@@ -49,6 +50,9 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   bool _addToday = false;
   bool _sealing = false;
 
+  @override
+  String get hookId => 'check_out';
+
   /// Calculé une fois : `DateTime.parse` sur une date locale résout le
   /// fuseau horaire, de loin la primitive la plus chère de cet écran, et les
   /// libellés le relisaient une dizaine de fois par build.
@@ -67,6 +71,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   void initState() {
     super.initState();
     _load();
+    loadHook();
   }
 
   Future<void> _load() async {
@@ -194,6 +199,13 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                 child: Column(
                   children: [
                     _hero(palette, showPart2),
+                    if (showHook)
+                      HookBanner(
+                        icon: Icons.nightlight_outlined,
+                        title: S.hookCheckOutTitle,
+                        body: S.hookCheckOutBody,
+                        onDismiss: dismissHook,
+                      ),
                     Expanded(
                       child: showPart2
                           ? _part2Body(palette)
