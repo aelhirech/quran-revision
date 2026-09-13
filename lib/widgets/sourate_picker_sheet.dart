@@ -24,12 +24,8 @@ class _SouratePickerSheetState extends State<SouratePickerSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final filtered = widget.sourates
-        .where((s) =>
-            s.nameFr.toLowerCase().contains(_search.toLowerCase()) ||
-            s.nameAr.contains(_search) ||
-            s.id.toString() == _search)
-        .toList();
+    final filtered =
+        widget.sourates.where((s) => s.matchesSearch(_search)).toList();
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.80,

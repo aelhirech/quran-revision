@@ -68,10 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> with HookVisibilityMixin 
   List<Sourate> get _filtered => context
       .read<AppState>()
       .sourates
-      .where((s) =>
-          s.nameFr.toLowerCase().contains(_search.toLowerCase()) ||
-          s.nameAr.contains(_search) ||
-          s.id.toString() == _search)
+      .where((s) => s.matchesSearch(_search))
       .toList();
 
   Future<void> _save() async {

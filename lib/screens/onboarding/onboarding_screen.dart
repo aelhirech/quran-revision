@@ -129,11 +129,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   List<Object> get _listItems {
     final allSourates = context.read<AppState>().sourates;
     final sourates = allSourates
-        .where((s) =>
-            _search.isEmpty ||
-            s.nameFr.toLowerCase().contains(_search.toLowerCase()) ||
-            s.nameAr.contains(_search) ||
-            s.id.toString() == _search)
+        .where((s) => _search.isEmpty || s.matchesSearch(_search))
         .toList();
     if (_search.isNotEmpty || !_groupByHizb) return sourates;
     return _groupedBy(

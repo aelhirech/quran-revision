@@ -28,4 +28,12 @@ class Sourate {
         verses: j['verses'],
         words: j['words'] ?? j['verses'] * 12,
       );
+
+  /// True if [query] matches this surah's French name, Arabic name, or id —
+  /// shared predicate for the search fields in `OnboardingScreen`,
+  /// `SouratePickerSheet`, and `ProfileScreen`.
+  bool matchesSearch(String query) =>
+      nameFr.toLowerCase().contains(query.toLowerCase()) ||
+      nameAr.contains(query) ||
+      id.toString() == query;
 }

@@ -36,10 +36,10 @@ class LearningProgressCard extends StatelessWidget {
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20),
           decoration: BoxDecoration(
-            color: Colors.red.shade100,
+            color: palette.danger.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Icon(Icons.delete_outline, color: Colors.red),
+          child: Icon(Icons.delete_outline, color: palette.danger),
         ),
         confirmDismiss: (_) async {
           await onDismiss();
@@ -84,7 +84,7 @@ class LearningProgressCard extends StatelessWidget {
                           color: cs.primaryContainer,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text('✓ Complet',
+                        child: Text(S.complet,
                             style: TextStyle(
                                 color: palette.primary,
                                 fontWeight: FontWeight.w700,
