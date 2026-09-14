@@ -80,6 +80,17 @@ extension AppStateCheckOut on AppState {
     _notify();
   }
 
+  /// Versets déjà révisés de [surahId] entre [verseStart] et [verseEnd],
+  /// avec la date de leur dernière révision et leur drapeau `needs_work`
+  /// actuel — alimente `VerseBottomSheet` pour flaguer "à retravailler"
+  /// depuis le Récap, en dehors du rituel quotidien de check-out. Voir
+  /// `AyahFactsRitual.lastRevisionFlags`.
+  Future<Map<int, ({String date, bool needsWork})>> lastRevisionFlagsFor(
+      int surahId, int verseStart, int verseEnd) {
+    return AyahFactsRitual.lastRevisionFlags(
+        _riwaya, surahId, verseStart, verseEnd);
+  }
+
   /// Toggles "done/not done" for a surah/portion of the check-out — or, if
   /// [learning], for a portion being learned (`type='learn'`).
   Future<void> setUnitReach(String date, RevisionUnit unit, bool reach,

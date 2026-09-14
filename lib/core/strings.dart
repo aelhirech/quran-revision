@@ -185,6 +185,10 @@ class S {
   // Versets
   static String get versetsDeRakaa => _t('Versets de la rakaa', 'Verses for this rakaa');
   static String get voirLeTexte => _t('Voir le texte', 'View text');
+  static String get marquerARetravailler =>
+      _t('Marquer à retravailler', 'Flag to work on again');
+  static String get retirerARetravailler =>
+      _t('Retirer le marquage "à retravailler"', 'Remove "work on again" flag');
 
   // Hadiths
   static String get hadithDuJourLabel => _t('Hadith du jour', 'Hadith of the day');
