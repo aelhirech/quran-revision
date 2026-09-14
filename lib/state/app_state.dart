@@ -258,12 +258,8 @@ class AppState extends ChangeNotifier {
     return true;
   }
 
-  bool _sameSelections(List<SourateSelection> a, List<SourateSelection> b) {
-    if (a.length != b.length) return false;
-    String key(SourateSelection s) =>
-        '${s.sourate.id}:${s.verseStart}:${s.verseEnd}';
-    return a.map(key).toSet().containsAll(b.map(key));
-  }
+  bool _sameSelections(List<SourateSelection> a, List<SourateSelection> b) =>
+      a.length == b.length && a.toSet().containsAll(b);
 
   /// Advances `cyclePosition` — delegates the calculation to
   /// `RevisionEngine`, the single source of truth for progress. Since

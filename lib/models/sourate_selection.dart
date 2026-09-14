@@ -28,6 +28,18 @@ class SourateSelection {
 
   String get rangeLabel => isWhole ? '' : ' (v.$verseStart–$verseEnd)';
 
+  /// Same range of the same surah is the same selection, regardless of the
+  /// `Sourate` instance's other fields — mirrors `RevisionUnit.==`.
+  @override
+  bool operator ==(Object other) =>
+      other is SourateSelection &&
+      other.sourate.id == sourate.id &&
+      other.verseStart == verseStart &&
+      other.verseEnd == verseEnd;
+
+  @override
+  int get hashCode => Object.hash(sourate.id, verseStart, verseEnd);
+
   Map<String, dynamic> toJson() => {
         'sourate': sourate.toJson(),
         'verseStart': verseStart,
