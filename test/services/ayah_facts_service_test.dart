@@ -104,6 +104,47 @@ void main() {
     });
   });
 
+  group('lastRevisionFlags — flaguer "à retravailler" depuis le Récap', () {
+    test('renvoie la date de la DERNIÈRE révision par verset, pas la première',
+        () async {
+      const d1 = '2020-03-01';
+      const d2 = '2020-03-10';
+      await AyahFactsRitual.proposeUnits(d1, Riwaya.hafs, [testUnit(30, 1, 3)]);
+      await AyahFactsRitual.setReach(d1, Riwaya.hafs, 30, 1, 3, true);
+      // Seul le verset 1 est re-révisé plus tard : sa date doit remonter à
+      // d2, les versets 2-3 restent sur d1.
+      await AyahFactsRitual.proposeUnits(d2, Riwaya.hafs, [testUnit(30, 1, 1)]);
+      await AyahFactsRitual.setReach(d2, Riwaya.hafs, 30, 1, 1, true);
+
+      final flags = await AyahFactsRitual.lastRevisionFlags(Riwaya.hafs, 30, 1, 3);
+      expect(flags[1]!.date, d2);
+      expect(flags[2]!.date, d1);
+      expect(flags[3]!.date, d1);
+      expect(flags.values.every((f) => f.needsWork == false), isTrue);
+    });
+
+    test('un verset jamais révisé (reach toujours 0) est absent du résultat',
+        () async {
+      const date = '2020-03-02';
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(31, 1, 2)]);
+      // reach reste à 0 : proposé mais jamais fait.
+      final flags = await AyahFactsRitual.lastRevisionFlags(Riwaya.hafs, 31, 1, 2);
+      expect(flags, isEmpty);
+    });
+
+    test('le drapeau needs_work posé par setNeedsWork est bien lu sur la '
+        'bonne date', () async {
+      const date = '2020-03-03';
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(32, 1, 1)]);
+      await AyahFactsRitual.setReach(date, Riwaya.hafs, 32, 1, 1, true);
+      await AyahFactsRitual.setNeedsWork(date, Riwaya.hafs, 32, 1, true);
+
+      final flags = await AyahFactsRitual.lastRevisionFlags(Riwaya.hafs, 32, 1, 1);
+      expect(flags[1]!.needsWork, isTrue);
+      expect(flags[1]!.date, date);
+    });
+  });
+
   group('removeFromDayPlan', () {
     test('retire toute la sourate quand aucune plage précisée', () async {
       const date = '2020-02-04';

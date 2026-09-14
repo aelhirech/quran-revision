@@ -55,7 +55,7 @@ class _DemoPageState extends State<_DemoPage> {
   }
 
   void _seePlan() {
-    final result = RevisionEngine.distributeToRakaas(
+    final result = RakaaDistributor.distributeToRakaas(
       units: _units,
       prayersAlone: _effectivePrayers,
     );

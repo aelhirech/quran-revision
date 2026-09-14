@@ -175,6 +175,40 @@ class AyahFactsRitual {
         whereArgs: [date, riwaya.name, surahId, ayahId, AyahFactType.revise.name]);
   }
 
+  /// Pour chaque verset de [surahId] entre [verseStart] et [verseEnd] déjà
+  /// révisé au moins une fois (`reach = 1`), sa date de dernière révision et
+  /// son drapeau `needs_work` actuel sur CETTE date précise — un verset
+  /// jamais révisé (aucune ligne `reach = 1`) est absent du résultat.
+  ///
+  /// Sert à flaguer "à retravailler" depuis le Récap (relecture hors rituel
+  /// quotidien, `VerseBottomSheet`) : [setNeedsWork] n'accepte qu'une date
+  /// explicite, et le jour courant n'a pas forcément de ligne pour un verset
+  /// qu'on relit sans le réviser aujourd'hui — la date de sa dernière
+  /// révision, elle, existe toujours pour un verset déjà acquis.
+  static Future<Map<int, ({String date, bool needsWork})>> lastRevisionFlags(
+      Riwaya riwaya, int surahId, int verseStart, int verseEnd) async {
+    final db = await AyahFactsService._open();
+    final rows = await db.rawQuery(
+      'SELECT ayah_id, date, needs_work FROM ayah_facts outer_af '
+      'WHERE riwaya = ? AND surah_id = ? AND type = ? AND reach = 1 '
+      'AND ayah_id BETWEEN ? AND ? '
+      'AND date = (SELECT MAX(date) FROM ayah_facts inner_af '
+      'WHERE inner_af.riwaya = outer_af.riwaya '
+      'AND inner_af.surah_id = outer_af.surah_id '
+      'AND inner_af.ayah_id = outer_af.ayah_id '
+      'AND inner_af.type = outer_af.type '
+      'AND inner_af.reach = 1)',
+      [riwaya.name, surahId, AyahFactType.revise.name, verseStart, verseEnd],
+    );
+    return {
+      for (final row in rows)
+        row['ayah_id'] as int: (
+          date: row['date'] as String,
+          needsWork: (row['needs_work'] as int) == 1,
+        ),
+    };
+  }
+
   /// Both questions the check-out asks about a range, in ONE query: does it
   /// still have rows (kept at check-in), and are they all reached?
   ///

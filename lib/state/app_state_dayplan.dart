@@ -229,7 +229,7 @@ extension AppStateDayPlan on AppState {
     final learningF = todayLearningUnit();
     final selection = _selection;
     final units = await unitsF;
-    final layout = RevisionEngine.distributeToRakaas(
+    final layout = RakaaDistributor.distributeToRakaas(
       units: units,
       prayersAlone: prayersAlone,
       learningUnit: await learningF,

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_sticky_header/flutter_sticky_header.dart';
 import '../../core/app_colors.dart';
+import '../../core/rakaa_distributor.dart';
 import '../../core/revision_engine.dart';
 import '../../core/strings.dart';
 import '../../models/daily_session.dart';
