@@ -31,7 +31,9 @@ archivée terminée. **Rouverte le 2026-09-20** : le flag « à retravailler » 
 indépendant du coché/décoché) est retiré et remplacé par une correction uniforme avec
 l'apprentissage — décocher un verset le renvoie simplement au lendemain — plus une notification
 à heure fixe (minuit) pour inviter à clôturer une journée non close, en plus des rappels
-matin/soir existants.
+matin/soir existants. **Complétée le même jour** : ajouter manuellement une sourate au check-in ne
+propose aujourd'hui que la sourate entière (asymétrie avec le check-out, qui permet déjà de choisir
+une portion pour une sourate révisée en plus) — le check-in doit offrir le même choix de plage.
 
 **Statement** : En tant qu'utilisateur, je veux confirmer le matin ce que je compte réviser
 aujourd'hui puis confirmer le soir ce que j'ai réellement fait — avec un rappel matin et un rappel
@@ -41,6 +43,9 @@ mon activité réelle plutôt qu'un plan simplement proposé et jamais vérifié
 **Critères d'acceptation** (haut niveau) :
 1. Given un plan du jour proposé, When l'utilisateur fait son check-in, Then il peut ajuster ce
    qu'il compte réviser avant de s'engager, et cet engagement devient la référence de sa journée.
+   Given qu'il ajoute manuellement une sourate en plus de la proposition, When il la choisit, Then
+   il peut ensuite choisir la portion précise à réviser (comme au check-out pour une sourate faite
+   en plus), plutôt que de se voir imposer la sourate entière.
 2. Given une journée engagée, When l'utilisateur coche des versets/sourates comme faits au fil de
    ses prières, Then cette progression est visible immédiatement sans attendre le soir.
 3. Given une journée en attente de clôture, When l'utilisateur fait son check-out, Then il
@@ -69,7 +74,10 @@ reste toujours celui qui confirme/corrige, voir critère 3) — seule une notifi
 La granularité verset par verset remplace complètement l'ancienne case à cocher par sourate/
 portion entière côté révision (décidé au blueprint, à confirmer au scoping selon ce que le code
 permet sans réécriture disproportionnée). Le « verset d'avant » est un simple affichage d'aide,
-il n'est jamais lui-même marqué comme fait/à refaire du seul fait d'être montré.
+il n'est jamais lui-même marqué comme fait/à refaire du seul fait d'être montré. Le choix de
+portion à l'ajout manuel (critère 1) ne s'étend pas aux unités déjà proposées automatiquement par
+le plan du jour — celles-ci restent « tout ou rien » (retrait complet via « × »), tranché au
+blueprint du 2026-09-20.
 
 **Scoping technique** : _(vide, à compléter par `quran-scoping`)_
 
