@@ -23,6 +23,94 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
+### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel [priorité: P1] [état: à scoper]
+
+**Historique** : livrée en deux temps le 2026-09-13 (Phase 11 Sprint 1 : démo sur An-Nas/Al-Falaq/
+Al-Ikhlas + aperçu réel + retrait de l'ancien tour guidé ; Sprint 2 : bannières contextuelles sur
+les 4 points d'entrée), archivée terminée. **Rouverte le 2026-09-20** après usage : la démo sur
+3 sourates fixes perd l'utilisateur au lieu de l'aider (contenu étranger à ce qu'il vient de
+configurer, et légèrement condescendant pour qui porte plusieurs juz), et l'onboarding terminé le
+laisse devant une app dont il ne comprend ni la valeur, ni la méthode, ni le bon usage. Blueprint
+du 2026-09-20 : la simulation est supprimée au profit d'un accompagnement des **gestes réels**, et
+l'app assume enfin une direction narrative explicite (voir `CLAUDE.md` § « Direction narrative »).
+
+**Thèse produit adoptée à ce blueprint** : l'utilisateur arrive motivé, mais la motivation
+fluctue — elle est la variable la moins fiable. La valeur de l'app n'est pas de motiver, c'est de
+**faire disparaître la décision quotidienne** (quoi réviser, combien, est-ce que j'ai déjà fait
+celle-là) qui suffit, un jour de faible énergie, à faire sauter la journée. Recevoir un objectif
+atteignable décidé par un tiers légitime est en soi un moteur.
+
+**Statement** : En tant que nouvel utilisateur qui porte déjà du Coran et peine à le réviser seul,
+je veux comprendre dès le premier contact pourquoi ma mémorisation s'effrite et comment l'app
+supprime la décision quotidienne qui me fait sauter des jours, puis être accompagné sur mes
+**premiers gestes réels** plutôt que sur une simulation, afin de savoir m'en servir seul et de
+faire confiance à sa méthode.
+
+**Critères d'acceptation** (haut niveau) :
+
+1. Given un premier lancement, When l'utilisateur traverse l'onboarding, Then il lui est expliqué
+   que ce qu'il a mémorisé s'efface faute de **structure** et non faute de sincérité, puis que
+   l'app décide à sa place la portion du jour selon trois couches — le nouveau, le récent encore
+   fragile, l'ancien qu'on fait tourner — présentées comme la méthode employée par les hafiz
+   depuis des générations.
+2. Given le choix du rythme, When l'utilisateur fixe son nombre de pages par jour, Then l'app lui
+   annonce la **durée d'un tour complet** de sa sélection, formulée aussi comme une garantie
+   (« aucune de tes sourates ne restera plus de N jours sans être revue ») — jamais comme une date
+   à laquelle il aurait « fini » de réviser.
+3. Given l'onboarding, When l'utilisateur le termine, Then il n'a traversé **aucune démonstration
+   sur un contenu qui n'est pas le sien** ; le dernier écran avant la fin lui montre son vrai plan
+   du jour 1 et lui annonce la forme que prendra sa journée : s'engager le matin, réviser dans ses
+   prières, clôturer le soir.
+4. Given l'onboarding terminé, When l'utilisateur arrive dans l'app, Then il est invité à
+   déclencher lui-même son premier check-in et accompagné pas à pas sur ce qu'il fait et pourquoi,
+   jusqu'à savoir que le texte de chaque portion est accessible depuis son plan ; l'app y regarde
+   **derrière** (ce qui est acquis, régularité déjà constituée) et jamais devant, pour ne pas
+   réintroduire le poids du total au moment où l'objectif du jour doit paraître léger.
+5. Given une journée engagée non clôturée, When l'utilisateur revient dans l'app — **qu'il ait reçu
+   ou non la notification du soir** —, Then il est accompagné sur son premier check-out, où l'app
+   regarde cette fois **devant** (durée du tour, échéance d'apprentissage) puisque l'effort est
+   déjà dépensé ; le bouton de clôture reste toujours actionnable, et avant l'heure configurée
+   l'app se contente de signaler que la journée n'est pas finie.
+6. Given un premier check-out qui vient de se clore, When il est terminé, Then l'app fait
+   découvrir le Récap puis les Réglages — au moment précis où le Récap contient exactement une
+   journée et n'a jamais été aussi lisible — et les anciennes bannières passives de ces écrans
+   n'existent plus.
+7. Given des versets non validés la veille, When l'utilisateur consulte son plan le lendemain,
+   Then l'app lui signale **une fois** que ces versets sont revenus seuls, accompagnés de celui
+   qui les précède, et que son cycle a avancé sans qu'il ait rien eu à noter — c'est ce moment,
+   et non l'onboarding, qui prouve la méthode. Given un moment accompagné interrompu avant son
+   terme, When l'utilisateur y revient, Then l'accompagnement est toujours là : il n'est considéré
+   comme donné que lorsque l'étape a réellement été menée à bout, jamais parce qu'un écran a été
+   affiché une fois.
+
+**Exclusions explicites** (chacune verrouille une décision prise au blueprint du 2026-09-20 —
+à ne pas réintroduire de bonne foi dans un sprint futur) :
+
+- **Aucun verrou horaire sur la clôture**, sous aucune forme. Un bouton bloqué ajoute de la
+  friction à l'instant précis où l'utilisateur a enfin l'énergie d'agir, et il n'arrête que les
+  honnêtes : celui qui voudrait cocher sans avoir révisé attendra l'heure et cochera pareil.
+- **Pas de lecteur de Coran autonome.** Lire reste attaché à une unité du plan (comportement
+  actuel) : un mushaf libre remettrait la décision dans les mains de l'utilisateur, c'est-à-dire
+  exactement ce que l'app existe pour lui retirer.
+- **Jamais « fini »/« terminé » à propos de la révision** — elle boucle par nature. Seul
+  l'apprentissage a une vraie fin et peut porter une date.
+- **Aucun terme traditionnel arabe dans l'interface** (sabaq, sabqi, manzil, wird) et **aucune
+  personnification d'un enseignant** : les trois couches sont nommées en clair, et la légitimité
+  tient en une phrase. L'app n'est pas un cheikh — elle ne corrige ni la récitation ni le tajwid.
+- **L'échéance d'apprentissage est toujours conditionnelle** (« si tu tiens ce rythme »),
+  recalculée en silence après une absence, jamais opposée à l'utilisateur (« tu as perdu X jours »).
+- **Une sélection qui grandit allonge le tour** : cet allongement se présente comme une capacité
+  (« tu portes maintenant plus »), jamais comme une régression — sinon l'app dissuade d'ajouter
+  du Coran.
+- **Pas de nouvelle statistique là où le streak existe déjà** : le manque n'est pas un indicateur
+  de plus, c'est une phrase qui explique celui-ci au moment où il compte.
+- La démo sur 3 sourates fixes est **supprimée, pas déplacée** — elle a déjà été repositionnée une
+  fois (2026-09-13) sans que cela règle quoi que ce soit.
+
+**Scoping technique** : _(vide, à compléter par `quran-scoping`)_
+
+---
+
 ### US-3 — Rituel quotidien check-in / check-out, avec ses rappels [priorité: P1] [état: à scoper]
 
 **Historique** : livrée une première fois Phase 6 Sprint 2 (check-in/check-out) + Phase 9 Sprint 1
@@ -87,32 +175,12 @@ blueprint du 2026-09-20.
 
 Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
 
-### US-1 — Premier lancement et prise en main de l'app [priorité: P1] [état: terminée]
-**Historique** : configuration (langue, riwaya, sourates, rythme) livrée Phase 6 Sprint 3 ; tour guidé post-onboarding (halo sur les 3 onglets) livré Phase 9 Sprint 1. Rouverte le 2026-09-13 : constat que la collecte de choix ne suffit pas à faire comprendre la valeur de l'app avant que l'utilisateur ne s'en serve seul, et que le tour guidé ne remplit pas son rôle (opacité des explications trop faible pour être lues, annulé dès qu'un tap touche un bouton sous le halo).
-
-**Statement** : En tant que nouvel utilisateur, je veux configurer mes préférences de base (langue, riwaya, sourates à réviser, rythme) et **ressentir concrètement comment l'app va m'accompagner au quotidien** avant de m'en servir seul, afin d'adhérer dès le premier contact plutôt que de terminer l'onboarding avec une config valide mais sans avoir compris ce qu'elle va m'apporter.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given un premier lancement sans configuration existante, When l'utilisateur configure sa langue, sa riwaya, sa sélection de sourates et son rythme, Then il dispose d'une configuration valide sans être jamais bloqué par une étape qu'il ne peut pas compléter.
-2. Given un premier lancement sans configuration existante, When l'utilisateur arrive en fin d'onboarding (après avoir choisi ses vraies sourates et son rythme), Then il vit un mini-cycle complet (plan du jour → répartition dans les rakaas → clôture) sur un contenu de démonstration universellement connu (An-Nas / Al-Falaq / Al-Ikhlas), sans que cette démonstration ne touche jamais à ses données réelles de progression. **Ajusté après premier essai (2026-09-13)** : positionnée juste après le choix de riwaya au premier scoping, la démo a été déplacée en fin de parcours (entre Rappels et l'aperçu réel, avant Récap) — retour utilisateur après test : trop tôt dans le wizard, avant même de connaître ses propres sourates/rythme, la démo semblait surgir sans contexte ("arriver comme une fleur"). **Ajusté une seconde fois le même jour** : la démo rejoue désormais le geste réel dans son intégralité — bouton « Illuminer ma journée avec le Coran », sélection **libre** des prières (comme au vrai check-in), puis plan réparti dans les rakaas choisies — plutôt que de sauter directement à un plan pré-réparti sur 2 prières fixes (Maghrib+Isha), jugé pas assez fidèle au geste quotidien réel.
-3. Given la démonstration en cours, When l'utilisateur est dedans, Then elle ne peut pas être passée (obligatoire) — elle reste néanmoins courte et ne bloque pas indéfiniment l'accès à la suite de l'onboarding.
-4. Given sa vraie sélection de sourates et son rythme configurés, When l'utilisateur arrive en fin d'onboarding, Then il voit un aperçu réel (pas une description textuelle) de ce que sera son premier plan du jour, avant le bouton qui termine l'onboarding — cet aperçu n'est pas non plus escamotable. **Ajusté au scoping (2026-09-13)** : cet aperçu montre la liste des sourates/portions du jour 1 (même contenu que la vue check-in), sans répartition en rakaas — l'onboarding ne demande jamais les prières du jour (ça n'arrive qu'au check-in, écran différent), simuler des prières factices pour cet aperçu contredirait "aperçu réel". Confirmé par l'utilisateur au scoping.
-5. Given l'onboarding terminé, When l'utilisateur atteint pour la première fois en usage réel un moment clé de l'app — premier tap sur « Illuminer ma journée avec le Coran » (check-in), premier tap sur « Clôturer ma journée » (check-out), premier accès à l'onglet Récap, premier accès à l'onglet Profil/Réglages, et tout autre point d'entrée structurant équivalent —, Then l'app lui explique sur le moment ce que ce moment lui apporte, plutôt que de l'avoir expliqué à l'avance pendant l'onboarding ou de ne jamais l'expliquer. **Précisé au scoping (2026-09-13)** : inventaire exhaustif après deep-dive code — exactement ces 4 points d'entrée (aucun autre écran plein-écran structurant équivalent identifié dans `ShellScreen`/`DayPlanTab`), chacun avec son propre flag "vu" indépendant.
-6. Given l'onboarding terminé, When l'utilisateur arrive sur l'écran d'accueil pour la première fois, Then il n'est plus confronté à l'ancien tour guidé (halo sur les onglets) — retiré au profit des critères 2 à 5 ci-dessus, jamais réintroduit sous sa forme actuelle.
-7. Given une configuration déjà existante, When l'utilisateur relance l'app, Then ses préférences sont restaurées automatiquement sans repasser par l'onboarding ni par la démonstration.
-
-**Exclusions explicites** : la démonstration factice n'est jamais personnalisée avec la vraie sélection de l'utilisateur (toujours les 3 mêmes sourates courtes) ; elle ne doit produire aucune ligne dans `ayah_facts`. La liste des points clés du critère 5 est indicative (« et tout autre point d'entrée structurant équivalent ») — l'inventaire exhaustif des hooks et leur contenu précis reviennent à `quran-scoping`. Aucun bouton « revoir le tutoriel » n'est demandé par ce blueprint (l'ancien existait déjà sans, voir Backlog CHANGELOG).
-
-**Scoping technique** (2026-09-13) :
-
-- **Décision data model** : rien de nouveau dans `ayah_facts` (exigence explicite de la story). Le mini-cycle de démo (critère 2) et l'aperçu fin d'onboarding (critère 4) sont construits en mémoire à partir d'un `UserConfig`/`SourateSelection` **jamais persisté**, via `RevisionEngine.buildDayUnits`/`distributeToRakaas` (fonctions pures, `lib/core/`) — aucun appel `AyahFactsService`. Les flags "premier accès vu" (critère 5) vivent en `SharedPreferences` via une paire générique `StorageService.hasSeenHook(hookId)`/`setHookSeen(hookId)` (état UI sans valeur historique), miroir `AppState.hasSeenHook`/`markHookSeen` — pas 4-5 paires de méthodes dupliquées.
-- **Fichiers concernés** : nouveau `steps/demo_page.dart` (PageView, entre Riwaya et Sélection, seulement si `presetRiwaya == null`) et `steps/preview_page.dart` (juste avant Récap) dans `lib/screens/onboarding/` ; extraction de `_UnitRow` (`check_in_screen.dart`) vers `lib/widgets/unit_row.dart`, réutilisée par `CheckInScreen` et la page d'aperçu ; suppression complète de `lib/widgets/spotlight_tour.dart` et de son usage dans `shell_screen.dart` ; hooks contextuels sur `check_in_screen.dart`, `check_out_screen.dart`, `recap_screen.dart`, `profile_screen.dart`.
-- **Risque identifié et à corriger dans l'implémentation** : `main.dart` (`_AppRoot`) utilise `AppState.hasSeenTour` comme proxy de "onboarding déjà terminé une fois" pour sauter Intro/Riwaya lors d'un changement de riwaya (`presetRiwaya: state.hasSeenTour ? state.riwaya : null`). Aujourd'hui `markTourSeen()` n'est appelé que par l'ancien tour (`ShellScreen._dismissTour`) — supprimé par cette story. Sans déplacer cet appel dans `OnboardingScreen._confirm()`, un changement de riwaya vers un parcours neuf réafficherait Intro+Riwaya en boucle. La clé/le nom `hasSeenTour`/`onboarding_tour_seen` sont conservés tels quels (sémantique déjà correcte), seul le point d'appel change.
-- **Ajustements aux critères** : voir critères 2 (démo seulement si `presetRiwaya == null`), 4 (aperçu = liste sourates/portions, pas de rakaas — confirmé par l'utilisateur), 5 (liste des 4 hooks confirmée exhaustive par le code) ci-dessus.
-- **Découpage proposé** : Sprint A (démo + aperçu + retrait ancien tour + correctif `markTourSeen`) puis Sprint B (4 hooks contextuels), indépendants l'un de l'autre. Détail complet et item prêt à implémenter dans `docs/CHANGELOG.md` (Backlog, entrée "US-1").
-- Confiance globale du scoping : haute sur le mapping/data model, moyenne sur le détail UI exact des nouvelles pages (briques pures déjà identifiées).
-- **Sprint A livré le 2026-09-13 (Phase 11 Sprint 1)** : critères 2, 3, 4 et 6 couverts (démo + aperçu + retrait du tour guidé). Démo repositionnée en fin de parcours après retour utilisateur post-implémentation (voir ajustement du critère 2 ci-dessus). Critère 7 déjà couvert par l'existant (config persistée = pas de repassage par l'onboarding), vérifié manuellement.
-- **Sprint B livré le 2026-09-13 (Phase 11 Sprint 2)** : critère 5 couvert — hooks contextuels (`HookBanner`/`HookVisibilityMixin`, `lib/widgets/hook_banner.dart`) sur les 4 points d'entrée identifiés au scoping (`CheckInScreen`, `CheckOutScreen`, `RecapScreen`, `ProfileScreen`). Vérifié par `flutter analyze` + 88 tests automatisés ; le check-in/check-out/récap/réglages dépendent de `sqflite` (non supporté sur Flutter Web, limitation préexistante documentée dans le Backlog), donc non vérifiables visuellement dans le preview navigateur de cette machine — relecture manuelle approfondie du câblage à la place. US-1 est désormais **entièrement livrée** (7/7 critères).
+### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel
+**État** : rouverte le 2026-09-20 — voir « Stories actives » en tête de fichier. Ce qui avait été
+livré les Phase 11 Sprints 1 et 2 (démo sur An-Nas/Al-Falaq/Al-Ikhlas, bannières passives sur
+Récap/Réglages) est **remplacé** par le nouveau blueprint, pas complété ; le détail de cette
+livraison vit dans `git log`. L'ancien énoncé est retiré d'ici pour ne pas décrire comme acquis un
+comportement que le prochain sprint supprime.
 
 ### US-2 — Plan quotidien réparti dans la journées grâce aux prières
 **État** : terminée — moteur pages/jour (Phase 8 Sprint 3) + répartition en rakaas ; Phase 9 Sprint 1 y ajoute la rakaa d'apprentissage en dernière position.

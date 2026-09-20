@@ -53,6 +53,71 @@ Exécuter dans l'ordre, sans redemander de confirmation entre chaque étape **sa
 2. Si le travail touche `test/`, lire aussi `test/CLAUDE.md`.
 3. Ne pas prendre `docs/DOCUMENTATION_TECHNIQUE.md`/`docs/USER_STORIES.md`/`docs/CHANGELOG.md` pour argent comptant : ce sont des fichiers maintenus à la main, ils dérivent du code réel avec le temps (voir "Vérifier l'harmonie" ci-dessous).
 
+## Direction narrative de l'app (cadrée au blueprint du 2026-09-20)
+
+Avant ce cadrage, chaque fonctionnalité était ajoutée pour sa valeur propre, sans place assignée
+dans un récit — d'où un onboarding qui collectait des réglages sans faire comprendre la méthode,
+et une démo sur 3 sourates fixes qui n'appartenait à aucun moment (déplacée une fois sans que ça
+règle quoi que ce soit, puis supprimée). **Toute fonctionnalité ajoutée à partir d'ici doit savoir
+à quel moment de l'histoire elle entre.**
+
+### La thèse
+
+L'utilisateur arrive **déjà motivé** — il porte du Coran et sait ce qu'il risque à le perdre. Mais
+la motivation fluctue : c'est la variable la moins fiable. L'app ne cherche donc pas à motiver ;
+elle **supprime la décision quotidienne** (quoi réviser, combien, est-ce que j'ai déjà fait
+celle-là) qui suffit, un jour de faible énergie, à faire sauter la journée. Recevoir un objectif
+atteignable décidé par un tiers légitime est en soi un moteur.
+
+Corollaire opérationnel : **toute fonctionnalité qui redonne une décision à l'utilisateur joue
+contre la thèse**, même si elle paraît généreuse (lecteur de Coran libre, choix supplémentaire au
+check-in, réglage de plus). La générosité, ici, c'est de décider à sa place.
+
+### L'ancrage, et sa limite
+
+L'app automatise trois couches connues de toute mémorisation sérieuse — **le nouveau**, **le
+récent encore fragile**, **l'ancien qu'on fait tourner** (respectivement l'apprentissage,
+`FreshnessEngine`, `RevisionEngine`). Elles se nomment **en clair**, jamais par leurs termes
+traditionnels arabes : introduire du vocabulaire inconnu est exactement le mal qu'on soigne. La
+légitimité tient en une phrase — *la méthode des hafiz depuis des générations* — et ne se répète
+pas. **L'app n'est pas un enseignant** : elle ne corrige ni la récitation ni le tajwid et ne se
+présente jamais comme remplaçant un cheikh. Elle tient le carnet, pas la chaire.
+
+### La forme de la journée
+
+| Moment | Ce qui s'y passe | Regard |
+|---|---|---|
+| **Début** — check-in | Prendre en considération l'objectif du jour et s'y engager | **Derrière** : l'acquis, la régularité déjà constituée |
+| **Milieu** — les prières | Réviser, apprendre. L'app est quasi absente : sa seule présence est l'accès au texte depuis chaque ligne du plan | — |
+| **Fin** — check-out | Confirmer ce qui a tenu ; ce qui n'a pas tenu revient demain | **Devant** : durée du tour, échéance d'apprentissage |
+
+Règle de placement des chiffres : **derrière au check-in, devant au check-out.** Le check-in doit
+rendre l'objectif du jour *léger* — y afficher une projection réintroduit le poids du total au
+moment exact où l'on cherchait à l'alléger. Au check-out l'effort est déjà dépensé : la projection
+s'y lit comme une récompense.
+
+### Ce qu'on a le droit de promettre
+
+- **L'apprentissage a une fin** → une date est légitime, mais toujours conditionnelle (« si tu
+  tiens ce rythme »), recalculée en silence après une absence, jamais opposée à l'utilisateur
+  (« tu as perdu X jours »).
+- **La révision n'a pas de fin, elle a un tour** → `cycleTotal ÷ pages par jour`. Ce nombre est
+  stable (il ne bouge pas quand des jours sont sautés) et se lit de deux façons : une période, et
+  une garantie — *aucune sourate ne restera plus de N jours sans être revue*.
+- **Ne jamais écrire « fini »/« terminé » à propos de la révision.** L'utilisateur qui croit
+  atteindre une ligne d'arrivée et voit le cycle reboucler vit une trahison.
+- Une sélection qui grandit allonge le tour : le présenter comme une **capacité**, jamais comme une
+  régression — sinon l'app dissuade d'ajouter du Coran.
+
+### Où entre une nouvelle fonctionnalité
+
+Avant d'ajouter un écran, un message ou un indicateur : dire **à quel moment de l'histoire il
+entre** (diagnostic, engagement, milieu, clôture, preuve du lendemain) et **ce qu'il y prouve**.
+Une fonctionnalité sans moment est soit mal placée, soit inutile — c'est ce diagnostic qui a tué
+la démo sur 3 sourates fixes. Et ne jamais ajouter un indicateur là où une phrase expliquant un
+indicateur existant suffirait : le streak existait déjà, ce qui manquait c'était de dire ce qu'il
+signifie au moment où il compte.
+
 ## Ne jamais sur-ingénierer
 Projet solo, un seul développeur, Provider comme unique gestion d'état.
 - Pas de nouvelle lib de state management, DI ou couche d'architecture supplémentaire tant que la taille du projet ne le justifie pas.
