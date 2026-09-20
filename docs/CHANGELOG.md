@@ -25,6 +25,8 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 - L'apprentissage n'a plus d'onglet dédié : la sourate à apprendre est choisie au check-in, récitée dans la **dernière rakaa** du plan, confirmée au check-out.
 - Le hand-off "sourate mémorisée → révision" est automatique et passe par `AppState.addSelectionKeepingCycle`, **jamais** `saveConfig` (qui remettrait `cyclePosition` à 0).
 - « Faire plus » (sourate en plus, verset en plus) fait avancer le cycle au-delà de la proposition du jour — mais seulement si l'utilisateur l'a explicitement déclaré ce jour-là ; le curseur reste ordonné, déclarer un groupe plus loin dans la rotation ne crédite pas ceux qui le précèdent.
+- **Accompagnement guidé (`AppState.guideDone`/`markGuideDone`, US-1 sprint B, remplace l'ancien `hasSeenHook`/`HookBanner`)** : un id n'est marqué que par le callback du GESTE RÉEL qu'il accompagne (check-in validé, verset ouvert, check-out scellé, action du `GuideStep`) — jamais par le simple affichage d'une carte ni par une croix de fermeture. Toute nouvelle étape guidée doit suivre cette règle, pas réintroduire un dismiss passif.
+- Heures de rappel matin/soir (`StorageService.loadMorningTime`/`loadEveningTime`) sont des préférences **globales**, jamais préfixées par riwaya et jamais rechargées dans `_loadTrackState` — un réglage de notification n'a rien à voir avec le parcours de révision actif.
 
 **Infra / divers**
 - `sqflite_common_ffi` est en dépendance de **prod**, pas dev-only : `main.dart` bascule dessus derrière `if (Platform.isWindows)`, une condition runtime que Dart ne tree-shake pas — léger surcoût de taille binaire mobile assumé pour pouvoir tester sur cette machine sans device.
@@ -36,73 +38,6 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 ## Backlog technique
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
-
-### [P1] US-1 sprint B — Accompagnement des premiers gestes réels (crit. 4-6)
-Réf. `docs/USER_STORIES.md` US-1, critères 4-6. À livrer après le sprint A, dont la fin
-(`AppState.markTourSeen`, `onboarding_screen.dart:252`) est la charnière d'entrée.
-
-1. **Remplacer la bannière passive par un état fondé sur le GESTE ACCOMPLI.**
-   `StorageService` : remplacer `hasSeenHook`/`setHookSeen` (clés `hook_seen_<id>`) par une clé
-   unique `guide_done` (`StringList`). `AppState` : champ `Set<String> _guideDone` dans le **corps**
-   de la classe (comme `_hasSeenTour` — une `extension` ne peut pas porter de champ), rempli au boot
-   dans `main.dart`, getter **synchrone** `guideDone(String)` + `markGuideDone(String)`. **Jamais
-   rechargé dans `_loadTrackState`** : l'accompagnement est global et ne doit pas se rejouer à la
-   bascule de riwaya. `hook_banner.dart` → `guide_step.dart` : garder le visuel (carte or, même
-   langage que `PlanScreen._summaryBar`), supprimer `HookVisibilityMixin`, remplacer `onDismiss`
-   (croix) par une action nommée — **l'étape guidée n'a pas de croix**. Règle dure : le flag n'est
-   écrit que par le callback du geste réel, jamais par l'affichage ni par une fermeture (c'est
-   précisément le défaut de `dismissHook()` aujourd'hui). Ids : `checkin_done` (pop de
-   `CheckInScreen` avec prières non vides) · `verses_reachable` (ouverture effective de
-   `VerseBottomSheet` depuis une rakaa — `PrayerPlanCard` gagne un `VoidCallback? onOpenVerses`) ·
-   `checkout_done` (retour de `AppState.checkOut`) · `recap_seen` · `settings_seen`. **Nouveaux ids,
-   jamais les anciens** : qui a fermé l'ancienne bannière ne doit pas être privé du nouvel
-   accompagnement. Anciennes clés laissées orphelines, pas de migration.
-2. **Supprimer les 4 bannières passives et tout leur support mort** : `check_in_screen.dart`
-   (import, mixin, `hookId`, `loadHook()`, bloc `HookBanner`) · `check_out_screen.dart` (idem) ·
-   `recap_screen.dart` · `profile_screen.dart` (noter la garde `&& !_editing`) · les **8 getters
-   `hook*`** de `strings.dart` · `AppState.hasSeenHook`/`markHookSeen`.
-3. **Crit. 4 — premier check-in.** Pas-à-pas sur les 3 sections existantes de `CheckInScreen`, puis
-   sur `PlanScreen` **désigner** l'accès au texte qui existe déjà (icône livre de `PrayerPlanCard`
-   → `VerseBottomSheet`) — ne rien construire pour lire le Coran. Regard **derrière** :
-   `AyahFactsService.currentStreak` (déjà chargé par `HomeScreen`) et `AppState.pagesProgress.pos`.
-   Le `/ total` de `CycleProgressCard` sur `HomeScreen` **suit l'état de la journée** (décision
-   utilisateur 2026-09-20) : masqué au repos avant engagement (moment check-in), visible dans
-   l'état « journée clôturée » (moment check-out). Implémenté par un **paramètre passé depuis
-   `HomeScreen`**, jamais en modifiant `CycleProgressCard`, partagée avec le Récap.
-4. **Crit. 5 — premier check-out**, déclenché au retour dans l'app sur une journée engagée non
-   close (`todaySession != null && !todayClosed`, ou `pendingDate`), indépendamment de la
-   notification. Regard **devant**, deux calculs à écrire (aucun n'existe) : durée du tour via
-   `DaySelection.cycleDays` (helper du sprint A, **à réutiliser**) ; échéance d'apprentissage via
-   `LearningProgress.daysToFinish(int versesPerDay)` =
-   `ceil((totalVerses - learnedCount) / versesToLearnPerDay)`, **jamais persistée** — dérivée à la
-   volée, donc « recalculée en silence après une absence » sans code dédié, et toujours formulée
-   conditionnellement. Les deux verrouillés par test.
-   **Rendre les heures de rappel matin/soir configurables** (décision utilisateur 2026-09-20,
-   morceau repris d'US-3 crit. 6) : travail neuf complet — aucune notion d'heure n'existe
-   aujourd'hui dans le modèle, le stockage ou l'UI. Clés `SharedPreferences` dédiées **globales,
-   hors `_loadTrackState`** (un réglage de notification n'est pas par riwaya, et `UserConfig` est
-   écarté : préfixé riwaya + gardes de `saveConfig` qui remettraient `cyclePosition` à 0) ; pickers
-   dans `settings_card.dart` ; replanification via `NotificationService.scheduleMorning`/
-   `scheduleEvening` (dont les paramètres `hour`/`minute` existent déjà mais ne sont jamais
-   surchargés). Le signalement « la journée n'est pas finie » lit l'heure du soir ainsi réglée.
-   **NE RIEN RETIRER côté verrou** : il n'en existe aucun (`PlanScreen._completionButton` est
-   explicitement « always active — 2026-09-07 » ; `HomeScreen` rebascule sur « rouvrir la
-   clôture »). La garde `_sealing` de `CheckOutScreen` est un anti-double-tap, à conserver.
-5. **Crit. 6 — enchaîner Récap puis Réglages** après la première clôture. `ShellScreen` (seul
-   détenteur de `_index`, 92 l., `watch` déjà `AppState`) porte l'enchaînement :
-   `guideDone('checkout_done') && !guideDone('recap_seen')` → `_index = 1` ; l'action de l'étape
-   Récap écrit `recap_seen` → `_index = 2`. Aucun service de navigation, aucune `GlobalKey`.
-
-**Exclusions** : aucune dépendance externe (coach-mark/showcase) — `pubspec.yaml` vérifié, n'en
-contient aucune, et ces critères demandent une phrase au bon moment, pas un overlay à trou. Aucun
-nouvel indicateur : le streak existe, il s'explique, il ne se double pas. Aucun lecteur de Coran
-autonome. Aucun verrou horaire sur la clôture. Ne jamais écrire « fini »/« terminé » à propos de la
-révision. Crit. 7 hors périmètre.
-
-**Taille de fichiers** : `plan_screen.dart` est **déjà à 357 l.** (> plafond 350) — poser tout
-contenu guidé dans `lib/widgets/guide_step.dart`, jamais comme méthode privée de plus dans un
-écran. `profile_screen.dart` (384) et `recap_screen.dart` (351) gagnent ~10 l. au retrait des
-bannières. Si un fichier touché dépasse 400 en fin de sprint, inscrire son extraction ici.
 
 ### [P1] US-1 sprint C — La preuve du lendemain (crit. 7) — BLOQUÉ PAR US-3
 Réf. `docs/USER_STORIES.md` US-1, critère 7. **Dépendance dure : US-3 critère 4** (« un verset
@@ -123,7 +58,9 @@ Id `return_proof_seen`, armé par `guideDone('checkout_done')`, écrit au tap d'
 **Ordre global des sprints** : US-1 A → US-1 B → US-3 → US-1 C.
 
 ### [P2] Découper `lib/core/strings.dart`
-**415 lignes aujourd'hui**, ~450 après US-1 — au-delà du plafond de 300-350 de `CLAUDE.md`. Une
+**489 lignes aujourd'hui** (415 avant US-1 sprint A, ~450 après le sprint A, +39 au sprint B pour
+les chaînes du guide et des heures de rappel) — au-delà du plafond de 300-350 de `CLAUDE.md`,
+maintenant aussi au-delà des 400 lignes qui imposent une extraction dédiée. Une
 classe Dart ne peut pas être répartie sur des `part` : le découpage impose plusieurs classes par
 domaine (`S`, `SOnboarding`, `SCheckIn`, …) et un renommage sur l'ensemble des sites d'appel.
 **Sprint dédié, pas un à-côté de sprint fonctionnel.**

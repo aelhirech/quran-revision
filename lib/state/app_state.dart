@@ -42,6 +42,12 @@ class AppState extends ChangeNotifier {
   Riwaya _riwaya;
   final bool warshAvailable;
   bool _hasSeenTour;
+  // Ids of the real-gesture guided steps completed so far (US-1 sprint B) —
+  // filled once at boot (see `main.dart`), never reloaded in `_loadTrackState`:
+  // the guided accompaniment is global, it must not replay on a riwaya
+  // switch. Kept in the class body (not an extension) for the same reason as
+  // `_hasSeenTour` — an `extension on AppState` cannot carry a field.
+  Set<String> _guideDone;
   List<Sourate> _sourates;
   // Last revision date per verse (surahId → ayahId → date), finest grain
   // available — see `refreshFreshness`/`freshnessFor`. FreshnessEngine.
@@ -57,6 +63,7 @@ class AppState extends ChangeNotifier {
     Riwaya riwaya = Riwaya.hafs,
     this.warshAvailable = true,
     bool initialHasSeenTour = false,
+    Set<String> initialGuideDone = const {},
     int initialCyclePosition = 0,
     Set<String> initialPauseDates = const {},
   })  : _locale = locale,
@@ -65,6 +72,7 @@ class AppState extends ChangeNotifier {
         // ignore: prefer_initializing_formals
         _riwaya = riwaya,
         _hasSeenTour = initialHasSeenTour,
+        _guideDone = Set.from(initialGuideDone),
         _sourates = _souratesFor(riwaya),
         _cyclePosition = initialCyclePosition,
         _pauseDates = Set.from(initialPauseDates) {
@@ -124,15 +132,24 @@ class AppState extends ChangeNotifier {
     _notify();
   }
 
-  /// "Seen once" contextual hooks (US-1 criterion 5) — screens call
-  /// [hasSeenHook] to decide whether to show their first-visit banner, then
-  /// [markHookSeen] once it's dismissed. No local cache like [hasSeenTour]:
-  /// each hook is read once per screen visit, not on every rebuild, so the
-  /// extra SharedPreferences round-trip isn't worth a `Map` field to keep in
-  /// sync across the 4 hook ids.
-  Future<bool> hasSeenHook(String hookId) => StorageService.hasSeenHook(hookId);
+  /// Has the real-gesture guided step [id] already happened (US-1 sprint B)?
+  /// Synchronous, unlike the old per-hook flags it replaces: [_guideDone] is
+  /// filled once at boot, so a screen reads it straight from `build` instead
+  /// of an async `initState` load that risked flashing the "not guided yet"
+  /// state for a frame.
+  bool guideDone(String id) => _guideDone.contains(id);
 
-  Future<void> markHookSeen(String hookId) => StorageService.setHookSeen(hookId);
+  /// Marks guided step [id] as done — called only from the real gesture it
+  /// accompanies (a check-in validated, a verse sheet actually opened, a
+  /// check-out sealed, a step's own action button), never from a banner
+  /// being merely displayed or dismissed. No-op if already done, so callers
+  /// don't need to guard against re-marking on every tap.
+  Future<void> markGuideDone(String id) async {
+    if (_guideDone.contains(id)) return;
+    _guideDone = {..._guideDone, id};
+    await StorageService.saveGuideDone(_guideDone);
+    _notify();
+  }
   /// Sourates for the active track, with verse/word counts correct for the
   /// active riwaya (Hafs 6236 verses total, Warsh 6214 — per-surah counts
   /// differ accordingly). Use this instead of `quran_data.dart`'s raw data
@@ -185,10 +202,7 @@ class AppState extends ChangeNotifier {
     // reminder would keep the language it was created in forever. Rescheduling
     // overwrites ids 1 and 2, so it is idempotent.
     if (await StorageService.loadNotifEnabled()) {
-      await Future.wait([
-        NotificationService.scheduleMorning(),
-        NotificationService.scheduleEvening(),
-      ]);
+      await NotificationService.rescheduleAll();
     }
     _notify();
   }

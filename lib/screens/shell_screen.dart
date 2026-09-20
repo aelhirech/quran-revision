@@ -17,6 +17,11 @@ class ShellScreen extends StatefulWidget {
 
 class _ShellScreenState extends State<ShellScreen> {
   int _index = 0;
+  // Rising-edge tracking (US-1 crit. 6), never the level: once the user has
+  // moved to a tab of their own choosing, the same notification (e.g.
+  // typing in Settings' search) must never send them back there.
+  bool _lastCheckoutDone = false;
+  bool _lastRecapSeen = false;
 
   @override
   void initState() {
@@ -24,6 +29,8 @@ class _ShellScreenState extends State<ShellScreen> {
     // Point d'entrée du moteur quotidien (Phase 6 Sprint 2) — à chaque
     // ouverture/reprise de l'app (voir cadrage "Moteur quotidien").
     final state = context.read<AppState>();
+    _lastCheckoutDone = state.guideDone('checkout_done');
+    _lastRecapSeen = state.guideDone('recap_seen');
     state.ensureDayPlan();
     // `freshnessFor` (Phase 8 Sprint 1) retourne toujours un niveau concret,
     // jamais `null` — tant qu'aucun refresh n'a eu lieu, `_lastRevisionByAyah`
@@ -35,6 +42,25 @@ class _ShellScreenState extends State<ShellScreen> {
     // se résolvent — le démarrer ici, en parallèle, réduit la fenêtre de
     // course plutôt que de la laisser dépendre d'un écran sans rapport.
     state.refreshFreshness(notify: false);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Chains Récap then Réglages once, right after the FIRST check-out
+    // (US-1 crit. 6) — only on each flag's rising edge, never its level: a
+    // manual tab switch afterward must never be overridden by this
+    // notification again.
+    final state = context.read<AppState>();
+    final checkoutDone = state.guideDone('checkout_done');
+    final recapSeen = state.guideDone('recap_seen');
+    if (checkoutDone && !_lastCheckoutDone && !recapSeen) {
+      _index = 1;
+    } else if (checkoutDone && recapSeen && !_lastRecapSeen) {
+      _index = 2;
+    }
+    _lastCheckoutDone = checkoutDone;
+    _lastRecapSeen = recapSeen;
   }
 
   void _onDestinationSelected(int i) => setState(() => _index = i);

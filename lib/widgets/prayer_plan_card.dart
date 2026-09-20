@@ -19,6 +19,12 @@ class PrayerPlanCard extends StatelessWidget {
   final void Function(int rakaaNumber) onToggle;
   final FreshnessLevel Function(int sourateId, int verseStart, int verseEnd)? freshnessOf;
 
+  /// Called right before the verse sheet opens from a rakaa's book icon
+  /// (US-1 crit. 4) — lets the caller mark the "verses_reachable" guided
+  /// step done on the real gesture, without this card knowing anything
+  /// about guides itself.
+  final VoidCallback? onOpenVerses;
+
   const PrayerPlanCard({
     super.key,
     required this.prayerIndex,
@@ -26,6 +32,7 @@ class PrayerPlanCard extends StatelessWidget {
     required this.checked,
     required this.onToggle,
     this.freshnessOf,
+    this.onOpenVerses,
   });
 
   @override
@@ -129,8 +136,11 @@ class PrayerPlanCard extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 17),
                 tooltip: S.versetsDeRakaa,
-                onPressed: () => VerseBottomSheet.show(
-                    context, r.unit!.sourate, r.unit!.verseStart, r.unit!.verseEnd),
+                onPressed: () {
+                  onOpenVerses?.call();
+                  VerseBottomSheet.show(
+                      context, r.unit!.sourate, r.unit!.verseStart, r.unit!.verseEnd);
+                },
               ),
           ],
         ),

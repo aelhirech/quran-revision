@@ -14,10 +14,26 @@ class NotificationService {
   static Future<bool> enable() async {
     final granted = await requestPermission();
     await StorageService.saveNotifEnabled(granted);
-    if (granted) {
-      await Future.wait([scheduleMorning(), scheduleEvening()]);
-    }
+    if (granted) await rescheduleAll();
     return granted;
+  }
+
+  /// (Re)schedules both reminders on the currently configured times
+  /// (`StorageService`, US-1 sprint B — before this, `scheduleMorning`/
+  /// `scheduleEvening` were only ever called with their default hours).
+  /// Single entry point shared by [enable] (first activation),
+  /// `SettingsCard`'s time pickers, and `AppState.setLocale` (a reminder's
+  /// text is baked in at scheduling time, so a language change must
+  /// reschedule).
+  static Future<void> rescheduleAll() async {
+    final morningF = StorageService.loadMorningTime();
+    final eveningF = StorageService.loadEveningTime();
+    final morning = await morningF;
+    final evening = await eveningF;
+    await Future.wait([
+      scheduleMorning(hour: morning.hour, minute: morning.minute),
+      scheduleEvening(hour: evening.hour, minute: evening.minute),
+    ]);
   }
 
   /// Désactive les rappels : persiste explicitement `false` (pas de valeur

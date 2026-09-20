@@ -3,13 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
+import '../models/learning_progress.dart';
 import '../models/revision_unit.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
 import '../widgets/cycle_milestone_dialog.dart';
-import '../widgets/hook_banner.dart';
+import '../widgets/guide_step.dart';
 import '../widgets/outlined_action_button.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
@@ -41,7 +42,7 @@ class CheckOutScreen extends StatefulWidget {
   State<CheckOutScreen> createState() => _CheckOutScreenState();
 }
 
-class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixin {
+class _CheckOutScreenState extends State<CheckOutScreen> {
   List<({RevisionUnit unit, Set<int> needsWorkVerses, bool reach})>? _items;
   // Unités décochées par l'utilisateur (exceptions) — tout le reste est
   // "fait" par défaut, écrit en base seulement à la clôture ([_close]).
@@ -54,15 +55,16 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
   // `_unchecked` côté révision : tout est "appris" par défaut, décocher
   // signale un verset à continuer d'apprendre (il sera reproposé).
   ({Sourate sourate, List<int> ayahIds, Set<int> reachedVerses})? _learnPlan;
+  // Guide's "look ahead" (crit. 5): full progress of the surah being
+  // learned, for `LearningProgress.daysToFinish` — distinct from
+  // [_learnPlan], which only carries THIS day's proposed portion.
+  LearningProgress? _learningProgress;
   final Set<int> _notLearned = {};
   int _step = 1;
   // Les exceptions persistées n'ont été reprises qu'une fois (voir [_load]).
   bool _prefilled = false;
   bool _addToday = false;
   bool _sealing = false;
-
-  @override
-  String get hookId => 'check_out';
 
   // `setState` is `@protected`, not callable from `_CheckOutSections` (an
   // extension, not a State subclass member despite sharing this library) —
@@ -87,7 +89,6 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
   void initState() {
     super.initState();
     _load();
-    loadHook();
   }
 
   Future<void> _load() async {
@@ -95,9 +96,12 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
     final itemsF = state.dayUnitsWithStatus(date: widget.date);
     final learnF = state.learningPlanFor(widget.date);
     final sealedF = state.isDaySealed(widget.date);
+    final learningProgressF =
+        state.guideDone('checkout_done') ? null : state.learningInProgress();
     final items = await itemsF;
     final learn = await learnF;
     final sealed = await sealedF;
+    if (learningProgressF != null) _learningProgress = await learningProgressF;
     if (!mounted) return;
     setState(() {
       _items = items;
@@ -178,6 +182,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
         ],
       ]);
       final cycleWrapped = await state.checkOut(widget.date);
+      // Marked AFTER the real sealing, never on the guide's display or a
+      // plain tap — see CLAUDE.md § "Modèle de données central" and the
+      // guide rule (CHANGELOG, US-1 sprint B).
+      await state.markGuideDone('checkout_done');
       // Le jour en attente est scellé. Écart d'1 jour : pas de choix
       // proposé, on enchaîne directement sur aujourd'hui comme avant.
       // Écart multi-jours (Partie 2) : ne propose aujourd'hui que si
@@ -201,6 +209,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
     final palette = context.palette;
     final items = _items;
     final showPart2 = _isMultiDay && _step == 2;
@@ -215,13 +224,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
                 child: Column(
                   children: [
                     _hero(palette, showPart2),
-                    if (showHook)
-                      HookBanner(
-                        icon: Icons.nightlight_outlined,
-                        title: S.hookCheckOutTitle,
-                        body: S.hookCheckOutBody,
-                        onDismiss: dismissHook,
-                      ),
+                    if (!state.guideDone('checkout_done')) _guideStep(state),
                     Expanded(
                       child: showPart2
                           ? _part2Body(palette)
@@ -252,6 +255,30 @@ class _CheckOutScreenState extends State<CheckOutScreen> with HookVisibilityMixi
                 ),
               ),
       ),
+    );
+  }
+
+  /// "Look ahead" of the first check-out (US-1 crit. 5): the cycle's round
+  /// duration (`DaySelection.cycleDays`, reused from sprint A) and, if a
+  /// surah is being memorized, its conditional deadline
+  /// (`LearningProgress.daysToFinish`). Generic fallback if neither applies
+  /// (empty selection, or no learning in progress).
+  Widget _guideStep(AppState state) {
+    final cycleTotal = state.daySelection.cycleTotal;
+    final pagesPerDay = state.config?.pagesPerDay ?? 0;
+    final cycleDays =
+        cycleTotal > 0 ? state.daySelection.cycleDays(pagesPerDay) : null;
+    final learningDays = _learningProgress
+        ?.daysToFinish(state.config?.versesToLearnPerDay ?? 0);
+    final body = [
+      if (cycleDays != null) S.guideCheckoutCycleBody(cycleDays),
+      if (learningDays != null && learningDays > 0)
+        S.guideCheckoutLearningBody(learningDays),
+    ].join(' ');
+    return GuideStep(
+      icon: Icons.nightlight_outlined,
+      title: S.guideCheckoutTitle,
+      body: body.isEmpty ? S.guideCheckoutBody : body,
     );
   }
 

@@ -5,6 +5,7 @@ import '../screens/check_in_screen.dart';
 import '../screens/check_out_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/plan_screen.dart';
+import '../services/storage_service.dart';
 import '../state/app_state.dart';
 
 /// Gère la logique de routing de l'onglet "Plan du jour" :
@@ -31,6 +32,29 @@ class DayPlanTab extends StatefulWidget {
 
 class _DayPlanTabState extends State<DayPlanTab> {
   bool _checkOutShown = false;
+  // Anti-double-push guard for the first guided evening check-out (US-1
+  // crit. 5, distinct from [_checkOutShown] which handles catching up on an
+  // older day).
+  bool _firstCheckOutGuideShown = false;
+  // Loaded only once: a notification setting doesn't change often enough to
+  // justify re-reading SharedPreferences on every build.
+  ({int hour, int minute})? _eveningTime;
+
+  @override
+  void initState() {
+    super.initState();
+    StorageService.loadEveningTime().then((t) {
+      if (mounted) setState(() => _eveningTime = t);
+    });
+  }
+
+  bool get _pastEveningHour {
+    final evening = _eveningTime;
+    if (evening == null) return false;
+    final now = DateTime.now();
+    return now.hour > evening.hour ||
+        (now.hour == evening.hour && now.minute >= evening.minute);
+  }
 
   /// Pousse le check-out sur [date]. Deux entrées, un seul écran : le
   /// rattrapage automatique d'un jour en attente ([_maybeShowCheckOut]) et le
@@ -64,6 +88,25 @@ class _DayPlanTabState extends State<DayPlanTab> {
       if (!mounted) return;
       await _openCheckOut(date);
       _checkOutShown = false;
+    });
+  }
+
+  /// Accompanies today's very first check-out (US-1 crit. 5): independent
+  /// of the evening notification — that's only one signal among others,
+  /// never the sole path — this check runs on every return to the app once
+  /// the configured evening hour has passed. Before that hour,
+  /// `PlanScreen.showNotFinishedHint` only signals, never forcing the popup
+  /// or locking the close-out button.
+  void _maybeShowFirstCheckOutGuide(AppState state, String date) {
+    if (_firstCheckOutGuideShown) return;
+    _firstCheckOutGuideShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      // Same mechanism as PlanScreen's "Close out my day" button (see
+      // [_closeDay]): rebuilds the round on return if the user didn't seal
+      // (backed out), rather than an isolated push.
+      await _closeDay(state, date);
+      _firstCheckOutGuideShown = false;
     });
   }
 
@@ -101,12 +144,17 @@ class _DayPlanTabState extends State<DayPlanTab> {
       // l'app laissée ouverte au passage de minuit clôturerait sinon la
       // journée neuve (vide) au lieu de celle qui vient d'être révisée.
       final sessionDate = session.date.toIso8601String().substring(0, 10);
+      final firstCheckOutGuidePending = !state.guideDone('checkout_done');
+      if (firstCheckOutGuidePending && _pastEveningHour) {
+        _maybeShowFirstCheckOutGuide(state, sessionDate);
+      }
       return PlanScreen(
         key: ValueKey(session),
         session: session,
         freshnessOf: state.freshnessFor,
         onCloturer: () => _closeDay(state, sessionDate),
         onChangePlan: () => state.clearTodaySession(),
+        showNotFinishedHint: firstCheckOutGuidePending && !_pastEveningHour,
       );
     }
 

@@ -95,12 +95,14 @@ void main() async {
   final cyclePositionF = StorageService.loadCyclePosition(riwaya);
   final pauseDatesF = StorageService.loadPauseDates(riwaya);
   final hasSeenTourF = StorageService.hasSeenTour();
+  final guideDoneF = StorageService.loadGuideDone();
 
   final config = await configF;
   final locale = await localeF;
   final cyclePosition = await cyclePositionF;
   final pauseDates = await pauseDatesF;
   final hasSeenTour = await hasSeenTourF;
+  final guideDone = await guideDoneF;
   S.locale = locale;
   runApp(QuranRevisionApp(
     initialConfig: config,
@@ -109,6 +111,7 @@ void main() async {
     initialCyclePosition: cyclePosition,
     initialPauseDates: pauseDates,
     initialHasSeenTour: hasSeenTour,
+    initialGuideDone: guideDone,
   ));
 }
 
@@ -119,6 +122,7 @@ class QuranRevisionApp extends StatelessWidget {
   final int initialCyclePosition;
   final Set<String> initialPauseDates;
   final bool initialHasSeenTour;
+  final Set<String> initialGuideDone;
 
   const QuranRevisionApp({
     super.key,
@@ -128,6 +132,7 @@ class QuranRevisionApp extends StatelessWidget {
     this.initialCyclePosition = 0,
     this.initialPauseDates = const {},
     this.initialHasSeenTour = false,
+    this.initialGuideDone = const {},
   });
 
   @override
@@ -139,6 +144,7 @@ class QuranRevisionApp extends StatelessWidget {
         riwaya: initialRiwaya,
         warshAvailable: warshAvailable,
         initialHasSeenTour: initialHasSeenTour,
+        initialGuideDone: initialGuideDone,
         initialCyclePosition: initialCyclePosition,
         initialPauseDates: initialPauseDates,
       ),

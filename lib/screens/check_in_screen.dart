@@ -7,15 +7,16 @@ import '../models/prayer.dart';
 import '../models/revision_unit.dart';
 import '../models/sourate.dart';
 import '../models/user_config.dart';
+import '../services/ayah_facts_service.dart';
 import '../services/storage_service.dart';
 import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
 import '../widgets/freshness_badge.dart';
+import '../widgets/guide_step.dart';
 import '../widgets/outlined_action_button.dart';
 import '../widgets/pill_chip.dart';
 import '../widgets/prayer_selector.dart';
 import '../widgets/primary_cta_button.dart';
-import '../widgets/hook_banner.dart';
 import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/step_dots.dart';
 import '../widgets/unit_row.dart';
@@ -49,7 +50,7 @@ class CheckInScreen extends StatefulWidget {
   State<CheckInScreen> createState() => _CheckInScreenState();
 }
 
-class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin {
+class _CheckInScreenState extends State<CheckInScreen> {
   static const _stepCount = 3;
 
   List<RevisionUnit>? _units;
@@ -60,9 +61,9 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
   List<Prayer>? _lastPrayers;
   bool _isYesterday = false;
   int _step = 0;
-
-  @override
-  String get hookId => 'check_in';
+  // Guide's "look behind" (crit. 4): streak already loaded by HomeScreen,
+  // recomputed here rather than depending on an unrelated screen.
+  int _streak = 0;
 
   // `setState` is `@protected`, not callable from `_CheckInSections` (an
   // extension, not a State subclass member despite sharing this library) —
@@ -82,7 +83,14 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
     super.initState();
     _load();
     _loadLastPrayers();
-    loadHook();
+    _loadStreak();
+  }
+
+  Future<void> _loadStreak() async {
+    final state = context.read<AppState>();
+    final streak = await AyahFactsService.currentStreak(
+        pauseDates: state.pauseDates, riwaya: state.riwaya);
+    if (mounted) setState(() => _streak = streak);
   }
 
   /// Ce qui change au fil des ajustements de l'écran (unités du jour +
@@ -197,13 +205,7 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
               child: Column(
                 children: [
                   _hero(units.fold(0, (s, u) => s + u.verseCount)),
-                  if (showHook)
-                    HookBanner(
-                      icon: Icons.wb_sunny_outlined,
-                      title: S.hookCheckInTitle,
-                      body: S.hookCheckInBody,
-                      onDismiss: dismissHook,
-                    ),
+                  if (!state.guideDone('checkin_done')) _guideStep(state),
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -215,6 +217,34 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
               ),
             ),
     );
+  }
+
+  /// Step-by-step guidance across the check-in's 3 sections (US-1 crit. 4) —
+  /// different content per [_step], only the Revision section carrying the
+  /// "look behind" (streak + pages already done). Disappears for good only
+  /// once `checkin_done` is marked (on tapping "Validate check-in"), never
+  /// from a tap on the card itself.
+  Widget _guideStep(AppState state) {
+    switch (_step) {
+      case 0:
+        return GuideStep(
+          icon: Icons.wb_sunny_outlined,
+          title: S.guideCheckinStep0Title,
+          body: S.guideCheckinStep0Body(_streak, state.pagesProgress.pos),
+        );
+      case 1:
+        return GuideStep(
+          icon: Icons.school_outlined,
+          title: S.guideCheckinStep1Title,
+          body: S.guideCheckinStep1Body,
+        );
+      default:
+        return GuideStep(
+          icon: Icons.mosque_outlined,
+          title: S.guideCheckinStep2Title,
+          body: S.guideCheckinStep2Body,
+        );
+    }
   }
 
   Widget _hero(int totalVerses) => CheckHero(
@@ -272,7 +302,12 @@ class _CheckInScreenState extends State<CheckInScreen> with HookVisibilityMixin 
                           // ayah_facts — "Valider" ne fait que rendre les
                           // prières à l'appelant, qui répartit en rakaas.
                           onPressed: ready
-                              ? () => Navigator.of(context).pop(_effectivePrayers)
+                              ? () {
+                                  context
+                                      .read<AppState>()
+                                      .markGuideDone('checkin_done');
+                                  Navigator.of(context).pop(_effectivePrayers);
+                                }
                               : null,
                         )
                       : PrimaryCtaButton(

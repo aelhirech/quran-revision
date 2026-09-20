@@ -23,6 +23,13 @@ class CycleProgressCard extends StatelessWidget {
   final String label;
   final double topRadius;
 
+  /// Hides the `/ total` (US-1 crit. 4) — the rule is by day STATE, not by
+  /// screen: `HomeScreen` passes `false` at rest, before any engagement
+  /// (the check-in must never show the weight of the remaining total),
+  /// `true` once the day is closed. `RecapScreen` never passes it, so it
+  /// always keeps its full display.
+  final bool showTotal;
+
   const CycleProgressCard({
     super.key,
     required this.progress,
@@ -31,6 +38,7 @@ class CycleProgressCard extends StatelessWidget {
     this.streak = 0,
     required this.label,
     this.topRadius = 170,
+    this.showTotal = true,
   });
 
   @override
@@ -74,7 +82,7 @@ class CycleProgressCard extends StatelessWidget {
           InkWell(
             onTap: () => _showPagesInfo(context),
             child: Text(
-              '$pos / $total ${S.pagesLabel}',
+              showTotal ? '$pos / $total ${S.pagesLabel}' : '$pos ${S.pagesLabel}',
               style: GoogleFonts.lora(
                   color: onPrimary.withValues(alpha: 0.75),
                   fontStyle: FontStyle.italic,

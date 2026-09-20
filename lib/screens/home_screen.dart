@@ -129,6 +129,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   total: pagesProgress.total,
                   streak: _streak,
                   label: S.cycleEnCours,
+                  // Hidden at rest before engagement, visible once the day
+                  // is closed (US-1 crit. 4 — 2026-09-20 decision: the rule
+                  // is by state, not by screen).
+                  showTotal: closed,
                 ),
                 const SizedBox(height: 16),
                 HadithCard(hadith: hadithDuJour(DateTime.now())),

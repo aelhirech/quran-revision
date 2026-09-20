@@ -18,12 +18,20 @@ class SettingsCard extends StatefulWidget {
 
 class _SettingsCardState extends State<SettingsCard> {
   bool _notifEnabled = true;
+  ({int hour, int minute}) _morningTime = (hour: 7, minute: 0);
+  ({int hour, int minute}) _eveningTime = (hour: 20, minute: 30);
 
   @override
   void initState() {
     super.initState();
     StorageService.loadNotifEnabled().then((v) {
       if (mounted) setState(() => _notifEnabled = v);
+    });
+    StorageService.loadMorningTime().then((t) {
+      if (mounted) setState(() => _morningTime = t);
+    });
+    StorageService.loadEveningTime().then((t) {
+      if (mounted) setState(() => _eveningTime = t);
     });
   }
 
@@ -38,6 +46,39 @@ class _SettingsCardState extends State<SettingsCard> {
       await NotificationService.disable();
     }
   }
+
+  String _formatTime(({int hour, int minute}) t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  /// Shared by the two morning/evening pickers — they only differ in the
+  /// current time, where to store it locally, and which `StorageService`
+  /// method persists the result.
+  Future<void> _pickReminderTime({
+    required ({int hour, int minute}) current,
+    required void Function(({int hour, int minute})) onPicked,
+    required Future<void> Function(int hour, int minute) save,
+  }) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current.hour, minute: current.minute),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => onPicked((hour: picked.hour, minute: picked.minute)));
+    await save(picked.hour, picked.minute);
+    if (_notifEnabled) await NotificationService.rescheduleAll();
+  }
+
+  Future<void> _pickMorningTime() => _pickReminderTime(
+        current: _morningTime,
+        onPicked: (t) => _morningTime = t,
+        save: StorageService.saveMorningTime,
+      );
+
+  Future<void> _pickEveningTime() => _pickReminderTime(
+        current: _eveningTime,
+        onPicked: (t) => _eveningTime = t,
+        save: StorageService.saveEveningTime,
+      );
 
   Future<void> _toggleShuffle(bool val) async {
     final saved = await context.read<AppState>().setShuffleEnabled(val);
@@ -103,6 +144,24 @@ class _SettingsCardState extends State<SettingsCard> {
               value: _notifEnabled,
               onChanged: _toggleNotif,
             ),
+            if (_notifEnabled) ...[
+              const Divider(height: 1, indent: 56),
+              ListTile(
+                leading: Icon(Icons.wb_sunny_outlined, color: cs.primary),
+                title: Text(S.rappelMatinLabel),
+                trailing: Text(_formatTime(_morningTime),
+                    style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary)),
+                onTap: _pickMorningTime,
+              ),
+              const Divider(height: 1, indent: 56),
+              ListTile(
+                leading: Icon(Icons.nightlight_outlined, color: cs.primary),
+                title: Text(S.rappelSoirLabel),
+                trailing: Text(_formatTime(_eveningTime),
+                    style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary)),
+                onTap: _pickEveningTime,
+              ),
+            ],
           ],
         ),
       ),

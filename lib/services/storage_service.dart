@@ -17,7 +17,11 @@ class StorageService {
   static const _keyLastSessionPrayers = 'last_session_prayers';
   static const _keyActivePrayers = 'active_round_prayers';
   static const _keySealedDate = 'last_sealed_date';
-  static const _keyHookSeenPrefix = 'hook_seen_';
+  static const _keyGuideDone = 'guide_done';
+  static const _keyMorningHour = 'reminder_morning_hour';
+  static const _keyMorningMinute = 'reminder_morning_minute';
+  static const _keyEveningHour = 'reminder_evening_hour';
+  static const _keyEveningMinute = 'reminder_evening_minute';
 
   /// Hafs et Warsh sont deux parcours indépendants (config, cycle, pauses)
   /// — ces clés sont donc préfixées par riwaya. Langue/riwaya-
@@ -224,18 +228,55 @@ class StorageService {
     await prefs.setBool(_keyTourSeen, true);
   }
 
-  /// "Seen once" flags for the contextual onboarding hooks (US-1 criterion
-  /// 5) — one boolean per [hookId], global like [hasSeenTour] (UI state, no
-  /// historical value, so no riwaya prefix).
-  static Future<bool> hasSeenHook(String hookId) async {
+  /// Ids of the real-gesture guided steps already completed (US-1 sprint B) —
+  /// one flat set, global like [hasSeenTour] (UI state, no historical value,
+  /// so no riwaya prefix, and never touched by [migrateLegacyTrackData]).
+  /// Replaces the old per-hook `hook_seen_<id>` booleans dismissed by a tap on
+  /// a banner's close icon: a step here is only ever added by the real
+  /// gesture it accompanies (see `AppState.markGuideDone`), never by display.
+  static Future<Set<String>> loadGuideDone() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('$_keyHookSeenPrefix$hookId') ?? false;
+    return (prefs.getStringList(_keyGuideDone) ?? const []).toSet();
   }
 
-  static Future<void> setHookSeen(String hookId) async {
+  static Future<void> saveGuideDone(Set<String> done) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('$_keyHookSeenPrefix$hookId', true);
+    await prefs.setStringList(_keyGuideDone, done.toList());
   }
+
+  /// Morning/evening reminder times (US-1 sprint B) — global preferences, not
+  /// scoped per riwaya (a notification setting isn't a revision track), and
+  /// deliberately outside [clearConfigOnly]. Defaults match the hours that
+  /// were hard-coded in `NotificationService` before this setting existed.
+  static Future<({int hour, int minute})> _loadTime(
+      String hourKey, String minuteKey, int defaultHour, int defaultMinute) async {
+    final prefs = await SharedPreferences.getInstance();
+    return (
+      hour: prefs.getInt(hourKey) ?? defaultHour,
+      minute: prefs.getInt(minuteKey) ?? defaultMinute,
+    );
+  }
+
+  static Future<void> _saveTime(
+      String hourKey, String minuteKey, int hour, int minute) async {
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.setInt(hourKey, hour),
+      prefs.setInt(minuteKey, minute),
+    ]);
+  }
+
+  static Future<({int hour, int minute})> loadMorningTime() =>
+      _loadTime(_keyMorningHour, _keyMorningMinute, 7, 0);
+
+  static Future<void> saveMorningTime(int hour, int minute) =>
+      _saveTime(_keyMorningHour, _keyMorningMinute, hour, minute);
+
+  static Future<({int hour, int minute})> loadEveningTime() =>
+      _loadTime(_keyEveningHour, _keyEveningMinute, 20, 30);
+
+  static Future<void> saveEveningTime(int hour, int minute) =>
+      _saveTime(_keyEveningHour, _keyEveningMinute, hour, minute);
 
   /// Réinitialise uniquement la configuration de révision (sourates, cycle,
   /// sessions, pauses) du parcours [riwaya] — pas l'autre parcours, ni les

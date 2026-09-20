@@ -11,8 +11,8 @@ import '../services/ayah_facts_service.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/cycle_progress_card.dart';
+import '../widgets/guide_step.dart';
 import '../widgets/history_card.dart';
-import '../widgets/hook_banner.dart';
 import '../widgets/learning_progress_card.dart';
 import '../widgets/ornamental_divider.dart';
 import '../widgets/sourates_recap_card.dart';
@@ -26,22 +26,13 @@ class RecapScreen extends StatefulWidget {
   State<RecapScreen> createState() => _RecapScreenState();
 }
 
-class _RecapScreenState extends State<RecapScreen> with HookVisibilityMixin {
+class _RecapScreenState extends State<RecapScreen> {
   int _streak = 0;
   int _totalDays = 0;
   List<SessionRecord> _sessions = [];
   List<LearningProgress> _learningProgress = [];
   Set<String> _lastPauseDates = {};
   Riwaya? _lastRiwaya;
-
-  @override
-  String get hookId => 'recap';
-
-  @override
-  void initState() {
-    super.initState();
-    loadHook();
-  }
 
   @override
   void didChangeDependencies() {
@@ -120,13 +111,14 @@ class _RecapScreenState extends State<RecapScreen> with HookVisibilityMixin {
             foregroundColor: cs.onSurface,
             centerTitle: false,
           ),
-          if (showHook)
+          if (state.guideDone('checkout_done') && !state.guideDone('recap_seen'))
             SliverToBoxAdapter(
-              child: HookBanner(
+              child: GuideStep(
                 icon: Icons.bar_chart_outlined,
-                title: S.hookRecapTitle,
-                body: S.hookRecapBody,
-                onDismiss: dismissHook,
+                title: S.guideRecapTitle,
+                body: S.guideRecapBody,
+                actionLabel: S.guideContinuer,
+                onAction: () => state.markGuideDone('recap_seen'),
               ),
             ),
           SliverPadding(

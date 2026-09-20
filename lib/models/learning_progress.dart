@@ -38,6 +38,15 @@ class LearningProgress {
     return result;
   }
 
+  /// How many days finishing this surah takes at [versesPerDay] — the
+  /// check-out's "regard devant" (US-1 crit. 5), always phrased
+  /// conditionally ("if you keep this pace"), never persisted: derived
+  /// fresh on every read, so it silently "recalculates after an absence"
+  /// with no dedicated code for that, exactly like `DaySelection.cycleDays`.
+  int daysToFinish(int versesPerDay) => versesPerDay <= 0
+      ? 0
+      : ((totalVerses - learnedCount) / versesPerDay).ceil();
+
   LearningProgress withVerseLearned(int verse) => LearningProgress(
         sourate: sourate,
         learnedVerses: {...learnedVerses, verse},

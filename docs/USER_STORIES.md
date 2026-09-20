@@ -145,8 +145,9 @@ remis en cause, seuls ces cas non prévus par le code sont précisés) :
 
 **Scoping technique** (2026-09-20) :
 
-*Découpage en 3 sprints, dans cet ordre* : **A** = onboarding (critères 1-3) · **B** =
-accompagnement (critères 4-6) · puis **US-3** · puis **C** = preuve du lendemain (critère 7).
+*Découpage en 3 sprints, dans cet ordre* : **A** = onboarding (critères 1-3, livré 2026-09-20) ·
+**B** = accompagnement (critères 4-6, livré 2026-09-20) · puis **US-3** · puis **C** = preuve du
+lendemain (critère 7, bloqué par US-3 crit. 4).
 
 **Fichiers UI concernés**
 - *Sprint A* : `lib/screens/onboarding/onboarding_screen.dart`, `steps/intro_page.dart`,

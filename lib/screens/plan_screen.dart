@@ -8,6 +8,7 @@ import '../models/daily_session.dart';
 import '../models/revision_unit.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/guide_step.dart';
 import '../widgets/outside_prayers_block.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/primary_cta_button.dart';
@@ -31,12 +32,19 @@ class PlanScreen extends StatefulWidget {
   final VoidCallback? onChangePlan;
   final FreshnessLevel Function(int sourateId, int verseStart, int verseEnd)? freshnessOf;
 
+  /// Signals, without ever blocking the close-out button, that it's still
+  /// too early to close out (US-1 crit. 5) — computed by `DayPlanTab` from
+  /// the configured evening reminder time. Purely informative: disappears
+  /// on its own once `checkout_done` is marked.
+  final bool showNotFinishedHint;
+
   const PlanScreen({
     super.key,
     required this.session,
     required this.onCloturer,
     this.onChangePlan,
     this.freshnessOf,
+    this.showNotFinishedHint = false,
   });
 
   @override
@@ -183,6 +191,7 @@ class _PlanScreenState extends State<PlanScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final state = context.watch<AppState>();
     if (_reached == null) {
       return Scaffold(
         backgroundColor: cs.surface,
@@ -231,6 +240,22 @@ class _PlanScreenState extends State<PlanScreen> {
             ),
           ),
           SliverToBoxAdapter(child: _summaryBar()),
+          if (!state.guideDone('verses_reachable'))
+            SliverToBoxAdapter(
+              child: GuideStep(
+                icon: Icons.menu_book_outlined,
+                title: S.guideVersesTitle,
+                body: S.guideVersesBody,
+              ),
+            ),
+          if (widget.showNotFinishedHint)
+            SliverToBoxAdapter(
+              child: GuideStep(
+                icon: Icons.nightlight_outlined,
+                title: S.guideNotFinishedTitle,
+                body: S.guideNotFinishedBody,
+              ),
+            ),
           SliverToBoxAdapter(
               child: OutsidePrayersBlock(units: widget.session.outsidePrayers)),
           SliverPadding(
@@ -245,6 +270,8 @@ class _PlanScreenState extends State<PlanScreen> {
                     checked: checkedByPrayer[i] ?? {},
                     onToggle: (rakaa) => _toggle(i, rakaa),
                     freshnessOf: widget.freshnessOf,
+                    onOpenVerses: () =>
+                        context.read<AppState>().markGuideDone('verses_reachable'),
                   )
                       .animate()
                       .fadeIn(delay: Duration(milliseconds: i * 80))
