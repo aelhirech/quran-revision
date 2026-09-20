@@ -23,7 +23,55 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-_(vide — voir « Archivées » pour US-1, dernière story active, terminée le 2026-09-13)_
+### US-3 — Rituel quotidien check-in / check-out, avec ses rappels [priorité: P1] [état: à scoper]
+
+**Historique** : livrée une première fois Phase 6 Sprint 2 (check-in/check-out) + Phase 9 Sprint 1
+(rituel unique « Illuminer ma journée avec le Coran » + volet « j'ai fait plus que prévu »),
+archivée terminée. **Rouverte le 2026-09-20** : le flag « à retravailler » (bookmark par verset,
+indépendant du coché/décoché) est retiré et remplacé par une correction uniforme avec
+l'apprentissage — décocher un verset le renvoie simplement au lendemain — plus une notification
+à heure fixe (minuit) pour inviter à clôturer une journée non close, en plus des rappels
+matin/soir existants.
+
+**Statement** : En tant qu'utilisateur, je veux confirmer le matin ce que je compte réviser
+aujourd'hui puis confirmer le soir ce que j'ai réellement fait — avec un rappel matin et un rappel
+le soir pour ne pas l'oublier même sans ouvrir l'app de moi-même —, afin que ma progression reflète
+mon activité réelle plutôt qu'un plan simplement proposé et jamais vérifié.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given un plan du jour proposé, When l'utilisateur fait son check-in, Then il peut ajuster ce
+   qu'il compte réviser avant de s'engager, et cet engagement devient la référence de sa journée.
+2. Given une journée engagée, When l'utilisateur coche des versets/sourates comme faits au fil de
+   ses prières, Then cette progression est visible immédiatement sans attendre le soir.
+3. Given une journée en attente de clôture, When l'utilisateur fait son check-out, Then il
+   confirme (ou corrige) verset par verset ce qui a été réellement fait, pour la révision comme
+   pour l'apprentissage, et cette clôture est ce qui fait avancer son cycle de révision — pas le
+   simple fait d'avoir coché quelque chose pendant la journée. **Remplace l'ancien mécanisme
+   « à retravailler »** (bookmark séparé du coché/décoché, réservé jusqu'ici à la révision) : il
+   n'existe plus qu'un seul geste — décocher un verset — que ce soit en révision ou en
+   apprentissage, avec le même effet.
+4. Given un verset décoché au check-out (révision ou apprentissage), When le plan du lendemain est
+   calculé, Then ce verset y réapparaît accompagné du verset qui le précède immédiatement, affiché
+   comme aide de contexte pour se remettre dans la récitation avant de le reprendre — comportement
+   unifié entre révision et apprentissage.
+5. Given une journée jamais clôturée, When l'utilisateur revient dans l'app un jour plus tard,
+   Then l'app le lui signale et lui permet de la clôturer avant de continuer.
+6. Given la permission de notification accordée, When les heures configurées arrivent, Then un
+   rappel matin invite à faire le check-in et un rappel soir invite à faire le check-out, de façon
+   récurrente ; Then une notification supplémentaire à heure fixe (minuit) invite aussi à clôturer
+   la journée si elle ne l'est pas encore — l'app ne pouvant rien exécuter elle-même à cet instant
+   précis sur mobile, ce n'est qu'une invitation de plus, jamais un scellement automatique et
+   silencieux de la journée ; given la permission refusée ou révoquée, then leur absence ne bloque
+   ni ne dégrade aucune autre fonctionnalité de l'app.
+
+**Exclusions explicites** : pas de scellement automatique de la journée à minuit (l'utilisateur
+reste toujours celui qui confirme/corrige, voir critère 3) — seule une notification est ajoutée.
+La granularité verset par verset remplace complètement l'ancienne case à cocher par sourate/
+portion entière côté révision (décidé au blueprint, à confirmer au scoping selon ce que le code
+permet sans réécriture disproportionnée). Le « verset d'avant » est un simple affichage d'aide,
+il n'est jamais lui-même marqué comme fait/à refaire du seul fait d'être montré.
+
+**Scoping technique** : _(vide, à compléter par `quran-scoping`)_
 
 ---
 
@@ -72,28 +120,8 @@ Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés +
 ---
 
 ### US-3 — Rituel quotidien check-in / check-out, avec ses rappels
-**État** : terminée — check-in/check-out (Phase 6 Sprint 2) + rappels matin/soir ; Phase 9 Sprint 1 en fait le rituel unique déclenché par « Illuminer ma journée avec le Coran » et ajoute le volet « j'ai fait plus que prévu ».
-
-**Statement** : En tant qu'utilisateur, je veux confirmer le matin ce que je compte réviser
-aujourd'hui puis confirmer le soir ce que j'ai réellement fait — avec un rappel matin et un rappel le soir pour ne pas l'oublier même sans ouvrir l'app de moi-même —, afin que ma progression reflète
-mon activité réelle plutôt qu'un plan simplement proposé et jamais vérifié.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given un plan du jour proposé, When l'utilisateur fait son check-in, Then il peut ajuster ce
-   qu'il compte réviser avant de s'engager, et cet engagement devient la référence de sa journée.
-2. Given une journée engagée, When l'utilisateur coche des versets/sourates comme faits au fil de
-   ses prières, Then cette progression est visible immédiatement sans attendre le soir.
-3. Given une journée en attente de clôture, When l'utilisateur fait son check-out, Then il
-   confirme (ou corrige) ce qui a été réellement fait, peut signaler un passage « à retravailler »,
-   et cette clôture est ce qui fait avancer son cycle de révision — pas le simple fait d'avoir
-   coché quelque chose pendant la journée.
-4. Given une journée jamais clôturée, When l'utilisateur revient dans l'app un jour plus tard,
-   Then l'app le lui signale et lui permet de la clôturer avant de continuer.
-5. Given la permission de notification accordée, When les heures configurées arrivent, Then un
-   rappel matin invite à faire le check-in et un bilan soir invite à faire le check-out, de façon
-   récurrente ; given la permission refusée ou révoquée, then leur absence ne bloque ni ne
-   dégrade aucune autre fonctionnalité de l'app.
-
+**État** : rouverte le 2026-09-20 — voir « Stories actives » en tête de fichier (retrait du flag
+« à retravailler », uniformisation avec l'apprentissage, notification à minuit).
 
 ---
 
