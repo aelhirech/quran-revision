@@ -34,6 +34,28 @@ class DaySelection {
   /// always, the count of distinct real mushaf pages (see [groups]).
   int get cycleTotal => cycle.length;
 
+  /// How many days one full pass over the selection takes at [pagesPerDay].
+  ///
+  /// Deliberately counts CYCLE ENTRIES, not the real pages of [realPages]:
+  /// `buildDayUnits` hands out `pagesPerDay` *entries* per day, and a surah
+  /// straddling a page it shares with a fully-fitting neighbour costs 2
+  /// entries for 1 physical page. Dividing real pages would promise a
+  /// shorter round than the one actually walked — unacceptable for a number
+  /// the UI phrases as a guarantee ("no surah waits more than N days").
+  int cycleDays(int pagesPerDay) =>
+      pagesPerDay <= 0 ? 0 : (cycleTotal / pagesPerDay).ceil();
+
+  /// True when surahs are selected yet nothing entered the cycle — the only
+  /// possible cause is that the mushaf pagination failed to load, since
+  /// `buildCycle` drops any portion it cannot resolve to a real page.
+  ///
+  /// Lives here rather than in each screen: the home screen and the
+  /// onboarding day-1 step both have to decide whether to warn, and two
+  /// hand-written formulations of the same rule are exactly the silent
+  /// divergence that produced the 2026-09-01 wrong-récap report.
+  bool paginationUnavailable(bool hasSelections) =>
+      hasSelections && cycleTotal == 0;
+
   /// Progress in TRUE distinct mushaf pages — as opposed to
   /// [cyclePosition]/[cycleTotal], which count cycle ENTRIES, sometimes more
   /// numerous than real pages (a surah straddling a page it shares with a

@@ -11,6 +11,7 @@ import '../state/app_state.dart';
 import '../widgets/cycle_progress_card.dart';
 import '../widgets/hadith_card.dart';
 import '../widgets/ornamental_divider.dart';
+import '../widgets/pagination_indisponible.dart';
 import '../widgets/primary_cta_button.dart';
 
 /// État "au repos" de l'onglet Plan du jour : ce qui donne envie d'ouvrir sa
@@ -65,29 +66,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _streak = streak);
   }
 
-  /// The cycle can only be empty while surahs are selected if the mushaf
-  /// pagination failed to load. Saying so beats a silent "0 / 0 pages" that
-  /// looks like a finished cycle (`CLAUDE.md`, "Règle du plan quotidien").
-  Widget _cycleIndisponible(AppPalette palette) => Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: palette.danger.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.danger.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, color: palette.danger, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(S.paginationIndisponible,
-                  style: TextStyle(fontSize: 12, color: palette.textPrimary)),
-            ),
-          ],
-        ),
-      );
-
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -103,7 +81,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // riwaya changes. In TRUE pages (`AppState.pagesProgress`), not cycle
     // entries (`daySelection.cyclePosition`/`cycleTotal`) — this banner
     // literally promises a page count to the user.
-    final pagesProgress = state.pagesProgress;
+    // Hoisted once: `AppState._selection` rebuilds the cycle on every access,
+    // and this screen needs both the page counts and the pagination warning.
+    final daySelection = state.daySelection;
+    final pagesProgress = state.pagesProgressOf(daySelection);
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -135,9 +116,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 10),
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
-                if (pagesProgress.total == 0 &&
-                    state.config!.selections.isNotEmpty)
-                  _cycleIndisponible(palette),
+                if (daySelection.paginationUnavailable(
+                    state.config!.selections.isNotEmpty)) ...[
+                  const PaginationIndisponible(),
+                  const SizedBox(height: 16),
+                ],
                 CycleProgressCard(
                   progress: pagesProgress.total > 0
                       ? pagesProgress.pos / pagesProgress.total

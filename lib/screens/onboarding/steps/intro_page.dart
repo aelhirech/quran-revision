@@ -23,7 +23,7 @@ class _IntroPage extends StatelessWidget {
               S.introTitle,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 30,
+                fontSize: 26,
                 fontWeight: FontWeight.w600,
                 color: palette.textPrimary,
                 height: 1.25,

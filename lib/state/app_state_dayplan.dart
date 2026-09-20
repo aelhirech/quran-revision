@@ -73,8 +73,15 @@ extension AppStateDayPlan on AppState {
   /// Récap stat chip, PlanScreen's summary bar). `daySelection.cyclePosition`
   /// / `cycleTotal` count cycle ENTRIES, not always real pages (see
   /// `DaySelection.realPages`).
-  ({int pos, int total}) get pagesProgress =>
-      daySelection.realPages(PageMetadataService.pageMetadataFor(_riwaya));
+  ({int pos, int total}) get pagesProgress => pagesProgressOf(daySelection);
+
+  /// Same counts, from a [DaySelection] the caller already holds. [_selection]
+  /// rebuilds the whole cycle on every access, so a screen that needs both the
+  /// page counts and something else off the selection (the home screen also
+  /// asks [DaySelection.paginationUnavailable]) must hoist it once per frame
+  /// rather than reach for two getters that each rebuild it.
+  ({int pos, int total}) pagesProgressOf(DaySelection selection) =>
+      selection.realPages(PageMetadataService.pageMetadataFor(_riwaya));
 
   /// Preview (no write) of what the daily engine would propose if it ran
   /// now — used by the multi-day check-out ("also add today") to show a

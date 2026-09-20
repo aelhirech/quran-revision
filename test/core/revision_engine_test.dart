@@ -1021,4 +1021,57 @@ void main() {
       expect(sel.units.every((u) => u.sourate.id == 2), isTrue);
     });
   });
+
+  group('DaySelection.cycleDays — durée d\'un tour complet (US-1 crit. 2)', () {
+    // Mêmes données Inshiqaq/Buruj que plus haut : 3 entrées de cycle pour
+    // seulement 2 pages réelles. C'est précisément le cas qui distingue les
+    // deux unités, et donc celui qui verrouille le choix.
+    final pageMeta = {
+      84: {for (var v = 1; v <= 24; v++) v: 589, 25: 590},
+      85: {for (var v = 1; v <= 22; v++) v: 590},
+    };
+    DaySelection build(int pagesPerDay) => RevisionEngine.buildDayUnits(
+          config: UserConfig(
+            selections: [
+              SourateSelection.whole(_sourate(84, 25, 90)),
+              SourateSelection.whole(_sourate(85, 22, 80)),
+            ],
+            pagesPerDay: pagesPerDay,
+            startDate: DateTime(2026, 1, 1),
+            riwaya: Riwaya.hafs,
+            shuffleEnabled: false,
+          ),
+          cyclePosition: 0,
+          pageMetadata: pageMeta,
+        );
+
+    test('compte les ENTRÉES de cycle, jamais les pages réelles', () {
+      final sel = build(1);
+      expect(sel.cycleTotal, 3);
+      expect(sel.realPages(pageMeta).total, 2);
+      // Le tour dure bien 3 jours : le plan du jour sert 1 ENTRÉE par jour.
+      // Passer par realPages (2) annoncerait un tour plus court que celui
+      // réellement parcouru — or ce nombre est présenté à l'utilisateur
+      // comme une garantie.
+      expect(sel.cycleDays(1), 3);
+    });
+
+    test('arrondit au jour supérieur (un reste occupe un jour entier)',
+        () async {
+      final sel = build(2);
+      expect(sel.cycleDays(2), 2, reason: 'ceil(3/2) = 2, pas 1');
+    });
+
+    test('un rythme plus large que le cycle tient en un seul jour', () async {
+      final sel = build(10);
+      expect(sel.cycleDays(10), 1);
+    });
+
+    test('cycle vide ou rythme absurde ne divise pas par zéro', () async {
+      final sel = build(1);
+      expect(sel.cycleDays(0), 0);
+      const vide = DaySelection(groups: [], cycle: [], cyclePosition: 0);
+      expect(vide.cycleDays(3), 0);
+    });
+  });
 }

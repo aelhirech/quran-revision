@@ -23,7 +23,7 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel [priorité: P1] [état: à scoper]
+### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel [priorité: P1] [état: en sprint]
 
 **Historique** : livrée en deux temps le 2026-09-13 (Phase 11 Sprint 1 : démo sur An-Nas/Al-Falaq/
 Al-Ikhlas + aperçu réel + retrait de l'ancien tour guidé ; Sprint 2 : bannières contextuelles sur
@@ -107,7 +107,132 @@ faire confiance à sa méthode.
 - La démo sur 3 sourates fixes est **supprimée, pas déplacée** — elle a déjà été repositionnée une
   fois (2026-09-13) sans que cela règle quoi que ce soit.
 
-**Scoping technique** : _(vide, à compléter par `quran-scoping`)_
+**Ajustements des critères d'acceptation** (scoping du 2026-09-20 — le blueprint n'est pas
+remis en cause, seuls ces cas non prévus par le code sont précisés) :
+
+- **Critère 2, unité de calcul** : la durée du tour se calcule sur les **entrées de cycle**
+  (`DaySelection.cycleTotal`), pas sur les pages réelles dédoublonnées. Raison : le plan du jour
+  consomme `pagesPerDay` *entrées*, et depuis le fix du 2026-09-08 une page-frontière coûte
+  2 entrées pour 1 page physique. Compter en pages réelles promettrait un tour plus court que
+  celui réellement parcouru — inacceptable pour un chiffre formulé comme une *garantie*.
+- **Critère 3, clause de véracité** : « son vrai plan du jour 1 » signifie **le plan réellement
+  identique à celui qu'il recevra au premier check-in, même graine de mélange**. Raison :
+  `shuffleEnabled` vaut `true` par défaut et la graine dérive de `config.startDate`, aujourd'hui
+  régénérée à chaque build de l'aperçu puis une nouvelle fois à la persistance — l'écran actuel
+  « satisfait » le critère tout en affichant un ordre différent de la réalité.
+- **Critère 3, cas limite ajouté** : Given une sélection dont aucune sourate n'a de métadonnée de
+  page, When l'utilisateur atteint l'écran Jour 1, Then l'app le **signale** au lieu d'afficher
+  une liste vide (règle `CLAUDE.md` §F, déjà appliquée à l'accueil).
+- **Critère 3, conséquence structurelle** : l'écran « Récapitulatif » de l'onboarding est
+  **supprimé** (fusionné dans l'écran Jour 1), décision utilisateur du 2026-09-20. Il occupait la
+  place de « dernier écran avant la fin » sans rien apporter que la Célébration ne répète.
+- **Critère 4, portée du « jamais devant »** : le check-in lui-même ne contient aucune projection.
+  Le seul chiffre « devant » de ce moment est le `/ total` de `CycleProgressCard` sur
+  `HomeScreen`. Décision utilisateur du 2026-09-20 : ce total **suit l'état de la journée** —
+  masqué au repos avant engagement (moment check-in), visible dans l'état « journée clôturée »
+  (moment check-out). La règle est par **état**, pas par écran.
+- **Critère 5, aucun verrou à retirer** : vérifié dans le code, il n'existe **aucun** verrou
+  horaire sur la clôture (les trois portes sont libres, `PlanScreen._completionButton` porte le
+  commentaire « always active — 2026-09-07 »). Le critère n'exige que l'ajout du signalement. La
+  garde `_sealing` de `CheckOutScreen` est un anti-double-tap, à conserver.
+- **Critère 5, heure du soir** : aucune heure de rappel n'est configurable aujourd'hui
+  (`scheduleMorning`/`scheduleEvening` ont leurs heures en dur, 7:00 / 20:30 ; aucun appelant ne
+  les surcharge ; `settings_card.dart` n'expose qu'un booléen). **Décision utilisateur du
+  2026-09-20 : rendre les heures configurables dans ce sprint**, bien que ce morceau appartienne
+  à US-3 critère 6 — voir la note de coordination dans US-3.
+- **Critère 7, dépendance dure** : conditionné à la livraison d'**US-3 critère 4**. Voir
+  « Risques » ci-dessous.
+
+**Scoping technique** (2026-09-20) :
+
+*Découpage en 3 sprints, dans cet ordre* : **A** = onboarding (critères 1-3) · **B** =
+accompagnement (critères 4-6) · puis **US-3** · puis **C** = preuve du lendemain (critère 7).
+
+**Fichiers UI concernés**
+- *Sprint A* : `lib/screens/onboarding/onboarding_screen.dart`, `steps/intro_page.dart`,
+  `steps/method_page.dart` (nouveau), `steps/rhythm_page.dart`, `steps/preview_page.dart`,
+  `widgets/step_header.dart` ; **suppressions** : `steps/demo_page.dart`, `steps/recap_page.dart`.
+- *Sprint B* : `lib/widgets/hook_banner.dart` → `lib/widgets/guide_step.dart`,
+  `check_in_screen.dart`, `check_in_sections.dart`, `plan_screen.dart`,
+  `widgets/prayer_plan_card.dart`, `check_out_screen.dart`, `shell_screen.dart`,
+  `recap_screen.dart`, `profile_screen.dart`, `widgets/day_plan_tab.dart`, `home_screen.dart`,
+  `widgets/settings_card.dart` (heures de rappel).
+- *Transverse* : `lib/core/strings.dart`.
+
+**Variables / champs concernés**
+- Sprint A : `_OnboardingScreenState._selections`/`_pagesPerDay`/`_riwaya`/`_dayUnitsFor`,
+  **nouveau** `late final DateTime _startDate` (corrige le bug de graine). Aucun champ ajouté à
+  `UserConfig` ni à `AppState`.
+- Sprint B : **nouveau** `AppState._guideDone` (`Set<String>`, corps de la classe comme
+  `_hasSeenTour` — une `extension` ne peut pas porter de champ), getter **synchrone**
+  `guideDone(String)`, `markGuideDone(String)` ; **nouvelles** heures de rappel (matin/soir)
+  persistées ; **supprimés** : `AppState.hasSeenHook`/`markHookSeen`,
+  `StorageService.hasSeenHook`/`setHookSeen`, `HookVisibilityMixin`.
+- Getters existants à réutiliser, jamais à réécrire : `AppState.pagesProgress` → `({pos, total})`,
+  `AppState.daySelection`, `AyahFactsService.currentStreak`, `AyahFactsService.totalActiveDays`,
+  `AppState.learningInProgress()`.
+
+**Table(s) / requête(s) `ayah_facts` concernée(s)** — **aucune, dans les deux sens.**
+L'onboarding n'écrit aujourd'hui aucune ligne et ne doit toujours pas en écrire : la première
+écriture reste `ensureDayPlan` après bascule vers `ShellScreen`. Le calcul de l'aperçu passe par
+`RevisionEngine.buildDayUnits`/`buildCycle`, Dart pur de `lib/core/`, zéro I/O. Invariant à
+préserver tel quel.
+
+**Décision data model** — deux données nouvelles, aucune ne justifie `ayah_facts` :
+1. *Durée du tour / échéance d'apprentissage* : **rien à persister**, calculs purs dérivés à la
+   volée. `DaySelection.cycleDays(int pagesPerDay)` dans `lib/core/revision_engine.dart` (un seul
+   helper, deux appelants : onboarding et check-out — ne jamais en écrire un second) et
+   `LearningProgress.daysToFinish(int versesPerDay)`. Dérivée à la volée, l'échéance est
+   « recalculée en silence après une absence » par construction, sans une ligne de code pour ça.
+2. *État d'accompagnement* : ni un fait de révision (`ayah_facts` écarté — ce n'est pas un verset
+   daté, l'y mettre imposerait une ligne sentinelle **interdite**), ni un paramètre de calcul du
+   plan (`UserConfig` écarté — préfixé par riwaya, et toute écriture passe par les gardes de
+   `saveConfig` qui remettraient `cyclePosition` à 0), ni éphémère (doit survivre au kill).
+   → **une clé `SharedPreferences` `guide_done` (`StringList`)**, globale, servie par le
+   mécanisme `hasSeenHook`/`setHookSeen` existant **étendu et renommé**, chargée une fois au boot
+   dans un `Set<String>` pour être lisible en **synchrone** dans `build` (sinon l'écran flashe
+   l'état « pas guidé »). Idem pour les heures de rappel : clés `SharedPreferences` dédiées,
+   **globales et hors `_loadTrackState`** — un réglage de notification n'est pas par riwaya.
+
+**La règle qui porte tout le critère 7** : une étape n'est marquée donnée que par le **callback du
+geste réel**, jamais par l'affichage ni par une fermeture. C'est précisément le défaut du
+mécanisme actuel (`dismissHook()` écrit le flag au tap sur la croix). Corollaire de design qui
+rend la règle tenable : **l'étape guidée n'a pas de croix** — elle porte un bouton d'action.
+Ids et déclencheurs : `checkin_done` (pop de `CheckInScreen` avec prières non vides) ·
+`verses_reachable` (ouverture effective de `VerseBottomSheet` depuis une rakaa) · `checkout_done`
+(retour de `AppState.checkOut`) · `recap_seen` · `settings_seen` · `return_proof_seen`.
+**Nouveaux ids, jamais les anciens** (`check_in`/`check_out`/`recap`/`profile`) : un utilisateur
+qui a fermé l'ancienne bannière ne doit pas être privé du nouvel accompagnement. Les anciennes
+clés `hook_seen_*` restent orphelines sur les appareils — inoffensif, pas de migration.
+
+**Réutilisation (aucune dépendance externe, aucun nouveau mécanisme)**
+- `HookBanner` (visuel carte or) est déjà le langage « bloc informatif » de l'app, identique à
+  `PlanScreen._summaryBar` → conservé, renommé `GuideStep`, `onDismiss` remplacé par une action.
+- **L'accès au texte depuis le plan existe déjà** (icône livre de `PrayerPlanCard` →
+  `VerseBottomSheet`) : le critère 4 ne demande **rien à construire**, seulement à le *désigner*.
+- `CycleMilestoneDialog` est le patron « moment fort en modale », déjà déclenché au check-out.
+- `pubspec.yaml` vérifié : aucun package de coach-mark/showcase, **ne pas en ajouter** — ces
+  critères demandent une phrase au bon moment, pas un overlay à trou.
+
+**Risques / dépendances**
+1. **US-1 critère 7 dépend d'US-3 critère 4.** Aujourd'hui, décocher une unité laisse `reach=0`,
+   `_completedPagesFor` s'arrête sur ce groupe et le lendemain repropose **la page entière** —
+   pas les versets seuls, et sans verset de contexte. Livré avant US-3, le message affirmerait un
+   comportement que le moteur n'a pas, au moment précis censé **prouver** la méthode.
+2. **Bug de production préexistant, corrigé dans le sprint A** parce qu'il est la condition du
+   critère 3 : la graine du mélange de l'aperçu diffère de celle réellement persistée → l'aperçu
+   ment dès 2 sourates sélectionnées, depuis le 2026-09-13.
+3. **Tailles de fichiers** : `lib/core/strings.dart` est **déjà à 415 lignes** (plafond 300-350) et
+   passera à ~450 ; `plan_screen.dart` est **déjà à 357**. Poser tout contenu guidé dans
+   `lib/widgets/guide_step.dart`, jamais comme méthode privée de plus dans un écran. Découpage de
+   `strings.dart` inscrit au Backlog comme item séparé.
+4. **Aucun test n'existe sur les écrans** (`test/` ne couvre que `core/` et `models/`). Les deux
+   calculs neufs sont purs : les verrouiller par test est le seul filet possible, et il est
+   bon marché.
+5. `docs/DOCUMENTATION_TECHNIQUE.md` §8.1 décrit un **tour guidé interactif à 4 étapes avec
+   spotlight qui n'existe plus** (vérifié : aucun `TourKeys`, aucun spotlight ; `hasSeenTour` ne
+   survit que comme proxy « onboarding terminé »). À corriger en même temps que les écrans
+   d'onboarding.
 
 ---
 
@@ -156,6 +281,15 @@ mon activité réelle plutôt qu'un plan simplement proposé et jamais vérifié
    précis sur mobile, ce n'est qu'une invitation de plus, jamais un scellement automatique et
    silencieux de la journée ; given la permission refusée ou révoquée, then leur absence ne bloque
    ni ne dégrade aucune autre fonctionnalité de l'app.
+
+**Note de coordination (scoping US-1, 2026-09-20)** : le critère 6 ci-dessus parle d'« heures
+configurées », or aucune heure de rappel n'est configurable aujourd'hui (`scheduleMorning`/
+`scheduleEvening` ont leurs heures en dur, 7:00 / 20:30 ; `settings_card.dart` n'expose qu'un
+booléen — l'archive d'US-8 qui les annonce livrées est fausse). **Rendre les heures matin/soir
+configurables est repris par le sprint B d'US-1** (décision utilisateur du 2026-09-20, pour
+débloquer le critère 5 d'US-1). US-3 ne doit donc scoper que ce qui reste : la notification
+supplémentaire à minuit, et le branchement des rappels matin/soir sur les heures désormais
+réglées. Ne pas réimplémenter le réglage lui-même.
 
 **Exclusions explicites** : pas de scellement automatique de la journée à minuit (l'utilisateur
 reste toujours celui qui confirme/corrige, voir critère 3) — seule une notification est ajoutée.

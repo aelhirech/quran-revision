@@ -83,29 +83,73 @@ class S {
   // Onboarding — intro
   static String get bismillah => 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
   static String get homeEpigraph => 'وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا';
-  static String get introTitle => _t('Révise le Coran chaque jour', 'Revise the Quran every day');
+  static String get introTitle =>
+      _t("Ce qui s'efface, ce n'est pas ta sincérité",
+          "What fades isn't your sincerity");
   static String get introLine1 => _t(
-    'Dis à l\'app dans quelles prières tu récites — seul ou en imam — et elle répartit tes sourates sur chaque rakaa.',
-    'Tell the app in which prayers you recite — alone or leading as imam — and it spreads your surahs across each rakaa.',
+    "Tu portes déjà du Coran. Ce qui te manque n'est pas la volonté — c'est une structure qui décide, chaque jour, ce que tu dois revoir.",
+    "You already carry some of the Quran. What you lack isn't willpower — it's a structure that decides, every day, what you should go over.",
   );
   static String get introLine2 => _t(
-    'Choisis les sourates à réviser, fixe un objectif, et l\'app s\'occupe du reste.',
-    'Choose the surahs to revise, set a goal, and the app takes care of the rest.',
+    "Sans elle, un jour de faible énergie suffit à faire sauter la révision. Puis un autre.",
+    "Without it, one low-energy day is enough to skip your revision. Then another.",
   );
-  static String get introAction => _t('Configurer mes sourates', 'Set up my surahs');
+  static String get introAction =>
+      _t("Comment l'app s'y prend", 'How the app handles it');
 
-  // Onboarding — demo (mini-cycle over 3 short surahs, US-1)
-  static String get demoTitle =>
-      _t('Fais l\'essai avec 3 courtes sourates', 'Try it with 3 short surahs');
-  static String get demoSubtitle => _t(
-      "Avant de choisir tes vraies sourates, vis un jour complet de révision — coche tes rakaas puis clôture ta journée, comme tu le feras chaque jour. Rien n'est encore enregistré.",
-      "Before picking your real surahs, live a full day of revision — tick your rakaas then close out your day, just like you will every day. Nothing is saved yet.");
+  // Onboarding — method (the three layers, US-1 criterion 1)
+  static String get methodTitle =>
+      _t('Tu ne choisis plus', 'You stop choosing');
+  static String get methodSubtitle => _t(
+      "Chaque jour, l'app décide à ta place la portion à réviser. Elle fait tourner trois choses en même temps.",
+      "Every day, the app decides your portion for you. It keeps three things moving at once.");
+  static String get methodLayerNewTitle => _t('Le nouveau', 'The new');
+  static String get methodLayerNewBody => _t(
+      "Ce que tu es en train d'apprendre, travaillé un peu chaque jour.",
+      'What you are currently memorizing, worked on a little every day.');
+  static String get methodLayerFreshTitle =>
+      _t('Le récent encore fragile', 'The recent, still fragile');
+  static String get methodLayerFreshBody => _t(
+      "Ce que tu viens de mémoriser et qui se perd vite si on n'y revient pas.",
+      'What you just memorized and lose quickly if you never come back to it.');
+  static String get methodLayerOldTitle =>
+      _t("L'ancien qu'on fait tourner", 'The old, kept in rotation');
+  static String get methodLayerOldBody => _t(
+      'Ce qui est acquis, revu par roulement pour qu\'aucune sourate ne reste de côté.',
+      'What you hold solidly, revised in rotation so no surah is left aside.');
+  static String get methodLegitimacy => _t(
+      "C'est la méthode des hafiz depuis des générations. L'app ne fait que la tenir à ta place.",
+      'This is how hafiz have worked for generations. The app just keeps track of it for you.');
+  static String get methodAction =>
+      _t('Choisir mes sourates', 'Choose my surahs');
+
+  // Onboarding — tour duration at the pace step (US-1 criterion 2).
+  // Never phrased as a date at which revision would be "done": revision
+  // loops by nature, only memorization has a real end.
+  static String tourDuree(int n) => locale == 'fr'
+      ? 'Un tour complet de ta sélection : ${joursDuration(n)}'
+      : 'One full round of your selection: ${joursDuration(n)}';
+  static String tourGarantie(int n) => locale == 'fr'
+      ? 'Aucune de tes sourates ne restera plus de ${joursDuration(n)} sans être revue.'
+      : 'None of your surahs will go more than ${joursDuration(n)} without being revised.';
 
   // Onboarding — preview of the first day's plan (US-1)
   static String get previewTitle => _t('Voici ton premier jour', "Here's your first day");
   static String get previewSubtitle => _t(
-      "D'après ta sélection et ton rythme, voici ce que l'app te proposera dès demain.",
+      "D'après ta sélection et ton rythme, voici ce que l'app te proposera dès aujourd'hui.",
       "Based on your selection and pace, here's what the app will suggest for you right away.");
+
+  // Onboarding — the shape of a day, announced on the last step (US-1 crit. 3)
+  static String get journeeFormeTitre =>
+      _t('La forme de ta journée', 'The shape of your day');
+  static String get journeeFormeMatin => _t(
+      "Le matin, tu t'engages sur ta portion du jour.",
+      "In the morning, you commit to the day's portion.");
+  static String get journeeFormeMilieu => _t(
+      'Tu la révises dans tes prières.', 'You revise it within your prayers.');
+  static String get journeeFormeSoir => _t(
+      "Le soir, tu clôtures — ce qui n'a pas tenu revient demain.",
+      "In the evening, you close out — whatever didn't hold comes back tomorrow.");
 
   // Contextual first-visit hooks (US-1 criterion 5)
   static String get hookCheckInTitle =>
@@ -140,7 +184,6 @@ class S {
   static String get selectionRapide => _t('Sélection rapide', 'Quick select');
   static String get toutLeCoran => _t('Tout le Coran', 'Full Quran');
   static String get etapeSelection => _t('Mes sourates', 'My surahs');
-  static String get etapeRecap => _t('Récapitulatif', 'Summary');
   static String get cycleObjectif => _t('Objectif de cycle', 'Cycle goal');
   static String etapeN(int n, int total) => '$n / $total';
   static String get fractionTroisQuarts => _t('3/4', '3/4');

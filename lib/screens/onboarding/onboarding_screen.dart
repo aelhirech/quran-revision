@@ -6,11 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_sticky_header/flutter_sticky_header.dart';
 import '../../core/app_colors.dart';
-import '../../core/rakaa_distributor.dart';
 import '../../core/revision_engine.dart';
 import '../../core/strings.dart';
-import '../../models/daily_session.dart';
-import '../../models/prayer.dart';
 import '../../models/revision_unit.dart';
 import '../../models/riwaya.dart';
 import '../../models/sourate.dart';
@@ -22,44 +19,32 @@ import '../../services/page_metadata_service.dart';
 import '../../state/app_state.dart';
 import '../../widgets/index_badge.dart';
 import '../../widgets/ornamental_divider.dart';
-import '../../widgets/outside_prayers_block.dart';
+import '../../widgets/pagination_indisponible.dart';
 import '../../widgets/pill_chip.dart';
 import '../../widgets/pages_per_day_dropdown.dart';
-import '../../widgets/prayer_plan_card.dart';
-import '../../widgets/prayer_selector.dart';
 import '../../widgets/primary_cta_button.dart';
 import '../../widgets/unit_row.dart';
 import '../../widgets/verse_range_picker.dart';
 
 part 'steps/intro_page.dart';
+part 'steps/method_page.dart';
 part 'steps/riwaya_page.dart';
-part 'steps/demo_page.dart';
 part 'steps/selection_page.dart';
 part 'steps/rhythm_page.dart';
 part 'steps/notifications_page.dart';
 part 'steps/preview_page.dart';
-part 'steps/recap_page.dart';
 part 'steps/celebration_page.dart';
 part 'widgets/step_header.dart';
 part 'widgets/group_toggle.dart';
 part 'widgets/sourate_list.dart';
 part 'widgets/recap_card.dart';
 
-/// Nombre d'étapes comptées dans le stepper (`_StepHeader`) — Intro/Riwaya
-/// n'y figurent pas (pages d'accueil, pas de config), Célébration non plus
-/// (aboutissement, poussé hors du PageView).
+/// Nombre d'étapes comptées dans le stepper (`_StepHeader`) — Intro/Méthode/
+/// Riwaya n'y figurent pas (pages d'accueil et de pédagogie, pas de config),
+/// Célébration non plus (aboutissement, poussé hors du PageView).
+/// Ordre réel : Intro → Méthode → Riwaya → Sélection(1) → Rythme(2) →
+/// Rappels(3) → Jour 1(4) → Célébration.
 const int _kOnboardingSteps = 4;
-
-/// Wiring shared by `_DemoPage`/`_PreviewPage`: builds the day plan for a
-/// config (fake or real, never persisted at this point) without duplicating
-/// the page-metadata resolution twice — same wiring as `AppState._selection`,
-/// but for a config that doesn't exist in `AppState` yet (found in sprint
-/// review: each page had reimplemented it separately).
-DaySelection _dayUnitsFor(UserConfig config) => RevisionEngine.buildDayUnits(
-      config: config,
-      cyclePosition: 0,
-      pageMetadata: PageMetadataService.pageMetadataFor(config.riwaya),
-    );
 
 class OnboardingScreen extends StatefulWidget {
   /// Non-null quand l'utilisateur bascule vers un parcours (riwaya) jamais
@@ -82,6 +67,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String _search = '';
   late Riwaya _riwaya = widget.presetRiwaya ?? Riwaya.hafs;
 
+  /// Fixed for the whole wizard, and reused by [_confirm] — NOT a fresh
+  /// `DateTime.now()` per build. `shuffleEnabled` defaults to true and seeds
+  /// the cycle shuffle from `startDate`, so a date regenerated on every
+  /// rebuild made the day-1 preview show a surah order the app would then
+  /// never serve (bug shipped 2026-09-13, fixed with US-1 criterion 3:
+  /// the preview must be the plan actually received).
+  final DateTime _startDate = DateTime.now();
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -90,6 +83,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   int get _totalVerses =>
       _selections.values.fold(0, (sum, s) => sum + s.verseCount);
+
+  /// The config exactly as [_confirm] will persist it — the pace step and the
+  /// day-1 step both describe this one, never a look-alike rebuilt on the side.
+  UserConfig get _config => UserConfig(
+        selections: _selections.values.toList(),
+        pagesPerDay: _pagesPerDay,
+        startDate: _startDate,
+        riwaya: _riwaya,
+      );
+
+  /// Day 1 of [_config], computed fresh on every build: the wizard's
+  /// `PageView` builds all pages eagerly and keeps them alive, so anything
+  /// cached here would freeze on the first (empty) selection.
+  DaySelection get _daySelection => RevisionEngine.buildDayUnits(
+        config: _config,
+        cyclePosition: 0,
+        pageMetadata: PageMetadataService.pageMetadataFor(_riwaya),
+      );
 
   /// Fraction (1.0/0.75/0.5/0.25) dont la sélection actuelle est
   /// structurellement identique à ce que produirait un tap sur la pill
@@ -236,14 +247,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _confirm() async {
     if (_selections.isEmpty) return;
-    final config = UserConfig(
-      selections: _selections.values.toList(),
-      pagesPerDay: _pagesPerDay,
-      startDate: DateTime.now(),
-      riwaya: _riwaya,
-    );
     final state = context.read<AppState>();
-    await state.saveConfig(config);
+    await state.saveConfig(_config);
     // Marks the onboarding flow as already completed once — `main.dart`
     // uses this to skip Intro/Riwaya/Demo on a future switch to a
     // never-configured riwaya. Formerly set by the old guided tour
@@ -276,6 +281,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final showIntroAndRiwaya = widget.presetRiwaya == null;
+    // Derived once per frame and shared by the pace step and the day-1 step:
+    // both promise something about the same plan, so they must read one
+    // derivation rather than two built side by side.
+    final daySelection = _daySelection;
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: PageView(
@@ -283,6 +292,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         physics: const NeverScrollableScrollPhysics(),
         children: [
           if (showIntroAndRiwaya) _IntroPage(onNext: _nextPage),
+          if (showIntroAndRiwaya) _MethodPage(onNext: _nextPage),
           if (showIntroAndRiwaya) _RiwayaPage(onSelect: _confirmRiwaya),
           _SelectionPage(
             selections: _selections,
@@ -300,30 +310,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           _RhythmPage(
             pagesPerDay: _pagesPerDay,
+            cycleDays: daySelection.cycleDays(_pagesPerDay),
             onPagesPerDayChanged: (v) => setState(() => _pagesPerDay = v),
             onBack: _prevPage,
             onNext: _nextPage,
           ),
           _NotificationsPage(onBack: _prevPage, onNext: _nextPage),
-          // Demo mini-cycle (US-1 criterion 2) — moved to the end of the
-          // wizard (2026-09-13, user feedback after trying the first
-          // placement right after Riwaya: it felt ungrounded there, with no
-          // context yet about the user's own surahs/pace). Only on the very
-          // first onboarding: switching to a riwaya already configured once
-          // doesn't need to "feel" the app a second time, that would just
-          // add friction.
-          if (showIntroAndRiwaya) _DemoPage(onNext: _nextPage),
-          // Real preview of day-1's plan (US-1 criterion 4) — derived from
-          // the actual selection/pace already chosen, never skippable.
+          // Last step before the celebration (US-1 criterion 3): the real
+          // day-1 plan, plus the shape the user's day will take.
           _PreviewPage(
-            selections: _selections,
-            pagesPerDay: _pagesPerDay,
-            riwaya: _riwaya,
-            onNext: _nextPage,
-          ),
-          _RecapPage(
-            selections: _selections,
-            totalVerses: _totalVerses,
+            units: daySelection.units,
+            paginationUnavailable:
+                daySelection.paginationUnavailable(_selections.isNotEmpty),
             onBack: _prevPage,
             onConfirm: _selections.isEmpty ? null : _showCelebration,
           ),

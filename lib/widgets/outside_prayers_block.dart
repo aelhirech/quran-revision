@@ -7,9 +7,7 @@ import 'verse_bottom_sheet.dart';
 
 /// Content that did not fit in the chosen prayers, shown read-only — the
 /// rakaa layout is a display and must not hide day content the check-out
-/// will still credit (cadrage 2026-09-08, `PlanScreen`). Reused as-is by the
-/// onboarding demo, whose "hors prières" case is the exact same situation on
-/// fake content.
+/// will still credit (cadrage 2026-09-08, `PlanScreen`).
 class OutsidePrayersBlock extends StatelessWidget {
   final List<RevisionUnit> units;
   const OutsidePrayersBlock({super.key, required this.units});
