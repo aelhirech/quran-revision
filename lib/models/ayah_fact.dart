@@ -14,7 +14,6 @@ class AyahFact {
   final int ayahId;
   final AyahFactType type;
   final bool reach;
-  final bool needsWork;
   final bool checkedOut;
 
   const AyahFact({
@@ -25,10 +24,12 @@ class AyahFact {
     required this.ayahId,
     required this.type,
     this.reach = false,
-    this.needsWork = false,
     this.checkedOut = false,
   });
 
+  // `needs_work` stays in the SQLite schema (orphaned column, US-3 crit. 3 —
+  // no application code writes or reads it anymore) but has no
+  // representation here: `DEFAULT 0` fills it in on insert by itself.
   Map<String, dynamic> toMap() => {
         'user_id': userId,
         'date': date,
@@ -37,7 +38,6 @@ class AyahFact {
         'ayah_id': ayahId,
         'type': type.name,
         'reach': reach ? 1 : 0,
-        'needs_work': needsWork ? 1 : 0,
         'checked_out': checkedOut ? 1 : 0,
       };
 
@@ -49,7 +49,6 @@ class AyahFact {
         ayahId: m['ayah_id'] as int,
         type: AyahFactType.values.byName(m['type'] as String),
         reach: (m['reach'] as int) != 0,
-        needsWork: (m['needs_work'] as int) != 0,
         checkedOut: (m['checked_out'] as int) != 0,
       );
 }

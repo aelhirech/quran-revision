@@ -85,25 +85,18 @@ extension _CheckOutSections on _CheckOutScreenState {
                     fontWeight: FontWeight.w600,
                     color: palette.textPrimary)),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final v in learn.ayahIds)
-                  VerseChip(
-                    borderColor: _notLearned.contains(v)
-                        ? palette.cardBorder
-                        : palette.gold.withValues(alpha: 0.8),
-                    onTap: () => _setState(() {
-                      if (!_notLearned.add(v)) _notLearned.remove(v);
-                    }),
-                    child: Text('$v',
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: _notLearned.contains(v)
-                                ? palette.textMuted
-                                : palette.goldDark)),
-                  ),
+            VerseToggleChips(
+              verses: learn.ayahIds,
+              unchecked: _notLearned,
+              onToggle: (v) => _setState(() {
+                if (!_notLearned.add(v)) _notLearned.remove(v);
+              }),
+              checkedBorderColor: palette.gold.withValues(alpha: 0.8),
+              childFor: (v, checked) => Text('$v',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: checked ? palette.goldDark : palette.textMuted)),
+              trailing: [
                 if (learn.ayahIds.length < learn.sourate.verses)
                   VerseChip(
                     borderColor: palette.gold.withValues(alpha: 0.7),

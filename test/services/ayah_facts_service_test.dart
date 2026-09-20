@@ -93,55 +93,56 @@ void main() {
     });
   });
 
-  group('setNeedsWork', () {
-    test('flague un verset précis sans toucher les autres', () async {
-      const date = '2020-02-03';
-      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(12, 1, 3)]);
-      await AyahFactsRitual.setNeedsWork(date, Riwaya.hafs, 12, 2, true);
+  group('setReachForVerses — granularité verset du check-out (US-3 crit. 3)', () {
+    test('décoche un verset précis sans toucher les autres de la même plage',
+        () async {
+      const date = '2020-02-08';
+      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(16, 1, 3)]);
+      await AyahFactsRitual.setReachForVerses(
+          date, Riwaya.hafs, 16, [1, 2, 3], true,
+          type: AyahFactType.revise);
+      await AyahFactsRitual.setReachForVerses(date, Riwaya.hafs, 16, [2], false,
+          type: AyahFactType.revise);
+
       final facts = await AyahFactsRitual.dayFacts(date, Riwaya.hafs);
-      expect(facts.first.needsWorkVerses, {2});
+      expect(facts, hasLength(1));
+      expect(facts.first.reachedVerses, {1, 3},
+          reason: 'seul le verset 2, explicitement décoché, doit manquer');
+      expect(facts.first.reach, isFalse,
+          reason: 'un seul verset manquant suffit à invalider toute la plage');
       await AyahFactsRitual.sealDay(date, Riwaya.hafs);
     });
   });
 
-  group('lastRevisionFlags — flaguer "à retravailler" depuis le Récap', () {
-    test('renvoie la date de la DERNIÈRE révision par verset, pas la première',
+  group('returningVerses — verset revenu seul (US-3 crit. 4)', () {
+    test('un verset décoché à un check-out SCELLÉ est bien signalé revenant',
         () async {
-      const d1 = '2020-03-01';
-      const d2 = '2020-03-10';
-      await AyahFactsRitual.proposeUnits(d1, Riwaya.hafs, [testUnit(30, 1, 3)]);
-      await AyahFactsRitual.setReach(d1, Riwaya.hafs, 30, 1, 3, true);
-      // Seul le verset 1 est re-révisé plus tard : sa date doit remonter à
-      // d2, les versets 2-3 restent sur d1.
-      await AyahFactsRitual.proposeUnits(d2, Riwaya.hafs, [testUnit(30, 1, 1)]);
-      await AyahFactsRitual.setReach(d2, Riwaya.hafs, 30, 1, 1, true);
+      const d1 = '2020-04-01';
+      const today = '2020-04-02';
+      await AyahFactsRitual.proposeUnits(d1, Riwaya.hafs, [testUnit(50, 1, 3)]);
+      await AyahFactsRitual.setReachForVerses(d1, Riwaya.hafs, 50, [1, 3], true,
+          type: AyahFactType.revise);
+      // Verset 2 reste reach=0, puis la journée est scellée (checked_out=1).
+      await AyahFactsRitual.sealDay(d1, Riwaya.hafs);
 
-      final flags = await AyahFactsRitual.lastRevisionFlags(Riwaya.hafs, 30, 1, 3);
-      expect(flags[1]!.date, d2);
-      expect(flags[2]!.date, d1);
-      expect(flags[3]!.date, d1);
-      expect(flags.values.every((f) => f.needsWork == false), isTrue);
+      final returning = await AyahFactsRitual.returningVerses(
+          today, Riwaya.hafs, {(50, 1), (50, 2), (50, 3)});
+      expect(returning, {(50, 2)},
+          reason: 'seul le verset laissé à reach=0 au scellement revient');
     });
 
-    test('un verset jamais révisé (reach toujours 0) est absent du résultat',
+    test('un jour encore en attente (pas scellé) ne compte jamais comme "revenu"',
         () async {
-      const date = '2020-03-02';
-      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(31, 1, 2)]);
-      // reach reste à 0 : proposé mais jamais fait.
-      final flags = await AyahFactsRitual.lastRevisionFlags(Riwaya.hafs, 31, 1, 2);
-      expect(flags, isEmpty);
-    });
-
-    test('le drapeau needs_work posé par setNeedsWork est bien lu sur la '
-        'bonne date', () async {
-      const date = '2020-03-03';
-      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(32, 1, 1)]);
-      await AyahFactsRitual.setReach(date, Riwaya.hafs, 32, 1, 1, true);
-      await AyahFactsRitual.setNeedsWork(date, Riwaya.hafs, 32, 1, true);
-
-      final flags = await AyahFactsRitual.lastRevisionFlags(Riwaya.hafs, 32, 1, 1);
-      expect(flags[1]!.needsWork, isTrue);
-      expect(flags[1]!.date, date);
+      const pending = '2020-04-03';
+      const today = '2020-04-04';
+      await AyahFactsRitual.proposeUnits(
+          pending, Riwaya.hafs, [testUnit(51, 1, 2)]);
+      // reach=0 par défaut, mais jamais scellé : ce n'est pas une déclaration
+      // "laissé de côté" de l'utilisateur, juste un plan pas encore clôturé.
+      final returning = await AyahFactsRitual.returningVerses(
+          today, Riwaya.hafs, {(51, 1), (51, 2)});
+      expect(returning, isEmpty);
+      await AyahFactsRitual.sealDay(pending, Riwaya.hafs);
     });
   });
 

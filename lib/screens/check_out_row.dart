@@ -1,107 +1,56 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
-import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import '../widgets/unit_range_label.dart';
+import '../widgets/verse_toggle_chips.dart';
 
-/// Une sourate/portion du plan du jour dans [CheckOutScreen] — case "fait/
-/// pas fait" à gauche, ouvre le détail (versets à retravailler) au tap sur
-/// le libellé en dessous.
+/// A surah/portion of the day plan in [CheckOutScreen] — label up top, then
+/// one chip per verse (number/checked): each verse is confirmed or corrected
+/// individually (US-3 crit. 3, verse granularity unified between revision
+/// and learning), rather than a single checkbox for the whole range.
 class CheckOutRow extends StatelessWidget {
   final RevisionUnit unit;
-  final bool reach;
-  final VoidCallback onToggle;
-  final VoidCallback onDetail;
+  final Set<int> uncheckedVerses; // subset of UNCHECKED verses
+  final void Function(int ayahId) onToggleVerse;
 
   const CheckOutRow({
     super.key,
     required this.unit,
-    required this.reach,
-    required this.onToggle,
-    required this.onDetail,
+    required this.uncheckedVerses,
+    required this.onToggleVerse,
   });
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.cardBorder),
-        ),
-        child: Column(
-          children: [
-            InkWell(
-              onTap: onToggle,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: palette.surfaceCardSolid,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 26,
-                      height: 26,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: reach ? palette.primary : Colors.transparent,
-                        border: Border.all(
-                          color: reach ? palette.primary : palette.cardBorder,
-                        ),
-                      ),
-                      child: reach
-                          ? Icon(
-                              Icons.check,
-                              size: 15,
-                              color: palette.onPrimary,
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: UnitRangeLabel(
-                        unit: unit,
-                        nameColor: reach
-                            ? palette.textPrimary
-                            : palette.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            InkWell(
-              onTap: onDetail,
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-                child: Row(
-                  children: [
-                    Text(
-                      S.checkOutVoirVersets(unit.verseCount),
-                      style: TextStyle(fontSize: 11.5, color: palette.goldDark),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+    final allChecked = uncheckedVerses.isEmpty;
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: palette.surfaceCardSolid,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          UnitRangeLabel(
+            unit: unit,
+            nameColor: allChecked ? palette.textPrimary : palette.textMuted,
+          ),
+          const SizedBox(height: 10),
+          VerseToggleChips(
+            verses: unit.verses.toList(),
+            unchecked: uncheckedVerses,
+            onToggle: onToggleVerse,
+            checkedBorderColor: palette.primary,
+            checkedFillColor: palette.primary,
+            childFor: (v, checked) => checked
+                ? Icon(Icons.check, size: 14, color: palette.onPrimary)
+                : Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
+          ),
+        ],
       ),
     );
   }

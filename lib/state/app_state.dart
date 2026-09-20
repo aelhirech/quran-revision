@@ -200,7 +200,7 @@ class AppState extends ChangeNotifier {
     await StorageService.saveLocale(locale);
     // Reminder text is baked in at scheduling time, so an already-scheduled
     // reminder would keep the language it was created in forever. Rescheduling
-    // overwrites ids 1 and 2, so it is idempotent.
+    // overwrites ids 1, 2 and 3 (morning/evening/midnight), so it is idempotent.
     if (await StorageService.loadNotifEnabled()) {
       await NotificationService.rescheduleAll();
     }

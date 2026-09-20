@@ -28,24 +28,46 @@ extension AppStateDayPlan on AppState {
     return groups.map(_unitFor).whereType<RevisionUnit>().toList();
   }
 
-  /// Same as [dayUnits], plus each unit's "needs work" flagged verses
-  /// (`needsWorkVerses`) and its persisted `reach` — this is the version
-  /// CheckOutScreen consumes.
+  /// Same as [dayUnits], plus each unit's per-verse `reach` status
+  /// (`reachedVerses`) — this is the version CheckOutScreen consumes, at
+  /// verse granularity (US-3 crit. 3).
   ///
-  /// `reach` is back (it had been dropped in Sprint 7): the check-out shows
-  /// everything as done BY DEFAULT — Backlog "Check-out : reach fait par
-  /// défaut", 2026-09-04 — but that default only holds the first time. Since
-  /// a sealed day can be reopened (Phase 9 Sprint 2), the screen has to start
-  /// from what the user already declared, or a second close would silently
-  /// re-credit what they had unchecked.
-  Future<List<({RevisionUnit unit, Set<int> needsWorkVerses, bool reach})>>
+  /// Persisted `reach` is read back rather than assumed "all done": the
+  /// check-out shows everything as done BY DEFAULT — Backlog "Check-out :
+  /// reach fait par défaut", 2026-09-04 — but that default only holds the
+  /// first time. Since a sealed day can be reopened (Phase 9 Sprint 2), the
+  /// screen has to start from what the user already declared, or a second
+  /// close would silently re-credit what they had unchecked.
+  Future<List<({RevisionUnit unit, Set<int> reachedVerses})>>
       dayUnitsWithStatus({String? date}) async {
     final groups = await AyahFactsRitual.dayFacts(date ?? todayStr, _riwaya);
     return [
       for (final g in groups)
         if (_unitFor(g) case final unit?)
-          (unit: unit, needsWorkVerses: g.needsWorkVerses, reach: g.reach),
+          (unit: unit, reachedVerses: g.reachedVerses),
     ];
+  }
+
+  /// For [date]'s proposed units (defaults to today), which verses are
+  /// "returning" — explicitly left undone at the check-out of a prior sealed
+  /// day, now reproposed because their cycle group hasn't advanced past them
+  /// — paired with the verse immediately preceding them in the user's
+  /// current selection as a display-only context aid (US-3 crit. 4). `null`
+  /// context means no valid predecessor to show (first verse of its
+  /// selection). Consumed by the guided moment that proves the method (US-1
+  /// sprint C) — this only surfaces the data, it writes nothing.
+  Future<Map<(int, int), int?>> returningVersesContext({String? date}) async {
+    final units = await dayUnits(date: date);
+    final candidates = <(int, int)>{
+      for (final u in units) for (final v in u.verses) (u.sourate.id, v),
+    };
+    final returning = await AyahFactsRitual.returningVerses(
+        date ?? todayStr, _riwaya, candidates);
+    final selections = _config?.selections ?? const [];
+    return {
+      for (final v in returning)
+        v: RevisionEngine.contextVerseFor(v.$1, v.$2, selections),
+    };
   }
 
   /// Has day [date] already been sealed? See [AyahFactsRitual.isDaySealed]

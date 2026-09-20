@@ -15,6 +15,10 @@ class RevisionUnit {
 
   int get verseCount => verseEnd - verseStart + 1;
 
+  /// The verse numbers this unit spans, in order.
+  Iterable<int> get verses =>
+      Iterable.generate(verseCount, (i) => verseStart + i);
+
   /// Lignes estimées dans le Mushaf Madinah (~8,5 mots par ligne).
   double get estimatedLines =>
       (sourate.words * verseCount / sourate.verses) / 8.5;

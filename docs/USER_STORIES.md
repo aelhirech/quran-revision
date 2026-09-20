@@ -237,134 +237,6 @@ clés `hook_seen_*` restent orphelines sur les appareils — inoffensif, pas de 
 
 ---
 
-### US-3 — Rituel quotidien check-in / check-out, avec ses rappels [priorité: P1] [état: scopée]
-
-**Historique** : livrée une première fois Phase 6 Sprint 2 (check-in/check-out) + Phase 9 Sprint 1
-(rituel unique « Illuminer ma journée avec le Coran » + volet « j'ai fait plus que prévu »),
-archivée terminée. **Rouverte le 2026-09-20** : le flag « à retravailler » (bookmark par verset,
-indépendant du coché/décoché) est retiré et remplacé par une correction uniforme avec
-l'apprentissage — décocher un verset le renvoie simplement au lendemain — plus une notification
-à heure fixe (minuit) pour inviter à clôturer une journée non close, en plus des rappels
-matin/soir existants. **Complétée le même jour** : ajouter manuellement une sourate au check-in ne
-propose aujourd'hui que la sourate entière (asymétrie avec le check-out, qui permet déjà de choisir
-une portion pour une sourate révisée en plus) — le check-in doit offrir le même choix de plage.
-
-**Statement** : En tant qu'utilisateur, je veux confirmer le matin ce que je compte réviser
-aujourd'hui puis confirmer le soir ce que j'ai réellement fait — avec un rappel matin et un rappel
-le soir pour ne pas l'oublier même sans ouvrir l'app de moi-même —, afin que ma progression reflète
-mon activité réelle plutôt qu'un plan simplement proposé et jamais vérifié.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given un plan du jour proposé, When l'utilisateur fait son check-in, Then il peut ajuster ce
-   qu'il compte réviser avant de s'engager, et cet engagement devient la référence de sa journée.
-   Given qu'il ajoute manuellement une sourate en plus de la proposition, When il la choisit, Then
-   il peut ensuite choisir la portion précise à réviser (comme au check-out pour une sourate faite
-   en plus), plutôt que de se voir imposer la sourate entière.
-2. Given une journée engagée, When l'utilisateur coche des versets/sourates comme faits au fil de
-   ses prières, Then cette progression est visible immédiatement sans attendre le soir.
-3. Given une journée en attente de clôture, When l'utilisateur fait son check-out, Then il
-   confirme (ou corrige) verset par verset ce qui a été réellement fait, pour la révision comme
-   pour l'apprentissage, et cette clôture est ce qui fait avancer son cycle de révision — pas le
-   simple fait d'avoir coché quelque chose pendant la journée. **Remplace l'ancien mécanisme
-   « à retravailler »** (bookmark séparé du coché/décoché, réservé jusqu'ici à la révision) : il
-   n'existe plus qu'un seul geste — décocher un verset — que ce soit en révision ou en
-   apprentissage, avec le même effet.
-4. Given un verset décoché au check-out (révision ou apprentissage), When le plan du lendemain est
-   calculé, Then ce verset y réapparaît accompagné du verset qui le précède immédiatement, affiché
-   comme aide de contexte pour se remettre dans la récitation avant de le reprendre — comportement
-   unifié entre révision et apprentissage.
-5. Given une journée jamais clôturée, When l'utilisateur revient dans l'app un jour plus tard,
-   Then l'app le lui signale et lui permet de la clôturer avant de continuer.
-6. Given la permission de notification accordée, When les heures configurées arrivent, Then un
-   rappel matin invite à faire le check-in et un rappel soir invite à faire le check-out, de façon
-   récurrente ; Then une notification supplémentaire à heure fixe (minuit) invite aussi à clôturer
-   la journée si elle ne l'est pas encore — l'app ne pouvant rien exécuter elle-même à cet instant
-   précis sur mobile, ce n'est qu'une invitation de plus, jamais un scellement automatique et
-   silencieux de la journée ; given la permission refusée ou révoquée, then leur absence ne bloque
-   ni ne dégrade aucune autre fonctionnalité de l'app.
-
-**Note de coordination (scoping US-1, 2026-09-20)** : le critère 6 ci-dessus parle d'« heures
-configurées », or aucune heure de rappel n'est configurable aujourd'hui (`scheduleMorning`/
-`scheduleEvening` ont leurs heures en dur, 7:00 / 20:30 ; `settings_card.dart` n'expose qu'un
-booléen — l'archive d'US-8 qui les annonce livrées est fausse). **Rendre les heures matin/soir
-configurables est repris par le sprint B d'US-1** (décision utilisateur du 2026-09-20, pour
-débloquer le critère 5 d'US-1). US-3 ne doit donc scoper que ce qui reste : la notification
-supplémentaire à minuit, et le branchement des rappels matin/soir sur les heures désormais
-réglées. Ne pas réimplémenter le réglage lui-même.
-
-**Exclusions explicites** : pas de scellement automatique de la journée à minuit (l'utilisateur
-reste toujours celui qui confirme/corrige, voir critère 3) — seule une notification est ajoutée.
-La granularité verset par verset remplace complètement l'ancienne case à cocher par sourate/
-portion entière côté révision (décidé au blueprint, à confirmer au scoping selon ce que le code
-permet sans réécriture disproportionnée). Le « verset d'avant » est un simple affichage d'aide,
-il n'est jamais lui-même marqué comme fait/à refaire du seul fait d'être montré. Le choix de
-portion à l'ajout manuel (critère 1) ne s'étend pas aux unités déjà proposées automatiquement par
-le plan du jour — celles-ci restent « tout ou rien » (retrait complet via « × »), tranché au
-blueprint du 2026-09-20.
-
-**Ajustements des critères d'acceptation** (scoping du 2026-09-20 — le blueprint n'est pas remis
-en cause, seuls ces cas non prévus par le code sont précisés) :
-
-- **Critère 3, colonne `needs_work`** : conservée en base (aucune migration sans utilisateurs
-  réels, `CLAUDE.md` § « Décisions actives à connaître »), mais **plus jamais écrite ni lue** après
-  ce sprint — `AyahFactsRitual.setNeedsWork()` et le toggle de `VerseBottomSheet` disparaissent.
-  La colonne reste orpheline en base, sans effet sur le comportement.
-- **Critère 4, mécanisme** : pas une nouvelle requête `ayah_facts` — une règle ajoutée à
-  `RevisionEngine.buildDayUnits()` (Dart pur). Quand un verset `reach=0` réapparaît dans le plan,
-  le moteur vérifie si le verset `n-1` de la même sourate appartient à la sélection et, si oui, le
-  joint comme paire — jamais seul, jamais hors de la plage choisie (invariant E.3 de `CLAUDE.md`).
-  Verrouillé par un nouveau cas dans `test/core/revision_engine_test.dart`.
-- **Critère 6, heures matin/soir** : déjà livrées par US-1 sprint B
-  (`StorageService.loadMorningTime`/`loadEveningTime`, branchées dans
-  `NotificationService.rescheduleAll`) — US-3 n'ajoute que la troisième notification, à heure fixe
-  minuit, sans réglage associé.
-
-**Scoping technique** (2026-09-20) :
-
-*Un seul sprint* — les 6 critères touchent des couches indépendantes (UI check-in, unification
-d'un flag, moteur du plan, banner d'accueil, notifications) sans dépendance interne entre eux, sauf
-le critère 4 qui doit être livré en dernier (le plus risqué, et c'est lui que sprint C d'US-1
-attend).
-
-**Fichiers UI concernés**
-- `lib/screens/check_in_screen.dart` (critère 1 : ouvrir `VerseRangePicker` à l'ajout manuel d'une
-  sourate, même pattern que `CheckOutScreen._addRevisedSourate`).
-- `lib/screens/check_out_screen.dart`, `check_out_sections.dart`, `check_out_detail_screen.dart`,
-  `lib/widgets/verse_bottom_sheet.dart` (critère 3 : retrait du toggle « à retravailler »).
-- `lib/widgets/day_plan_tab.dart` / écran d'accueil (critère 5 : bannière jour non clôturé, appuyée
-  sur `AyahFactsRitual.pendingDate()` déjà utilisée par `ensureDayPlan`).
-- `lib/services/notification_service.dart`, `lib/core/strings.dart` (critère 6 : notification
-  minuit, nouvelles clés FR/EN).
-- `lib/core/revision_engine.dart` (critère 4, seul fichier de `lib/core/` touché).
-
-**Variables / champs concernés**
-- Aucun champ nouveau sur `AyahFact`/`UserConfig` : `reach`, `checked_out`, `pendingDate()`,
-  `isDaySealed()`, `sealDay()` existent déjà et suffisent aux critères 1, 2, 5, 6.
-- `AyahFact.needsWork` : conservé en base, retiré de tout code applicatif (critère 3).
-- `AyahFactsRitual.lastRevisionFlags()` (consommée par le Récap) : à relire — si elle s'appuie sur
-  `needs_work`, la reporter sur `reach` avant de couper le flag.
-
-**Table(s) / requête(s) `ayah_facts` concernée(s)**
-- Réutilisées telles quelles : `pendingDate()`, `isDaySealed()`, `sealDay()`, `setReach()`.
-- Aucune nouvelle requête SQL — le critère 4 est une règle de `RevisionEngine`, pas une requête.
-
-**Décision data model** — aucun des 6 critères ne justifie une nouvelle table ni un nouveau champ
-persistant : 1/2/5/6 dérivent de méthodes `ayah_facts`/`UserConfig` déjà existantes, 3 retire un
-champ sans le remplacer, 4 est un calcul pur dérivé à la volée dans `RevisionEngine`.
-
-**Risques / dépendances**
-1. **Critère 4 modifie `RevisionEngine.buildDayUnits()`**, verrouillé par les invariants A-F de
-   `CLAUDE.md` § « Règle du plan quotidien » — respecter en particulier E.3 (jamais hors de la
-   plage choisie) et ne pas casser E.1/E.2 (aucune page sautée, aucune répétition avant bouclage).
-   Test de régression obligatoire avant de clore ce critère.
-2. **`AyahFactsRitual.lastRevisionFlags()`** (Récap) peut dépendre de `needs_work` — vérifier avant
-   de couper le flag pour ne pas casser un affichage existant.
-3. **Dépendance sortante** : ce sprint débloque US-1 sprint C (critère 7) — livrer le critère 4 en
-   dernier, avec son test, avant d'ouvrir sprint C.
-4. Confiance globale du scoping : **haute**.
-
----
-
 ## Archivées
 
 Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
@@ -390,8 +262,40 @@ comportement que le prochain sprint supprime.
 ---
 
 ### US-3 — Rituel quotidien check-in / check-out, avec ses rappels
-**État** : rouverte le 2026-09-20 — voir « Stories actives » en tête de fichier (retrait du flag
-« à retravailler », uniformisation avec l'apprentissage, notification à minuit).
+**État** : terminée — livrée 2026-09-21 (sprint US-3). Ajout manuel d'une sourate au check-in avec
+choix de portion (crit. 1) ; retrait complet du flag « à retravailler », remplacé par un check-out
+verset par verset unifié révision/apprentissage (crit. 3) ; infrastructure « verset revenu + verset
+de contexte » posée dans `RevisionEngine`/`AppState` mais pas encore affichée — consommée par
+US-1 sprint C (crit. 4) ; signal de jour non clôturé aussi au retour d'arrière-plan, pas seulement
+au lancement à froid (crit. 5) ; notification minuit, et bug corrigé au passage : les rappels
+matin/soir ignoraient silencieusement leur heure configurée depuis US-1 sprint B (crit. 6). Détail
+technique dans `git log`/`docs/CHANGELOG.md`.
+
+**Statement** : En tant qu'utilisateur, je veux confirmer le matin ce que je compte réviser
+aujourd'hui puis confirmer le soir ce que j'ai réellement fait — avec un rappel matin et un rappel
+le soir pour ne pas l'oublier même sans ouvrir l'app de moi-même —, afin que ma progression reflète
+mon activité réelle plutôt qu'un plan simplement proposé et jamais vérifié.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given un plan du jour proposé, When l'utilisateur fait son check-in, Then il peut ajuster ce
+   qu'il compte réviser avant de s'engager, et cet engagement devient la référence de sa journée.
+   Given qu'il ajoute manuellement une sourate en plus de la proposition, When il la choisit, Then
+   il peut ensuite choisir la portion précise à réviser, plutôt que de se voir imposer la sourate
+   entière.
+2. Given une journée engagée, When l'utilisateur coche des versets/sourates comme faits au fil de
+   ses prières, Then cette progression est visible immédiatement sans attendre le soir.
+3. Given une journée en attente de clôture, When l'utilisateur fait son check-out, Then il
+   confirme (ou corrige) verset par verset ce qui a été réellement fait, pour la révision comme
+   pour l'apprentissage — un seul geste, décocher un verset, avec le même effet des deux côtés.
+4. Given un verset décoché au check-out, When le plan du lendemain est calculé, Then ce verset y
+   réapparaît accompagné du verset qui le précède immédiatement, affiché comme aide de contexte.
+5. Given une journée jamais clôturée, When l'utilisateur revient dans l'app un jour plus tard (à
+   froid ou depuis l'arrière-plan), Then l'app le lui signale et lui permet de la clôturer avant
+   de continuer.
+6. Given la permission de notification accordée, When les heures configurées arrivent, Then un
+   rappel matin invite à faire le check-in et un rappel soir invite à faire le check-out ; Then une
+   notification supplémentaire à heure fixe (minuit) invite aussi à clôturer la journée si elle ne
+   l'est pas encore, jamais un scellement automatique.
 
 ---
 

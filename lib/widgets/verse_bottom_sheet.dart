@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
 import '../services/surah_metadata_service.dart';
@@ -44,34 +43,6 @@ class VerseBottomSheet extends StatefulWidget {
 }
 
 class _VerseBottomSheetState extends State<VerseBottomSheet> {
-  // ayahId -> (date de la dernière révision, "à retravailler" actuel) —
-  // absent pour un verset jamais révisé (rien à flaguer). Voir
-  // `AppState.lastRevisionFlagsFor`.
-  Map<int, ({String date, bool needsWork})> _flags = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFlags();
-  }
-
-  Future<void> _loadFlags() async {
-    final flags = await context.read<AppState>().lastRevisionFlagsFor(
-        widget.sourate.id, widget.ayahStart, widget.ayahEnd);
-    if (mounted) setState(() => _flags = flags);
-  }
-
-  Future<void> _toggle(int ayahId) async {
-    final current = _flags[ayahId];
-    if (current == null) return; // jamais révisé : rien à flaguer
-    final needsWork = !current.needsWork;
-    await context
-        .read<AppState>()
-        .setVerseNeedsWork(current.date, widget.sourate.id, ayahId, needsWork);
-    if (!mounted) return;
-    setState(() => _flags = {..._flags, ayahId: (date: current.date, needsWork: needsWork)});
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -102,33 +73,13 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
                 separatorBuilder: (context, index) => const Divider(height: 24),
                 itemBuilder: (_, i) {
                   final ayahId = widget.ayahStart + i;
-                  final flag = _flags[ayahId];
-                  return VerseRow(
-                    number: ayahId,
-                    text: verses[i],
-                    trailing: flag == null
-                        ? null
-                        : _needsWorkToggle(context, ayahId, flag.needsWork),
-                  );
+                  return VerseRow(number: ayahId, text: verses[i]);
                 },
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _needsWorkToggle(BuildContext context, int ayahId, bool needsWork) {
-    final palette = context.palette;
-    return IconButton(
-      icon: Icon(
-        needsWork ? Icons.bookmark : Icons.bookmark_outline,
-        color: needsWork ? palette.gold : palette.textMuted,
-        size: 20,
-      ),
-      tooltip: needsWork ? S.retirerARetravailler : S.marquerARetravailler,
-      onPressed: () => _toggle(ayahId),
     );
   }
 

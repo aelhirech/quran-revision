@@ -23,6 +23,15 @@ extension AppStateCheckOut on AppState {
     await AyahFactsRitual.setReachForUnits(date ?? todayStr, _riwaya, units, reach);
   }
 
+  /// Like [markUnitsReached], but verse by verse rather than a whole range —
+  /// check-out now confirms each verse individually (US-3 crit. 3, revision
+  /// and learning alike: a single gesture, unchecking one specific verse).
+  Future<void> markVersesReached(
+      String date, int surahId, List<int> ayahIds, bool reach) async {
+    await AyahFactsRitual.setReachForVerses(date, _riwaya, surahId, ayahIds, reach,
+        type: AyahFactType.revise);
+  }
+
   /// Toggles "done/not done" for a PlanScreen rakaa — replaces the old
   /// in-memory/SharedPreferences state (`_checkedRakaas`) with a direct
   /// write into `ayah_facts` for today (see [setUnitReach] for an
@@ -70,25 +79,6 @@ extension AppStateCheckOut on AppState {
     }
 
     return {for (final unit in units.toSet()) unit: isReached(unit)};
-  }
-
-  /// Toggles "needs work" for a specific verse — check-out detail screen,
-  /// verse granularity (not the whole surah).
-  Future<void> setVerseNeedsWork(
-      String date, int surahId, int ayahId, bool needsWork) async {
-    await AyahFactsRitual.setNeedsWork(date, _riwaya, surahId, ayahId, needsWork);
-    _notify();
-  }
-
-  /// Versets déjà révisés de [surahId] entre [verseStart] et [verseEnd],
-  /// avec la date de leur dernière révision et leur drapeau `needs_work`
-  /// actuel — alimente `VerseBottomSheet` pour flaguer "à retravailler"
-  /// depuis le Récap, en dehors du rituel quotidien de check-out. Voir
-  /// `AyahFactsRitual.lastRevisionFlags`.
-  Future<Map<int, ({String date, bool needsWork})>> lastRevisionFlagsFor(
-      int surahId, int verseStart, int verseEnd) {
-    return AyahFactsRitual.lastRevisionFlags(
-        _riwaya, surahId, verseStart, verseEnd);
   }
 
   /// Toggles "done/not done" for a surah/portion of the check-out — or, if

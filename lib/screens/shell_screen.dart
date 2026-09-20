@@ -15,7 +15,7 @@ class ShellScreen extends StatefulWidget {
   State<ShellScreen> createState() => _ShellScreenState();
 }
 
-class _ShellScreenState extends State<ShellScreen> {
+class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
   int _index = 0;
   // Rising-edge tracking (US-1 crit. 6), never the level: once the user has
   // moved to a tab of their own choosing, the same notification (e.g.
@@ -26,6 +26,7 @@ class _ShellScreenState extends State<ShellScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Point d'entrée du moteur quotidien (Phase 6 Sprint 2) — à chaque
     // ouverture/reprise de l'app (voir cadrage "Moteur quotidien").
     final state = context.read<AppState>();
@@ -61,6 +62,25 @@ class _ShellScreenState extends State<ShellScreen> {
     }
     _lastCheckoutDone = checkoutDone;
     _lastRecapSeen = recapSeen;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Resuming from the background (US-3 crit. 5): `ShellScreen` stays
+  /// mounted as long as the OS doesn't kill the app, so `initState` never
+  /// replays on its own when the user comes back the next day without
+  /// restarting the app — without this hook, `pendingDate` would stay stuck
+  /// on yesterday's state and `DayPlanTab`'s catch-up would never fire until
+  /// a cold restart.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      context.read<AppState>().ensureDayPlan();
+    }
   }
 
   void _onDestinationSelected(int i) => setState(() => _index = i);
