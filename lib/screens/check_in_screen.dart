@@ -6,6 +6,7 @@ import '../models/learning_progress.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
 import '../models/sourate.dart';
+import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../services/ayah_facts_service.dart';
 import '../services/storage_service.dart';
@@ -20,6 +21,7 @@ import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/step_dots.dart';
 import '../widgets/unit_row.dart';
+import '../widgets/verse_range_picker.dart';
 import 'check_in_detail_screen.dart';
 
 part 'check_in_sections.dart';
@@ -133,9 +135,26 @@ class _CheckInScreenState extends State<CheckInScreen> {
     await _load();
   }
 
+  /// Adds a surah to the day plan, then lets the user pick the precise
+  /// **portion** to revise (`VerseRangePicker`, same pattern as check-out's
+  /// "revise a surah in addition", US-3 crit. 1) instead of imposing the
+  /// whole surah. Closing the range picker without confirming cancels the
+  /// addition.
   Future<void> _addSourate(Sourate s) async {
-    await context.read<AppState>().addToDayPlan(
-        RevisionUnit(sourate: s, verseStart: 1, verseEnd: s.verses, isWhole: true));
+    if (!mounted) return;
+    final range = await showModalBottomSheet<SourateSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) =>
+          VerseRangePicker(sourate: s, current: SourateSelection.whole(s)),
+    );
+    if (range == null || !mounted) return;
+    await context.read<AppState>().addToDayPlan(RevisionUnit(
+        sourate: s,
+        verseStart: range.verseStart,
+        verseEnd: range.verseEnd,
+        isWhole: range.isWhole));
     await _load();
   }
 

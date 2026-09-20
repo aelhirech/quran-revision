@@ -255,14 +255,13 @@ class S {
   static String get notifMatinBody => _t('Planifie ta révision du jour', 'Plan your daily revision');
   static String get notifSoirTitle => _t('Bilan du jour 📖', 'Daily recap 📖');
   static String get notifSoirBody => _t('As-tu complété ta révision ?', 'Did you complete your revision?');
+  static String get notifMinuitTitle => _t('Journée pas encore clôturée', 'Day not closed out yet');
+  static String get notifMinuitBody =>
+      _t('Clôture ta journée pour faire avancer ton cycle.', 'Close out your day to keep your cycle moving.');
 
   // Versets
   static String get versetsDeRakaa => _t('Versets de la rakaa', 'Verses for this rakaa');
   static String get voirLeTexte => _t('Voir le texte', 'View text');
-  static String get marquerARetravailler =>
-      _t('Marquer à retravailler', 'Flag to work on again');
-  static String get retirerARetravailler =>
-      _t('Retirer le marquage "à retravailler"', 'Remove "work on again" flag');
 
   // Hadiths
   static String get hadithDuJourLabel => _t('Hadith du jour', 'Hadith of the day');
@@ -450,10 +449,6 @@ class S {
       _t('Il y a $n jour${n > 1 ? 's' : ''}', '$n day${n > 1 ? 's' : ''} ago');
   static String get checkOutPartieOptionnelle =>
       _t('Partie 2 · optionnelle', 'Part 2 · optional');
-  static String checkOutVoirVersets(int n) =>
-      _t('Voir les $n versets', 'See the $n verses');
-  static String get checkOutARetravailler =>
-      _t('Touche un verset à retravailler', 'Tap a verse to work on again');
   static String get checkOutCloturerHier => _t('Clôturer hier', 'Close out yesterday');
   static String get checkOutCloturerJour => _t('Clôturer ce jour', 'Close out this day');
   static String get checkOutAjouterAujourdhui =>

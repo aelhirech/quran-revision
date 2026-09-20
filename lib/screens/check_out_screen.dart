@@ -17,7 +17,7 @@ import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/step_dots.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_range_picker.dart';
-import 'check_out_detail_screen.dart';
+import '../widgets/verse_toggle_chips.dart';
 import 'check_out_row.dart';
 
 part 'check_out_sections.dart';
@@ -43,13 +43,16 @@ class CheckOutScreen extends StatefulWidget {
 }
 
 class _CheckOutScreenState extends State<CheckOutScreen> {
-  List<({RevisionUnit unit, Set<int> needsWorkVerses, bool reach})>? _items;
-  // Unités décochées par l'utilisateur (exceptions) — tout le reste est
-  // "fait" par défaut, écrit en base seulement à la clôture ([_close]).
-  // Pré-rempli depuis le `reach` persisté quand la journée a DÉJÀ été
-  // scellée : rouvrir une clôture doit repartir de ce qui a été déclaré, pas
-  // tout recocher (voir [_load]).
-  final Set<RevisionUnit> _unchecked = {};
+  List<({RevisionUnit unit, Set<int> reachedVerses})>? _items;
+  // Verses unchecked by the user (exceptions), identified by
+  // (surahId, ayahId) — everything else is "done" by default, written to
+  // the DB only at close ([_close]). Verse granularity (US-3 crit. 3):
+  // replaces the old whole-surah/portion unchecking, unified with the same
+  // gesture already used on the learning side (`_notLearned`). Prefilled
+  // from the persisted `reach` when the day is ALREADY sealed: reopening a
+  // close-out has to resume from what was declared, not recheck everything
+  // (see [_load]).
+  final Set<(int, int)> _uncheckedVerses = {};
   // Portion à apprendre proposée ce jour-là (Phase 9), et les versets que
   // l'utilisateur déclare NE PAS avoir acquis — même patron d'exception que
   // `_unchecked` côté révision : tout est "appris" par défaut, décocher
@@ -113,10 +116,13 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       // la base écraserait ce que l'utilisateur vient de recocher.
       if (sealed && !_prefilled) {
         _prefilled = true;
-        _unchecked.addAll([
-          for (final it in items)
-            if (!it.reach) it.unit,
-        ]);
+        for (final it in items) {
+          for (final v in it.unit.verses) {
+            if (!it.reachedVerses.contains(v)) {
+              _uncheckedVerses.add((it.unit.sourate.id, v));
+            }
+          }
+        }
         if (learn != null) {
           _notLearned.addAll(
               learn.ayahIds.where((v) => !learn.reachedVerses.contains(v)));
@@ -125,23 +131,11 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     });
   }
 
-  void _toggleReach(RevisionUnit unit) {
+  void _toggleVerse(int surahId, int ayahId) {
     setState(() {
-      if (!_unchecked.add(unit)) _unchecked.remove(unit);
+      final key = (surahId, ayahId);
+      if (!_uncheckedVerses.add(key)) _uncheckedVerses.remove(key);
     });
-  }
-
-  Future<void> _openDetail(RevisionUnit unit, Set<int> needsWorkVerses) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CheckOutDetailScreen(
-          date: widget.date,
-          unit: unit,
-          initialNeedsWork: needsWorkVerses,
-        ),
-      ),
-    );
-    await _load();
   }
 
   Future<void> _close() async {
@@ -149,28 +143,35 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     setState(() => _sealing = true);
     try {
       final state = context.read<AppState>();
-      // Le check-out est "fait par défaut" : les unités restées cochées
-      // sont confirmées reach=1. Les exceptions décochées repassent
-      // explicitement à reach=0 — nécessaire même si `proposeUnits` les a
-      // déjà écrites à 0, car une unité peut avoir reach=1 depuis plus tôt
-      // dans la journée (rakaa cochée dans PlanScreen avant que le jour ne
-      // devienne "en attente") : annuler une progression doit repasser
-      // reach à 0, jamais rester un no-op silencieux (voir CLAUDE.md § «
-      // Modèle de données central »).
-      final stillChecked = <RevisionUnit>[];
-      final uncheckedNow = <RevisionUnit>[];
+      // Le check-out est "fait par défaut" : les versets restés cochés sont
+      // confirmés reach=1. Les exceptions décochées repassent explicitement à
+      // reach=0 — nécessaire même si `proposeUnits` les a déjà écrites à 0,
+      // car un verset peut avoir reach=1 depuis plus tôt dans la journée
+      // (rakaa cochée dans PlanScreen avant que le jour ne devienne "en
+      // attente") : annuler une progression doit repasser reach à 0, jamais
+      // rester un no-op silencieux (voir CLAUDE.md § « Modèle de données
+      // centrale »). Granularité verset (US-3 crit. 3) : groupé par sourate
+      // pour tenir en un aller-retour SQLite par sourate/statut plutôt qu'un
+      // par verset.
+      final checkedBySurah = <int, List<int>>{};
+      final uncheckedBySurah = <int, List<int>>{};
       for (final it in _items!) {
-        (_unchecked.contains(it.unit) ? uncheckedNow : stillChecked).add(
-          it.unit,
-        );
+        final surahId = it.unit.sourate.id;
+        for (final v in it.unit.verses) {
+          final bucket =
+              _uncheckedVerses.contains((surahId, v)) ? uncheckedBySurah : checkedBySurah;
+          bucket.putIfAbsent(surahId, () => []).add(v);
+        }
       }
       // Même patron pour la portion à apprendre : les versets restés cochés
       // sont confirmés acquis, ceux décochés repassent explicitement à
       // `reach = 0` (ils seront reproposés) plutôt que de rester tels quels.
       final learn = _learnPlan;
       await Future.wait([
-        state.markUnitsReached(stillChecked, date: widget.date),
-        state.markUnitsReached(uncheckedNow, date: widget.date, reach: false),
+        for (final entry in checkedBySurah.entries)
+          state.markVersesReached(widget.date, entry.key, entry.value, true),
+        for (final entry in uncheckedBySurah.entries)
+          state.markVersesReached(widget.date, entry.key, entry.value, false),
         if (learn != null) ...[
           state.markLearnVerses(
               widget.date,
@@ -234,12 +235,14 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                 for (final it in items)
                                   CheckOutRow(
                                     unit: it.unit,
-                                    reach: !_unchecked.contains(it.unit),
-                                    onToggle: () => _toggleReach(it.unit),
-                                    onDetail: () => _openDetail(
-                                      it.unit,
-                                      it.needsWorkVerses,
-                                    ),
+                                    uncheckedVerses: {
+                                      for (final v in it.unit.verses)
+                                        if (_uncheckedVerses
+                                            .contains((it.unit.sourate.id, v)))
+                                          v,
+                                    },
+                                    onToggleVerse: (v) =>
+                                        _toggleVerse(it.unit.sourate.id, v),
                                   ),
                                 const SizedBox(height: 14),
                                 OutlinedActionButton(

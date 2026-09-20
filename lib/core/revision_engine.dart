@@ -255,6 +255,28 @@ class RevisionEngine {
     );
   }
 
+  /// The verse immediately preceding [ayahId] within its own range in
+  /// [selections] — the display-only memory aid for a verse that reappears
+  /// after being explicitly left undone at check-out (US-3 crit. 4), never
+  /// itself proposed or credited. `null` when [ayahId] is the very first
+  /// verse of its selection: showing a verse outside the range the user
+  /// chose is never allowed (`CLAUDE.md` § "Règle du plan quotidien", E.3),
+  /// so there is no valid predecessor to offer. Also `null` if [surahId]/
+  /// [ayahId] is not part of any current selection at all (the user removed
+  /// it since the verse was left undone).
+  static int? contextVerseFor(
+    int surahId,
+    int ayahId,
+    List<SourateSelection> selections,
+  ) {
+    for (final sel in selections) {
+      if (sel.sourate.id != surahId) continue;
+      if (ayahId < sel.verseStart || ayahId > sel.verseEnd) continue;
+      return ayahId > sel.verseStart ? ayahId - 1 : null;
+    }
+    return null;
+  }
+
   static int advanceCycle({
     required int currentPosition,
     required int unitsCompleted,

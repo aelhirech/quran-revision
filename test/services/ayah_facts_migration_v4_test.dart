@@ -58,7 +58,13 @@ void main() {
     final facts = await AyahFactsRitual.dayFacts('2020-03-01', Riwaya.hafs);
     expect(facts, hasLength(1));
     expect(facts.first.surahId, 7);
-    expect(facts.first.needsWorkVerses, {4},
+    // `needs_work` reste une colonne du schéma (orpheline, US-3 crit. 3) :
+    // vérifie directement le backfill `needs_work = cold`, sans passer par du
+    // code applicatif qui ne l'expose plus.
+    final db = await databaseFactory.openDatabase(
+        p.join((await databaseFactory.getDatabasesPath()), 'history.db'));
+    final row = await db.query('ayah_facts', columns: ['needs_work'], limit: 1);
+    expect(row.first['needs_work'], 1,
         reason: 'le backfill `needs_work = cold` doit reporter la valeur existante');
   });
 }

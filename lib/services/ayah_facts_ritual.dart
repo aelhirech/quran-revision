@@ -1,9 +1,9 @@
 part of 'ayah_facts_service.dart';
 
 /// Rituel check-in/check-out (Phase 6 Sprint 2) — écritures/lectures
-/// génériques sur `ayah_facts` (proposition du jour, bascules `reach`/
-/// `needs_work`, scellement). Voir [AyahFactsService] pour le schéma partagé
-/// (`_open`/`_userId`, accessibles ici via `part of`).
+/// génériques sur `ayah_facts` (proposition du jour, bascules `reach`,
+/// scellement). Voir [AyahFactsService] pour le schéma partagé (`_open`/
+/// `_userId`, accessibles ici via `part of`).
 class AyahFactsRitual {
   /// Date la plus ancienne, STRICTEMENT avant aujourd'hui, dont le jour de
   /// révision n'est pas encore scellé (`checked_out = 0`), ou `null` si
@@ -30,10 +30,10 @@ class AyahFactsRitual {
   /// checked_out = 0`, pas encore confirmées. Utilisé à la fois par le
   /// moteur quotidien (plan initial) et par le check-in (ajout manuel d'une
   /// sourate/portion) : même écriture. [ConflictAlgorithm.ignore] — pas
-  /// `replace` — la rend idempotente SANS écraser un `reach`/`needs_work` déjà
-  /// posé sur un verset qui y figurait déjà (ex. deux appels concurrents à
+  /// `replace` — la rend idempotente SANS écraser un `reach` déjà posé sur un
+  /// verset qui y figurait déjà (ex. deux appels concurrents à
   /// `ensureDayPlan`, ou un ré-ajout d'un verset déjà coché) ; `replace`
-  /// remettrait silencieusement ces colonnes à leurs valeurs par défaut.
+  /// remettrait silencieusement cette colonne à sa valeur par défaut.
   static Future<void> proposeUnits(
       String date, Riwaya riwaya, List<RevisionUnit> units) async {
     if (units.isEmpty) return;
@@ -165,50 +165,6 @@ class AyahFactsRitual {
         ]);
   }
 
-  /// Bascule `needs_work` ("à retravailler") pour un verset précis — écran
-  /// détail du check-out, granularité verset (pas la sourate entière).
-  static Future<void> setNeedsWork(String date, Riwaya riwaya, int surahId,
-      int ayahId, bool needsWork) async {
-    final db = await AyahFactsService._open();
-    await db.update('ayah_facts', {'needs_work': needsWork ? 1 : 0},
-        where: 'date = ? AND riwaya = ? AND surah_id = ? AND ayah_id = ? AND type = ?',
-        whereArgs: [date, riwaya.name, surahId, ayahId, AyahFactType.revise.name]);
-  }
-
-  /// Pour chaque verset de [surahId] entre [verseStart] et [verseEnd] déjà
-  /// révisé au moins une fois (`reach = 1`), sa date de dernière révision et
-  /// son drapeau `needs_work` actuel sur CETTE date précise — un verset
-  /// jamais révisé (aucune ligne `reach = 1`) est absent du résultat.
-  ///
-  /// Sert à flaguer "à retravailler" depuis le Récap (relecture hors rituel
-  /// quotidien, `VerseBottomSheet`) : [setNeedsWork] n'accepte qu'une date
-  /// explicite, et le jour courant n'a pas forcément de ligne pour un verset
-  /// qu'on relit sans le réviser aujourd'hui — la date de sa dernière
-  /// révision, elle, existe toujours pour un verset déjà acquis.
-  static Future<Map<int, ({String date, bool needsWork})>> lastRevisionFlags(
-      Riwaya riwaya, int surahId, int verseStart, int verseEnd) async {
-    final db = await AyahFactsService._open();
-    final rows = await db.rawQuery(
-      'SELECT ayah_id, date, needs_work FROM ayah_facts outer_af '
-      'WHERE riwaya = ? AND surah_id = ? AND type = ? AND reach = 1 '
-      'AND ayah_id BETWEEN ? AND ? '
-      'AND date = (SELECT MAX(date) FROM ayah_facts inner_af '
-      'WHERE inner_af.riwaya = outer_af.riwaya '
-      'AND inner_af.surah_id = outer_af.surah_id '
-      'AND inner_af.ayah_id = outer_af.ayah_id '
-      'AND inner_af.type = outer_af.type '
-      'AND inner_af.reach = 1)',
-      [riwaya.name, surahId, AyahFactType.revise.name, verseStart, verseEnd],
-    );
-    return {
-      for (final row in rows)
-        row['ayah_id'] as int: (
-          date: row['date'] as String,
-          needsWork: (row['needs_work'] as int) == 1,
-        ),
-    };
-  }
-
   /// Both questions the check-out asks about a range, in ONE query: does it
   /// still have rows (kept at check-in), and are they all reached?
   ///
@@ -251,6 +207,29 @@ class AyahFactsRitual {
     return result;
   }
 
+  /// Among [candidates] (surah/ayah pairs in today's freshly-proposed plan),
+  /// which ones were explicitly left undone (`reach = 0`) at the check-out of
+  /// a PRIOR, already-sealed day (`checked_out = 1 AND date < [today]`) —
+  /// the "returning verse" the guided moment proves (US-3 crit. 4, US-1 crit.
+  /// 7). Restricted to `checked_out = 1`: a still-open pending day's rows are
+  /// `reach = 0` by construction and haven't been declared undone by the
+  /// user yet, only a real check-out counts.
+  static Future<Set<(int, int)>> returningVerses(
+      String today, Riwaya riwaya, Iterable<(int, int)> candidates) async {
+    if (candidates.isEmpty) return {};
+    final db = await AyahFactsService._open();
+    final rows = await db.query('ayah_facts',
+        columns: ['surah_id', 'ayah_id'],
+        distinct: true,
+        where:
+            'riwaya = ? AND type = ? AND reach = 0 AND checked_out = 1 AND date < ?',
+        whereArgs: [riwaya.name, AyahFactType.revise.name, today]);
+    final leftUndone = {
+      for (final r in rows) (r['surah_id'] as int, r['ayah_id'] as int),
+    };
+    return {for (final c in candidates) if (leftUndone.contains(c)) c};
+  }
+
   /// Scelle une journée : `checked_out = 1` pour ses lignes de révision.
   /// **Volontairement borné à `type = 'revise'`** : `checked_out` n'est lu
   /// que par [pendingDate], elle-même filtrée sur `revise`. L'élargir à
@@ -258,10 +237,10 @@ class AyahFactsRitual {
   /// lecteur, et `AyahFactsLearning.learnVerses` écrit déjà `checked_out = 1`
   /// par construction) — si le gating du moteur quotidien doit un jour tenir
   /// compte de l'apprentissage, c'est [pendingDate] qu'il faut élargir en
-  /// premier, pas cette écriture. `reach`/`needs_work` doivent déjà être à
-  /// jour (voir [setReach]/[setNeedsWork], appliqués au fil des interactions
-  /// du check-out) — chaque bascule précédente est déjà durablement écrite,
-  /// un simple UPDATE suffit donc ici.
+  /// premier, pas cette écriture. `reach` doit déjà être à jour (voir
+  /// [setReach]/[setReachForVerses], appliqués au fil des interactions du
+  /// check-out) — chaque bascule précédente est déjà durablement écrite, un
+  /// simple UPDATE suffit donc ici.
   static Future<void> sealDay(String date, Riwaya riwaya) async {
     final db = await AyahFactsService._open();
     await db.update('ayah_facts', {'checked_out': 1},
@@ -302,7 +281,7 @@ class AyahFactsRitual {
       String date, Riwaya riwaya) async {
     final db = await AyahFactsService._open();
     final rows = await db.query('ayah_facts',
-        columns: ['surah_id', 'ayah_id', 'reach', 'needs_work'],
+        columns: ['surah_id', 'ayah_id', 'reach'],
         where: 'date = ? AND riwaya = ? AND type = ?',
         whereArgs: [date, riwaya.name, AyahFactType.revise.name],
         orderBy: 'surah_id, ayah_id');
@@ -321,10 +300,9 @@ class AyahFactsRitual {
         surahId: runSurah!,
         verseStart: run.first['ayah_id'] as int,
         verseEnd: run.last['ayah_id'] as int,
-        reach: run.every((r) => (r['reach'] as int) == 1),
-        needsWorkVerses: {
+        reachedVerses: {
           for (final r in run)
-            if ((r['needs_work'] as int) == 1) r['ayah_id'] as int,
+            if ((r['reach'] as int) == 1) r['ayah_id'] as int,
         },
       ));
       run = [];
@@ -353,14 +331,15 @@ class DayFactGroup {
   final int surahId;
   final int verseStart;
   final int verseEnd;
-  final bool reach; // true seulement si toute la plage est reach=1
-  final Set<int> needsWorkVerses;
+  final Set<int> reachedVerses; // verses at reach=1 on this range/day
 
   const DayFactGroup({
     required this.surahId,
     required this.verseStart,
     required this.verseEnd,
-    required this.reach,
-    required this.needsWorkVerses,
+    required this.reachedVerses,
   });
+
+  // true only when the whole range is reach=1
+  bool get reach => reachedVerses.length == verseEnd - verseStart + 1;
 }

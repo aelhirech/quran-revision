@@ -1074,4 +1074,38 @@ void main() {
       expect(vide.cycleDays(3), 0);
     });
   });
+
+  group('RevisionEngine.contextVerseFor — verset précédent (US-3 crit. 4)', () {
+    test('renvoie le verset n-1 quand il reste dans la sélection', () {
+      final selections = [
+        SourateSelection(sourate: _sourate(2, 286, 6000), verseStart: 10, verseEnd: 20),
+      ];
+      expect(RevisionEngine.contextVerseFor(2, 15, selections), 14);
+    });
+
+    test('null sur le premier verset de la sélection — jamais hors plage (E.3)',
+        () {
+      final selections = [
+        SourateSelection(sourate: _sourate(2, 286, 6000), verseStart: 10, verseEnd: 20),
+      ];
+      expect(RevisionEngine.contextVerseFor(2, 10, selections), isNull,
+          reason: 'le verset 9 est hors de la plage choisie par l\'utilisateur');
+    });
+
+    test('null si la sourate/le verset ne fait plus partie d\'aucune sélection',
+        () {
+      final selections = [
+        SourateSelection(sourate: _sourate(2, 286, 6000), verseStart: 10, verseEnd: 20),
+      ];
+      expect(RevisionEngine.contextVerseFor(3, 5, selections), isNull);
+      expect(RevisionEngine.contextVerseFor(2, 25, selections), isNull,
+          reason: 'hors de la plage 10-20');
+    });
+
+    test('sourate entière : le verset 1 n\'a jamais de contexte', () {
+      final selections = [SourateSelection.whole(_sourate(1, 7, 50))];
+      expect(RevisionEngine.contextVerseFor(1, 1, selections), isNull);
+      expect(RevisionEngine.contextVerseFor(1, 4, selections), 3);
+    });
+  });
 }

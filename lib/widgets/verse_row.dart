@@ -13,16 +13,11 @@ class VerseRow extends StatelessWidget {
   final String text;
   final double fontSize;
 
-  /// Optional trailing widget (e.g. a "needs work" toggle) — absent by
-  /// default so existing callers (learning card) stay unchanged.
-  final Widget? trailing;
-
   const VerseRow({
     super.key,
     required this.number,
     required this.text,
     this.fontSize = 22,
-    this.trailing,
   });
 
   @override
@@ -33,7 +28,6 @@ class VerseRow extends StatelessWidget {
         IndexBadge(text: '$number', size: 26),
         const SizedBox(width: 10),
         Expanded(child: ArabicVerseText(text: text, fontSize: fontSize)),
-        ?trailing,
       ],
     );
   }

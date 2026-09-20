@@ -27,11 +27,16 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 - « Faire plus » (sourate en plus, verset en plus) fait avancer le cycle au-delà de la proposition du jour — mais seulement si l'utilisateur l'a explicitement déclaré ce jour-là ; le curseur reste ordonné, déclarer un groupe plus loin dans la rotation ne crédite pas ceux qui le précèdent.
 - **Accompagnement guidé (`AppState.guideDone`/`markGuideDone`, US-1 sprint B, remplace l'ancien `hasSeenHook`/`HookBanner`)** : un id n'est marqué que par le callback du GESTE RÉEL qu'il accompagne (check-in validé, verset ouvert, check-out scellé, action du `GuideStep`) — jamais par le simple affichage d'une carte ni par une croix de fermeture. Toute nouvelle étape guidée doit suivre cette règle, pas réintroduire un dismiss passif.
 - Heures de rappel matin/soir (`StorageService.loadMorningTime`/`loadEveningTime`) sont des préférences **globales**, jamais préfixées par riwaya et jamais rechargées dans `_loadTrackState` — un réglage de notification n'a rien à voir avec le parcours de révision actif.
+- **`needs_work` retiré de tout le code applicatif (US-3, 2026-09-21)** : la colonne `ayah_facts.needs_work` reste dans le schéma SQLite (DEFAULT 0, jamais migrée/droppée sans utilisateurs réels) mais plus aucun code Dart ne l'écrit ni ne la lit — `AyahFactsRitual.setNeedsWork`/`lastRevisionFlags`, `AppState.setVerseNeedsWork`/`lastRevisionFlagsFor` et le toggle bookmark de `VerseBottomSheet` ont disparu. Le check-out est désormais **verset par verset** (`CheckOutRow`/`VerseToggleChips`, `Set<(int surahId, int ayahId)>`), plus par sourate/portion entière — un seul geste (décocher un verset précis) couvre révision et apprentissage. Ne jamais réintroduire de colonne/flag parallèle pour un besoin de correction fine : `reach` par verset suffit.
+
+**Cycle / `RevisionEngine`**
+- **Verset revenu + contexte (US-3 crit. 4, 2026-09-21)** : `RevisionEngine.contextVerseFor(surahId, ayahId, selections)` — pure, Dart — renvoie le verset `n-1` d'un verset donné **s'il reste dans la plage sélectionnée par l'utilisateur** (jamais hors plage, invariant E.3), `null` sinon. `AyahFactsRitual.returningVerses`/`AppState.returningVersesContext` identifient les versets laissés `reach=0` à un check-out **scellé** (`checked_out=1`) et redevenus candidats du plan du jour. Infrastructure prête, **pas encore consommée par un écran** — c'est US-1 sprint C (bloqué jusqu'ici) qui affichera le message « ce verset est revenu seul ».
 
 **Infra / divers**
 - `sqflite_common_ffi` est en dépendance de **prod**, pas dev-only : `main.dart` bascule dessus derrière `if (Platform.isWindows)`, une condition runtime que Dart ne tree-shake pas — léger surcoût de taille binaire mobile assumé pour pouvoir tester sur cette machine sans device.
 - Fraîcheur par verset (2026-09-04) : seuils changés délibérément (30j remplace l'ancien badge 7j ; paliers `neverRevised`/`sixMonths`/`oneYear` remplacent le seuil unique 180j). Pas tranché à l'identique partout — à ajuster sur retour utilisateur, pas à traiter comme un bug.
 - Tests `sqflite_common_ffi` : une seule `history.db` partagée par tous les tests d'un même fichier (`initFfiTestDb` isole les fichiers entre eux, pas les tests entre eux) — un test peut hériter d'un `checked_out` posé par le précédent. `clearFactsBetweenTests()` doit tourner en `setUp`, sans fermer la connexion (`openDatabase` renvoie l'instance en cache).
+- **Notifications planifiées via `zonedSchedule` + fuseau réel de l'appareil (US-3 crit. 6, 2026-09-21)**, plus `periodicallyShow`. Bug corrigé au passage, présent depuis US-1 sprint B et invisible faute de test : `periodicallyShow` ignore purement `hour`/`minute`, les rappels se déclenchaient 24h après le dernier `enable()`/changement d'heure, jamais à l'heure configurée. Dépendances ajoutées : `timezone` (déjà transitive via `flutter_local_notifications`, rendue directe) + `flutter_timezone` (détection du fuseau IANA de l'appareil). `NotificationService._initializeTimeZone()` retombe explicitement sur `tz.UTC` si la détection échoue — `tz.local` est un champ `late` du package `timezone`, sans filet : le laisser non initialisé casserait silencieusement les 3 rappels pour toujours, pas seulement celui du jour.
 
 ---
 
@@ -39,70 +44,46 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P1] US-3 — Rituel check-in/check-out avec rappels
-Réf. `docs/USER_STORIES.md` US-3 (scopée 2026-09-20). **Débloque US-1 sprint C** (critère 7) —
-livrer le critère 4 ci-dessous en dernier, avec son test, avant d'ouvrir ce sprint C.
+### [P1] US-1 sprint C — La preuve du lendemain (crit. 7) — DÉBLOQUÉ
+Réf. `docs/USER_STORIES.md` US-1, critère 7. **US-3 livrée le 2026-09-21** (6 critères, voir
+`git log` pour le détail) — plus aucune dépendance bloquante. `RevisionEngine.contextVerseFor` +
+`AppState.returningVersesContext` existent et sont testés, mais **rien ne les consomme encore** :
+c'est le travail de ce sprint.
 
-**Périmètre exact** (6 critères d'acceptation, indépendants entre eux sauf le 4 qui doit être
-livré en dernier) :
-
-1. **Portion à l'ajout manuel d'une sourate au check-in** : `_CheckInScreenState` ouvre
-   `VerseRangePicker` avant d'ajouter la sourate, même pattern que
-   `CheckOutScreen._addRevisedSourate` — pas de sourate entière imposée. Réutilisation pure,
-   aucune logique nouvelle.
-2. **Progression visible en temps réel** : déjà couvert par `reach` + `PlanScreen` — vérifier
-   seulement qu'aucune régression n'existe, rien à construire.
-3. **Unification du geste « décocher »** : retirer `needs_work` de tout le code applicatif
-   (`AyahFactsRitual.setNeedsWork`, toggle de `VerseBottomSheet`, écrans check-out) — un seul état
-   par verset/jour, `reach`. Colonne `ayah_facts.needs_work` conservée en base (pas de migration
-   sans utilisateurs réels) mais orpheline. Vérifier d'abord `AyahFactsRitual.lastRevisionFlags()`
-   (consommée par le Récap) : la reporter sur `reach` si elle dépend encore de `needs_work`.
-4. **Verset décoché + verset de contexte** (le plus risqué, à livrer en dernier) : règle ajoutée à
-   `RevisionEngine.buildDayUnits()` (Dart pur, aucune nouvelle requête SQL) — un verset `reach=0`
-   qui réapparaît est joint au verset `n-1` de la même sourate s'il appartient à la sélection,
-   jamais seul, jamais hors plage (invariant E.3 de `CLAUDE.md`). Test de régression obligatoire
-   dans `test/core/revision_engine_test.dart` (invariants A-F à préserver).
-5. **Signal de jour non clôturé** : bannière d'accueil/`day_plan_tab.dart` appuyée sur
-   `AyahFactsRitual.pendingDate()` (déjà utilisée par `ensureDayPlan`) — mécanique existante,
-   ajout purement UI.
-6. **Notification minuit** : troisième entrée dans `NotificationService` (matin/soir déjà livrés
-   au sprint B d'US-1, heures configurables via `StorageService`), heure fixe non configurable,
-   jamais de scellement automatique — simple rappel. Nouvelles clés `lib/core/strings.dart` FR/EN.
-
-**Exclusions explicites** : pas de réglage d'heure pour la notification minuit ; pas de
-scellement automatique à minuit ; pas d'extension du choix de portion aux unités déjà proposées
-par le plan du jour (restent « tout ou rien ») ; le verset de contexte est un affichage d'aide,
-jamais marqué fait du seul fait d'être montré.
-
-**Ordre suggéré** : 6 (notifs, indépendant) → 1 (portion check-in) → 3 (retrait `needs_work`) →
-5 (bannière) → 4 (contexte, dernier — condition de sprint C d'US-1).
-
-`/code-review high` si la PR touche `RevisionEngine` (critère 4) — voir `CLAUDE.md` § Fin de
-sprint.
-
-### [P1] US-1 sprint C — La preuve du lendemain (crit. 7) — BLOQUÉ PAR US-3
-Réf. `docs/USER_STORIES.md` US-1, critère 7. **Dépendance dure : US-3 critère 4** (« un verset
-décoché réapparaît accompagné du verset qui le précède »), désormais scopée ci-dessus mais pas
-encore implémentée.
-Aujourd'hui, décocher une unité au check-out laisse `reach=0`, `AppState._completedPagesFor`
-s'arrête sur ce groupe et le lendemain repropose **la page entière** — pas les versets seuls, et
-sans verset de contexte. Le flag `needs_work` (colonne `ayah_facts.needs_work`,
-`AyahFactsRitual.setNeedsWork`, toggle de `VerseBottomSheet`) est un marque-page d'affichage et ne
-change rien à ce qui est proposé ; US-3 le supprime.
-→ Livré avant US-3, le message affirmerait un comportement que le moteur n'a pas, **au moment
-précis censé prouver la méthode**. Ne pas implémenter avant.
-
-**Périmètre (après US-3)** : sur le plan du lendemain, signaler **une fois** que les versets
-décochés sont revenus seuls avec celui qui les précède, et que le cycle a avancé sans rien noter.
-Id `return_proof_seen`, armé par `guideDone('checkout_done')`, écrit au tap d'acquittement — jamais
-à l'affichage. Réutilise intégralement le mécanisme du sprint B.
+**Périmètre** : sur le plan du lendemain, signaler **une fois** que les versets décochés sont
+revenus seuls avec celui qui les précède (`AppState.returningVersesContext()`), et que le cycle a
+avancé sans rien noter. Id `return_proof_seen`, armé par `guideDone('checkout_done')`, écrit au tap
+d'acquittement — jamais à l'affichage. Réutilise intégralement le mécanisme du sprint B
+(`GuideStep`/`AppState.guideDone`/`markGuideDone`).
 
 **Ordre global des sprints** : US-1 A → US-1 B → US-3 → US-1 C.
 
+### [P2] `returningVersesContext` recalcule ses candidats plutôt que de dériver de `dayFacts()`
+Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). `AppState.
+returningVersesContext()` reconstruit l'ensemble des versets du jour depuis `dayUnits()` puis
+interroge `AyahFactsRitual.returningVerses` séparément, au lieu que ce statut « revenu » soit porté
+nativement par `DayFactGroup`/`dayFacts()`. Différé : aucun consommateur avant US-1 sprint C — a
+attendre que cet écran précise le besoin réel avant de refaçonner la requête.
+
+### [P3] `returningVerses` scanne tout l'historique scellé avant de filtrer en Dart
+Relevé en `/code-review high` du sprint US-3 (2026-09-21, efficiency). `AyahFactsRitual.
+returningVerses` récupère toutes les lignes `reach=0, checked_out=1` de la riwaya avant
+d'intersecter avec les candidats du jour côté Dart, plutôt qu'un filtre SQL sur les candidats.
+Négligeable à l'échelle réelle de l'app (un seul utilisateur, base locale, quelques centaines de
+lignes même après plusieurs mois) — ne traiter que si un profilage montre un coût réel.
+
+### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
+Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
+qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) vit dans `ShellScreen`. Un
+futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce hook. Différé :
+un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
+généralisation anticipée pour un cas qui n'existe pas encore.
+
 ### [P2] Découper `lib/core/strings.dart`
-**489 lignes aujourd'hui** (415 avant US-1 sprint A, ~450 après le sprint A, +39 au sprint B pour
-les chaînes du guide et des heures de rappel) — au-delà du plafond de 300-350 de `CLAUDE.md`,
-maintenant aussi au-delà des 400 lignes qui imposent une extraction dédiée. Une
+**484 lignes aujourd'hui** (415 avant US-1 sprint A, ~450 après le sprint A, +39 au sprint B pour
+les chaînes du guide et des heures de rappel, quasi stable au sprint US-3 : +2 minuit / -4 needs
+work) — au-delà du plafond de 300-350 de `CLAUDE.md`, toujours au-delà des 400 lignes qui imposent
+une extraction dédiée. Une
 classe Dart ne peut pas être répartie sur des `part` : le découpage impose plusieurs classes par
 domaine (`S`, `SOnboarding`, `SCheckIn`, …) et un renommage sur l'ensemble des sites d'appel.
 **Sprint dédié, pas un à-côté de sprint fonctionnel.**
@@ -150,7 +131,7 @@ champ** : un flag à invalider est exactement ce que le projet refuse (voir `_la
 
 Vision/features pas encore prêtes à l'implémentation — pas de priorité technique tant qu'elles n'ont pas été cadrées (`quran-blueprint` → user story dans `docs/USER_STORIES.md`, puis `quran-scoping` → item ci-dessus). Ne pas lancer à la volée.
 
-- **SRS réel par verset** (score de difficulté depuis l'historique `ayah_facts`, aujourd'hui écrasé par `lastRevisionDatesPerVerse` qui ne garde que `MAX(date)`) — dépendrait de `needsWork`, pas des paliers de fraîcheur temporelle ; dépendance à reconfirmer avant de scoper.
+- **SRS réel par verset** (score de difficulté depuis l'historique `ayah_facts`, aujourd'hui écrasé par `lastRevisionDatesPerVerse` qui ne garde que `MAX(date)`) — dépendait de `needsWork`, **retiré du code au sprint US-3** (2026-09-21) ; à rescoper sur un autre signal (ex. fréquence des décochages verset par verset) avant toute implémentation.
 - **Coran en SQLite** (texte + word-by-word + tajweed) — débloquerait "jeu mot arabe → traduction" et "tajweed coloré" ci-dessous, JOIN naturel avec `ayah_facts`. Garde-fou : ne pas migrer parce que "c'est plus propre", seulement si une des deux features dépendantes est réellement engagée.
 - **Jeu mot arabe → traduction** (Apprendre) — bloqué faute de données word-by-word (QUL), voir Coran SQLite.
 - **Affichage tajweed coloré** — bloqué faute de données tajwid (QUL), voir Coran SQLite. Passera par `AppPalette`/tokens sémantiques, jamais de couleur en dur.

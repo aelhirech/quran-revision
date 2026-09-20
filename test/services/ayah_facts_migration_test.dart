@@ -42,9 +42,14 @@ void main() {
     // N'importe quel appel public déclenche `_open()` — ne doit pas lever.
     await AyahFactsRitual.proposeUnits(
         '2020-01-01', Riwaya.hafs, [testUnit(1, 1, 3)]);
-    await AyahFactsRitual.setNeedsWork('2020-01-01', Riwaya.hafs, 1, 2, true);
     final facts = await AyahFactsRitual.dayFacts('2020-01-01', Riwaya.hafs);
     expect(facts, hasLength(1));
-    expect(facts.first.needsWorkVerses, {2});
+    // `needs_work` reste une colonne du schéma (orpheline, US-3 crit. 3) :
+    // vérifie directement qu'`onCreate` la crée bien avec son défaut, sans
+    // passer par du code applicatif qui ne l'expose plus.
+    final db = await databaseFactory.openDatabase(
+        p.join((await databaseFactory.getDatabasesPath()), 'history.db'));
+    final row = await db.query('ayah_facts', columns: ['needs_work'], limit: 1);
+    expect(row.first['needs_work'], 0);
   });
 }
