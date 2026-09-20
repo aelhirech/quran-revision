@@ -39,9 +39,51 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
+### [P1] US-3 — Rituel check-in/check-out avec rappels
+Réf. `docs/USER_STORIES.md` US-3 (scopée 2026-09-20). **Débloque US-1 sprint C** (critère 7) —
+livrer le critère 4 ci-dessous en dernier, avec son test, avant d'ouvrir ce sprint C.
+
+**Périmètre exact** (6 critères d'acceptation, indépendants entre eux sauf le 4 qui doit être
+livré en dernier) :
+
+1. **Portion à l'ajout manuel d'une sourate au check-in** : `_CheckInScreenState` ouvre
+   `VerseRangePicker` avant d'ajouter la sourate, même pattern que
+   `CheckOutScreen._addRevisedSourate` — pas de sourate entière imposée. Réutilisation pure,
+   aucune logique nouvelle.
+2. **Progression visible en temps réel** : déjà couvert par `reach` + `PlanScreen` — vérifier
+   seulement qu'aucune régression n'existe, rien à construire.
+3. **Unification du geste « décocher »** : retirer `needs_work` de tout le code applicatif
+   (`AyahFactsRitual.setNeedsWork`, toggle de `VerseBottomSheet`, écrans check-out) — un seul état
+   par verset/jour, `reach`. Colonne `ayah_facts.needs_work` conservée en base (pas de migration
+   sans utilisateurs réels) mais orpheline. Vérifier d'abord `AyahFactsRitual.lastRevisionFlags()`
+   (consommée par le Récap) : la reporter sur `reach` si elle dépend encore de `needs_work`.
+4. **Verset décoché + verset de contexte** (le plus risqué, à livrer en dernier) : règle ajoutée à
+   `RevisionEngine.buildDayUnits()` (Dart pur, aucune nouvelle requête SQL) — un verset `reach=0`
+   qui réapparaît est joint au verset `n-1` de la même sourate s'il appartient à la sélection,
+   jamais seul, jamais hors plage (invariant E.3 de `CLAUDE.md`). Test de régression obligatoire
+   dans `test/core/revision_engine_test.dart` (invariants A-F à préserver).
+5. **Signal de jour non clôturé** : bannière d'accueil/`day_plan_tab.dart` appuyée sur
+   `AyahFactsRitual.pendingDate()` (déjà utilisée par `ensureDayPlan`) — mécanique existante,
+   ajout purement UI.
+6. **Notification minuit** : troisième entrée dans `NotificationService` (matin/soir déjà livrés
+   au sprint B d'US-1, heures configurables via `StorageService`), heure fixe non configurable,
+   jamais de scellement automatique — simple rappel. Nouvelles clés `lib/core/strings.dart` FR/EN.
+
+**Exclusions explicites** : pas de réglage d'heure pour la notification minuit ; pas de
+scellement automatique à minuit ; pas d'extension du choix de portion aux unités déjà proposées
+par le plan du jour (restent « tout ou rien ») ; le verset de contexte est un affichage d'aide,
+jamais marqué fait du seul fait d'être montré.
+
+**Ordre suggéré** : 6 (notifs, indépendant) → 1 (portion check-in) → 3 (retrait `needs_work`) →
+5 (bannière) → 4 (contexte, dernier — condition de sprint C d'US-1).
+
+`/code-review high` si la PR touche `RevisionEngine` (critère 4) — voir `CLAUDE.md` § Fin de
+sprint.
+
 ### [P1] US-1 sprint C — La preuve du lendemain (crit. 7) — BLOQUÉ PAR US-3
 Réf. `docs/USER_STORIES.md` US-1, critère 7. **Dépendance dure : US-3 critère 4** (« un verset
-décoché réapparaît accompagné du verset qui le précède »), encore à scoper.
+décoché réapparaît accompagné du verset qui le précède »), désormais scopée ci-dessus mais pas
+encore implémentée.
 Aujourd'hui, décocher une unité au check-out laisse `reach=0`, `AppState._completedPagesFor`
 s'arrête sur ce groupe et le lendemain repropose **la page entière** — pas les versets seuls, et
 sans verset de contexte. Le flag `needs_work` (colonne `ayah_facts.needs_work`,

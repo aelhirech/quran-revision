@@ -237,7 +237,7 @@ clés `hook_seen_*` restent orphelines sur les appareils — inoffensif, pas de 
 
 ---
 
-### US-3 — Rituel quotidien check-in / check-out, avec ses rappels [priorité: P1] [état: à scoper]
+### US-3 — Rituel quotidien check-in / check-out, avec ses rappels [priorité: P1] [état: scopée]
 
 **Historique** : livrée une première fois Phase 6 Sprint 2 (check-in/check-out) + Phase 9 Sprint 1
 (rituel unique « Illuminer ma journée avec le Coran » + volet « j'ai fait plus que prévu »),
@@ -302,7 +302,66 @@ portion à l'ajout manuel (critère 1) ne s'étend pas aux unités déjà propos
 le plan du jour — celles-ci restent « tout ou rien » (retrait complet via « × »), tranché au
 blueprint du 2026-09-20.
 
-**Scoping technique** : _(vide, à compléter par `quran-scoping`)_
+**Ajustements des critères d'acceptation** (scoping du 2026-09-20 — le blueprint n'est pas remis
+en cause, seuls ces cas non prévus par le code sont précisés) :
+
+- **Critère 3, colonne `needs_work`** : conservée en base (aucune migration sans utilisateurs
+  réels, `CLAUDE.md` § « Décisions actives à connaître »), mais **plus jamais écrite ni lue** après
+  ce sprint — `AyahFactsRitual.setNeedsWork()` et le toggle de `VerseBottomSheet` disparaissent.
+  La colonne reste orpheline en base, sans effet sur le comportement.
+- **Critère 4, mécanisme** : pas une nouvelle requête `ayah_facts` — une règle ajoutée à
+  `RevisionEngine.buildDayUnits()` (Dart pur). Quand un verset `reach=0` réapparaît dans le plan,
+  le moteur vérifie si le verset `n-1` de la même sourate appartient à la sélection et, si oui, le
+  joint comme paire — jamais seul, jamais hors de la plage choisie (invariant E.3 de `CLAUDE.md`).
+  Verrouillé par un nouveau cas dans `test/core/revision_engine_test.dart`.
+- **Critère 6, heures matin/soir** : déjà livrées par US-1 sprint B
+  (`StorageService.loadMorningTime`/`loadEveningTime`, branchées dans
+  `NotificationService.rescheduleAll`) — US-3 n'ajoute que la troisième notification, à heure fixe
+  minuit, sans réglage associé.
+
+**Scoping technique** (2026-09-20) :
+
+*Un seul sprint* — les 6 critères touchent des couches indépendantes (UI check-in, unification
+d'un flag, moteur du plan, banner d'accueil, notifications) sans dépendance interne entre eux, sauf
+le critère 4 qui doit être livré en dernier (le plus risqué, et c'est lui que sprint C d'US-1
+attend).
+
+**Fichiers UI concernés**
+- `lib/screens/check_in_screen.dart` (critère 1 : ouvrir `VerseRangePicker` à l'ajout manuel d'une
+  sourate, même pattern que `CheckOutScreen._addRevisedSourate`).
+- `lib/screens/check_out_screen.dart`, `check_out_sections.dart`, `check_out_detail_screen.dart`,
+  `lib/widgets/verse_bottom_sheet.dart` (critère 3 : retrait du toggle « à retravailler »).
+- `lib/widgets/day_plan_tab.dart` / écran d'accueil (critère 5 : bannière jour non clôturé, appuyée
+  sur `AyahFactsRitual.pendingDate()` déjà utilisée par `ensureDayPlan`).
+- `lib/services/notification_service.dart`, `lib/core/strings.dart` (critère 6 : notification
+  minuit, nouvelles clés FR/EN).
+- `lib/core/revision_engine.dart` (critère 4, seul fichier de `lib/core/` touché).
+
+**Variables / champs concernés**
+- Aucun champ nouveau sur `AyahFact`/`UserConfig` : `reach`, `checked_out`, `pendingDate()`,
+  `isDaySealed()`, `sealDay()` existent déjà et suffisent aux critères 1, 2, 5, 6.
+- `AyahFact.needsWork` : conservé en base, retiré de tout code applicatif (critère 3).
+- `AyahFactsRitual.lastRevisionFlags()` (consommée par le Récap) : à relire — si elle s'appuie sur
+  `needs_work`, la reporter sur `reach` avant de couper le flag.
+
+**Table(s) / requête(s) `ayah_facts` concernée(s)**
+- Réutilisées telles quelles : `pendingDate()`, `isDaySealed()`, `sealDay()`, `setReach()`.
+- Aucune nouvelle requête SQL — le critère 4 est une règle de `RevisionEngine`, pas une requête.
+
+**Décision data model** — aucun des 6 critères ne justifie une nouvelle table ni un nouveau champ
+persistant : 1/2/5/6 dérivent de méthodes `ayah_facts`/`UserConfig` déjà existantes, 3 retire un
+champ sans le remplacer, 4 est un calcul pur dérivé à la volée dans `RevisionEngine`.
+
+**Risques / dépendances**
+1. **Critère 4 modifie `RevisionEngine.buildDayUnits()`**, verrouillé par les invariants A-F de
+   `CLAUDE.md` § « Règle du plan quotidien » — respecter en particulier E.3 (jamais hors de la
+   plage choisie) et ne pas casser E.1/E.2 (aucune page sautée, aucune répétition avant bouclage).
+   Test de régression obligatoire avant de clore ce critère.
+2. **`AyahFactsRitual.lastRevisionFlags()`** (Récap) peut dépendre de `needs_work` — vérifier avant
+   de couper le flag pour ne pas casser un affichage existant.
+3. **Dépendance sortante** : ce sprint débloque US-1 sprint C (critère 7) — livrer le critère 4 en
+   dernier, avec son test, avant d'ouvrir sprint C.
+4. Confiance globale du scoping : **haute**.
 
 ---
 
