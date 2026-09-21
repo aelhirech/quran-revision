@@ -42,7 +42,7 @@ class _NotificationsPageState extends State<_NotificationsPage> {
             _StepHeader(
               step: 3,
               total: _kOnboardingSteps,
-              title: S.etapeRappels,
+              title: SOnboarding.etapeRappels,
               onBack: widget.onBack,
             ),
             const Spacer(flex: 2),
@@ -54,7 +54,7 @@ class _NotificationsPageState extends State<_NotificationsPage> {
                     curve: Curves.easeOutBack),
             const SizedBox(height: 20),
             Text(
-              S.rappelsTitle,
+              SOnboarding.rappelsTitle,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 22,
@@ -63,7 +63,7 @@ class _NotificationsPageState extends State<_NotificationsPage> {
             ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
             const SizedBox(height: 12),
             Text(
-              S.rappelsBody,
+              SOnboarding.rappelsBody,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 14,
@@ -74,14 +74,14 @@ class _NotificationsPageState extends State<_NotificationsPage> {
             SizedBox(
               width: double.infinity,
               child: PrimaryCtaButton(
-                label: S.activerRappels,
+                label: SOnboarding.activerRappels,
                 onPressed: _working ? null : _enable,
               ),
             ),
             const SizedBox(height: 12),
             TextButton(
               onPressed: _working ? null : _skip,
-              child: Text(S.plusTard, style: TextStyle(color: palette.textMuted)),
+              child: Text(SOnboarding.plusTard, style: TextStyle(color: palette.textMuted)),
             ),
             const SizedBox(height: 16),
           ],

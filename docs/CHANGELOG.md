@@ -73,16 +73,6 @@ futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
 
-### [P2] Découper `lib/core/strings.dart`
-**484 lignes aujourd'hui** (415 avant US-1 sprint A, ~450 après le sprint A, +39 au sprint B pour
-les chaînes du guide et des heures de rappel, quasi stable au sprint US-3 : +2 minuit / -4 needs
-work) — au-delà du plafond de 300-350 de `CLAUDE.md`, toujours au-delà des 400 lignes qui imposent
-une extraction dédiée. Une
-classe Dart ne peut pas être répartie sur des `part` : le découpage impose plusieurs classes par
-domaine (`S`, `SOnboarding`, `SCheckIn`, …) et un renommage sur l'ensemble des sites d'appel.
-**Sprint dédié, pas un à-côté de sprint fonctionnel.**
-
-
 ### [P2] « 121 jours » (entrées de cycle) contre « 85 pages » (pages réelles) — deux chiffres vrais qui se contredisent à l'écran
 Constaté au sprint US-1 A (2026-09-20) sur une sélection du dernier quart du Coran : l'onboarding
 annonce « un tour complet : 121 jours » à 1 page/jour, tandis que l'accueil affiche « 0 / 85 pages ».

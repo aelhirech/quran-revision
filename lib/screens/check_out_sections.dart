@@ -25,7 +25,7 @@ extension _CheckOutSections on _CheckOutScreenState {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SouratePickerSheet(
-          sourates: candidates, title: S.checkOutSourateEnPlusTitre),
+          sourates: candidates, title: SCheckOut.checkOutSourateEnPlusTitre),
     );
     if (picked == null || !mounted) return;
     final range = await showModalBottomSheet<SourateSelection>(
@@ -72,7 +72,7 @@ extension _CheckOutSections on _CheckOutScreenState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(S.checkOutApprentissage.toUpperCase(),
+            Text(SCheckOut.checkOutApprentissage.toUpperCase(),
                 style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -106,12 +106,12 @@ extension _CheckOutSections on _CheckOutScreenState {
               ],
             ),
             const SizedBox(height: 8),
-            Text(S.checkOutApprentissageDesc,
+            Text(SCheckOut.checkOutApprentissageDesc,
                 style: TextStyle(
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
                     color: palette.textMuted)),
-            Text(S.checkOutApprisEnPlusHint,
+            Text(SCheckOut.checkOutApprisEnPlusHint,
                 style: TextStyle(
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
@@ -141,7 +141,7 @@ extension _CheckOutSections on _CheckOutScreenState {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      S.checkOutAjouterAujourdhui,
+                      SCheckOut.checkOutAjouterAujourdhui,
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
@@ -150,7 +150,7 @@ extension _CheckOutSections on _CheckOutScreenState {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      S.checkOutAjouterDesc,
+                      SCheckOut.checkOutAjouterDesc,
                       style: TextStyle(
                         fontSize: 11,
                         color: palette.textMuted,

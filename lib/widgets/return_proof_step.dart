@@ -26,9 +26,9 @@ class ReturnProofStep extends StatelessWidget {
         sourates.where((s) => s.id == surahId).firstOrNull?.nameFr ?? '';
     return GuideStep(
       icon: Icons.replay_outlined,
-      title: S.guideReturnProofTitle,
-      body: S.guideReturnProofBody(surahName, verseNumber, returning.length - 1),
-      actionLabel: S.guideContinuer,
+      title: SGuide.guideReturnProofTitle,
+      body: SGuide.guideReturnProofBody(surahName, verseNumber, returning.length - 1),
+      actionLabel: SGuide.guideContinuer,
       onAction: onDone,
     );
   }

@@ -131,8 +131,8 @@ class _SettingsCardState extends State<SettingsCard> {
             const Divider(height: 1, indent: 56),
             SwitchListTile(
               secondary: Icon(Icons.shuffle, color: cs.primary),
-              title: Text(S.aleatoireLabel),
-              subtitle: Text(S.aleatoireSubtitle),
+              title: Text(SOnboarding.aleatoireLabel),
+              subtitle: Text(SOnboarding.aleatoireSubtitle),
               value: context.watch<AppState>().config?.shuffleEnabled ?? true,
               onChanged: _toggleShuffle,
             ),

@@ -26,7 +26,7 @@ class _MethodPage extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 48, bottom: 16),
                 children: [
                   Text(
-                    S.methodTitle,
+                    SOnboarding.methodTitle,
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w600,
@@ -36,31 +36,31 @@ class _MethodPage extends StatelessWidget {
                   ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08),
                   const SizedBox(height: 12),
                   Text(
-                    S.methodSubtitle,
+                    SOnboarding.methodSubtitle,
                     style: TextStyle(
                         fontSize: 14.5, color: palette.textMuted, height: 1.6),
                   ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
                   const SizedBox(height: 28),
                   _MethodLayer(
                     index: 1,
-                    title: S.methodLayerNewTitle,
-                    body: S.methodLayerNewBody,
+                    title: SOnboarding.methodLayerNewTitle,
+                    body: SOnboarding.methodLayerNewBody,
                   ),
                   const SizedBox(height: 14),
                   _MethodLayer(
                     index: 2,
-                    title: S.methodLayerFreshTitle,
-                    body: S.methodLayerFreshBody,
+                    title: SOnboarding.methodLayerFreshTitle,
+                    body: SOnboarding.methodLayerFreshBody,
                   ),
                   const SizedBox(height: 14),
                   _MethodLayer(
                     index: 3,
-                    title: S.methodLayerOldTitle,
-                    body: S.methodLayerOldBody,
+                    title: SOnboarding.methodLayerOldTitle,
+                    body: SOnboarding.methodLayerOldBody,
                   ),
                   const SizedBox(height: 26),
                   Text(
-                    S.methodLegitimacy,
+                    SOnboarding.methodLegitimacy,
                     style: TextStyle(
                       fontSize: 13.5,
                       fontStyle: FontStyle.italic,
@@ -73,7 +73,7 @@ class _MethodPage extends StatelessWidget {
             ),
             SizedBox(
               width: double.infinity,
-              child: PrimaryCtaButton(label: S.methodAction, onPressed: onNext),
+              child: PrimaryCtaButton(label: SOnboarding.methodAction, onPressed: onNext),
             ).animate().fadeIn(delay: 600.ms, duration: 400.ms),
             const SizedBox(height: 24),
           ],

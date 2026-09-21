@@ -15,12 +15,12 @@ class _IntroPage extends StatelessWidget {
           children: [
             const Spacer(flex: 3),
             Text(
-              S.bismillah,
+              SOnboarding.bismillah,
               style: GoogleFonts.amiri(fontSize: 22, color: palette.gold),
             ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1),
             const SizedBox(height: 26),
             Text(
-              S.introTitle,
+              SOnboarding.introTitle,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 26,
@@ -33,7 +33,7 @@ class _IntroPage extends StatelessWidget {
             const OrnamentalDivider(),
             const SizedBox(height: 24),
             Text(
-              S.introLine1,
+              SOnboarding.introLine1,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 15.5,
@@ -43,7 +43,7 @@ class _IntroPage extends StatelessWidget {
             ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
             const SizedBox(height: 14),
             Text(
-              S.introLine2,
+              SOnboarding.introLine2,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 15.5,
@@ -54,7 +54,7 @@ class _IntroPage extends StatelessWidget {
             const Spacer(flex: 4),
             SizedBox(
               width: double.infinity,
-              child: PrimaryCtaButton(label: S.introAction, onPressed: onNext),
+              child: PrimaryCtaButton(label: SOnboarding.introAction, onPressed: onNext),
             ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
             const SizedBox(height: 24),
           ],

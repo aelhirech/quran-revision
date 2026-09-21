@@ -38,7 +38,7 @@ class _SelectionPage extends StatelessWidget {
           _StepHeader(
             step: 1,
             total: _kOnboardingSteps,
-            title: S.etapeSelection,
+            title: SOnboarding.etapeSelection,
             subtitle: S.souratesCount(selections.length, totalVerses),
           ),
           // Boutons de sélection rapide
@@ -47,7 +47,7 @@ class _SelectionPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(S.selectionRapide,
+                Text(SOnboarding.selectionRapide,
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -56,25 +56,25 @@ class _SelectionPage extends StatelessWidget {
                 Row(
                   children: [
                     PillChip(
-                      label: S.toutLeCoran,
+                      label: SOnboarding.toutLeCoran,
                       onTap: () => onQuickSelect(1.0),
                       selected: lastQuickFraction == 1.0,
                     ),
                     const SizedBox(width: 6),
                     PillChip(
-                      label: S.fractionTroisQuarts,
+                      label: SOnboarding.fractionTroisQuarts,
                       onTap: () => onQuickSelect(0.75),
                       selected: lastQuickFraction == 0.75,
                     ),
                     const SizedBox(width: 6),
                     PillChip(
-                      label: S.fractionMoitie,
+                      label: SOnboarding.fractionMoitie,
                       onTap: () => onQuickSelect(0.5),
                       selected: lastQuickFraction == 0.5,
                     ),
                     const SizedBox(width: 6),
                     PillChip(
-                      label: S.fractionQuart,
+                      label: SOnboarding.fractionQuart,
                       onTap: () => onQuickSelect(0.25),
                       selected: lastQuickFraction == 0.25,
                     ),
@@ -91,7 +91,7 @@ class _SelectionPage extends StatelessWidget {
                 Expanded(
                   child: TextField(
                     decoration: InputDecoration(
-                      hintText: S.rechercherSourate,
+                      hintText: SOnboarding.rechercherSourate,
                       prefixIcon: const Icon(Icons.search, size: 18),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
@@ -105,7 +105,7 @@ class _SelectionPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 _GroupToggle(
                   icon: Icons.menu_book_outlined,
-                  label: S.hizbCourt,
+                  label: SOnboarding.hizbCourt,
                   value: groupByHizb,
                   onChanged: onGroupByHizbChanged,
                 ),
@@ -130,7 +130,7 @@ class _SelectionPage extends StatelessWidget {
               child: FilledButton(
                 onPressed: onNext,
                 child: Text(
-                  onNext == null ? S.selectSourates : S.continuer,
+                  onNext == null ? SOnboarding.selectSourates : S.continuer,
                   style: const TextStyle(fontSize: 16),
                 ),
               ),

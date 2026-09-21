@@ -115,9 +115,9 @@ class _RecapScreenState extends State<RecapScreen> {
             SliverToBoxAdapter(
               child: GuideStep(
                 icon: Icons.bar_chart_outlined,
-                title: S.guideRecapTitle,
-                body: S.guideRecapBody,
-                actionLabel: S.guideContinuer,
+                title: SGuide.guideRecapTitle,
+                body: SGuide.guideRecapBody,
+                actionLabel: SGuide.guideContinuer,
                 onAction: () => state.markGuideDone('recap_seen'),
               ),
             ),
@@ -200,7 +200,7 @@ class _RecapScreenState extends State<RecapScreen> {
       if (!mounted) return;
       for (final s in handed) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(S.sourateApprise(s.nameFr))));
+            .showSnackBar(SnackBar(content: Text(SCheckOut.sourateApprise(s.nameFr))));
       }
     }
     await _load(context.read<AppState>().pauseDates);

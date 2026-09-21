@@ -103,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 Center(
-                  child: Text(S.homeEpigraph,
+                  child: Text(SOnboarding.homeEpigraph,
                       style: GoogleFonts.amiri(fontSize: 15, color: palette.gold)),
                 ).animate().fadeIn(),
                 const SizedBox(height: 10),
@@ -147,14 +147,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: closed
                       ? Icons.nightlight_outlined
                       : Icons.wb_sunny_outlined,
-                  label: closed ? S.journeeCloturee : S.illuminerMaJournee,
+                  label: closed ? S.journeeCloturee : SCheckIn.illuminerMaJournee,
                 ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
                       closed
                           ? S.journeeClotureeSousTitre
-                          : S.illuminerSousTitre,
+                          : SCheckIn.illuminerSousTitre,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: palette.textMuted)),
                 ).animate().fadeIn(delay: 300.ms),

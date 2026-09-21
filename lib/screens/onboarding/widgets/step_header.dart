@@ -43,7 +43,7 @@ class _StepHeader extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         color: cs.onPrimaryContainer)),
               ),
-              Text(S.etapeN(step, total),
+              Text(SOnboarding.etapeN(step, total),
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,

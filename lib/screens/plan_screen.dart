@@ -255,16 +255,16 @@ class _PlanScreenState extends State<PlanScreen> {
             SliverToBoxAdapter(
               child: GuideStep(
                 icon: Icons.menu_book_outlined,
-                title: S.guideVersesTitle,
-                body: S.guideVersesBody,
+                title: SGuide.guideVersesTitle,
+                body: SGuide.guideVersesBody,
               ),
             ),
           if (widget.showNotFinishedHint)
             SliverToBoxAdapter(
               child: GuideStep(
                 icon: Icons.nightlight_outlined,
-                title: S.guideNotFinishedTitle,
-                body: S.guideNotFinishedBody,
+                title: SGuide.guideNotFinishedTitle,
+                body: SGuide.guideNotFinishedBody,
               ),
             ),
           if (state.guideDone('checkout_done') &&
