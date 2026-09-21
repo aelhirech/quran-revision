@@ -191,6 +191,19 @@ class S {
   static String get guideNotFinishedBody => _t(
       'Le bouton « Clôturer ma journée » reste ouvert — reviens ce soir pour confirmer ce que tu as fait.',
       'The "Close out my day" button stays open — come back tonight to confirm what you did.');
+  // US-1 sprint C — once-only banner proving a verse left unchecked at
+  // check-out comes back on its own (crit. 7). Deliberately does not promise
+  // a context verse: the plan UI does not display one yet.
+  static String get guideReturnProofTitle =>
+      _t('Ce verset est revenu tout seul', 'This verse came back on its own');
+  static String guideReturnProofBody(
+      String surahName, int verseNumber, int extraCount) {
+    final base = _t(
+        '$surahName, v.$verseNumber : l\'app te le repropose sans que tu aies rien eu à noter.',
+        '$surahName, v.$verseNumber: the app is proposing it again without you having to note anything.');
+    if (extraCount <= 0) return base;
+    return '$base ${_t('(et $extraCount autre${extraCount > 1 ? 's' : ''})', '(and $extraCount more)')}';
+  }
   static String get guideRecapTitle => _t('Ta vue d\'ensemble', 'Your overview');
   static String get guideRecapBody => _t(
       "Suis ta progression, ton apprentissage en cours, et la fraîcheur de chaque sourate — tout au même endroit.",

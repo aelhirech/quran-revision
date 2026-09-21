@@ -6,6 +6,7 @@ import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/revision_unit.dart';
+import '../models/sourate.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/guide_step.dart';
@@ -67,6 +68,12 @@ class _PlanScreenState extends State<PlanScreen> {
   /// a Map keyed by `RevisionUnit`.
   bool _learningReached = false;
 
+  /// Verses returning today after being left unchecked at a prior check-out,
+  /// mapped to their context verse (US-1 sprint C, crit. 7). Set alongside
+  /// [_reached] in [_load], so it's never read before the screen leaves its
+  /// loading spinner.
+  Map<(int, int), int?>? _returning;
+
   @override
   void initState() {
     super.initState();
@@ -92,12 +99,15 @@ class _PlanScreenState extends State<PlanScreen> {
     final learningF = learningUnit == null
         ? Future.value(const <RevisionUnit, bool>{})
         : state.reachStatusFor([learningUnit], learning: true);
+    final returningF = state.returningVersesContext();
     final reached = await reachedF;
     final learning = await learningF;
+    final returning = await returningF;
     if (!mounted) return;
     setState(() {
       _reached = reached;
       _learningReached = learning[learningUnit] ?? false;
+      _returning = returning;
     });
   }
 
@@ -256,6 +266,18 @@ class _PlanScreenState extends State<PlanScreen> {
                 body: S.guideNotFinishedBody,
               ),
             ),
+          if (state.guideDone('checkout_done') &&
+              !state.guideDone('return_proof_seen') &&
+              (_returning?.isNotEmpty ?? false))
+            SliverToBoxAdapter(
+              child: GuideStep(
+                icon: Icons.replay_outlined,
+                title: S.guideReturnProofTitle,
+                body: _returnProofBody(state.sourates),
+                actionLabel: S.guideContinuer,
+                onAction: () => state.markGuideDone('return_proof_seen'),
+              ),
+            ),
           SliverToBoxAdapter(
               child: OutsidePrayersBlock(units: widget.session.outsidePrayers)),
           SliverPadding(
@@ -325,6 +347,18 @@ class _PlanScreenState extends State<PlanScreen> {
             duration: 900.ms,
             color: Colors.white.withValues(alpha: 0.4),
             delay: 100.ms);
+  }
+
+  /// Body of the return-proof banner (US-1 sprint C) — names one concrete
+  /// returning verse (surah, verse) since a vague "some
+  /// verses came back" would not prove anything; any others returning the
+  /// same day are folded into a trailing count instead of listed, to keep
+  /// the banner a sentence, not a list.
+  String _returnProofBody(List<Sourate> sourates) {
+    final (surahId, verseNumber) = _returning!.keys.first;
+    final surahName =
+        sourates.where((s) => s.id == surahId).firstOrNull?.nameFr ?? '';
+    return S.guideReturnProofBody(surahName, verseNumber, _returning!.length - 1);
   }
 
   /// Summary bar — in **real pages** since Phase 9 Sprint 2, the same unit

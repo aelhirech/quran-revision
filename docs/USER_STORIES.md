@@ -23,7 +23,7 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel [priorité: P1] [état: en sprint]
+### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel [priorité: P1] [état: terminée — sprint C livré 2026-09-21 ; le verset de contexte reste au Backlog de `docs/CHANGELOG.md`, à archiver au prochain nettoyage]
 
 **Historique** : livrée en deux temps le 2026-09-13 (Phase 11 Sprint 1 : démo sur An-Nas/Al-Falaq/
 Al-Ikhlas + aperçu réel + retrait de l'ancien tour guidé ; Sprint 2 : bannières contextuelles sur
