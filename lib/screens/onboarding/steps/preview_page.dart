@@ -50,7 +50,7 @@ class _PreviewPage extends StatelessWidget {
                   for (final unit in units)
                     UnitRow(
                       unit: unit,
-                      subtitle: '${unit.verseCount} ${S.versets}',
+                      subtitle: S.versetsCount(unit.verseCount),
                     ),
                 const SizedBox(height: 24),
                 const OrnamentalDivider(),

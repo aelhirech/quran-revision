@@ -35,6 +35,8 @@ class S {
   static String get mesSourates => _t('Mes sourates', 'My surahs');
   static String get souratesLabel => _t('sourates', 'surahs');
   static String get versetsLabel => _t('versets', 'verses');
+  static String versetsCount(int n) =>
+      locale == 'fr' ? '$n verset${n > 1 ? 's' : ''}' : '$n verse${n > 1 ? 's' : ''}';
   static String get pagesLabel => _t('pages', 'pages');
   static String get rakaasLabel => _t('rakaas', 'rakaas');
 

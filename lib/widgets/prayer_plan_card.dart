@@ -181,7 +181,7 @@ class PrayerPlanCard extends StatelessWidget {
           ],
           if (showCount)
             Text(
-              '${unit.verseCount} ${S.versets}',
+              S.versetsCount(unit.verseCount),
               style: TextStyle(
                   color: palette.textMuted, fontStyle: FontStyle.italic, fontSize: 11),
             ),

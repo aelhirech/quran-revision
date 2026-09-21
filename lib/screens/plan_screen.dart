@@ -6,13 +6,14 @@ import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 import '../models/revision_unit.dart';
-import '../models/sourate.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/guide_step.dart';
 import '../widgets/outside_prayers_block.dart';
+import '../widgets/plan_summary_bar.dart';
 import '../widgets/prayer_plan_card.dart';
 import '../widgets/primary_cta_button.dart';
+import '../widgets/return_proof_step.dart';
 
 /// Rakaa layout of a plan already validated at check-in (Phase 6 Sprint 2,
 /// see "Moteur quotidien" scoping) — active checklist only, the old
@@ -249,7 +250,7 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
             ),
           ),
-          SliverToBoxAdapter(child: _summaryBar()),
+          SliverToBoxAdapter(child: PlanSummaryBar(session: widget.session)),
           if (!state.guideDone('verses_reachable'))
             SliverToBoxAdapter(
               child: GuideStep(
@@ -270,12 +271,10 @@ class _PlanScreenState extends State<PlanScreen> {
               !state.guideDone('return_proof_seen') &&
               (_returning?.isNotEmpty ?? false))
             SliverToBoxAdapter(
-              child: GuideStep(
-                icon: Icons.replay_outlined,
-                title: S.guideReturnProofTitle,
-                body: _returnProofBody(state.sourates),
-                actionLabel: S.guideContinuer,
-                onAction: () => state.markGuideDone('return_proof_seen'),
+              child: ReturnProofStep(
+                returning: _returning!,
+                sourates: state.sourates,
+                onDone: () => state.markGuideDone('return_proof_seen'),
               ),
             ),
           SliverToBoxAdapter(
@@ -349,70 +348,4 @@ class _PlanScreenState extends State<PlanScreen> {
             delay: 100.ms);
   }
 
-  /// Body of the return-proof banner (US-1 sprint C) — names one concrete
-  /// returning verse (surah, verse) since a vague "some
-  /// verses came back" would not prove anything; any others returning the
-  /// same day are folded into a trailing count instead of listed, to keep
-  /// the banner a sentence, not a list.
-  String _returnProofBody(List<Sourate> sourates) {
-    final (surahId, verseNumber) = _returning!.keys.first;
-    final surahName =
-        sourates.where((s) => s.id == surahId).firstOrNull?.nameFr ?? '';
-    return S.guideReturnProofBody(surahName, verseNumber, _returning!.length - 1);
-  }
-
-  /// Summary bar — in **real pages** since Phase 9 Sprint 2, the same unit
-  /// as the configured pace. Reads `cyclePosition`/`cycleTotal` off the
-  /// `DailySession` instead of re-deriving cycle progress locally: this
-  /// screen was the last of the three (with Home and Récap) still doing its
-  /// own cycle arithmetic — tech debt §8.5 of the tech doc.
-  Widget _summaryBar() {
-    final session = widget.session;
-    final palette = context.palette;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: palette.gold.withValues(alpha: 0.07),
-        border: Border.all(color: palette.gold.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            S.pagesRakaas(session.pagesToday, session.totalRakaas),
-            style: TextStyle(
-                color: palette.textPrimary,
-                fontWeight: FontWeight.w600,
-                fontSize: 13),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                '${S.cycleEnCours} : ${session.cyclePosition} / ${session.cycleTotal}',
-                style: TextStyle(color: palette.textMuted, fontSize: 11),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: session.cycleTotal == 0
-                        ? 0
-                        : session.cyclePosition / session.cycleTotal,
-                    minHeight: 3,
-                    backgroundColor: palette.textPrimary.withValues(alpha: 0.1),
-                    color: palette.gold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
