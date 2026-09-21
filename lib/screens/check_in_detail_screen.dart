@@ -49,7 +49,7 @@ class _CheckInDetailScreenState extends State<CheckInDetailScreen> {
     final palette = context.palette;
     return VerseChipsScaffold(
       title: '${_unit.sourate.nameFr} · v.${_unit.verseStart}–${_unit.verseEnd}',
-      headerLabel: S.checkInVersetsInclus,
+      headerLabel: SCheckIn.checkInVersetsInclus,
       chips: [
         for (int v = _unit.verseStart; v <= _unit.verseEnd; v++)
           VerseChip(
@@ -63,7 +63,7 @@ class _CheckInDetailScreenState extends State<CheckInDetailScreen> {
             child: Icon(Icons.add, size: 14, color: palette.textPrimary),
           ),
       ],
-      footer: Text(S.checkInExtendHint,
+      footer: Text(SCheckIn.checkInExtendHint,
           style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: palette.textMuted)),
     );
   }

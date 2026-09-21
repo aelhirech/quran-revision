@@ -36,8 +36,8 @@ class _PreviewPage extends StatelessWidget {
           _StepHeader(
             step: 4,
             total: _kOnboardingSteps,
-            title: S.previewTitle,
-            subtitle: S.previewSubtitle,
+            title: SOnboarding.previewTitle,
+            subtitle: SOnboarding.previewSubtitle,
             onBack: onBack,
           ),
           Expanded(
@@ -56,18 +56,18 @@ class _PreviewPage extends StatelessWidget {
                 const OrnamentalDivider(),
                 const SizedBox(height: 20),
                 Text(
-                  S.journeeFormeTitre,
+                  SOnboarding.journeeFormeTitre,
                   style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: palette.textPrimary),
                 ),
                 const SizedBox(height: 12),
-                _DayShapeLine(icon: Icons.wb_twilight, label: S.journeeFormeMatin),
+                _DayShapeLine(icon: Icons.wb_twilight, label: SOnboarding.journeeFormeMatin),
                 _DayShapeLine(
-                    icon: Icons.self_improvement, label: S.journeeFormeMilieu),
+                    icon: Icons.self_improvement, label: SOnboarding.journeeFormeMilieu),
                 _DayShapeLine(
-                    icon: Icons.nightlight_round, label: S.journeeFormeSoir),
+                    icon: Icons.nightlight_round, label: SOnboarding.journeeFormeSoir),
               ],
             ),
           ),
@@ -75,7 +75,7 @@ class _PreviewPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
             child: SizedBox(
               width: double.infinity,
-              child: PrimaryCtaButton(label: S.commencer, onPressed: onConfirm),
+              child: PrimaryCtaButton(label: SOnboarding.commencer, onPressed: onConfirm),
             ),
           ),
         ],

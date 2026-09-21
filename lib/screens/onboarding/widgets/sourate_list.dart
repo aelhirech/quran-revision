@@ -59,7 +59,7 @@ class _SourateList extends StatelessWidget {
         for (final section in sections)
           if (section.header != null)
             SliverStickyHeader(
-              header: _hizbHeader(palette, S.hizb(section.header!)),
+              header: _hizbHeader(palette, SOnboarding.hizb(section.header!)),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, i) => _tile(palette, section.entries[i]),

@@ -16,7 +16,7 @@ extension _CheckInSections on _CheckInScreenState {
         return [
           _rhythmSection(palette, state),
           const SizedBox(height: 22),
-          _sectionLabel(palette, S.checkInVueDuJour),
+          _sectionLabel(palette, SCheckIn.checkInVueDuJour),
           const SizedBox(height: 8),
           for (final unit in units)
             UnitRow(
@@ -29,7 +29,7 @@ extension _CheckInSections on _CheckInScreenState {
           const SizedBox(height: 14),
           OutlinedActionButton(
               icon: Icons.add,
-              label: S.checkInAjouterSourate,
+              label: SCheckIn.checkInAjouterSourate,
               onTap: _openAddSheet),
         ];
       case 1:
@@ -45,7 +45,7 @@ extension _CheckInSections on _CheckInScreenState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionLabel(palette, S.checkInRythme),
+        _sectionLabel(palette, SCheckIn.checkInRythme),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -70,12 +70,12 @@ extension _CheckInSections on _CheckInScreenState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionLabel(palette, S.checkInApprentissage),
+        _sectionLabel(palette, SCheckIn.checkInApprentissage),
         const SizedBox(height: 8),
         if (learningUnit == null)
           OutlinedActionButton(
               icon: Icons.school_outlined,
-              label: S.checkInChoisirSourate,
+              label: SCheckIn.checkInChoisirSourate,
               onTap: _pickLearningSourate)
         else ...[
           // Même carte que les unités de révision (`UnitRow`) : seuls
@@ -83,7 +83,7 @@ extension _CheckInSections on _CheckInScreenState {
           UnitRow(
             unit: learningUnit,
             subtitle: _learning == null
-                ? S.checkInApprentissageDesc
+                ? SCheckIn.checkInApprentissageDesc
                 : '${_learning!.learnedCount}/${_learning!.totalVerses} ${S.versets}',
             trailingIcon: Icons.swap_horiz,
             onTrailing: _pickLearningSourate,
@@ -94,7 +94,7 @@ extension _CheckInSections on _CheckInScreenState {
               children: [
                 for (final n in versesToLearnPresets)
                   PillChip(
-                    label: S.checkInVersetsAApprendre(n),
+                    label: SCheckIn.checkInVersetsAApprendre(n),
                     selected: n == count,
                     onTap: () => _setLearning(learningUnit.sourate, n),
                   ),
@@ -104,7 +104,7 @@ extension _CheckInSections on _CheckInScreenState {
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => _setLearning(null, count),
-            child: Text(S.checkInAucunApprentissage,
+            child: Text(SCheckIn.checkInAucunApprentissage,
                 style: TextStyle(fontSize: 12, color: palette.textMuted)),
           ),
         ],
@@ -118,7 +118,7 @@ extension _CheckInSections on _CheckInScreenState {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _sectionLabel(palette, S.checkInPrieres),
+              _sectionLabel(palette, SCheckIn.checkInPrieres),
               if (_lastPrayers != null)
                 TextButton.icon(
                   onPressed: _applyLastPrayers,
@@ -133,7 +133,7 @@ extension _CheckInSections on _CheckInScreenState {
                 ),
             ],
           ),
-          Text(S.checkInPrieresDesc,
+          Text(SCheckIn.checkInPrieresDesc,
               style: TextStyle(fontSize: 11, color: palette.textMuted)),
           const SizedBox(height: 10),
           PrayerSelector(

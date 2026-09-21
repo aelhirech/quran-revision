@@ -24,8 +24,8 @@ class PagesPerDayDropdown extends StatelessWidget {
         value: value,
         presets: pagesPerDayPresets,
         labelBuilder: S.pagesParJour,
-        customDialogTitle: S.pagesCustomTitle,
-        customSuffix: S.pagesSuffix,
+        customDialogTitle: SOnboarding.pagesCustomTitle,
+        customSuffix: SOnboarding.pagesSuffix,
         color: color,
         onChanged: onChanged,
       );

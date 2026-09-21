@@ -129,7 +129,7 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(
                       context, SourateSelection.whole(widget.sourate)),
-                  child: Text(S.toutSelectionner),
+                  child: Text(SOnboarding.toutSelectionner),
                 ),
               ),
               const SizedBox(width: 12),

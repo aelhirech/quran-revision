@@ -1,3 +1,8 @@
+part 'strings_onboarding.dart';
+part 'strings_guide.dart';
+part 'strings_check_in.dart';
+part 'strings_check_out.dart';
+
 /// Centralise toutes les chaînes affichées dans l'app.
 /// Changer [locale] en 'en' pour passer en anglais.
 class S {
@@ -84,186 +89,8 @@ class S {
   static String get reinitDialog => _t('Réinitialiser ?', 'Reset?');
   static String get reinitConfirm => _t('La progression du cycle sera perdue. Continue ?', 'Cycle progress will be lost. Continue?');
 
-  // Onboarding — intro
-  static String get bismillah => 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
-  static String get homeEpigraph => 'وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا';
-  static String get introTitle =>
-      _t("Ce qui s'efface, ce n'est pas ta sincérité",
-          "What fades isn't your sincerity");
-  static String get introLine1 => _t(
-    "Tu portes déjà du Coran. Ce qui te manque n'est pas la volonté — c'est une structure qui décide, chaque jour, ce que tu dois revoir.",
-    "You already carry some of the Quran. What you lack isn't willpower — it's a structure that decides, every day, what you should go over.",
-  );
-  static String get introLine2 => _t(
-    "Sans elle, un jour de faible énergie suffit à faire sauter la révision. Puis un autre.",
-    "Without it, one low-energy day is enough to skip your revision. Then another.",
-  );
-  static String get introAction =>
-      _t("Comment l'app s'y prend", 'How the app handles it');
 
-  // Onboarding — method (the three layers, US-1 criterion 1)
-  static String get methodTitle =>
-      _t('Tu ne choisis plus', 'You stop choosing');
-  static String get methodSubtitle => _t(
-      "Chaque jour, l'app décide à ta place la portion à réviser. Elle fait tourner trois choses en même temps.",
-      "Every day, the app decides your portion for you. It keeps three things moving at once.");
-  static String get methodLayerNewTitle => _t('Le nouveau', 'The new');
-  static String get methodLayerNewBody => _t(
-      "Ce que tu es en train d'apprendre, travaillé un peu chaque jour.",
-      'What you are currently memorizing, worked on a little every day.');
-  static String get methodLayerFreshTitle =>
-      _t('Le récent encore fragile', 'The recent, still fragile');
-  static String get methodLayerFreshBody => _t(
-      "Ce que tu viens de mémoriser et qui se perd vite si on n'y revient pas.",
-      'What you just memorized and lose quickly if you never come back to it.');
-  static String get methodLayerOldTitle =>
-      _t("L'ancien qu'on fait tourner", 'The old, kept in rotation');
-  static String get methodLayerOldBody => _t(
-      'Ce qui est acquis, revu par roulement pour qu\'aucune sourate ne reste de côté.',
-      'What you hold solidly, revised in rotation so no surah is left aside.');
-  static String get methodLegitimacy => _t(
-      "C'est la méthode des hafiz depuis des générations. L'app ne fait que la tenir à ta place.",
-      'This is how hafiz have worked for generations. The app just keeps track of it for you.');
-  static String get methodAction =>
-      _t('Choisir mes sourates', 'Choose my surahs');
 
-  // Onboarding — tour duration at the pace step (US-1 criterion 2).
-  // Never phrased as a date at which revision would be "done": revision
-  // loops by nature, only memorization has a real end.
-  static String tourDuree(int n) => locale == 'fr'
-      ? 'Un tour complet de ta sélection : ${joursDuration(n)}'
-      : 'One full round of your selection: ${joursDuration(n)}';
-  static String tourGarantie(int n) => locale == 'fr'
-      ? 'Aucune de tes sourates ne restera plus de ${joursDuration(n)} sans être revue.'
-      : 'None of your surahs will go more than ${joursDuration(n)} without being revised.';
-
-  // Onboarding — preview of the first day's plan (US-1)
-  static String get previewTitle => _t('Voici ton premier jour', "Here's your first day");
-  static String get previewSubtitle => _t(
-      "D'après ta sélection et ton rythme, voici ce que l'app te proposera dès aujourd'hui.",
-      "Based on your selection and pace, here's what the app will suggest for you right away.");
-
-  // Onboarding — the shape of a day, announced on the last step (US-1 crit. 3)
-  static String get journeeFormeTitre =>
-      _t('La forme de ta journée', 'The shape of your day');
-  static String get journeeFormeMatin => _t(
-      "Le matin, tu t'engages sur ta portion du jour.",
-      "In the morning, you commit to the day's portion.");
-  static String get journeeFormeMilieu => _t(
-      'Tu la révises dans tes prières.', 'You revise it within your prayers.');
-  static String get journeeFormeSoir => _t(
-      "Le soir, tu clôtures — ce qui n'a pas tenu revient demain.",
-      "In the evening, you close out — whatever didn't hold comes back tomorrow.");
-
-  // Guided accompaniment on real gestures (US-1 sprint B, criteria 4-6) —
-  // GuideStep, shown until the real gesture it names actually happens
-  // (AppState.markGuideDone), never dismissed by tapping the banner itself.
-  static String get guideCheckinStep0Title =>
-      _t('Ta portion du jour, déjà décidée', "Today's portion, already decided");
-  static String guideCheckinStep0Body(int streak, int pagesDone) => _t(
-      "Voici ce que l'app propose pour toi — le nouveau, le récent encore fragile, l'ancien qu'elle fait tourner. Tu regardes déjà $pagesDone pages, $streak jours de régularité.",
-      "Here's what the app proposes for you — the new, the recently learned still fragile, the old it keeps in rotation. You're already at $pagesDone pages, $streak days of consistency.");
-  static String get guideCheckinStep1Title =>
-      _t("Ce que tu apprends aujourd'hui", "What you're learning today");
-  static String get guideCheckinStep1Body => _t(
-      "Ces versets rejoindront ta dernière rakaa. Rien d'obligatoire : « je n'apprends rien aujourd'hui » reste toujours possible.",
-      "These verses join your last rakaa. Nothing is mandatory: \"I'm not learning anything today\" always stays an option.");
-  static String get guideCheckinStep2Title =>
-      _t('Tes prières deviennent ta checklist', 'Your prayers become your checklist');
-  static String get guideCheckinStep2Body => _t(
-      "Choisis les prières où c'est toi qui récites — l'app y répartit tout ce qui précède, prêt à cocher rakaa par rakaa.",
-      "Pick the prayers where you're the one reciting — the app spreads everything above across them, ready to check off rakaa by rakaa.");
-  static String get guideVersesTitle => _t('Le texte est toujours accessible', 'The text is always within reach');
-  static String get guideVersesBody => _t(
-      "L'icône livre, sur chaque rakaa, ouvre les versets à réciter — jamais besoin de sortir de l'app.",
-      "The book icon, on every rakaa, opens the verses to recite — no need to ever leave the app.");
-  static String get guideCheckoutTitle => _t(
-      "C'est ce moment qui fait avancer ton cycle", "This is what moves your cycle forward");
-  static String guideCheckoutCycleBody(int days) => _t(
-      "Confirme ce que tu as réellement fait — c'est cette confirmation qui fait avancer ton cycle. À ce rythme, aucune de tes sourates ne reste plus de $days jours sans être revue.",
-      "Confirm what you actually did — this confirmation is what moves your cycle forward. At this pace, no surah of yours waits more than $days days without being revised.");
-  static String guideCheckoutLearningBody(int days) => _t(
-      "Si tu tiens ce rythme, cette sourate sera mémorisée dans environ $days jours.",
-      'At this pace, this surah should be memorized in about $days days.');
-  static String get guideCheckoutBody => _t(
-      "Confirme ce que tu as réellement fait aujourd'hui — cette confirmation, pas la simple coche pendant la prière, fait progresser ta révision.",
-      "Confirm what you actually did today — this confirmation, not just ticking boxes during prayer, is what moves your revision forward.");
-  static String get guideNotFinishedTitle =>
-      _t("Ta journée n'est pas encore finie", "Your day isn't over yet");
-  static String get guideNotFinishedBody => _t(
-      'Le bouton « Clôturer ma journée » reste ouvert — reviens ce soir pour confirmer ce que tu as fait.',
-      'The "Close out my day" button stays open — come back tonight to confirm what you did.');
-  // US-1 sprint C — once-only banner proving a verse left unchecked at
-  // check-out comes back on its own (crit. 7). Deliberately does not promise
-  // a context verse: the plan UI does not display one yet.
-  static String get guideReturnProofTitle =>
-      _t('Ce verset est revenu tout seul', 'This verse came back on its own');
-  static String guideReturnProofBody(
-      String surahName, int verseNumber, int extraCount) {
-    final base = _t(
-        '$surahName, v.$verseNumber : l\'app te le repropose sans que tu aies rien eu à noter.',
-        '$surahName, v.$verseNumber: the app is proposing it again without you having to note anything.');
-    if (extraCount <= 0) return base;
-    return '$base ${_t('(et $extraCount autre${extraCount > 1 ? 's' : ''})', '(and $extraCount more)')}';
-  }
-  static String get guideRecapTitle => _t('Ta vue d\'ensemble', 'Your overview');
-  static String get guideRecapBody => _t(
-      "Suis ta progression, ton apprentissage en cours, et la fraîcheur de chaque sourate — tout au même endroit.",
-      "Track your progress, your ongoing memorization, and how fresh each surah is — all in one place.");
-  static String get guideContinuer => _t('Continuer', 'Continue');
-  static String get guideSettingsTitle => _t('Ajuste à tout moment', 'Adjust anytime');
-  static String get guideSettingsBody => _t(
-      "Langue, riwaya, sourates, rythme, rappels : change tes réglages ici quand tu veux, sans repasser par l'onboarding.",
-      "Language, riwaya, surahs, pace, reminders: change your settings here whenever you want, no need to go through onboarding again.");
-  static String get guideTermine => _t("J'ai compris", 'Got it');
-
-  // Onboarding — config
-  static String get rechercherSourate => _t('Rechercher une sourate...', 'Search a surah...');
-  static String get commencer => _t('Commencer la révision', 'Start revision');
-  static String get selectSourates => _t('Sélectionne tes sourates', 'Select your surahs');
-  static String get toutSelectionner => _t('Tout sélectionner', 'Select all');
-  static String get toutDeselectionner => _t('Tout désélectionner', 'Deselect all');
-  static String get aleatoireLabel => _t('Ordre aléatoire', 'Random order');
-  static String get aleatoireSubtitle => _t('Mélange les sourates à chaque nouveau cycle', 'Shuffles surahs each new cycle');
-  static String hizb(int n) => 'Hizb $n';
-  // Onboarding wizard
-  static String get selectionRapide => _t('Sélection rapide', 'Quick select');
-  static String get toutLeCoran => _t('Tout le Coran', 'Full Quran');
-  static String get etapeSelection => _t('Mes sourates', 'My surahs');
-  static String get cycleObjectif => _t('Objectif de cycle', 'Cycle goal');
-  static String etapeN(int n, int total) => '$n / $total';
-  static String get fractionTroisQuarts => _t('3/4', '3/4');
-  static String get fractionMoitie => _t('1/2', '1/2');
-  static String get fractionQuart => _t('1/4', '1/4');
-  static String get hizbCourt => _t('Hizb', 'Hizb');
-
-  // Onboarding wizard — rythme/objectif
-  static String get etapeRythme => _t('Ton rythme', 'Your pace');
-  static String get rythmeQuestion =>
-      _t('À quel rythme veux-tu avancer ?', 'At what pace do you want to progress?');
-  static String get souratesAReviser =>
-      _t('Sourates à réviser', 'Surahs to revise');
-  static String get pagesCustomTitle => _t('Pages par jour personnalisées', 'Custom pages per day');
-  static String get pagesSuffix => _t('pages', 'pages');
-
-  // Onboarding wizard — rappels
-  static String get etapeRappels => _t('Rappels', 'Reminders');
-  static String get rappelsTitle =>
-      _t('Ne rate plus une révision', 'Never miss a revision');
-  static String get rappelsBody => _t(
-    'Un rappel le matin pour planifier ta journée, un bilan le soir pour ne rien oublier.',
-    'A morning reminder to plan your day, an evening recap so nothing slips.',
-  );
-  static String get activerRappels => _t('Activer les rappels', 'Enable reminders');
-  static String get plusTard => _t('Plus tard', 'Later');
-
-  // Onboarding wizard — célébration
-  static String get bienvenueTitre =>
-      _t('Ton parcours commence', 'Your journey begins');
-  static String get bienvenueSubtitle => _t(
-    "Qu'Allah facilite ta révision et bénisse chaque verset.",
-    'May Allah ease your revision and bless every verse.',
-  );
 
   // Notifications
   static String get notifMatinTitle => _t('Révision du Coran 🕌', 'Quran Revision 🕌');
@@ -396,25 +223,6 @@ class S {
   static String get historique => _t('Historique', 'History');
   static String get aucuneSession => _t('Aucune session enregistrée', 'No sessions recorded yet');
 
-  // Check-in / check-out (Phase 6 Sprint 2)
-  static String get checkInEyebrow => _t('BISMILLAH', 'BISMILLAH');
-  static String get checkInTitle => _t('Ta journée de révision', 'Your revision day');
-  static String checkInVersesProposed(int n) => _t(
-      '$n verset${n > 1 ? 's' : ''} proposé${n > 1 ? 's' : ''} aujourd\'hui',
-      '$n verse${n > 1 ? 's' : ''} proposed today');
-  static String get checkInVueDuJour => _t('Vue du jour', 'Today\'s view');
-  static String get checkInAjouterSourate => _t('Ajouter une sourate', 'Add a surah');
-  static String get suivant => _t('Suivant', 'Next');
-  static String get retour => _t('Retour', 'Back');
-
-  // « Illuminer ma journée » (Phase 9) — rythme, apprentissage et prières
-  // confirmés dans le même check-in que la liste de révision.
-  static String get illuminerMaJournee =>
-      _t('Illuminer ma journée avec le Coran', 'Light up my day with the Quran');
-  static String get illuminerSousTitre => _t(
-      'Confirme ton rythme, ce que tu apprends et tes prières du jour.',
-      "Confirm your pace, what you're learning and today's prayers.");
-  static String get checkInRythme => _t('Mon rythme', 'My pace');
   /// « page »/« pages » — identique en fr et en en, d'où le helper plutôt
   /// qu'un `_t` par forme.
   static String _pages(int n) => 'page${n > 1 ? 's' : ''}';
@@ -424,75 +232,7 @@ class S {
   /// (« 1 pages/jour »).
   static String pagesParJour(int n) =>
       _t('$n ${_pages(n)} / jour', '$n ${_pages(n)} / day');
-  static String get checkInApprentissage =>
-      _t("Ce que j'apprends aujourd'hui", "What I'm learning today");
-  static String get checkInApprentissageDesc => _t(
-      'Ces versets seront récités dans ta dernière rakaa.',
-      'These verses will be recited in your last rakaa.');
-  static String get checkInChoisirSourate =>
-      _t('Choisir une sourate à apprendre', 'Choose a surah to learn');
-  static String get checkInAucunApprentissage =>
-      _t("Je n'apprends rien aujourd'hui", "I'm not learning anything today");
-  static String checkInVersetsAApprendre(int n) =>
-      _t('$n verset${n > 1 ? 's' : ''}', '$n verse${n > 1 ? 's' : ''}');
-  static String get checkInPrieres => _t('Mes prières du jour', "Today's prayers");
-  static String get checkInPrieresDesc => _t(
-      "Celles où c'est toi qui récites — seul ou en imam.",
-      "The ones where you recite — alone or leading as imam.");
-  static String get checkInPrieresManquantes =>
-      _t('Choisis au moins une prière', 'Pick at least one prayer');
-  static String get checkInLancerPlan => _t('Voir mon plan du jour', 'See my daily plan');
-  static String get checkInVersetsInclus =>
-      _t('Versets inclus aujourd\'hui', 'Verses included today');
-  static String get checkInExtendHint => _t(
-      'Le "+" ajoute le prochain verset à la portée du jour.',
-      'The "+" adds the next verse to today\'s scope.');
 
-  static String get checkOutEyebrow => _t('BILAN', 'REVIEW');
-  static String get checkOutRattrapageEyebrow =>
-      _t('BILAN · RATTRAPAGE', 'REVIEW · CATCH-UP');
-  static String get checkOutTitreHier => _t('Hier, qu\'as-tu fait ?', 'What did you do yesterday?');
-  static String get checkOutTitreCeJour => _t(
-      "Aujourd'hui, qu'as-tu fait ?", 'What did you do today?');
-  static String get checkOutAujourdhui =>
-      _t("Aujourd'hui", 'Today');
-  static String get checkOutTitreEnAttente =>
-      _t('Un jour est resté en attente', 'A day is still pending');
-  static String get checkOutTitreAujourdhui => _t('Et aujourd\'hui ?', 'What about today?');
-  static String get checkOutHier => _t('Hier', 'Yesterday');
-  static String checkOutIlYaNJours(int n) =>
-      _t('Il y a $n jour${n > 1 ? 's' : ''}', '$n day${n > 1 ? 's' : ''} ago');
-  static String get checkOutPartieOptionnelle =>
-      _t('Partie 2 · optionnelle', 'Part 2 · optional');
-  static String get checkOutCloturerHier => _t('Clôturer hier', 'Close out yesterday');
-  static String get checkOutCloturerJour => _t('Clôturer ce jour', 'Close out this day');
-  static String get checkOutAjouterAujourdhui =>
-      _t('Ajouter aussi aujourd\'hui', 'Also add today');
-  static String get checkOutAjouterDesc => _t(
-      'Optionnel — ces versets seront datés d\'aujourd\'hui.',
-      'Optional — these verses will be dated today.');
-  static String get checkOutValiderAujourdhui =>
-      _t('Valider aussi aujourd\'hui', 'Confirm today too');
-  static String get checkOutTerminerSans => _t('Terminer sans aujourd\'hui', 'Finish without today');
-
-  // Check-out — « j'ai fait plus que prévu » (Phase 9)
-  static String get checkOutReviseEnPlus =>
-      _t("J'ai révisé une sourate en plus", 'I revised one more surah');
-  static String get checkOutSourateEnPlusTitre =>
-      _t('Ajouter une sourate révisée', 'Add a revised surah');
-  static String get checkOutApprisEnPlusHint => _t(
-      'Le "+" ajoute un verset appris en plus aujourd\'hui.',
-      'The "+" adds one more verse memorized today.');
-
-  // Check-out — volet apprentissage (Phase 9)
-  static String get checkOutApprentissage =>
-      _t('Ce que tu as appris', 'What you memorized');
-  static String get checkOutApprentissageDesc => _t(
-      'Décoche un verset à continuer d\'apprendre : il sera reproposé demain.',
-      'Uncheck a verse to keep learning: it will be proposed again tomorrow.');
-  static String sourateApprise(String name) =>
-      _t('$name est mémorisée — elle rejoint ta révision ✓',
-          '$name is memorized — it joins your revision ✓');
 
   // Plan du jour — rakaa d'apprentissage
   static String get rakaaApprentissage => _t('Apprentissage', 'Learning');

@@ -52,7 +52,7 @@ class _SouratePickerSheetState extends State<SouratePickerSheet> {
             child: TextField(
               autofocus: true,
               decoration: InputDecoration(
-                hintText: S.rechercherSourate,
+                hintText: SOnboarding.rechercherSourate,
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12)),

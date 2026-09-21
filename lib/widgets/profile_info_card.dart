@@ -42,7 +42,7 @@ class ProfileInfoCard extends StatelessWidget {
           _row(cs, Icons.auto_stories_outlined, S.rythmeLabelCourt,
               S.pagesParJour(config.pagesPerDay), 0, onTap: onEditRythme),
           const Divider(height: 1, indent: 56),
-          _row(cs, Icons.playlist_add_check_outlined, S.souratesAReviser,
+          _row(cs, Icons.playlist_add_check_outlined, SOnboarding.souratesAReviser,
               '${config.selections.length}', 60, onTap: onEditSourates),
           const Divider(height: 1, indent: 56),
           _row(cs, Icons.today_outlined, S.joursEcoules,

@@ -31,14 +31,14 @@ class _RhythmPage extends StatelessWidget {
             _StepHeader(
               step: 2,
               total: _kOnboardingSteps,
-              title: S.etapeRythme,
-              subtitle: S.rythmeQuestion,
+              title: SOnboarding.etapeRythme,
+              subtitle: SOnboarding.rythmeQuestion,
               onBack: onBack,
             ),
             const SizedBox(height: 24),
             _RecapCard(
               icon: Icons.calendar_today_outlined,
-              label: S.cycleObjectif,
+              label: SOnboarding.cycleObjectif,
               trailing: PagesPerDayDropdown(
                 value: pagesPerDay,
                 color: cs.onSurface,
@@ -56,7 +56,7 @@ class _RhythmPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      S.tourDuree(cycleDays),
+                      SOnboarding.tourDuree(cycleDays),
                       style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -64,7 +64,7 @@ class _RhythmPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      S.tourGarantie(cycleDays),
+                      SOnboarding.tourGarantie(cycleDays),
                       style: TextStyle(
                           fontSize: 13,
                           color: palette.textMuted,

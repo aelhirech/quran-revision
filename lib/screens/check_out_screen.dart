@@ -247,7 +247,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                 const SizedBox(height: 14),
                                 OutlinedActionButton(
                                     icon: Icons.add,
-                                    label: S.checkOutReviseEnPlus,
+                                    label: SCheckOut.checkOutReviseEnPlus,
                                     onTap: _addRevisedSourate),
                                 ..._learnSection(palette),
                               ],
@@ -274,14 +274,14 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     final learningDays = _learningProgress
         ?.daysToFinish(state.config?.versesToLearnPerDay ?? 0);
     final body = [
-      if (cycleDays != null) S.guideCheckoutCycleBody(cycleDays),
+      if (cycleDays != null) SGuide.guideCheckoutCycleBody(cycleDays),
       if (learningDays != null && learningDays > 0)
-        S.guideCheckoutLearningBody(learningDays),
+        SGuide.guideCheckoutLearningBody(learningDays),
     ].join(' ');
     return GuideStep(
       icon: Icons.nightlight_outlined,
-      title: S.guideCheckoutTitle,
-      body: body.isEmpty ? S.guideCheckoutBody : body,
+      title: SGuide.guideCheckoutTitle,
+      body: body.isEmpty ? SGuide.guideCheckoutBody : body,
     );
   }
 
@@ -289,15 +289,15 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     // Titre et badge suivent la même cascade : un seul choix plutôt que deux
     // ternaires jumeaux à garder synchronisés quand un cas s'ajoute.
     final (title, badge) = showPart2
-        ? (S.checkOutTitreAujourdhui, S.checkOutPartieOptionnelle)
+        ? (SCheckOut.checkOutTitreAujourdhui, SCheckOut.checkOutPartieOptionnelle)
         : _isMultiDay
-            ? (S.checkOutTitreEnAttente, S.checkOutIlYaNJours(_gapDays))
+            ? (SCheckOut.checkOutTitreEnAttente, SCheckOut.checkOutIlYaNJours(_gapDays))
             : _isToday
-                ? (S.checkOutTitreCeJour, S.checkOutAujourdhui)
-                : (S.checkOutTitreHier, S.checkOutHier);
+                ? (SCheckOut.checkOutTitreCeJour, SCheckOut.checkOutAujourdhui)
+                : (SCheckOut.checkOutTitreHier, SCheckOut.checkOutHier);
 
     return CheckHero(
-      eyebrow: _isMultiDay ? S.checkOutRattrapageEyebrow : S.checkOutEyebrow,
+      eyebrow: _isMultiDay ? SCheckOut.checkOutRattrapageEyebrow : SCheckOut.checkOutEyebrow,
       extra: _isMultiDay ? StepDots(count: 2, current: showPart2 ? 1 : 0) : null,
       title: title,
       badge: badge,
@@ -308,13 +308,13 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     String label;
     VoidCallback? onPressed;
     if (!_isMultiDay) {
-      label = _isToday ? S.cloturerMaJournee : S.checkOutCloturerHier;
+      label = _isToday ? S.cloturerMaJournee : SCheckOut.checkOutCloturerHier;
       onPressed = _sealing ? null : _close;
     } else if (!showPart2) {
-      label = S.checkOutCloturerJour;
+      label = SCheckOut.checkOutCloturerJour;
       onPressed = () => setState(() => _step = 2);
     } else {
-      label = _addToday ? S.checkOutValiderAujourdhui : S.checkOutTerminerSans;
+      label = _addToday ? SCheckOut.checkOutValiderAujourdhui : SCheckOut.checkOutTerminerSans;
       onPressed = _sealing ? null : _close;
     }
     return Padding(

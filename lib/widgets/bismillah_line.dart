@@ -16,7 +16,7 @@ class BismillahLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
-        S.bismillah,
+        SOnboarding.bismillah,
         textAlign: TextAlign.center,
         style: GoogleFonts.scheherazadeNew(fontSize: 24, color: palette.gold),
       ),

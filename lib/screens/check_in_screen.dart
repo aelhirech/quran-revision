@@ -167,7 +167,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SouratePickerSheet(
-          sourates: candidates, title: S.checkInAjouterSourate),
+          sourates: candidates, title: SCheckIn.checkInAjouterSourate),
     );
     if (picked != null) await _addSourate(picked);
   }
@@ -198,7 +198,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SouratePickerSheet(
-          sourates: available, title: S.checkInChoisirSourate),
+          sourates: available, title: SCheckIn.checkInChoisirSourate),
     );
     if (picked == null || !mounted) return;
     await _setLearning(picked,
@@ -248,29 +248,29 @@ class _CheckInScreenState extends State<CheckInScreen> {
       case 0:
         return GuideStep(
           icon: Icons.wb_sunny_outlined,
-          title: S.guideCheckinStep0Title,
-          body: S.guideCheckinStep0Body(_streak, state.pagesProgress.pos),
+          title: SGuide.guideCheckinStep0Title,
+          body: SGuide.guideCheckinStep0Body(_streak, state.pagesProgress.pos),
         );
       case 1:
         return GuideStep(
           icon: Icons.school_outlined,
-          title: S.guideCheckinStep1Title,
-          body: S.guideCheckinStep1Body,
+          title: SGuide.guideCheckinStep1Title,
+          body: SGuide.guideCheckinStep1Body,
         );
       default:
         return GuideStep(
           icon: Icons.mosque_outlined,
-          title: S.guideCheckinStep2Title,
-          body: S.guideCheckinStep2Body,
+          title: SGuide.guideCheckinStep2Title,
+          body: SGuide.guideCheckinStep2Body,
         );
     }
   }
 
   Widget _hero(int totalVerses) => CheckHero(
-        eyebrow: S.checkInEyebrow,
+        eyebrow: SCheckIn.checkInEyebrow,
         extra: StepDots(count: _stepCount, current: _step),
-        title: S.checkInTitle,
-        badge: S.checkInVersesProposed(totalVerses),
+        title: SCheckIn.checkInTitle,
+        badge: SCheckIn.checkInVersesProposed(totalVerses),
       );
 
   Widget _sectionLabel(AppPalette palette, String text) => Text(
@@ -293,7 +293,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
           if (onLastStep && !ready)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text(S.checkInPrieresManquantes,
+              child: Text(SCheckIn.checkInPrieresManquantes,
                   style: TextStyle(fontSize: 11, color: palette.textMuted)),
             ),
           SizedBox(
@@ -305,7 +305,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                   Expanded(
                     child: OutlinedActionButton(
                         icon: Icons.arrow_back,
-                        label: S.retour,
+                        label: SCheckIn.retour,
                         onTap: () => setState(() => _step--)),
                   ),
                   const SizedBox(width: 12),
@@ -314,7 +314,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                   flex: 2,
                   child: onLastStep
                       ? PrimaryCtaButton(
-                          label: S.checkInLancerPlan,
+                          label: SCheckIn.checkInLancerPlan,
                           icon: Icons.check_rounded,
                           // Les ajustements (rythme, ajouts/retraits,
                           // apprentissage) sont déjà écrits en direct dans
@@ -330,7 +330,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                               : null,
                         )
                       : PrimaryCtaButton(
-                          label: S.suivant,
+                          label: SCheckIn.suivant,
                           icon: Icons.arrow_forward,
                           onPressed: () => setState(() => _step++),
                         ),

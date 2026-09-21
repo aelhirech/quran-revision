@@ -180,9 +180,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SliverToBoxAdapter(
               child: GuideStep(
                 icon: Icons.settings_outlined,
-                title: S.guideSettingsTitle,
-                body: S.guideSettingsBody,
-                actionLabel: S.guideTermine,
+                title: SGuide.guideSettingsTitle,
+                body: SGuide.guideSettingsBody,
+                actionLabel: SGuide.guideTermine,
                 onAction: () => state.markGuideDone('settings_seen'),
               ),
             ),
@@ -320,8 +320,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   label: Text(
                     _selectedIds.length == totalSourates
-                        ? S.toutDeselectionner
-                        : S.toutSelectionner,
+                        ? SOnboarding.toutDeselectionner
+                        : SOnboarding.toutSelectionner,
                     style: TextStyle(
                         color: cs.onPrimaryContainer,
                         fontWeight: FontWeight.bold,

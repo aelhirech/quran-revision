@@ -54,7 +54,7 @@ class _CelebrationPageState extends State<_CelebrationPage> {
                     .shimmer(duration: 800.ms),
                 const SizedBox(height: 20),
                 Text(
-                  S.bienvenueTitre,
+                  SOnboarding.bienvenueTitre,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 26,
@@ -63,7 +63,7 @@ class _CelebrationPageState extends State<_CelebrationPage> {
                 ).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(begin: 0.1),
                 const SizedBox(height: 12),
                 Text(
-                  S.bienvenueSubtitle,
+                  SOnboarding.bienvenueSubtitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 14,
