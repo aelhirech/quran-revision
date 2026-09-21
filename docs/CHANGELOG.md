@@ -44,19 +44,25 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P1] US-1 sprint C — La preuve du lendemain (crit. 7) — DÉBLOQUÉ
-Réf. `docs/USER_STORIES.md` US-1, critère 7. **US-3 livrée le 2026-09-21** (6 critères, voir
-`git log` pour le détail) — plus aucune dépendance bloquante. `RevisionEngine.contextVerseFor` +
-`AppState.returningVersesContext` existent et sont testés, mais **rien ne les consomme encore** :
-c'est le travail de ce sprint.
+### [P2] Afficher le verset de contexte d'un verset revenu (reste de US-1 crit. 7 / US-3 crit. 4)
+Le banner `return_proof_seen` (US-1 sprint C, `PlanScreen`) signale qu'un verset décoché est revenu,
+mais **ne promet volontairement plus** « avec le verset qui le précède » : aucun écran du plan
+n'affiche ce verset de contexte. `RevisionEngine.contextVerseFor` est calculé par
+`AppState.returningVersesContext()` mais seul le premier verset revenu est nommé dans le texte
+(sans son contexte). À faire : montrer le verset `n-1` dans la rakaa/`VerseBottomSheet` du verset
+revenu, puis réintroduire la mention dans le banner. Décision produit/UI requise (où le montrer).
 
-**Périmètre** : sur le plan du lendemain, signaler **une fois** que les versets décochés sont
-revenus seuls avec celui qui les précède (`AppState.returningVersesContext()`), et que le cycle a
-avancé sans rien noter. Id `return_proof_seen`, armé par `guideDone('checkout_done')`, écrit au tap
-d'acquittement — jamais à l'affichage. Réutilise intégralement le mécanisme du sprint B
-(`GuideStep`/`AppState.guideDone`/`markGuideDone`).
+### [P2] `returningVerses` compte d'anciennes lignes `reach=0` déjà rattrapées
+Relevé en `/code-review medium` du sprint US-1 C (2026-09-21). `AyahFactsRitual.returningVerses`
+(`reach = 0 AND checked_out = 1 AND date < today`) matche n'importe quelle ancienne ligne non
+atteinte, même si le verset a été atteint un jour ultérieur (autre ligne `reach=1`). Le banner étant
+à usage unique, l'impact est faible, mais « revenu » peut désigner une simple récurrence du cycle.
+Correctif : exclure les versets ayant une ligne `reach=1` postérieure à la dernière ligne `reach=0`.
 
-**Ordre global des sprints** : US-1 A → US-1 B → US-3 → US-1 C.
+### [P3] Extraire `plan_screen.dart` (418 lignes)
+Dépasse le seuil de 400 lignes après US-1 sprint C (357 avant). Extraire les blocs `GuideStep`
+conditionnels (verses_reachable / non-terminé / return_proof) et `_summaryBar` dans des widgets
+dédiés, en sprint séparé.
 
 ### [P2] `returningVersesContext` recalcule ses candidats plutôt que de dériver de `dayFacts()`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). `AppState.
