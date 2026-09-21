@@ -131,6 +131,43 @@ void main() {
           reason: 'seul le verset laissé à reach=0 au scellement revient');
     });
 
+    test('un verset atteint un jour ultérieur n\'est plus "revenu"', () async {
+      const d1 = '2020-04-05';
+      const d2 = '2020-04-06';
+      const today = '2020-04-07';
+      await AyahFactsRitual.proposeUnits(d1, Riwaya.hafs, [testUnit(52, 1, 2)]);
+      await AyahFactsRitual.setReachForVerses(d1, Riwaya.hafs, 52, [1], true,
+          type: AyahFactType.revise);
+      await AyahFactsRitual.sealDay(d1, Riwaya.hafs);
+      // Verse 2 comes back on d2 and is reached there.
+      await AyahFactsRitual.proposeUnits(d2, Riwaya.hafs, [testUnit(52, 2, 2)]);
+      await AyahFactsRitual.setReachForVerses(d2, Riwaya.hafs, 52, [2], true,
+          type: AyahFactType.revise);
+      await AyahFactsRitual.sealDay(d2, Riwaya.hafs);
+
+      final returning = await AyahFactsRitual.returningVerses(
+          today, Riwaya.hafs, {(52, 1), (52, 2)});
+      expect(returning, isEmpty);
+    });
+
+    test('cocher le verset revenu AUJOURD\'HUI ne le fait pas disparaître',
+        () async {
+      const d1 = '2020-04-08';
+      const today = '2020-04-09';
+      await AyahFactsRitual.proposeUnits(d1, Riwaya.hafs, [testUnit(53, 1, 2)]);
+      await AyahFactsRitual.setReachForVerses(d1, Riwaya.hafs, 53, [1], true,
+          type: AyahFactType.revise);
+      await AyahFactsRitual.sealDay(d1, Riwaya.hafs);
+      await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [testUnit(53, 2, 2)]);
+      await AyahFactsRitual.setReachForVerses(today, Riwaya.hafs, 53, [2], true,
+          type: AyahFactType.revise);
+
+      final returning = await AyahFactsRitual.returningVerses(
+          today, Riwaya.hafs, {(53, 2)});
+      expect(returning, {(53, 2)});
+      await AyahFactsRitual.sealDay(today, Riwaya.hafs);
+    });
+
     test('un jour encore en attente (pas scellé) ne compte jamais comme "revenu"',
         () async {
       const pending = '2020-04-03';

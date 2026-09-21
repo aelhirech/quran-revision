@@ -52,18 +52,6 @@ n'affiche ce verset de contexte. `RevisionEngine.contextVerseFor` est calculé p
 (sans son contexte). À faire : montrer le verset `n-1` dans la rakaa/`VerseBottomSheet` du verset
 revenu, puis réintroduire la mention dans le banner. Décision produit/UI requise (où le montrer).
 
-### [P2] `returningVerses` compte d'anciennes lignes `reach=0` déjà rattrapées
-Relevé en `/code-review medium` du sprint US-1 C (2026-09-21). `AyahFactsRitual.returningVerses`
-(`reach = 0 AND checked_out = 1 AND date < today`) matche n'importe quelle ancienne ligne non
-atteinte, même si le verset a été atteint un jour ultérieur (autre ligne `reach=1`). Le banner étant
-à usage unique, l'impact est faible, mais « revenu » peut désigner une simple récurrence du cycle.
-Correctif : exclure les versets ayant une ligne `reach=1` postérieure à la dernière ligne `reach=0`.
-
-### [P3] Extraire `plan_screen.dart` (418 lignes)
-Dépasse le seuil de 400 lignes après US-1 sprint C (357 avant). Extraire les blocs `GuideStep`
-conditionnels (verses_reachable / non-terminé / return_proof) et `_summaryBar` dans des widgets
-dédiés, en sprint séparé.
-
 ### [P2] `returningVersesContext` recalcule ses candidats plutôt que de dériver de `dayFacts()`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). `AppState.
 returningVersesContext()` reconstruit l'ensemble des versets du jour depuis `dayUnits()` puis
@@ -110,13 +98,6 @@ utiliser `realPages` ») ; (c) assumer l'écart et l'expliquer d'une phrase. **N
 `cycleDays` vers `realPages`** : le scoping a tranché pour les entrées parce que compter en pages
 réelles promettrait un tour plus court que celui réellement parcouru, pour un chiffre présenté
 comme une garantie (verrouillé par `test/core/revision_engine_test.dart`).
-
-### [P3] Pluralisation « 1 versets » / « 1 verses »
-`'${unit.verseCount} ${S.versets}'` est écrit à trois endroits (`lib/screens/check_in_sections.dart`,
-`lib/widgets/prayer_plan_card.dart`, `lib/screens/onboarding/steps/preview_page.dart`) avec un
-`S.versets` toujours au pluriel — une portion d'un seul verset affiche « 1 versets ». Visible sur
-l'écran Jour 1 de l'onboarding. À traiter en **une seule passe sur les trois sites** (en corriger un
-seul rendrait l'app incohérente) ; `S.streakJours` montre déjà le patron singulier/pluriel à suivre.
 
 ### [P3] Le wizard d'onboarding reconstruit le cycle à chaque frappe clavier
 `_OnboardingScreenState.build()` appelle `_daySelection` (donc `RevisionEngine.buildDayUnits`) sans

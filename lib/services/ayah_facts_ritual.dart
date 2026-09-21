@@ -218,12 +218,19 @@ class AyahFactsRitual {
       String today, Riwaya riwaya, Iterable<(int, int)> candidates) async {
     if (candidates.isEmpty) return {};
     final db = await AyahFactsService._open();
-    final rows = await db.query('ayah_facts',
-        columns: ['surah_id', 'ayah_id'],
-        distinct: true,
-        where:
-            'riwaya = ? AND type = ? AND reach = 0 AND checked_out = 1 AND date < ?',
-        whereArgs: [riwaya.name, AyahFactType.revise.name, today]);
+    // NOT EXISTS: a verse reached on a later day than its sealed reach=0 row
+    // was caught up since, so it isn't "returning" anymore. Bounded to before
+    // [today] so ticking the returning verse today doesn't hide its banner.
+    final rows = await db.rawQuery('''
+        SELECT DISTINCT f.surah_id, f.ayah_id FROM ayah_facts f
+        WHERE f.riwaya = ? AND f.type = ? AND f.reach = 0
+          AND f.checked_out = 1 AND f.date < ?
+          AND NOT EXISTS (
+            SELECT 1 FROM ayah_facts g
+            WHERE g.riwaya = f.riwaya AND g.type = f.type
+              AND g.surah_id = f.surah_id AND g.ayah_id = f.ayah_id
+              AND g.reach = 1 AND g.date > f.date AND g.date < ?)
+        ''', [riwaya.name, AyahFactType.revise.name, today, today]);
     final leftUndone = {
       for (final r in rows) (r['surah_id'] as int, r['ayah_id'] as int),
     };
