@@ -34,16 +34,26 @@ class DaySelection {
   /// always, the count of distinct real mushaf pages (see [groups]).
   int get cycleTotal => cycle.length;
 
-  /// How many days one full pass over the selection takes at [pagesPerDay].
-  ///
-  /// Deliberately counts CYCLE ENTRIES, not the real pages of [realPages]:
-  /// `buildDayUnits` hands out `pagesPerDay` *entries* per day, and a surah
-  /// straddling a page it shares with a fully-fitting neighbour costs 2
-  /// entries for 1 physical page. Dividing real pages would promise a
-  /// shorter round than the one actually walked — unacceptable for a number
-  /// the UI phrases as a guarantee ("no surah waits more than N days").
-  int cycleDays(int pagesPerDay) =>
-      pagesPerDay <= 0 ? 0 : (cycleTotal / pagesPerDay).ceil();
+  /// How many days one full pass over the selection takes at [pagesPerDay]
+  /// REAL mushaf pages per day — the same greedy walk `buildDayUnits` uses,
+  /// run once from the start of [cycle] instead of from a live
+  /// `cyclePosition`, so this estimate and the app's actual day-by-day
+  /// progression always agree (see `RevisionEngine._takeEntriesForPages`).
+  int cycleDays(int pagesPerDay, Map<int, Map<int, int>> pageMetadata) {
+    if (pagesPerDay <= 0 || cycle.isEmpty) return 0;
+    var days = 0;
+    var i = 0;
+    while (i < cycle.length) {
+      i += RevisionEngine._takeEntriesForPages(
+        cycle: cycle,
+        start: i,
+        pagesPerDay: pagesPerDay,
+        pageMetadata: pageMetadata,
+      );
+      days++;
+    }
+    return days;
+  }
 
   /// True when surahs are selected yet nothing entered the cycle — the only
   /// possible cause is that the mushaf pagination failed to load, since
@@ -231,8 +241,15 @@ class RevisionEngine {
   /// keys), so that sort falls through to this key as the tiebreak.
   static int _privatePageKey(int page, int surahId) => page * 1000 + surahId;
 
-  /// The pages to propose today: [UserConfig.pagesPerDay] consecutive entries
-  /// of [buildCycle], starting at [cyclePosition] and wrapping.
+  /// The pages to propose today: as many consecutive entries of
+  /// [buildCycle], starting at [cyclePosition] and wrapping, as it takes to
+  /// touch at least [UserConfig.pagesPerDay] distinct REAL mushaf pages —
+  /// never a raw count of entries (an entry can be smaller than a page, see
+  /// `buildCycle`'s "private" fragments, or several entries can share one
+  /// real page, see `_takeEntriesForPages`). A day may end up covering more
+  /// or fewer real pages than the target: an entry is never split to hit it
+  /// exactly (decision 2026-09-26, `CLAUDE.md` § "Règle du plan quotidien",
+  /// part D).
   ///
   /// Never returns more entries than the cycle holds, so no page is proposed
   /// twice before the cycle has wrapped.
@@ -247,12 +264,57 @@ class RevisionEngine {
     }
     final total = cycle.length;
     final pos = cyclePosition % total;
-    final take = math.min(config.pagesPerDay, total);
+    if (config.pagesPerDay <= 0) {
+      return DaySelection(groups: const [], cycle: cycle, cyclePosition: pos);
+    }
+    final consumed = _takeEntriesForPages(
+      cycle: cycle,
+      start: pos,
+      pagesPerDay: config.pagesPerDay,
+      pageMetadata: pageMetadata,
+      wrap: true,
+    );
     return DaySelection(
-      groups: [for (int i = 0; i < take; i++) cycle[(pos + i) % total]],
+      groups: [for (int i = 0; i < consumed; i++) cycle[(pos + i) % total]],
       cycle: cycle,
       cyclePosition: pos,
     );
+  }
+
+  /// How many entries of [cycle], starting at [start], it takes to touch at
+  /// least [pagesPerDay] distinct real mushaf pages — shared by
+  /// [buildDayUnits] (today's actual plan, [wrap]s past the end of the
+  /// cycle) and [DaySelection.cycleDays] (a single fresh pass, stops at the
+  /// end instead), so both describe the same day-by-day pace.
+  ///
+  /// Always takes at least 1 entry (an empty day is never proposed while
+  /// content remains) and never more than [cycle]'s length — a day never
+  /// repeats an entry before the whole cycle has been walked once. Two
+  /// consecutive entries can share the same real page (a surah straddling a
+  /// page it shares with a fully-fitting neighbour, see `buildCycle`) — that
+  /// costs the day an extra entry without moving it closer to [pagesPerDay],
+  /// which is the whole point of counting pages here instead of entries.
+  static int _takeEntriesForPages({
+    required List<List<RevisionUnit>> cycle,
+    required int start,
+    required int pagesPerDay,
+    required Map<int, Map<int, int>> pageMetadata,
+    bool wrap = false,
+  }) {
+    final total = cycle.length;
+    final pagesSeen = <int>{};
+    var taken = 0;
+    while (taken < total) {
+      final idx = wrap ? (start + taken) % total : start + taken;
+      if (!wrap && idx >= total) break;
+      for (final unit in cycle[idx]) {
+        final page = pageMetadata[unit.sourate.id]?[unit.verseStart];
+        if (page != null) pagesSeen.add(page);
+      }
+      taken++;
+      if (pagesSeen.length >= pagesPerDay) break;
+    }
+    return taken;
   }
 
   /// The verse immediately preceding [ayahId] within its own range in

@@ -105,6 +105,12 @@ extension AppStateDayPlan on AppState {
   ({int pos, int total}) pagesProgressOf(DaySelection selection) =>
       selection.realPages(PageMetadataService.pageMetadataFor(_riwaya));
 
+  /// Wraps `DaySelection.cycleDays` with this riwaya's page metadata — kept
+  /// here so screens never import `PageMetadataService`/`RevisionEngine`
+  /// directly (see [pagesProgressOf]).
+  int cycleDaysFor(DaySelection selection, int pagesPerDay) => selection
+      .cycleDays(pagesPerDay, PageMetadataService.pageMetadataFor(_riwaya));
+
   /// Preview (no write) of what the daily engine would propose if it ran
   /// now — used by the multi-day check-out ("also add today") to show a
   /// preview before sealing. Exposed here so screens never import

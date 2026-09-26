@@ -310,7 +310,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           _RhythmPage(
             pagesPerDay: _pagesPerDay,
-            cycleDays: daySelection.cycleDays(_pagesPerDay),
+            cycleDays: daySelection.cycleDays(
+                _pagesPerDay, PageMetadataService.pageMetadataFor(_riwaya)),
             onPagesPerDayChanged: (v) => setState(() => _pagesPerDay = v),
             onBack: _prevPage,
             onNext: _nextPage,

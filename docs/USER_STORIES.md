@@ -246,9 +246,9 @@ Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés +
 ### US-9 — Écoute audio en boucle depuis la vue Coran
 **État** : terminée — implémentée 2026-09-26 (`lib/services/quran_audio_handler.dart`,
 `lib/core/reciters.dart`, bouton dans `VerseBottomSheet`). Critère 3 (verrouillage/arrière-plan)
-codé (`audio_service` + config native iOS/Android) mais **pas vérifié sur appareil réel** —
-`audio_service`/`just_audio` n'ont pas d'implémentation Windows, seul environnement de test
-disponible ici ; voir item P1 du Backlog de `docs/CHANGELOG.md`. Écart au scoping initial : le
+codé (`audio_service` + config native iOS/Android) et **vérifié sur appareil réel le 2026-09-26**
+(notification media, contrôles écran verrouillé, audio qui survit à la mise en arrière-plan —
+retour utilisateur direct). Écart au scoping initial : le
 sélecteur de récitateur vit dans `VerseBottomSheet` (feuille modale interne), pas dans
 `lib/screens/profile_screen.dart` — plus simple, le critère 2 n'imposait pas cet emplacement.
 Détail technique complet : `docs/DOCUMENTATION_TECHNIQUE.md` §6/§8.6bis.
