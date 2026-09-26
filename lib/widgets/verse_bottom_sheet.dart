@@ -25,14 +25,22 @@ class VerseBottomSheet extends StatefulWidget {
   final int ayahStart;
   final int ayahEnd;
 
+  /// Verse right before [ayahStart], shown dimmed above it as a recall aid
+  /// when learning a range that doesn't start at verse 1 — memorizing a verse
+  /// together with the one before it is more effective than in isolation.
+  /// Never affects audio/playback range, only the read list.
+  final int? contextAyah;
+
   const VerseBottomSheet({
     super.key,
     required this.sourate,
     required this.ayahStart,
     required this.ayahEnd,
+    this.contextAyah,
   });
 
-  static void show(BuildContext context, Sourate sourate, int ayahStart, int ayahEnd) {
+  static void show(BuildContext context, Sourate sourate, int ayahStart, int ayahEnd,
+      {int? contextAyah}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -41,6 +49,7 @@ class VerseBottomSheet extends StatefulWidget {
         sourate: sourate,
         ayahStart: ayahStart,
         ayahEnd: ayahEnd,
+        contextAyah: contextAyah,
       ),
     );
   }
@@ -129,9 +138,14 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final riwaya = context.watch<AppState>().riwaya;
+    final contextAyah = widget.contextAyah;
+    final ayahNumbers = [
+      ?contextAyah,
+      for (var v = widget.ayahStart; v <= widget.ayahEnd; v++) v,
+    ];
     final verses = [
-      for (var v = widget.ayahStart; v <= widget.ayahEnd; v++)
-        VerseService.getVerse(widget.sourate.id, v, riwaya: riwaya),
+      for (final ayahId in ayahNumbers)
+        VerseService.getVerse(widget.sourate.id, ayahId, riwaya: riwaya),
     ];
 
     return DraggableScrollableSheet(
@@ -155,8 +169,12 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
                 itemCount: verses.length,
                 separatorBuilder: (context, index) => const Divider(height: 24),
                 itemBuilder: (_, i) {
-                  final ayahId = widget.ayahStart + i;
-                  return VerseRow(number: ayahId, text: verses[i]);
+                  final ayahId = ayahNumbers[i];
+                  return VerseRow(
+                    number: ayahId,
+                    text: verses[i],
+                    isContext: contextAyah != null && ayahId == contextAyah,
+                  );
                 },
               ),
             ),
