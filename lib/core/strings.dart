@@ -104,6 +104,8 @@ class S {
   // Versets
   static String get versetsDeRakaa => _t('Versets de la rakaa', 'Verses for this rakaa');
   static String get voirLeTexte => _t('Voir le texte', 'View text');
+  static String get versetPrecedentContexte =>
+      _t('Verset précédent (contexte)', 'Previous verse (context)');
 
   // Hadiths
   static String get hadithDuJourLabel => _t('Hadith du jour', 'Hadith of the day');
