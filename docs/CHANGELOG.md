@@ -89,6 +89,40 @@ utiliser `realPages` ») ; (c) assumer l'écart et l'expliquer d'une phrase. **N
 réelles promettrait un tour plus court que celui réellement parcouru, pour un chiffre présenté
 comme une garantie (verrouillé par `test/core/revision_engine_test.dart`).
 
+### [P2] US-9 — Bouton « écouter en boucle » dans la vue Coran unifiée
+Scopé le 2026-09-26 (`docs/USER_STORIES.md`). Ajoute à `VerseBottomSheet` (point d'affichage
+unique d'une plage de versets, §8.6 `docs/DOCUMENTATION_TECHNIQUE.md`) un bouton d'écoute en
+boucle de la plage déjà affichée, avec lecture arrière-plan/écran verrouillé.
+
+**Périmètre** :
+- `lib/widgets/verse_bottom_sheet.dart` : bouton + contrôles play/pause/stop, lit exactement
+  `(Sourate, ayahStart, ayahEnd, Riwaya)` déjà portés par le widget — pas de nouvelle boucle
+  d'affichage, pas de couplage à `RevisionUnit`/rakaaNumber.
+- `StorageService.saveAudioReciter(Riwaya, String)`/`loadAudioReciter(Riwaya)` — préférence
+  scopée par riwaya (même motif que les heures de rappel), **pas** `UserConfig` (éviterait de
+  remettre `cyclePosition` à 0 sans raison).
+- `lib/screens/profile_screen.dart` : sélecteur de récitateur par riwaya active.
+- État de lecture (play/pause/position) : local/éphémère, jamais persisté, jamais dans
+  `AppState`/`ayah_facts`.
+- Nouvelle dépendance `pubspec.yaml` à ajouter : package audio avec support arrière-plan/media
+  session (ex. `just_audio` + `audio_service`, à confirmer en tout début de sprint).
+- Source audio : `quran.ksu.edu.sa/ayat/` — pas d'API documentée, format d'URL à établir par
+  inspection manuelle du site en tout début de sprint, avant d'écrire le service audio.
+
+**Exclusions** (verrouillées au blueprint/scoping, ne pas réintroduire) :
+- Aucun écran de sélection audio séparé — toujours la plage déjà affichée par la vue Coran.
+- Aucune écriture dans `ayah_facts` déclenchée par l'écoute (purement passif).
+- Aucun récitateur cross-riwaya.
+- Si Warsh n'expose qu'un seul récitateur sur KSU : pas de traitement spécial, liste à un élément
+  acceptée telle quelle (décision utilisateur 2026-09-26).
+
+**Risques connus** (assumés, pas des blocages) :
+- Conditions d'usage de KSU non vérifiables techniquement pendant ce scoping — risque accepté par
+  décision utilisateur du 2026-09-26. Si le sprint réel révèle un blocage (rate limiting, pas de
+  lien direct stable), le remonter ici plutôt que de contourner silencieusement.
+- Fiabilité de la lecture verrouillée/arrière-plan (media session) est non-triviale : prévoir un
+  test dédié, pas seulement une relecture de code.
+
 ### [P3] Le wizard d'onboarding reconstruit le cycle à chaque frappe clavier
 `_OnboardingScreenState.build()` appelle `_daySelection` (donc `RevisionEngine.buildDayUnits`) sans
 garde, et le `PageView(children:)` construit toutes ses pages à chaque build — donc chaque tap de

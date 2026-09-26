@@ -237,6 +237,131 @@ clés `hook_seen_*` restent orphelines sur les appareils — inoffensif, pas de 
 
 ---
 
+### US-9 — Écoute audio en boucle depuis la vue Coran [priorité: P2] [état: scopée]
+
+**Contexte du blueprint (2026-09-26)** : besoin exprimé comme « écouter en boucle, en arrière-plan,
+les versets à réviser/apprendre », basé sur le site KSU (https://quran.ksu.edu.sa/ayat/, plusieurs
+récitateurs, Warsh et Hafs). Recadré pendant le blueprint : plutôt qu'un nouveau mode de révision
+autonome, le besoin s'accroche à la **vue Coran unifiée existante** (`VerseBottomSheet`/`VerseRow`,
+`docs/DOCUMENTATION_TECHNIQUE.md` §8.6), déjà ouverte depuis trois surfaces (une rakaa du Plan du
+jour, une sourate entière au Récap, un bloc de mémorisation à l'écran Apprendre) — le bouton
+« écouter en boucle » lit toujours exactement la plage déjà affichée par cette vue, quelle que soit
+la surface d'où elle a été ouverte, sans jamais introduire un écran de sélection libre séparé.
+
+**Pourquoi une story à part et pas un ajout à une story existante (test §3bis)** : supprimer cette
+fonctionnalité ferait perdre un pan de valeur entier — transformer un temps déjà non actif (trajet,
+tâche manuelle, écran éteint) en renfort passif de mémorisation — distinct de l'accès au texte déjà
+couvert par US-1 critère 4. Ce n'est pas un détail de confort d'un epic existant.
+
+**Place dans le récit** : la lecture audio est un renfort **passif**, jamais une nouvelle décision
+ni un nouveau geste de confirmation. Elle vit dans le **milieu de la journée**, là où l'app est
+« quasi absente » (voir `CLAUDE.md` § « Direction narrative ») : elle prolonge l'accès au texte déjà
+acquis à l'onboarding (US-1 critère 4), sans jamais toucher le check-in, le check-out, le streak ou
+la progression du cycle.
+
+**Statement** : En tant qu'utilisateur qui porte du Coran, je veux pouvoir déclencher l'écoute en
+boucle de la plage de versets déjà affichée (au Plan du jour, au Récap ou à l'écran Apprendre), y
+compris quand mon écran est verrouillé ou l'app en arrière-plan, afin de renforcer ma mémorisation
+pendant un temps où je ne suis de toute façon pas activement en train de réviser.
+
+**Critères d'acceptation** (haut niveau) :
+
+1. Given la vue Coran ouverte depuis n'importe laquelle des trois surfaces existantes (Plan du
+   jour, Récap, Apprendre), When l'utilisateur déclenche « écouter en boucle », Then l'audio joue
+   exactement la plage de versets déjà affichée par cette vue, en boucle continue jusqu'à arrêt
+   explicite — jamais un écran de sélection de contenu séparé (cohérent avec l'exclusion « pas de
+   lecteur de Coran autonome » d'US-1).
+2. Given la riwaya active de l'utilisateur (Hafs ou Warsh), When l'audio joue, Then la récitation
+   correspond à cette riwaya ; l'utilisateur peut choisir son récitateur parmi ceux disponibles
+   **pour cette riwaya seulement**, et ce choix est mémorisé d'une écoute à l'autre sans être
+   redemandé à chaque lecture.
+3. Given une lecture en cours, When l'utilisateur quitte la vue Coran, verrouille l'écran ou met
+   l'app en arrière-plan, Then l'audio continue sans interruption, avec des contrôles de lecture
+   basiques (lecture/pause/arrêt) accessibles depuis l'écran verrouillé/la notification système.
+4. Given une écoute en cours ou terminée, Then aucun verset n'est jamais marqué comme fait/révisé
+   par ce seul fait — l'écoute reste **purement passive** et ne modifie ni la progression du
+   cycle, ni le streak, ni aucun état que seuls le check-in/check-out font aujourd'hui évoluer.
+5. Given une plage ou un récitateur dont l'audio n'est pas disponible (verset hors couverture,
+   pas de réseau), When l'utilisateur déclenche l'écoute, Then l'app le **signale clairement**
+   plutôt que de boucler en silence sur un flux vide ou en échec.
+
+**Exclusions explicites** :
+- Pas d'écran de navigation/sélection audio indépendant de la vue Coran existante — la plage
+  écoutée est toujours celle déjà affichée, jamais un choix de sourate/plage dédié à l'audio.
+- Aucun crédit automatique dans `ayah_facts` déclenché par l'écoute (voir critère 4).
+- Pas de récitateur cross-riwaya (un récitateur Hafs ne s'affiche pas comme option en Warsh).
+
+**Ajustements des critères d'acceptation** (scoping du 2026-09-26 — le blueprint n'est pas remis
+en cause, seuls ces cas non prévus par le code sont précisés) :
+
+- **Critère 2, cas Warsh à un seul récitateur** : si KSU n'expose qu'un seul récitateur pour Warsh,
+  le critère reste satisfait par une liste à un élément — **décision utilisateur du 2026-09-26** :
+  pas de traitement spécial (pas de sélecteur masqué), l'écart de couverture Hafs/Warsh est assumé
+  tel quel plutôt que de complexifier l'UI pour ce cas.
+- **Risque conditions d'usage KSU non vérifiables ici** : `quran.ksu.edu.sa/ayat/` n'a pas d'API
+  publique documentée ; aucune vérification fiable de ses conditions d'usage pour une app mobile
+  distribuée n'a pu être faite pendant ce scoping (pas d'accès à un texte juridique source sûr).
+  **Décision utilisateur du 2026-09-26 : risque accepté, on avance avec KSU tel quel.**
+
+**Scoping technique** (2026-09-26) :
+
+**Fichiers UI concernés**
+- `lib/widgets/verse_bottom_sheet.dart` — bouton « écouter en boucle » + contrôles play/pause/stop,
+  point d'attache unique (déjà ouvert depuis les 3 surfaces existantes : Plan du jour, Récap,
+  Apprendre — rien à toucher dans ces écrans appelants).
+- `lib/screens/profile_screen.dart` — sélecteur de récitateur par riwaya (Réglages).
+- `lib/core/strings.dart` — libellés (bouton, erreurs réseau/couverture) FR/EN.
+
+**Variables / champs concernés**
+- **Nouveau** dans `StorageService` : `saveAudioReciter(Riwaya, String reciterId)` /
+  `loadAudioReciter(Riwaya)` — même motif que les préférences déjà scopées par riwaya
+  (`_track(base, riwaya)`), clé `SharedPreferences` préfixée par riwaya.
+- État de lecture (play/pause/stop, position) : **éphémère**, porté localement par le widget audio
+  (ou un service audio dédié), jamais persisté, jamais dans `AppState`/`UserConfig`.
+- Aucun champ ajouté à `UserConfig`.
+
+**Table(s) / requête(s) `ayah_facts` concernée(s)** — **aucune, dans les deux sens.** L'écoute est
+purement passive (critère 4) : ni lecture ni écriture dans `ayah_facts`.
+
+**Décision data model** — arbre de décision appliqué :
+1. Fait daté de révision/apprentissage ? Non — l'écoute ne doit jamais créditer un verset.
+   `ayah_facts` écarté explicitement par le critère 4 lui-même.
+2. Objectif déclaré par l'utilisateur ? Oui pour le **récitateur choisi** (préférence durable, pas
+   un historique) → `SharedPreferences` scopée par riwaya (pattern des heures de rappel), **pas**
+   `UserConfig` : passer par `UserConfig`/`saveConfig` remettrait `cyclePosition` à 0 sans raison
+   (garde déjà en place pour la sélection/le mélange).
+3. État UI éphémère ? Oui pour l'état de lecture en cours (play/pause/position) → mémoire locale,
+   aucune persistance.
+4. Rien ne justifie une nouvelle table.
+
+**Réutilisation / non-duplication** — `VerseBottomSheet`/`VerseRow` (§8.6 de
+`docs/DOCUMENTATION_TECHNIQUE.md`) reste le point d'affichage unique de la plage ; le bouton audio
+s'y accroche directement (`Sourate`, `ayahStart`, `ayahEnd`, `Riwaya` déjà disponibles dans ce
+widget) — **aucune nouvelle boucle d'affichage de versets**, conforme à la règle anti-duplication
+du projet.
+
+**Nouvelle dépendance `pubspec.yaml`** — aucune couverte par l'existant (aucun package audio
+présent aujourd'hui) : un package de lecture audio avec support arrière-plan/media session
+(ex. `just_audio` + `audio_service`, à confirmer en tout début de sprint après vérification de leur
+compatibilité avec le lockscreen iOS/Android) est une dépendance neuve justifiée par le critère 3
+(lecture verrouillée/arrière-plan avec contrôles système).
+
+**Risques / dépendances**
+1. **Conditions d'usage KSU** — risque accepté par décision utilisateur du 2026-09-26 (voir
+   ajustements ci-dessus) ; à garder en tête si le sprint réel révèle un blocage technique (rate
+   limiting, absence de CORS/direct-link stable) — dans ce cas remonter au Backlog, pas retraiter
+   silencieusement.
+2. **URLs KSU non documentées** — nécessite une inspection manuelle du site (`quran.ksu.edu.sa`,
+   réseau navigateur) en tout début de sprint pour établir le format d'URL par
+   sourate/verset/récitateur/riwaya, avant d'écrire `AudioService`.
+3. **Couverture Warsh** — probablement très inférieure à Hafs sur KSU ; assumé (voir ajustement
+   critère 2 ci-dessus), pas un blocage.
+4. **Fiabilité de la lecture verrouillée/arrière-plan** — point technique non-trivial (media
+   session), à verrouiller par un test dédié plutôt qu'une simple relecture de code (voir item
+   Backlog).
+
+---
+
 ## Archivées
 
 Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
