@@ -505,10 +505,9 @@ la story reste purement passive) ni `UserConfig` (aucun changement de récitateu
 `just_audio` derrière `audio_service`, seule instance de service non-statique du projet — voir §6
 pour pourquoi. Config native ajoutée : `UIBackgroundModes: [audio]` (`ios/Runner/Info.plist`),
 service `AudioService`/receiver `MediaButtonReceiver` + permissions `WAKE_LOCK`/
-`FOREGROUND_SERVICE`/`FOREGROUND_SERVICE_MEDIA_PLAYBACK` (`AndroidManifest.xml`). **Non vérifié sur
-appareil réel** (aucun device mobile disponible, §12) — seul un déploiement TestFlight/interne peut
-confirmer que la notification/le verrouillage se comportent comme attendu ; à valider avant/au
-premier retour utilisateur plutôt que supposé correct parce que `flutter analyze`/les tests passent.
+`FOREGROUND_SERVICE`/`FOREGROUND_SERVICE_MEDIA_PLAYBACK` (`AndroidManifest.xml`). **Vérifié sur
+appareil réel le 2026-09-26** (retour utilisateur direct) : notification media affichée, contrôles
+lecture/pause/arrêt actifs écran verrouillé, audio qui survit à la mise en arrière-plan.
 
 ---
 

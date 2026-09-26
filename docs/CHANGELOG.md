@@ -74,18 +74,6 @@ futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
 
-### [P1] US-9 — Lecture audio verrouillée/arrière-plan jamais vérifiée sur appareil réel
-Implémenté sprint 2026-09-26 (`lib/services/quran_audio_handler.dart`, `lib/core/reciters.dart`,
-bouton dans `VerseBottomSheet` — voir `docs/DOCUMENTATION_TECHNIQUE.md` §8.6bis). `flutter
-analyze`/`flutter test` passent, mais `audio_service`/`just_audio` n'ont pas d'implémentation
-Windows : le seul environnement disponible ici (§12) ne peut pas exercer la notification/les
-contrôles écran verrouillé (US-9 critère 3), seulement la construction des URLs (couverte par
-`test/core/reciters_test.dart`). À valider sur un vrai appareil iOS/Android (TestFlight ou build
-interne) dès que possible : notification media affichée, contrôles lecture/pause/arrêt actifs
-écran verrouillé, audio qui survit à la mise en arrière-plan. Priorité P1 (pas P2) car c'est le
-cœur de la promesse du critère 3, pas un détail — une régression silencieuse ici rendrait la
-fonctionnalité inutile sans qu'aucun test ne le révèle.
-
 ### [P3] Récitateurs KSU : catalogue figé en dur, pas de vérification de disponibilité par verset
 `lib/core/reciters.dart` (`kReciters`) recopie le mapping `quraa_map` lu dans `js/engine.js` de
 `quran.ksu.edu.sa` au 2026-09-26 — aucune garantie que chaque récitateur couvre bien les 6236
