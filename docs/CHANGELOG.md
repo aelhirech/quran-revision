@@ -48,14 +48,6 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] Afficher le verset de contexte d'un verset revenu (reste de US-1 crit. 7 / US-3 crit. 4)
-Le banner `return_proof_seen` (US-1 sprint C, `PlanScreen`) signale qu'un verset décoché est revenu,
-mais **ne promet volontairement plus** « avec le verset qui le précède » : aucun écran du plan
-n'affiche ce verset de contexte. `RevisionEngine.contextVerseFor` est calculé par
-`AppState.returningVersesContext()` mais seul le premier verset revenu est nommé dans le texte
-(sans son contexte). À faire : montrer le verset `n-1` dans la rakaa/`VerseBottomSheet` du verset
-revenu, puis réintroduire la mention dans le banner. Décision produit/UI requise (où le montrer).
-
 ### [P2] `returningVersesContext` recalcule ses candidats plutôt que de dériver de `dayFacts()`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). `AppState.
 returningVersesContext()` reconstruit l'ensemble des versets du jour depuis `dayUnits()` puis
@@ -76,15 +68,6 @@ qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) vit dans `
 futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce hook. Différé :
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
-
-### [P3] Récitateurs KSU : catalogue figé en dur, pas de vérification de disponibilité par verset
-`lib/core/reciters.dart` (`kReciters`) recopie le mapping `quraa_map` lu dans `js/engine.js` de
-`quran.ksu.edu.sa` au 2026-09-26 — aucune garantie que chaque récitateur couvre bien les 6236
-(Hafs)/6214 (Warsh) versets sans trou, ni que le site ne change pas cette liste sans préavis
-(aucune API documentée, voir §8.6bis). `VerseBottomSheet` affiche un message d'erreur générique
-si la lecture échoue (`S.audioErreurLecture`), donc un trou de couverture dégrade proprement au
-lieu de planter — mais sans distinguer "récitateur incomplet" de "pas de réseau". Différé :
-aucun signalement utilisateur réel à ce jour, revoir si un trou de couverture est rapporté.
 
 ### [P3] Le wizard d'onboarding reconstruit le cycle à chaque frappe clavier
 `_OnboardingScreenState.build()` appelle `_daySelection` (donc `RevisionEngine.buildDayUnits`) sans
@@ -113,6 +96,7 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
 - **Mode "versets à retravailler" en jeu à part** — mécanique de jeu à définir avant tout code.
 - **Gamification narrative [H]** — vision long terme, direction artistique déjà validée (Mus'haf/Tahajjud), mécanique narrative encore à définir.
 - **Versets revenus en révision → section "à réviser en dehors des prières", pas verset de contexte** (reformulation 2026-09-26 des items P2 "verset de contexte") : pour la révision, le contexte n'aide pas autant qu'à l'apprentissage (déjà traité, voir décision UI/lecture ci-dessus) — l'idée retenue est plutôt de faire atterrir les versets revenus dans le bloc hors-prières existant (`OutsidePrayersBlock`) plutôt que de les représenter avec leur contexte. À passer par `quran-blueprint` avant scoping : reste à définir comment ça s'articule avec `distributeToRakaas`/`RevisionUnit.==` (règle D) et si ça remplace ou complète le banner `return_proof_seen` actuel.
+- **Téléchargement local des récitations d'un récitateur, au lieu du streaming direct depuis `quran.ksu.edu.sa`** (2026-09-26, ex-item Backlog "catalogue figé en dur" reclassé ici car il cache en fait cette décision d'architecture non tranchée) : aujourd'hui `QuranAudioHandler.playLoop` streame chaque mp3 en direct depuis KSU (`AudioSource.uri`), donc aucune écoute possible hors connexion et une dépendance totale/permanente au site tiers (pas d'API documentée, structure de dossiers révissée en le lisant dans son JS). Télécharger à l'avance les mp3 d'un récitateur choisi réglerait à la fois l'écoute hors-ligne et le risque de rupture KSU, mais soulève des questions produit non tranchées : quel(s) récitateur(s) télécharger (un seul choisi à l'onboarding ? plusieurs ?), poids total par récitateur (6236 fichiers pour Hafs, 6214 pour Warsh) et son impact sur l'espace de stockage utilisateur, stratégie de téléchargement (au premier lancement ? à la demande, sourate par sourate ?), et gestion du cache/mise à jour si KSU change un fichier. À passer par `quran-blueprint` avant scoping.
 
 ---
 

@@ -31,6 +31,29 @@ pas attraper les erreurs qui n'apparaissent qu'à l'implémentation). S'arrête 
 jour et attend le déclencheur « Début de sprint ». Détail complet : `SKILL.md` du plugin
 `quran-scoping`.
 
+### Critère de bascule : Backlog technique vs Idée produit
+
+Incident du 2026-09-26 : l'item P2 « Afficher le verset de contexte d'un verset revenu » est resté
+dans le **Backlog technique** de `docs/CHANGELOG.md` avec la mention « Décision produit/UI requise
+(où le montrer) », alors qu'une **Idée produit** reformulant exactement ce besoin existait déjà
+dans la section du bas. Un item avec une décision non tranchée dedans n'est **jamais** un item de
+Backlog, même classé P2/P3 — un Backlog qui contient du flou casse le point de blocage que le
+workflow blueprint → scoping → sprint est censé garantir (au sprint, on lit le Backlog et on
+implémente, on ne redécide pas).
+
+- **Backlog technique** = implémentation **entièrement tranchée** : fichiers/variables/tables
+  identifiés, comportement exact décrit, aucune question ouverte (« où l'afficher ? », « quelle
+  politique ? », « quel seuil ? »). Une priorité basse (P3, « différé délibérément faute de
+  déclencheur ») reste un item de Backlog valide **tant que l'implémentation elle-même n'a pas de
+  zone grise** — différer par manque de valeur immédiate ≠ différer par manque de décision.
+- **Idée produit** = tout le reste : besoin réel mais non cadré, décision UI/UX manquante,
+  périmètre encore à discuter. Doit repasser par `quran-blueprint` (cadrage business) puis
+  `quran-scoping` (tranche les décisions techniques) avant de pouvoir devenir un item de Backlog.
+- **Test rapide avant d'écrire un item au Backlog** : si la description contient un verbe comme
+  "décider", "choisir où", "définir comment", ou une question sans réponse — ce n'est pas un item
+  de Backlog, c'est une Idée produit (ou un scoping incomplet à finir avant d'écrire quoi que ce
+  soit).
+
 ### « Début de sprint » (+ description de ce qu'on fait)
 1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` + `docs/CHANGELOG.md` 
 2. Créer la branche `feature/phase-X-sprintN`.
@@ -41,7 +64,7 @@ Exécuter dans l'ordre, sans redemander de confirmation entre chaque étape **sa
 1. **Demander confirmation avant de lancer `/simplify`** — sur-ingénierie, réutilisation, cleanups. **Sauter cette étape si le sprint est structurellement trivial** (bump de version, renommage de string, changement de config sans logique) : rien à simplifier dans ce genre de diff, la passe ne consomme des tokens que pour un résultat vide.
 2. **Demander confirmation avant de lancer `/code-review`** (niveau `medium` par défaut) — bugs de correction. **Toujours préciser le niveau explicitement** : sans niveau, la commande réutilise silencieusement le dernier niveau tapé dans la session, qui peut dériver vers `high`/`max` sans qu'on s'en aperçoive. Monter à `/code-review high` si le sprint touche `RevisionEngine`, `FreshnessEngine`, ou `AppState`.
 3. Appliquer les fixes remontés par les deux passes.
-4. Mettre à jour `docs/CHANGELOG.md` : retirer du **Backlog technique** les items traités par ce sprint (l'historique de ce qui a été livré vit dans `git log`, pas dans une ligne barrée qui traîne), ajouter les nouvelles dettes/gaps identifiés avec une priorité qui reflète le risque réel (pas tout à P3 par défaut) dans le **Backlog technique**, ajouter les idées produit non scopées dans **Idées produit** (pas dans le Backlog technique — une idée n'a pas de priorité tant qu'elle n'est pas passée par `quran-blueprint`/`quran-scoping`), noter une décision transversale dans « Décisions actives à connaître » seulement si elle décrit un invariant du code ACTUEL à respecter (pas un choix produit fait puis défait — ça vit dans `git log`). Mettre à jour `docs/DOCUMENTATION_TECHNIQUE.md` en plus si le sprint a touché `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajouté/supprimé un écran/service.
+4. Mettre à jour `docs/CHANGELOG.md` : retirer du **Backlog technique** les items traités par ce sprint (l'historique de ce qui a été livré vit dans `git log`, pas dans une ligne barrée qui traîne), ajouter les nouvelles dettes/gaps identifiés avec une priorité qui reflète le risque réel (pas tout à P3 par défaut) dans le **Backlog technique** — **uniquement si leur implémentation est entièrement tranchée, voir § « Critère de bascule Backlog technique vs Idée produit » ci-dessus** —, ajouter les idées produit non scopées ou contenant une décision ouverte dans **Idées produit** (pas dans le Backlog technique — une idée n'a pas de priorité tant qu'elle n'est pas passée par `quran-blueprint`/`quran-scoping`), noter une décision transversale dans « Décisions actives à connaître » seulement si elle décrit un invariant du code ACTUEL à respecter (pas un choix produit fait puis défait — ça vit dans `git log`). Mettre à jour `docs/DOCUMENTATION_TECHNIQUE.md` en plus si le sprint a touché `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajouté/supprimé un écran/service.
 5. Commit sur la feature branch (feature(sprint-N):)
 6. Vérifier que la demande utilisateur a bien été traitée dans son intégralité avec soit une modification de code soit un enregistrement dans docs/CHANGELOG.md après discussion avec l'utilisateur : (Pourquoi on la pas traité, décision manquantes, trop flou pour être implémenter etc)
 7. **Avant de merger et pusher `main`, si le sprint touche du code iOS : bumper le build number dans `pubspec.yaml`.** Depuis le 2026-08-31, `codemagic.yaml` ne calcule plus automatiquement le build number (le lookup App Store Connect/TestFlight s'est montré peu fiable — voir incident du même jour : collision `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` car le build 5 avait déjà été publié et rien ne répercutait le nombre utilisé dans `pubspec.yaml`). `pubspec.yaml` (`version: X.Y.Z+N`) est donc la **seule source de vérité** du build number iOS : `flutter build ipa` lit `+N` directement, sans override. Avant de pusher `main`, vérifier le dernier build number publié sur TestFlight/App Store Connect et bumper `+N` strictement au-dessus dans `pubspec.yaml`.
