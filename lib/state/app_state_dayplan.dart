@@ -57,9 +57,9 @@ extension AppStateDayPlan on AppState {
   /// selection). Consumed by the guided moment that proves the method (US-1
   /// sprint C) — this only surfaces the data, it writes nothing.
   Future<Map<(int, int), int?>> returningVersesContext({String? date}) async {
-    final units = await dayUnits(date: date);
+    final groups = await AyahFactsRitual.dayFacts(date ?? todayStr, _riwaya);
     final candidates = <(int, int)>{
-      for (final u in units) for (final v in u.verses) (u.sourate.id, v),
+      for (final g in groups) for (final v in g.verses) (g.surahId, v),
     };
     final returning = await AyahFactsRitual.returningVerses(
         date ?? todayStr, _riwaya, candidates);

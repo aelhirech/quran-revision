@@ -349,4 +349,8 @@ class DayFactGroup {
 
   // true only when the whole range is reach=1
   bool get reach => reachedVerses.length == verseEnd - verseStart + 1;
+
+  /// The verse numbers this group spans, in order (mirrors `RevisionUnit.verses`).
+  Iterable<int> get verses =>
+      Iterable.generate(verseEnd - verseStart + 1, (i) => verseStart + i);
 }
