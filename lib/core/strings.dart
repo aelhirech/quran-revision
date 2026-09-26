@@ -236,4 +236,15 @@ class S {
 
   // Plan du jour — rakaa d'apprentissage
   static String get rakaaApprentissage => _t('Apprentissage', 'Learning');
+
+  // Écoute audio en boucle (US-9)
+  static String get ecouterEnBoucle => _t('Écouter en boucle', 'Listen on loop');
+  static String get arreterEcoute => _t("Arrêter l'écoute", 'Stop listening');
+  static String get choisirRecitateur => _t('Choisir un récitateur', 'Choose a reciter');
+  static String get audioIndisponibleAppareil => _t(
+      "L'écoute audio n'est pas disponible sur cet appareil.",
+      'Audio playback is not available on this device.');
+  static String get audioErreurLecture => _t(
+      "Impossible de lire cette plage avec ce récitateur — vérifie ta connexion internet.",
+      "Couldn't play this range with this reciter — check your internet connection.");
 }

@@ -43,6 +43,8 @@ dependencies:
   flutter_sticky_header: ^0.8.0
   timezone: ^0.11.1
   flutter_timezone: ^4.1.1
+  just_audio: ^0.10.6
+  audio_service: ^0.18.19
 dev_dependencies:
   flutter_test:
     sdk: flutter

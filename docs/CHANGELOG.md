@@ -89,39 +89,26 @@ utiliser `realPages` ») ; (c) assumer l'écart et l'expliquer d'une phrase. **N
 réelles promettrait un tour plus court que celui réellement parcouru, pour un chiffre présenté
 comme une garantie (verrouillé par `test/core/revision_engine_test.dart`).
 
-### [P2] US-9 — Bouton « écouter en boucle » dans la vue Coran unifiée
-Scopé le 2026-09-26 (`docs/USER_STORIES.md`). Ajoute à `VerseBottomSheet` (point d'affichage
-unique d'une plage de versets, §8.6 `docs/DOCUMENTATION_TECHNIQUE.md`) un bouton d'écoute en
-boucle de la plage déjà affichée, avec lecture arrière-plan/écran verrouillé.
+### [P1] US-9 — Lecture audio verrouillée/arrière-plan jamais vérifiée sur appareil réel
+Implémenté sprint 2026-09-26 (`lib/services/quran_audio_handler.dart`, `lib/core/reciters.dart`,
+bouton dans `VerseBottomSheet` — voir `docs/DOCUMENTATION_TECHNIQUE.md` §8.6bis). `flutter
+analyze`/`flutter test` passent, mais `audio_service`/`just_audio` n'ont pas d'implémentation
+Windows : le seul environnement disponible ici (§12) ne peut pas exercer la notification/les
+contrôles écran verrouillé (US-9 critère 3), seulement la construction des URLs (couverte par
+`test/core/reciters_test.dart`). À valider sur un vrai appareil iOS/Android (TestFlight ou build
+interne) dès que possible : notification media affichée, contrôles lecture/pause/arrêt actifs
+écran verrouillé, audio qui survit à la mise en arrière-plan. Priorité P1 (pas P2) car c'est le
+cœur de la promesse du critère 3, pas un détail — une régression silencieuse ici rendrait la
+fonctionnalité inutile sans qu'aucun test ne le révèle.
 
-**Périmètre** :
-- `lib/widgets/verse_bottom_sheet.dart` : bouton + contrôles play/pause/stop, lit exactement
-  `(Sourate, ayahStart, ayahEnd, Riwaya)` déjà portés par le widget — pas de nouvelle boucle
-  d'affichage, pas de couplage à `RevisionUnit`/rakaaNumber.
-- `StorageService.saveAudioReciter(Riwaya, String)`/`loadAudioReciter(Riwaya)` — préférence
-  scopée par riwaya (même motif que les heures de rappel), **pas** `UserConfig` (éviterait de
-  remettre `cyclePosition` à 0 sans raison).
-- `lib/screens/profile_screen.dart` : sélecteur de récitateur par riwaya active.
-- État de lecture (play/pause/position) : local/éphémère, jamais persisté, jamais dans
-  `AppState`/`ayah_facts`.
-- Nouvelle dépendance `pubspec.yaml` à ajouter : package audio avec support arrière-plan/media
-  session (ex. `just_audio` + `audio_service`, à confirmer en tout début de sprint).
-- Source audio : `quran.ksu.edu.sa/ayat/` — pas d'API documentée, format d'URL à établir par
-  inspection manuelle du site en tout début de sprint, avant d'écrire le service audio.
-
-**Exclusions** (verrouillées au blueprint/scoping, ne pas réintroduire) :
-- Aucun écran de sélection audio séparé — toujours la plage déjà affichée par la vue Coran.
-- Aucune écriture dans `ayah_facts` déclenchée par l'écoute (purement passif).
-- Aucun récitateur cross-riwaya.
-- Si Warsh n'expose qu'un seul récitateur sur KSU : pas de traitement spécial, liste à un élément
-  acceptée telle quelle (décision utilisateur 2026-09-26).
-
-**Risques connus** (assumés, pas des blocages) :
-- Conditions d'usage de KSU non vérifiables techniquement pendant ce scoping — risque accepté par
-  décision utilisateur du 2026-09-26. Si le sprint réel révèle un blocage (rate limiting, pas de
-  lien direct stable), le remonter ici plutôt que de contourner silencieusement.
-- Fiabilité de la lecture verrouillée/arrière-plan (media session) est non-triviale : prévoir un
-  test dédié, pas seulement une relecture de code.
+### [P3] Récitateurs KSU : catalogue figé en dur, pas de vérification de disponibilité par verset
+`lib/core/reciters.dart` (`kReciters`) recopie le mapping `quraa_map` lu dans `js/engine.js` de
+`quran.ksu.edu.sa` au 2026-09-26 — aucune garantie que chaque récitateur couvre bien les 6236
+(Hafs)/6214 (Warsh) versets sans trou, ni que le site ne change pas cette liste sans préavis
+(aucune API documentée, voir §8.6bis). `VerseBottomSheet` affiche un message d'erreur générique
+si la lecture échoue (`S.audioErreurLecture`), donc un trou de couverture dégrade proprement au
+lieu de planter — mais sans distinguer "récitateur incomplet" de "pas de réseau". Différé :
+aucun signalement utilisateur réel à ce jour, revoir si un trou de couverture est rapporté.
 
 ### [P3] Le wizard d'onboarding reconstruit le cycle à chaque frappe clavier
 `_OnboardingScreenState.build()` appelle `_daySelection` (donc `RevisionEngine.buildDayUnits`) sans

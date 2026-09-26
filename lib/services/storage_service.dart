@@ -22,6 +22,7 @@ class StorageService {
   static const _keyMorningMinute = 'reminder_morning_minute';
   static const _keyEveningHour = 'reminder_evening_hour';
   static const _keyEveningMinute = 'reminder_evening_minute';
+  static const _keyAudioReciter = 'audio_reciter';
 
   /// Hafs et Warsh sont deux parcours indépendants (config, cycle, pauses)
   /// — ces clés sont donc préfixées par riwaya. Langue/riwaya-
@@ -277,6 +278,19 @@ class StorageService {
 
   static Future<void> saveEveningTime(int hour, int minute) =>
       _saveTime(_keyEveningHour, _keyEveningMinute, hour, minute);
+
+  /// Reciter chosen for loop playback (US-9) — a declared preference per
+  /// riwaya, not a dated fact: never lives in `ayah_facts`. A Hafs reciter
+  /// has no business waking up on the Warsh track, hence the prefix.
+  static Future<void> saveAudioReciter(Riwaya riwaya, String reciterId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_track(_keyAudioReciter, riwaya), reciterId);
+  }
+
+  static Future<String?> loadAudioReciter(Riwaya riwaya) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_track(_keyAudioReciter, riwaya));
+  }
 
   /// Réinitialise uniquement la configuration de révision (sourates, cycle,
   /// sessions, pauses) du parcours [riwaya] — pas l'autre parcours, ni les
