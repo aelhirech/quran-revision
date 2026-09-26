@@ -48,19 +48,22 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] `returningVersesContext` recalcule ses candidats plutôt que de dériver de `dayFacts()`
-Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). `AppState.
-returningVersesContext()` reconstruit l'ensemble des versets du jour depuis `dayUnits()` puis
-interroge `AyahFactsRitual.returningVerses` séparément, au lieu que ce statut « revenu » soit porté
-nativement par `DayFactGroup`/`dayFacts()`. Différé : aucun consommateur avant US-1 sprint C — a
-attendre que cet écran précise le besoin réel avant de refaçonner la requête.
-
 ### [P3] `returningVerses` scanne tout l'historique scellé avant de filtrer en Dart
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, efficiency). `AyahFactsRitual.
 returningVerses` récupère toutes les lignes `reach=0, checked_out=1` de la riwaya avant
 d'intersecter avec les candidats du jour côté Dart, plutôt qu'un filtre SQL sur les candidats.
 Négligeable à l'échelle réelle de l'app (un seul utilisateur, base locale, quelques centaines de
 lignes même après plusieurs mois) — ne traiter que si un profilage montre un coût réel.
+
+### [P3] `returningVersesContext` fait 2 requêtes SQL séparées (`dayFacts` puis `returningVerses`) plutôt qu'une
+Relevé en `/code-review high` du sprint 2026-09-26 (altitude), reste de l'ancien item "recalcule ses
+candidats plutôt que de dériver de dayFacts()" (ce sprint a corrigé la partie recalcul via
+`dayUnits()`/`RevisionUnit`, voir `docs/DOCUMENTATION_TECHNIQUE.md` §7). Porter le statut « revenu »
+nativement sur `DayFactGroup`/`dayFacts()` (une seule requête SQL, `returningVerses` fusionnée
+dedans) éliminerait le second aller-retour, mais aucun code ne consomme ce statut aujourd'hui
+(`dayUnits`/`dayUnitsWithStatus` n'en ont pas besoin) — fusionner les deux requêtes maintenant
+serait spéculatif. Différé jusqu'à ce qu'un écran consomme réellement ce statut (US-1 sprint C) ou
+qu'un profilage montre un coût réel (deux requêtes SQLite locales, base d'un seul utilisateur).
 
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`

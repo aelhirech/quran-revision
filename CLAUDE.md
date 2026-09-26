@@ -56,8 +56,12 @@ implémente, on ne redécide pas).
 
 ### « Début de sprint » (+ description de ce qu'on fait)
 1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` + `docs/CHANGELOG.md` 
-2. Créer la branche `feature/phase-X-sprintN`.
+2. Créer la branche `feature/phase-X-sprintN` **depuis le `main` local** (voir § « Git : `main` local par défaut » ci-dessous).
 3. Implémenter.
+
+### Git : `main` local par défaut
+- **Toujours partir du `main` local** (celui de cet ordi) pour créer une branche, comparer un diff ou merger — pas de `git fetch`/`git pull`, pas de `origin/main`, sauf si l'utilisateur précise explicitement `origin/main` (distant). Le `main` local peut contenir des merges pas encore pushés : partir d'`origin/main` les ferait disparaître silencieusement de la branche.
+- **« Merge vers main » ≠ « push ».** Si l'utilisateur demande seulement de merger (ex. « merge vers le main local », « merge sans pusher »), merger la feature branch dans le `main` local et **s'arrêter là** : pas de `git push`. Le push de `main` déclenche TestFlight (étape 8 de « Fin de sprint ») — il ne se fait que sur demande explicite. Dans ce cas, les étapes 7 (bump build number) et 8 (confirmation du push) de « Fin de sprint » ne s'appliquent qu'au moment du push réel, pas au merge local.
 
 ### « Fin de sprint »
 Exécuter dans l'ordre, sans redemander de confirmation entre chaque étape **sauf pour les étapes 1-2 et pour le push final** :
