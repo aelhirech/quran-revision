@@ -269,8 +269,9 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   Widget _guideStep(AppState state) {
     final cycleTotal = state.daySelection.cycleTotal;
     final pagesPerDay = state.config?.pagesPerDay ?? 0;
-    final cycleDays =
-        cycleTotal > 0 ? state.daySelection.cycleDays(pagesPerDay) : null;
+    final cycleDays = cycleTotal > 0
+        ? state.cycleDaysFor(state.daySelection, pagesPerDay)
+        : null;
     final learningDays = _learningProgress
         ?.daysToFinish(state.config?.versesToLearnPerDay ?? 0);
     final body = [

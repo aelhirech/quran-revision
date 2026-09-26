@@ -219,6 +219,7 @@ Le code existant contient beaucoup de commentaires en français — ne pas repro
 | **Fragment** | L'intersection d'une portion de la sélection et d'une page. |
 | **Entrée de cycle** | Une page, avec tous les fragments de la sélection qui s'y trouvent. |
 | **Curseur** (`cyclePosition`) | L'index de la **prochaine entrée** à réviser. **En pages, jamais en sourates.** |
+| **Rythme** (`pagesParJour`) | Un budget de **vraies pages du mushaf par jour** (décision 2026-09-26 — avant cette date, comptait des entrées de cycle, pas toujours identiques à une page réelle, voir `RevisionEngine._takeEntriesForPages`). |
 
 ### A. Construire le cycle — fonction pure et déterministe
 
@@ -272,8 +273,24 @@ PLAN_DU_JOUR(cycle, curseur, pagesParJour) -> [entrées du jour]
 
 si cycle est vide : ne rien proposer, et le SIGNALER (ne jamais boucler à vide en silence)
 
-n := min(pagesParJour, cycleTotal)
-retourner [ cycle[(curseur + i) mod cycleTotal] pour i de 0 à n-1 ]
+# pagesParJour compte des VRAIES PAGES, pas des entrées (décision 2026-09-26) :
+# une entrée peut être plus petite qu'une page (fragment "privé" d'une sourate
+# à cheval) ou partager sa page avec l'entrée suivante (page frontière, voir
+# partie A) — prendre un nombre fixe d'entrées promettrait un rythme différent
+# de ce que l'utilisateur choisit à l'écran.
+pagesVues := ensemble vide
+pris := []
+tant que pagesVues.taille < pagesParJour ET pris.taille < cycleTotal :
+    e := cycle[(curseur + pris.taille) mod cycleTotal]
+    pris.ajouter(e)
+    pagesVues += pages réelles touchées par les fragments de `e`
+retourner pris
+# Une entrée n'est jamais coupée pour tomber pile sur `pagesParJour` : le jour
+# peut finir par couvrir plus ou moins de pages réelles que le budget demandé
+# (ex. deux entrées consécutives qui partagent la même page réelle ne font
+# progresser `pagesVues` qu'une fois — le jour prend alors une entrée de plus
+# pour rejoindre le budget, sans jamais le dépasser en repassant par une page
+# déjà comptée ce jour-là).
 ```
 
 ### C. La clôture — ce qui fait avancer le curseur
@@ -342,13 +359,16 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
 4. **Le curseur progresse à l'intérieur d'une sourate**, y compris quand elle est seule sélectionnée.
 5. **Aucun contenu crédité sans avoir été proposé** au check-in ou déclaré au check-out.
 6. **Aucune rakaa récitée vide** tant qu'il reste de la matière.
+7. **Le budget quotidien (`pagesParJour`) compte des vraies pages, jamais des entrées** (décision
+   2026-09-26) : `DaySelection.cycleDays` et `PLAN_DU_JOUR` (partie B) doivent utiliser le même
+   calcul par pages réelles distinctes, jamais une simple division de `cycleTotal`.
 
 ### F. Cas limites — la réponse est ici, pas dans le code
 
 | Cas | Comportement attendu |
 |---|---|
 | Portion sans métadonnée de page | Ignorée du cycle. Si plus rien ne reste alors que des sourates sont sélectionnées, l'accueil le **signale** au lieu d'afficher « 0 / 0 pages ». |
-| `pagesParJour` > `cycleTotal` | Le jour propose tout le cycle, une seule fois (pas de répétition). |
+| `pagesParJour` (en vraies pages) > total de pages réelles du cycle | Le jour propose tout le cycle, une seule fois (pas de répétition), même si le budget de pages n'est jamais atteint. |
 | Page partagée par 2 sourates sélectionnées | Une seule entrée, donc une seule journée, et **une seule page** dans les compteurs. |
 | Page partagée dont une seule sourate est sélectionnée | Entrée normale ; la sourate non sélectionnée n'y entre jamais. |
 | Portion retirée au check-in | Ni comptée ni bloquante à la clôture. |

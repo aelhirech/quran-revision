@@ -1022,10 +1022,15 @@ void main() {
     });
   });
 
-  group('DaySelection.cycleDays — durée d\'un tour complet (US-1 crit. 2)', () {
+  group(
+      'DaySelection.cycleDays — durée d\'un tour complet, en VRAIES pages '
+      '(décision 2026-09-26, US-1 crit. 2)', () {
     // Mêmes données Inshiqaq/Buruj que plus haut : 3 entrées de cycle pour
-    // seulement 2 pages réelles. C'est précisément le cas qui distingue les
-    // deux unités, et donc celui qui verrouille le choix.
+    // seulement 2 pages réelles (589, 590 partagée entre Al-Inshiqaq et
+    // Al-Buruj). `pagesPerDay` compte désormais des pages réelles, pas des
+    // entrées — cette fixture ne suffit pas à elle seule à le prouver (avec
+    // seulement 2 pages, day-boundary coïncide ici avec l'ancien calcul par
+    // entrées), voir le test dédié plus bas pour un cas qui les distingue.
     final pageMeta = {
       84: {for (var v = 1; v <= 24; v++) v: 589, 25: 590},
       85: {for (var v = 1; v <= 22; v++) v: 590},
@@ -1045,33 +1050,63 @@ void main() {
           pageMetadata: pageMeta,
         );
 
-    test('compte les ENTRÉES de cycle, jamais les pages réelles', () {
+    test('un budget d\'1 page/jour prend 1 entrée par jour ici', () {
       final sel = build(1);
       expect(sel.cycleTotal, 3);
       expect(sel.realPages(pageMeta).total, 2);
-      // Le tour dure bien 3 jours : le plan du jour sert 1 ENTRÉE par jour.
-      // Passer par realPages (2) annoncerait un tour plus court que celui
-      // réellement parcouru — or ce nombre est présenté à l'utilisateur
-      // comme une garantie.
-      expect(sel.cycleDays(1), 3);
+      expect(sel.cycleDays(1, pageMeta), 3);
     });
 
-    test('arrondit au jour supérieur (un reste occupe un jour entier)',
-        () async {
+    test('un budget de 2 pages/jour finit en 2 jours, pas 1', () {
       final sel = build(2);
-      expect(sel.cycleDays(2), 2, reason: 'ceil(3/2) = 2, pas 1');
+      // Jour 1 : (84,589) + (84,590 privée) = pages {589,590}, budget
+      // atteint après 2 entrées. Jour 2 : (85,590) seule, cycle épuisé.
+      expect(sel.cycleDays(2, pageMeta), 2);
     });
 
-    test('un rythme plus large que le cycle tient en un seul jour', () async {
+    test('un rythme plus large que le cycle tient en un seul jour', () {
       final sel = build(10);
-      expect(sel.cycleDays(10), 1);
+      expect(sel.cycleDays(10, pageMeta), 1);
     });
 
-    test('cycle vide ou rythme absurde ne divise pas par zéro', () async {
+    test('cycle vide ou rythme absurde ne divise pas par zéro', () {
       final sel = build(1);
-      expect(sel.cycleDays(0), 0);
+      expect(sel.cycleDays(0, pageMeta), 0);
       const vide = DaySelection(groups: [], cycle: [], cyclePosition: 0);
-      expect(vide.cycleDays(3), 0);
+      expect(vide.cycleDays(3, pageMeta), 0);
+    });
+
+    test(
+        'deux entrées consécutives qui partagent la même page réelle coûtent '
+        'une entrée EN PLUS au jour, sans le rapprocher du budget — c\'est '
+        'exactement ce que compter en pages réelles (et non en entrées) '
+        'devait corriger', () {
+      // Même fixture, mais on démarre le jour PILE sur la paire qui partage
+      // la page 590 : (84,590 privée) puis (85,590 réelle). Avec un budget
+      // de 2 pages/jour, l'ANCIEN calcul (compter les entrées) aurait pris
+      // exactement 2 entrées (min(2, total)) et se serait arrêté là, alors
+      // qu'elles ne couvrent qu'UNE SEULE page réelle (590) — le budget de 2
+      // pages n'aurait jamais été atteint. Compter les pages force le jour à
+      // prendre une 3e entrée (celle d'Al-Inshiqaq sur la page 589, après
+      // rebouclage du cycle) pour couvrir une 2e page réelle distincte.
+      final sel = RevisionEngine.buildDayUnits(
+        config: UserConfig(
+          selections: [
+            SourateSelection.whole(_sourate(84, 25, 90)),
+            SourateSelection.whole(_sourate(85, 22, 80)),
+          ],
+          pagesPerDay: 2,
+          startDate: DateTime(2026, 1, 1),
+          riwaya: Riwaya.hafs,
+          shuffleEnabled: false,
+        ),
+        cyclePosition: 1, // (84,590 privée), juste avant (85,590 réelle)
+        pageMetadata: pageMeta,
+      );
+      expect(sel.groups, hasLength(3),
+          reason: '3 entrées prises (84,590)(85,590)(84,589 rebouclée) pour '
+              'atteindre 2 pages réelles distinctes, jamais 2');
+      expect(RevisionEngine.pagesOf(sel.units, pageMeta), 2);
     });
   });
 

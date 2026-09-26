@@ -19,6 +19,7 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 - Ce qui ne tient pas dans les prières (règle D) est retourné par `distributeToRakaas` (`{plan, outside}`) — ne jamais redériver "hors prières" par différence d'ensembles dans `AppState` : `RevisionUnit.==` porte sur la plage de versets, donc une unité subdivisée n'est jamais égale à sa mère et fausse tout le calcul.
 - Cocher une rakaa peut en cocher une autre automatiquement quand `_padCyclically` fait apparaître deux fois la même plage de versets dans la journée — `reach` est une vérité par verset/jour, pas par rakaa.
 - Agréger plusieurs groupes de cycle se fait par **union** de pages, jamais par somme (deux groupes peuvent partager une page physique).
+- **`pagesPerDay` compte des vraies pages du mushaf, pas des entrées de cycle (2026-09-26)** : avant cette date, le rythme quotidien prenait un nombre fixe d'*entrées* (`RevisionEngine.buildDayUnits`), pas toujours équivalent à une page réelle (fragment privé plus petit qu'une page, ou page frontière partagée par deux entrées consécutives) — l'onboarding annonçait « 1 page/jour » alors que ~0,7 page réelle était consommée en moyenne, contredisant l'accueil (« 85 pages ») qui, lui, comptait déjà en vraies pages via `DaySelection.realPages`. `RevisionEngine._takeEntriesForPages` (nouveau, partagé par `buildDayUnits` et `DaySelection.cycleDays`) prend maintenant des entrées jusqu'à couvrir AU MOINS `pagesPerDay` pages réelles distinctes — jamais une fraction d'entrée : un jour peut donc couvrir plus ou moins de pages que le budget exact (voir `CLAUDE.md` § Règle du plan quotidien, partie B, invariant 7). Ne jamais revenir à un décompte par entrées pour `pagesPerDay`/`cycleDays` — verrouillé par `test/core/revision_engine_test.dart` (groupe `DaySelection.cycleDays`).
 
 **Cadrage produit encore valide**
 - « Prières où il est imam » = prières où c'est lui qui récite (seul ou en dirigeant) — un simple élargissement de libellé, pas un filtre d'exclusion ni une pondération de répartition.
@@ -72,22 +73,6 @@ qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) vit dans `
 futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce hook. Différé :
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
-
-### [P2] « 121 jours » (entrées de cycle) contre « 85 pages » (pages réelles) — deux chiffres vrais qui se contredisent à l'écran
-Constaté au sprint US-1 A (2026-09-20) sur une sélection du dernier quart du Coran : l'onboarding
-annonce « un tour complet : 121 jours » à 1 page/jour, tandis que l'accueil affiche « 0 / 85 pages ».
-Les deux sont corrects — 121 **entrées de cycle** pour 85 **pages physiques**, l'écart venant des
-sourates à cheval sur une page frontière, qui coûtent chacune une entrée propre (`CLAUDE.md`
-§ Règle du plan quotidien, A.3). Mais côte à côte ils se contredisent : « 1 page / jour » + « 85 pages »
-suggère 85 jours. En pratique l'app sert ~0,7 page réelle par jour, et c'est le libellé
-« N page(s) / jour » qui est le plus trompeur des trois.
-**Décision produit requise avant tout code** — trois sorties possibles, non tranchées :
-(a) renommer le rythme en « unités/jour » ou équivalent ; (b) afficher la progression de l'accueil
-en entrées plutôt qu'en pages réelles (contredirait la règle « un écran qui promet des pages doit
-utiliser `realPages` ») ; (c) assumer l'écart et l'expliquer d'une phrase. **Ne pas « corriger »
-`cycleDays` vers `realPages`** : le scoping a tranché pour les entrées parce que compter en pages
-réelles promettrait un tour plus court que celui réellement parcouru, pour un chiffre présenté
-comme une garantie (verrouillé par `test/core/revision_engine_test.dart`).
 
 ### [P1] US-9 — Lecture audio verrouillée/arrière-plan jamais vérifiée sur appareil réel
 Implémenté sprint 2026-09-26 (`lib/services/quran_audio_handler.dart`, `lib/core/reciters.dart`,
