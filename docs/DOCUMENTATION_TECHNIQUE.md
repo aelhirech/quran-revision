@@ -198,6 +198,7 @@ Tous stateless, méthodes `static`, aucun `notifyListeners`. C'est la seule couc
 | `HafsService` / `WarshService` | assets `assets/quran/hafs.json` / `warsh.json` | Chargent le texte + calculent `verseCounts`/`wordCounts` par sourate (une fois, en cache statique). Implémentation partagée dans `QuranTextAsset` (`quran_text_asset.dart`) — les deux classes ne sont que de fines façades statiques paramétrées par le chemin d'asset. Source Sprint 8 : QUL (Tarteel AI) — Hafs explicitement crédité King Fahd Complex sur la page de la ressource ; Warsh moins explicitement sourcé (piste ouverte au backlog) mais plateforme bien mieux maintenue que l'ancien dataset communautaire. **Hafs et Warsh ont chacun leur propre numérotation native** (6236 vs 6214 versets au total, frontières de versets différentes sur ~50 sourates) — ce n'est pas juste un texte différent sur la même grille. |
 | `HizbMetadataService` | asset `assets/quran/metadata/quran-metadata-hizb.json` | `surahStartHizb` : numéro de Hizb où commence chaque sourate, donnée QUL officielle (remplace l'ancienne estimation par position cumulative de `quran_data.dart`). Retombe sur `{}` si jamais initialisé/échec de chargement — purement cosmétique (groupement dans l'onboarding), ne doit jamais bloquer le boot. |
 | `PageMetadataService` (Phase 8 Sprint 3) | assets `assets/quran/metadata/quran-metadata-page-{hafs,warsh}.json` | Numéro de page mushaf absolu par sourate/ayah, un fichier par riwaya (chargés tous les deux à l'`initialize()`, mis en cache statique par `Riwaya`). Seul consommateur : `AppState._selectionForAsync`, qui fournit `pageMetadataFor(riwaya)` à `RevisionEngine.buildDayUnits` (§5.1) — ce moteur ne fait plus lui-même aucune I/O. **Contrairement à `HizbMetadataService`, indispensable au moteur quotidien** (pas purement cosmétique) : pas de garde try/catch au boot, comme `HafsService`. Les 2 fichiers manquaient de `pubspec.yaml` (`assets:`) lors de l'implémentation initiale (chargement via `dart:io File`, qui résout n'importe quel chemin filesystem sans passer par le bundle d'assets — a masqué l'oubli en dev/test) ; corrigé en même temps que le passage à `rootBundle`. |
+| `QuranAudioHandler` (US-9, 2026-09-26) | `just_audio` + `audio_service` | Seul service à instance unique (`QuranAudioHandler.instance`) plutôt que static-only : `audio_service` impose ce cycle de vie pour exposer les contrôles lecture/pause/arrêt sur l'écran verrouillé/la notification système. `initialize()` avale toute exception (aucune implémentation Windows/Linux — seul environnement de test disponible ici, voir §12 — donc `available=false` sur cette plateforme, jamais un crash au boot). `playLoop(urls, item)` charge une playlist (une URL mp3 par verset) en `LoopMode.all` — boucle continue jusqu'à arrêt explicite, jamais un crédit `ayah_facts` (purement passif, US-9 critère 4). Voir §8.6bis pour la source audio et le catalogue de récitateurs. |
 
 **`AyahFactsService.isDaySealed(date, riwaya)` (Phase 9 Sprint 2)** — prédicat **monotone** : « il existe une ligne scellée ce jour-là », pas « toutes le sont ». Une journée peut redevenir mixte après son scellement (une ligne fraîche `checked_out = 0`), et un `MIN(checked_out)` répondrait alors « pas scellée », désarmant le garde-fou anti-double-comptage de `AppState.checkOut` exactement quand il sert. À ne pas confondre avec `pendingDate`, qui pose la question inverse (« reste-t-il quelque chose à clôturer ? ») et doit, elle, rester sensible à ces lignes fraîches.
 
@@ -462,6 +463,52 @@ Cette liste consolide ce que l'analyse fichier-par-fichier a fait remonter — u
 Trois écrans avaient chacun leur propre implémentation quasi identique du besoin "afficher le Coran entre `ayah_start` et `ayah_end`" : `VerseBottomSheet` (versets d'une rakaa, Plan du jour), `SurahReaderScreen` (lecture pleine page, Récap), `VerseDisplayCard` (bloc de mémorisation, Apprendre). Chacun rendait le texte via `VerseService.getVerse`, qui ajoutait un chiffre arabe-indic (`_arabicIndicNumeral`) en fin de texte. Retour utilisateur (relayé, pas TestFlight direct) : ce chiffre est redondant dès lors qu'un badge numéroté existe déjà à côté (c'était le cas côté Plan du jour, `IndexBadge` pour le numéro de rakaa) — préférence exprimée pour un seul indicateur visuel (le badge) plutôt que le chiffre arabe-indic en fin de texte. Décision : remplacer le chiffre par un badge numéroté par verset partout, pas seulement là où un badge voisin existait déjà. Unifié : `VerseBottomSheet` prend désormais directement `(Sourate sourate, int ayahStart, int ayahEnd)` (plus de couplage à `RevisionUnit`/`rakaaNumber`, ce dernier n'était de toute façon jamais affiché), et `VerseRow` (`widgets/verse_row.dart` — badge `IndexBadge` + `ArabicVerseText`) est le seul point de rendu d'un verset numéroté, réutilisé par `VerseBottomSheet` et `VerseDisplayCard`. `VerseService.getVerse` ne retourne plus que le texte brut (numéral supprimé, `versesForUnit` et `_arabicIndicNumeral` supprimés — plus aucun appelant). `SurahReaderScreen` supprimé : le Récap utilise désormais la même icône livre (`Icons.menu_book_outlined`) + `VerseBottomSheet` que Plan du jour (la ligne entière n'est plus tapable, seule l'icône ouvre la vue) ; `LearningProgressCard` (Apprendre) porte la même icône, en plus du tap existant sur la ligne (qui ouvre toujours `LearnSurahScreen`), sur la plage complète de la sourate (`1`–`s.verses`). Toute nouvelle surface qui a besoin d'afficher le Coran pour une plage de versets doit réutiliser `VerseBottomSheet`/`VerseRow` plutôt que réimplémenter une boucle `VerseService.getVerse` — c'est désormais le seul chemin.
 
 **Flaguer "à retravailler" depuis le Récap — mécanisme supprimé (US-3, 2026-09-21)** : le bookmark "à retravailler" que `VerseBottomSheet` portait depuis 2026-09-14 (toggle par verset, `AppState.setVerseNeedsWork`/`lastRevisionFlagsFor` → `AyahFactsRitual.setNeedsWork`/`lastRevisionFlags`) est retiré en entier avec `needs_work` — voir § « Modèle de données central » de `CLAUDE.md`. `VerseBottomSheet` redevient `StatelessWidget` (plus de `_flags`/`_loadFlags`/`_toggle`), affichage seul. `VerseRow.trailing` (le slot qui portait l'icône bookmark) est retiré du modèle — plus aucun appelant n'en avait besoin (`VerseDisplayCard` ne le passait déjà pas).
+
+### 8.6bis Écoute audio en boucle (US-9, 2026-09-26)
+
+`VerseBottomSheet` redevient `StatefulWidget` (`_reciter`, `_starting`) pour porter une barre audio
+sous l'en-tête : un bouton lecture/pause (icône boucle quand arrêté, pause quand actif — l'action
+répète toujours l'appel `_toggleLoop`, jamais deux boutons séparés), un bouton arrêt visible
+seulement quand la plage de **cette** feuille est celle réellement chargée par le lecteur, et un
+sélecteur de récitateur (feuille modale interne, jamais un écran séparé — voir exclusion US-9). La
+plage lue est toujours exactement `(widget.sourate.id, widget.ayahStart, widget.ayahEnd)`, quelle
+que soit la surface d'où la feuille a été ouverte (US-9 critère 1) : aucun paramètre supplémentaire,
+la vue Coran unifiée portait déjà tout ce qu'il fallait.
+
+**Source audio — `quran.ksu.edu.sa`, reverse-engineered, pas d'API publique.** Le domaine annoncé
+au blueprint (`/ayat/`) est en réalité la page de téléchargement du logiciel de bureau "Ayat" ; la
+vraie source est le lecteur en ligne du "مصحف الإلكتروني" (`quran.ksu.edu.sa/?pg=index`), dont le
+script `js/engine.js` expose en clair `quraa_map` (identifiant récitateur → dossier mp3) et
+`base_mp3url = 'https://quran.ksu.edu.sa/ayat/mp3'`. Chaque verset est un fichier statique
+`{base}/{dossier}/{sourate 3 chiffres}{verset 3 chiffres}.mp3` (ex.
+`Hussary.teacher_64kbps/001001.mp3`), servi sans authentification, avec support des requêtes par
+plage (`206 Partial Content`, vérifié en session) — confortable pour le streaming/la mise en cache
+partielle. `lib/core/reciters.dart` recopie ce mapping en dur (`kReciters`, Dart pur, testé dans
+`test/core/reciters_test.dart`) plutôt que de le récupérer dynamiquement : c'est un JS de site web
+tiers, pas un contrat d'API, donc geler la liste connue au moment de ce sprint est plus sûr qu'une
+dépendance runtime à une page qui peut changer de structure sans préavis.
+
+**Aucune condition d'usage documentée pour ce domaine** — risque produit/légal accepté par décision
+utilisateur du 2026-09-26 (voir `docs/USER_STORIES.md`, US-9). À réévaluer si le sprint réel (une
+fois testé sur un vrai appareil) révèle un blocage technique (rate limiting, lien cassé) plutôt que
+juridique.
+
+**Récitateurs et riwaya** : chaque `Reciter` de `kReciters` n'appartient qu'à une seule `Riwaya` —
+seules 3 voix (`husary.w`, `dosary`, `yasin`) sont marquées "(Warsh)" sur le site contre ~28 voix
+Hafs ; `recitersFor(riwaya)` filtre en conséquence, jamais de fuite cross-riwaya (US-9 exclusion).
+Le choix est mémorisé par `StorageService.saveAudioReciter(Riwaya, String)`/`loadAudioReciter` —
+préférence scopée par riwaya, jamais `ayah_facts` (§ « Modèle de données central » de `CLAUDE.md`,
+la story reste purement passive) ni `UserConfig` (aucun changement de récitateur ne doit remettre
+`cyclePosition` à 0).
+
+**Lecture arrière-plan/écran verrouillé (US-9 critère 3)** : `QuranAudioHandler` (§6) fait tourner
+`just_audio` derrière `audio_service`, seule instance de service non-statique du projet — voir §6
+pour pourquoi. Config native ajoutée : `UIBackgroundModes: [audio]` (`ios/Runner/Info.plist`),
+service `AudioService`/receiver `MediaButtonReceiver` + permissions `WAKE_LOCK`/
+`FOREGROUND_SERVICE`/`FOREGROUND_SERVICE_MEDIA_PLAYBACK` (`AndroidManifest.xml`). **Non vérifié sur
+appareil réel** (aucun device mobile disponible, §12) — seul un déploiement TestFlight/interne peut
+confirmer que la notification/le verrouillage se comportent comme attendu ; à valider avant/au
+premier retour utilisateur plutôt que supposé correct parce que `flutter analyze`/les tests passent.
 
 ---
 

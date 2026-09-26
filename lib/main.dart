@@ -14,6 +14,7 @@ import 'services/hafs_service.dart';
 import 'services/hizb_metadata_service.dart';
 import 'services/notification_service.dart';
 import 'services/page_metadata_service.dart';
+import 'services/quran_audio_handler.dart';
 import 'services/storage_service.dart';
 import 'services/surah_metadata_service.dart';
 import 'services/warsh_service.dart';
@@ -70,10 +71,12 @@ void main() async {
   final hizbF = _initHizb();
   final surahMetaF = _initSurahMeta();
   final warshAvailableF = _initWarsh();
+  final audioF = QuranAudioHandler.initialize();
   await hafsF;
   await pageMetadataF;
   await hizbF;
   await surahMetaF;
+  await audioF;
   final warshAvailable = await warshAvailableF;
 
   // Migration one-shot des installations pré-parcours-par-riwaya (config,
