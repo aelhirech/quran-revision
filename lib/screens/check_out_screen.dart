@@ -63,6 +63,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   // [_learnPlan], which only carries THIS day's proposed portion.
   LearningProgress? _learningProgress;
   final Set<int> _notLearned = {};
+  // US-12: verses of [_learnPlan]'s surah learned on its previous learning
+  // day, and those the user withdraws (unchecked = no longer holds).
+  List<int> _lastBlock = const [];
+  final Set<int> _retiredFromLastBlock = {};
   int _step = 1;
   // Les exceptions persistées n'ont été reprises qu'une fois (voir [_load]).
   bool _prefilled = false;
@@ -98,6 +102,9 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     final state = context.read<AppState>();
     final itemsF = state.dayUnitsWithStatus(date: widget.date);
     final learnF = state.learningPlanFor(widget.date);
+    final lastBlockF = learnF.then<List<int>>((l) => l == null
+        ? const <int>[]
+        : state.lastLearnedBlock(l.sourate.id, widget.date));
     final sealedF = state.isDaySealed(widget.date);
     final learningProgressF =
         state.guideDone('checkout_done') ? null : state.learningInProgress();
@@ -105,10 +112,12 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     final learn = await learnF;
     final sealed = await sealedF;
     if (learningProgressF != null) _learningProgress = await learningProgressF;
+    final lastBlock = await lastBlockF;
     if (!mounted) return;
     setState(() {
       _items = items;
       _learnPlan = learn;
+      _lastBlock = lastBlock;
       // "Tout fait par défaut" ne vaut que pour une PREMIÈRE clôture. Sur une
       // journée déjà scellée, repartir de zéro effacerait en silence les
       // exceptions déjà déclarées dès que l'utilisateur re-clôture. Une seule
@@ -167,6 +176,8 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       // sont confirmés acquis, ceux décochés repassent explicitement à
       // `reach = 0` (ils seront reproposés) plutôt que de rester tels quels.
       final learn = _learnPlan;
+      // Every learning write must land before `checkOut` below: its hand-off
+      // reads them to decide whether a surah moves to revision.
       await Future.wait([
         for (final entry in checkedBySurah.entries)
           state.markVersesReached(widget.date, entry.key, entry.value, true),
@@ -180,6 +191,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
               true),
           state.markLearnVerses(
               widget.date, learn.sourate.id, _notLearned.toList(), false),
+          state.unlearnVerses(learn.sourate.id, _retiredFromLastBlock),
         ],
       ]);
       final cycleWrapped = await state.checkOut(widget.date);

@@ -148,26 +148,6 @@ void main() {
   });
 
   test(
-      "un verset travaillé à la volée dans l'écran de pratique ne détourne pas "
-      'le plan du jour vers sa sourate', () async {
-    final today = _isoDate(DateTime.now());
-    final state = newState();
-    await state.setLearningForToday(kawthar(state), 2);
-    // Sourate 30, pratiquée hors plan du jour : `learnVerses` écrit
-    // `checked_out = 1`, et son id est plus petit que 108 — sans le filtre,
-    // l'`ORDER BY surah_id` la ferait passer pour la portion du jour et le
-    // check-out proposerait de « désapprendre » ces versets acquis.
-    await AyahFactsLearning.learnVerses(30, [1, 2], Riwaya.hafs);
-
-    final plan = await AyahFactsLearning.learnPlanFor(today, Riwaya.hafs);
-    expect(plan!.surahId, 108);
-    expect(plan.ayahIds, [1, 2]);
-
-    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
-    await AyahFactsLearning.deleteLearnFacts(30, Riwaya.hafs);
-  });
-
-  test(
       '« Je n\'apprends rien aujourd\'hui » survit à une réouverture de l\'app',
       () async {
     final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
@@ -285,6 +265,56 @@ void main() {
     final handed = await state.handOffLearnedSurahs();
     expect(handed, isEmpty,
         reason: 'sourate incomplète : pas de bascule en révision');
+
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
+  });
+
+  // US-12: the check-out can withdraw the previous learning day's verses.
+  test('lastLearnedBlock renvoie les versets acquis au dernier jour antérieur',
+      () async {
+    final today = _isoDate(DateTime.now());
+    final d3 = _isoDate(DateTime.now().subtract(const Duration(days: 3)));
+    final d1 = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final state = newState();
+    await AyahFactsLearning.proposeLearnVerses(d3, Riwaya.hafs, 114, [1, 2]);
+    await state.markLearnVerses(d3, 114, [1, 2], true);
+    await AyahFactsLearning.proposeLearnVerses(d1, Riwaya.hafs, 114, [3, 4]);
+    await state.markLearnVerses(d1, 114, [3], true);
+
+    expect(await state.lastLearnedBlock(114, today), [3],
+        reason: 'verset 4 visé mais pas acquis (reach=0) : hors du bloc');
+    expect(await state.lastLearnedBlock(114, d1), [1, 2],
+        reason: 'strictement avant la date clôturée, pas le jour même');
+    expect(await state.lastLearnedBlock(114, d3), isEmpty);
+
+    await state.unlearnVerses(114, [3]);
+    expect(await state.lastLearnedBlock(114, today), [1, 2],
+        reason: 'un verset retiré ne compte plus : le bloc précédent revient');
+    expect((await state.learningProgressList())
+            .firstWhere((p) => p.sourate.id == 114)
+            .nextVerse,
+        3,
+        reason: 'le verset retiré redevient le prochain à apprendre');
+
+    await AyahFactsLearning.deleteLearnFacts(114, Riwaya.hafs);
+  });
+
+  test(
+      'retirer un verset du dernier bloc avant le hand-off empêche la bascule '
+      'en révision', () async {
+    final today = _isoDate(DateTime.now());
+    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final state = newState();
+    await AyahFactsLearning.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1, 2]);
+    await state.markLearnVerses(yesterday, 108, [1, 2], true);
+    await state.setLearningForToday(kawthar(state), 1);
+    await state.markLearnVerses(today, 108, [3], true);
+
+    // Same order as `CheckOutScreen._close`: withdraw, then hand off.
+    await state.unlearnVerses(108, [2]);
+    expect(await state.handOffLearnedSurahs(), isEmpty,
+        reason: 'le verset 2 ne tient plus : la sourate reste en apprentissage');
+    expect(state.config!.selections.any((s) => s.sourate.id == 108), isFalse);
 
     await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });

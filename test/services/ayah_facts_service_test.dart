@@ -247,8 +247,9 @@ void main() {
     test('reste "en cours" même si le seul verset appris est ensuite désappris',
         () async {
       await AyahFactsLearning.proposeLearnVerses(today, Riwaya.hafs, 31, [1]);
-      await AyahFactsLearning.learnVerses(31, [1], Riwaya.hafs);
-      await AyahFactsLearning.unlearnVerse(31, 1, Riwaya.hafs);
+      await AyahFactsRitual.setReachForVerses(today, Riwaya.hafs, 31, [1], true,
+          type: AyahFactType.learn);
+      await AyahFactsLearning.unlearnVerses(31, [1], Riwaya.hafs);
       final progress = await AyahFactsLearning.loadMainLearningProgress(
           riwaya: Riwaya.hafs, sourates: [testSourate(31)]);
       expect(progress, hasLength(1));
@@ -300,7 +301,7 @@ void main() {
     });
 
     test(
-        "unlearnVerse retrograde TOUTES les lignes datees du verset — les "
+        "unlearnVerses retrograde TOUTES les lignes datees du verset — les "
         "lecteurs de « appris » ignorent la date, ne rabattre que la plus "
         "recente ferait du desapprentissage un no-op silencieux",
         () async {
@@ -312,7 +313,7 @@ void main() {
             type: AyahFactType.learn);
       }
 
-      await AyahFactsLearning.unlearnVerse(40, 1, Riwaya.hafs);
+      await AyahFactsLearning.unlearnVerses(40, [1], Riwaya.hafs);
 
       final appris = await AyahFactsLearning.learnedVersesBySourate(
           riwaya: Riwaya.hafs);

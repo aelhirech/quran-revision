@@ -44,7 +44,9 @@ class SCheckOut {
   static String get checkOutApprentissageDesc => S._t(
       'Décoche un verset à continuer d\'apprendre : il sera reproposé demain.',
       'Uncheck a verse to keep learning: it will be proposed again tomorrow.');
-  static String sourateApprise(String name) =>
-      S._t('$name est mémorisée — elle rejoint ta révision ✓',
-          '$name is memorized — it joins your revision ✓');
+  static String get checkOutDernierBloc =>
+      S._t('Appris la dernière fois', 'Learned last time');
+  static String get checkOutDernierBlocDesc => S._t(
+      'Décoche un verset qui ne tient plus : il redeviendra à apprendre.',
+      "Uncheck a verse that didn't hold: it goes back to learning.");
 }

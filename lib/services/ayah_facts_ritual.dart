@@ -241,8 +241,7 @@ class AyahFactsRitual {
   /// **Volontairement borné à `type = 'revise'`** : `checked_out` n'est lu
   /// que par [pendingDate], elle-même filtrée sur `revise`. L'élargir à
   /// `learn` ressemblerait à une décision de modèle sans en être une (aucun
-  /// lecteur, et `AyahFactsLearning.learnVerses` écrit déjà `checked_out = 1`
-  /// par construction) — si le gating du moteur quotidien doit un jour tenir
+  /// lecteur) — si le gating du moteur quotidien doit un jour tenir
   /// compte de l'apprentissage, c'est [pendingDate] qu'il faut élargir en
   /// premier, pas cette écriture. `reach` doit déjà être à jour (voir
   /// [setReach]/[setReachForVerses], appliqués au fil des interactions du

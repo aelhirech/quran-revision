@@ -28,8 +28,8 @@ extension AppStateLearning on AppState {
     return latest;
   }
 
-  /// Next [count] not-yet-acquired verses of [sourate], proposed for today —
-  /// rule shared with the practice screen (`LearningProgress.nextBlock`).
+  /// Next [count] not-yet-acquired verses of [sourate], proposed for today
+  /// (`LearningProgress.nextBlock`).
   /// [progress] avoids a reload when the caller already loaded this surah's
   /// progress.
   Future<void> _proposeLearning(Sourate sourate, int count,
@@ -132,13 +132,23 @@ extension AppStateLearning on AppState {
         type: AyahFactType.learn);
   }
 
+  /// Verses of [surahId] acquired on the last learning day before [date] —
+  /// what the check-out offers to withdraw (US-12).
+  Future<List<int>> lastLearnedBlock(int surahId, String date) =>
+      AyahFactsLearning.lastLearnedBlock(surahId, date, _riwaya);
+
+  /// Withdraws verses learned on a previous day: they go back to "to learn"
+  /// and the surah stays in progress (rows downgraded, never deleted).
+  Future<void> unlearnVerses(int surahId, Iterable<int> ayahIds) =>
+      AyahFactsLearning.unlearnVerses(surahId, ayahIds.toList(), _riwaya);
+
   /// Any fully memorized surah automatically switches to the revision
   /// selection and leaves learning — "once a surah's learning is finished
   /// it becomes revision" (Phase 9 cadrage). Replaces the old manual "Add
   /// to revision" button on the Learn tab (removed). Returns the surahs
   /// that just switched, so the caller can inform the user. Called at
   /// check-out (with `notify: false`, since the caller notifies once for
-  /// the whole operation) and when returning from the practice screen.
+  /// the whole operation).
   ///
   /// The surah joins `selections` **without** going through [saveConfig],
   /// which would reset `cyclePosition` to 0: a freshly memorized surah is

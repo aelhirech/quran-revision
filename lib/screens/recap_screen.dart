@@ -17,7 +17,6 @@ import '../widgets/learning_progress_card.dart';
 import '../widgets/ornamental_divider.dart';
 import '../widgets/sourates_recap_card.dart';
 import '../widgets/streak_card.dart';
-import 'learn_surah_screen.dart';
 
 class RecapScreen extends StatefulWidget {
   const RecapScreen({super.key});
@@ -163,8 +162,9 @@ class _RecapScreenState extends State<RecapScreen> {
   /// Sourates en cours de mémorisation (Phase 9 — reprend le contenu de
   /// l'onglet « Apprendre », supprimé) : le Récap est désormais la vue
   /// d'ensemble unique révision + apprentissage. Démarrer une sourate se
-  /// fait au check-in ; ici on suit sa progression et on pratique verset par
-  /// verset (`LearnSurahScreen`).
+  /// fait au check-in.
+  // Tracking only (US-12): verses are credited or withdrawn at check-out,
+  // never from here.
   List<Widget> _learningSection(ColorScheme cs) {
     final inProgress = _learningProgress.where((p) => !p.isComplete).toList();
     if (inProgress.isEmpty) return const [];
@@ -179,31 +179,10 @@ class _RecapScreenState extends State<RecapScreen> {
         LearningProgressCard(
           progress: p,
           index: i,
-          onTap: () => _openSourate(p),
           onDismiss: () => _deleteLearning(p),
         ),
       const SizedBox(height: 16),
     ];
-  }
-
-  Future<void> _openSourate(LearningProgress p) async {
-    // `LearnSurahScreen` se referme de lui-même en renvoyant `true` quand le
-    // dernier verset vient d'être appris — on ne sonde la bascule
-    // apprentissage → révision que dans ce cas, pas à chaque aller-retour.
-    final completed = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => LearnSurahScreen(progress: p)),
-    );
-    if (!mounted) return;
-    if (completed == true) {
-      final handed = await context.read<AppState>().handOffLearnedSurahs();
-      if (!mounted) return;
-      for (final s in handed) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(SCheckOut.sourateApprise(s.nameFr))));
-      }
-    }
-    await _load(context.read<AppState>().pauseDates);
   }
 
   Future<void> _deleteLearning(LearningProgress p) async {

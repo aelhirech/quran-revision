@@ -124,9 +124,6 @@ class S {
   // Apprentissage
   static String get enCoursDApprentissage => _t("En cours d'apprentissage", 'In progress');
   static String get commencerSourate => _t('Commencer une sourate', 'Start a surah');
-  static String get afficherVerset => _t('Afficher le verset', 'Show verse');
-  static String get masquerVerset => _t('Masquer', 'Hide');
-  static String get sourateCompleted => _t('Sourate complétée ! 🎉', 'Surah completed! 🎉');
   static String get complet => _t('✓ Complet', '✓ Complete');
   static String supprimerApprentissageDe(String nom) =>
       _t("Supprimer l'apprentissage de $nom ?",
@@ -134,8 +131,6 @@ class S {
   static String get supprimerApprentissage => _t("Supprimer l'apprentissage", 'Remove learning');
   static String versetN(int n, int total) => _t('Verset $n / $total', 'Verse $n / $total');
   static String versetsAppris(int n, int total) => _t('$n / $total versets appris', '$n / $total verses learned');
-  static String get versetsApprisLabel => _t('Versets appris', 'Learned verses');
-  static String get longPressDesapprendre => _t('Maintiens un verset pour le désapprendre', 'Long-press a verse to unlearn it');
   static String get supprimer => _t('Supprimer', 'Delete');
 
   // Explication "pages"
@@ -178,13 +173,6 @@ class S {
   static String get fraicheur1AnLabel => _t('Il y a plus d\'un an', 'Over a year ago');
 
   // Apprentissage multi-versets
-  static String get versetsParBloc => _t('Versets par bloc', 'Verses per block');
-  static String appuyerPourReveler(int n) => n == 1
-      ? _t('Appuie pour révéler le verset', 'Tap to reveal the verse')
-      : _t('Appuie pour révéler le bloc', 'Tap to reveal the block');
-  static String marquerBlocAppris(int n) => n == 1
-      ? _t('Marquer comme appris', 'Mark as learned')
-      : _t('Marquer $n versets comme appris', 'Mark $n verses as learned');
   static String blocRange(int from, int to) => 'v.$from–$to';
 
   // Journée clôturée (état au repos de l'accueil)

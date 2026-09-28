@@ -184,9 +184,15 @@ Le choix du composant revient au scoping.
 
 ---
 
+
+---
+
+## Archivées
+
+Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
 ### US-12 — Recentrer l'apprentissage sur le check-out (Récap = suivi seulement)
-**État** : scopée — blueprint + scoping du 2026-09-29, item Backlog « [P2] US-12 ». Modifie le comportement livré par US-4
-(archivée) : son critère 4 (annuler un verset marqué par erreur) change de lieu, voir crit. 3.
+**État** : terminée — sprint `feature/phase-24-sprint1-us12-learn-checkout` (2026-09-29) : `LearnSurahScreen` supprimé, carte du Récap en suivi seul, retrait du dernier bloc au check-out (`lastLearnedBlock`/`unlearnVerses`, écrit avant le hand-off, verrouillé par test). Vue du check-out non vérifiée sur appareil réel. Modifie le comportement livré par US-4 (archivée) : son critère 4 (annuler un verset marqué par erreur) change de lieu, voir crit. 3.
 
 **Statement** : En tant qu'utilisateur qui apprend une sourate, je veux que le Récap me montre
 simplement où j'en suis et que tout ce qui fait avancer (ou reculer) mon apprentissage passe par
@@ -259,11 +265,6 @@ en dehors du check-out — elle redonne une décision que le rituel quotidien po
 
 ---
 
----
-
-## Archivées
-
-Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
 
 ### US-9 — Écoute audio en boucle depuis la vue Coran
 **État** : terminée — implémentée 2026-09-26 (`lib/services/quran_audio_handler.dart`,
