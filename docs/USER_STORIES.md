@@ -105,6 +105,93 @@ dépendance au site source. Le téléchargement lui-même passe toujours par lui
 
 ---
 
+### US-11 — Répéter en boucle une portion choisie (extension d'US-9)
+**État** : à scoper — blueprint du 2026-09-29. Rattachée à l'epic audio d'US-9 (archivée, pas
+ressortie), comme US-10.
+
+**Statement** : En tant qu'utilisateur qui mémorise ou consolide un passage, je veux pouvoir
+restreindre la boucle audio à quelques versets précis de la plage affichée, afin de répéter
+jusqu'à ce qu'ils tiennent sans réécouter toute la sourate.
+
+**Lève une exclusion d'US-9** : « la plage écoutée est toujours celle déjà affichée, jamais un
+choix de plage dédié à l'audio ». Levée assumée : le choix se fait **à l'intérieur** de la plage
+déjà affichée, dans la même vue, jamais par un écran audio indépendant (celle-là tient toujours).
+
+**Critères d'acceptation** (haut niveau) :
+1. Given la vue Coran ouverte depuis **n'importe quelle surface** (Plan du jour, Récap, carte
+   d'apprentissage), Then deux réglages « du verset … au verset … » sont visibles près du bouton
+   boucle, **pré-remplis avec la plage affichée** : sans y toucher, la boucle se comporte
+   exactement comme aujourd'hui (zéro geste ajouté pour l'usage actuel).
+2. Given une plage affichée, When l'utilisateur ajuste début et fin, Then il ne peut choisir que
+   des versets **à l'intérieur** de cette plage, et la fin ne peut jamais précéder le début.
+3. Given une portion choisie, When il lance la boucle, Then seuls ces versets sont répétés, en
+   boucle continue, avec tout le comportement d'US-9 (arrière-plan, écran verrouillé, contrôles)
+   et d'US-10 (lecture locale si la sourate est téléchargée, signal clair sinon hors ligne).
+4. **Fluidité** : Given une longue sourate (ex. Al-Baqara, 286 versets), When l'utilisateur règle
+   la portion, Then il y arrive **au verset près en quelques gestes**, sans faire défiler une
+   liste de toute la sourate ni quitter la vue. When il modifie la portion pendant une lecture,
+   Then la boucle bascule sur la nouvelle portion sans avoir à arrêter/relancer.
+5. Given la vue Coran refermée puis rouverte, Then la portion repart de la plage affichée (pas de
+   mémorisation d'une portion d'une ouverture à l'autre).
+6. Given une écoute sur une portion, Then rien ne change dans la progression (US-9 crit. 4).
+
+**Exclusions explicites** :
+- Pas de compteur de répétitions (« 5 fois chaque verset »), pas de pause entre répétitions, pas
+  de vitesse de lecture : fonctions courantes des apps de mémorisation, écartées ici pour ne pas
+  transformer la vue Coran en lecteur audio à réglages (thèse : ne pas redonner des décisions).
+  À recadrer en blueprint si un vrai usage le réclame.
+- Pas de choix hors de la plage affichée, pas d'autre sourate.
+- Pas de sélection par toucher des versets dans le texte (écarté au profit des deux réglages,
+  plus visibles — choix utilisateur du 2026-09-29).
+
+**Note pour le scoping** (recherche UX 2026-09-29) : les apps de mémorisation (Memorize de
+Greentech, Quran Loop, Hafiz Quran) exposent toutes un « verset début / verset fin ». Pour tenir
+le crit. 4 sur 286 versets, un simple menu déroulant ne suffit pas (défilement long) ; piste à
+évaluer : un curseur à deux poignées pour le réglage grossier + un ajustement ±1 au verset près.
+Le choix du composant revient au scoping.
+
+**Scoping technique** : _(vide — à remplir par `quran-scoping`)_
+
+---
+
+### US-12 — Recentrer l'apprentissage sur le check-out (Récap = suivi seulement)
+**État** : à scoper — blueprint du 2026-09-29. Modifie le comportement livré par US-4
+(archivée) : son critère 4 (annuler un verset marqué par erreur) change de lieu, voir crit. 3.
+
+**Statement** : En tant qu'utilisateur qui apprend une sourate, je veux que le Récap me montre
+simplement où j'en suis et que tout ce qui fait avancer (ou reculer) mon apprentissage passe par
+la clôture de ma journée, afin de ne plus avoir un second écran d'apprentissage à comprendre.
+
+**Pourquoi** : l'écran détaillé ouvert depuis la carte d'apprentissage du Récap (taille de bloc,
+validation de versets, dôme, hadith) est une seconde porte d'entrée pour créditer des versets,
+en dehors du check-out — elle redonne une décision que le rituel quotidien porte déjà.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given une sourate en cours d'apprentissage dans le Récap, When l'utilisateur touche sa carte,
+   Then **rien ne s'ouvre** : la carte est un suivi (nom, progression, prochain verset). L'écran
+   d'apprentissage détaillé n'existe plus nulle part dans l'app.
+2. Given cette carte, Then le texte reste accessible (icône livre → vue Coran, avec la boucle et
+   la portion d'US-11), et le glisser pour **abandonner** la sourate est conservé.
+3. Given le check-out, Then l'utilisateur peut, pour une sourate en apprentissage, **retirer les
+   versets du jour et le dernier bloc appris les jours précédents** s'il constate qu'ils ne
+   tiennent pas : ils redeviennent « à apprendre », et la sourate reste en cours d'apprentissage
+   (jamais perdue — continuité US-4 crit. 4).
+4. Given l'apprentissage d'une sourate, Then les versets ne sont crédités **qu'au check-out** ;
+   quand le dernier verset y est validé, la sourate bascule en révision comme aujourd'hui.
+5. Given un utilisateur qui avait des versets validés via l'ancien écran, Then sa progression est
+   intacte après la mise à jour (rien à migrer, rien de perdu).
+
+**Exclusions explicites** :
+- Pas de remplacement de l'écran supprimé par un autre écran ou une feuille équivalente.
+- Pas d'annulation au-delà du dernier bloc appris (pas de liste de tous les versets appris au
+  check-out — choix du 2026-09-29, pour ne pas alourdir la clôture).
+- La section « en cours d'apprentissage » du Récap reste ; seule la vue qui s'ouvrait au toucher
+  disparaît.
+
+**Scoping technique** : _(vide — à remplir par `quran-scoping`)_
+
+---
+
 ---
 
 ## Archivées
