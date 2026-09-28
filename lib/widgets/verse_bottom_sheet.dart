@@ -6,11 +6,13 @@ import '../core/reciters.dart';
 import '../core/strings.dart';
 import '../models/riwaya.dart';
 import '../models/sourate.dart';
+import '../services/audio_download_service.dart';
 import '../services/quran_audio_handler.dart';
 import '../services/storage_service.dart';
 import '../services/surah_metadata_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
+import 'audio_download_button.dart';
 import 'bismillah_line.dart';
 import 'draggable_handle.dart';
 import 'reciter_picker_sheet.dart';
@@ -107,10 +109,17 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
     }
     setState(() => _starting = true);
     try {
-      final urls =
-          audioTrackUrls(reciter, widget.sourate.id, widget.ayahStart, widget.ayahEnd);
+      final sources = await AudioDownloadService.instance.playableSources(
+          reciter, widget.sourate.id, widget.ayahStart, widget.ayahEnd);
+      if (sources == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(S.audioIndisponibleHorsConnexion)));
+        }
+        return;
+      }
       await handler.playLoop(
-        urls: urls,
+        sources: sources,
         item: MediaItem(
           id: mediaId,
           title: '${widget.sourate.nameFr} · ${S.blocRange(widget.ayahStart, widget.ayahEnd)}',
@@ -223,6 +232,13 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
               );
             },
           ),
+          if (reciter != null)
+            AudioDownloadButton(
+              // Fresh state per reciter/surah: no stale "available" carried over.
+              key: ValueKey((reciter.id, widget.sourate.id)),
+              reciter: reciter,
+              sourate: widget.sourate,
+            ),
           const SizedBox(width: 8),
           Expanded(
             child: TextButton(

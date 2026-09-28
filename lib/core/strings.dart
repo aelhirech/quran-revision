@@ -249,4 +249,21 @@ class S {
   static String get audioErreurLecture => _t(
       "Impossible de lire cette plage avec ce récitateur — vérifie ta connexion internet.",
       "Couldn't play this range with this reciter — check your internet connection.");
+
+  // Écoute hors connexion (US-10)
+  static String get telechargerSourate =>
+      _t('Télécharger la sourate pour écouter hors connexion', 'Download the surah to listen offline');
+  static String get disponibleHorsConnexion =>
+      _t('Disponible hors connexion', 'Available offline');
+  static String telechargementEnCours(int done, int total) =>
+      _t('Téléchargement : $done / $total versets', 'Downloading: $done / $total verses');
+  static String get audioIndisponibleHorsConnexion => _t(
+      "Cette plage n'est pas téléchargée pour ce récitateur — reconnecte-toi pour l'écouter.",
+      "This range isn't downloaded for this reciter — reconnect to listen to it.");
+  static String get audioTelechargementWifi => _t(
+      'Téléchargement en Wi-Fi uniquement — connecte-toi à un réseau Wi-Fi.',
+      'Downloads run on Wi-Fi only — connect to a Wi-Fi network.');
+  static String get audioErreurTelechargement => _t(
+      'Le téléchargement a été interrompu. Touche à nouveau pour reprendre là où il s\'est arrêté.',
+      'The download was interrupted. Tap again to resume where it stopped.');
 }

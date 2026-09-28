@@ -76,13 +76,13 @@ class QuranAudioHandler extends BaseAudioHandler {
   /// site.
   bool isLoadedFor(String mediaId) => mediaItem.valueOrNull?.id == mediaId;
 
-  /// Plays [urls] (one mp3 per verse) in a continuous loop, under [item]'s
-  /// label (surah/reciter name shown on the lockscreen). Never touches
-  /// `ayah_facts` — purely passive.
-  Future<void> playLoop({required List<String> urls, required MediaItem item}) async {
+  /// Plays [sources] (one mp3 per verse, remote or local `file://`) in a
+  /// continuous loop, under [item]'s label (surah/reciter name shown on the
+  /// lockscreen). Never touches `ayah_facts` — purely passive.
+  Future<void> playLoop({required List<Uri> sources, required MediaItem item}) async {
     mediaItem.add(item);
     await _player.setAudioSources(
-      [for (final u in urls) AudioSource.uri(Uri.parse(u))],
+      [for (final u in sources) AudioSource.uri(u)],
     );
     await _player.setLoopMode(LoopMode.all);
     await _player.play();
