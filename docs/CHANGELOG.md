@@ -48,35 +48,9 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-12 — Supprimer l'écran Apprendre détaillé, annulation déplacée au check-out
-Détail complet et justification : `docs/USER_STORIES.md` US-12 § Scoping technique.
-- **Suppression** : `lib/screens/learn_surah_screen.dart`, `lib/widgets/verse_display_card.dart`,
-  `S.versetsParBloc`/`S.marquerBlocAppris` (FR/EN). **Garder** `DomeProgressCard`, `hadith_data`,
-  `LearningProgress.nextBlock`, `unlearnVerse`, `S.blocRange`, `S.versetN` (utilisés ailleurs,
-  vérifié par grep).
-- **Récap** : `recap_screen.dart` perd `_openSourate` et son import. `LearningProgressCard` perd
-  `onTap` et le chevron ; l'icône livre et le glisser pour abandonner restent.
-- **Requête** : `AyahFactsLearning.lastLearnedBlock(int surahId, String beforeDate, Riwaya)` →
-  `List<int>` triée, les versets `type='learn', reach=1` à `MAX(date) < beforeDate`.
-- **Check-out** : si `_learnPlan != null` et que `lastLearnedBlock(_learnPlan.sourate.id,
-  widget.date)` n'est pas vide, afficher une section « dernier bloc appris » avec des chips
-  cochées par défaut (patron `VerseToggleChips`, décoché = retiré). La section va dans
-  `check_out_sections.dart`, l'état `_lastBlock`/`_retiredFromLastBlock` dans
-  `check_out_screen.dart`. Au scellement, lancer `unlearnVerse` pour chaque verset retiré dans le
-  **même `Future.wait`** que `markLearnVerses`, **avant** `state.checkOut` : sinon le hand-off
-  bascule en révision une sourate incomplète.
-- **Tests** : `lastLearnedBlock` (plusieurs dates, `reach=0` ignoré, vide avant la première
-  date) + scénario retrait puis complétion le même jour → pas de hand-off.
-- **Exclus** : autre écran/feuille de remplacement ; annulation au-delà du dernier bloc ; section
-  pour une sourate qui n'est pas la portion du jour.
-- **Taille** : `check_out_screen.dart` est à 329 lignes. S'il dépasse 400 lignes après le sprint,
-  ouvrir un item d'extraction (règle `CLAUDE.md`).
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` (écrans Récap et Check-out, retirer
-  `LearnSurahScreen`). Passer US-12 à « terminée » puis l'archiver.
-
 ### [P2] US-11 — Portion audio réglable dans la vue Coran
-Détail complet : `docs/USER_STORIES.md` US-11 § Scoping technique. Indépendant d'US-12 (aucun
-fichier commun), à faire dans n'importe quel ordre.
+Détail complet : `docs/USER_STORIES.md` US-11 § Scoping technique. US-12 est livrée (aucun
+fichier commun avec ce sprint).
 - **Extraction 1** : `lib/widgets/verse_range_slider.dart`, avec `VerseRangeSlider(min, max,
   values, onChanged, onChangeEnd)` : le `RangeSlider` + libellés « v.X · N versets · v.Y » sortis
   de `VerseRangePicker`, plus un **±1 sur chaque borne** (bornés à `[min, max]`, fin ≥ début).
@@ -139,6 +113,25 @@ tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de
   ou le check-out.
 - **Doc** : §6, §8.4 (Réglages), §8.6bis. Passer US-10 à « terminée » puis l'archiver.
 
+### [P3] Retester le filtre `checked_out = 0` de `learnPlanFor` sur des lignes héritées
+Relevé en `/code-review high` du sprint US-12 (2026-09-29, test-coverage). Le test « un verset
+travaillé à la volée dans l'écran de pratique ne détourne pas le plan du jour » a été supprimé
+avec `AyahFactsLearning.learnVerses`, son seul moyen d'écrire une ligne `learn` à
+`checked_out = 1`. Le filtre, lui, reste utile pour les lignes que l'ancien écran a laissées sur
+les appareils. À faire : dans `test/state/app_state_learning_test.dart`, insérer directement la
+ligne héritée (`databaseFactory.openDatabase` sur `history.db`, comme
+`clearFactsBetweenTests` dans `test/services/test_helpers.dart`) : sourate 30, versets 1-2, date
+du jour, `type='learn'`, `reach=1`, `checked_out=1`. Puis reprendre les assertions supprimées :
+`learnPlanFor(today)` renvoie la sourate 108, versets `[1, 2]`.
+
+### [P3] L'échéance du guide du premier check-out ignore les versets retirés
+Relevé en `/code-review high` du sprint US-12 (2026-09-29). `CheckOutScreen._guideStep` calcule
+`_learningProgress.daysToFinish(...)` sur la progression chargée avant tout retrait. Décocher des
+versets du dernier bloc ne met pas à jour l'échéance affichée sur le même écran. À faire : passer
+à `daysToFinish` un `LearningProgress` dont `learnedVerses` exclut `_retiredFromLastBlock`, et
+seulement quand la sourate de `_learningProgress` est celle de `_learnPlan`. Ne concerne que le
+tout premier check-out (le guide disparaît ensuite), d'où P3.
+
 ### [P3] `returningVerses` scanne tout l'historique scellé avant de filtrer en Dart
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, efficiency). `AyahFactsRitual.
 returningVerses` récupère toutes les lignes `reach=0, checked_out=1` de la riwaya avant
@@ -187,6 +180,7 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
 - **Coran en SQLite** (texte + word-by-word + tajweed) — débloquerait "jeu mot arabe → traduction" et "tajweed coloré" ci-dessous, JOIN naturel avec `ayah_facts`. Garde-fou : ne pas migrer parce que "c'est plus propre", seulement si une des deux features dépendantes est réellement engagée.
 - **Jeu mot arabe → traduction** (Apprendre) — bloqué faute de données word-by-word (QUL), voir Coran SQLite.
 - **Affichage tajweed coloré** — bloqué faute de données tajwid (QUL), voir Coran SQLite. Passera par `AppPalette`/tokens sémantiques, jamais de couleur en dur.
+- **Annoncer la bascule d'une sourate mémorisée vers la révision** (relevé au sprint US-12, 2026-09-29) : le seul message qui l'annonçait (`sourateApprise`, snackbar du Récap) est parti avec l'écran de pratique. Le check-out fait la bascule en silence (`handOffLearnedSurahs(notify: false)`, résultat ignoré). À cadrer avant tout scoping : où l'annoncer (snackbar, modale type `CycleMilestoneDialog`, ligne dans le Récap) et à quel moment de l'histoire (clôture = regard devant, voir `CLAUDE.md` § Direction narrative).
 - **Timeline d'activité (heatmap) dans Profil/Récap** — chaque fait `ayah_facts` est déjà daté, gratuit en donnée.
 - **Mode "versets à retravailler" en jeu à part** — mécanique de jeu à définir avant tout code.
 - **Gamification narrative [H]** — vision long terme, direction artistique déjà validée (Mus'haf/Tahajjud), mécanique narrative encore à définir.

@@ -24,12 +24,8 @@ class LearningProgress {
 
   /// Les [count] prochains versets **non encore acquis**, en sautant les
   /// trous (l'utilisateur peut avoir désappris un verset au milieu) plutôt
-  /// que de repartir de `nextVerse + 1`. Source unique de la règle « qu'est-ce
-  /// qu'on travaille ensuite » : partagée par la proposition du jour
-  /// (`AppState._proposeLearning`) et le bloc de pratique
-  /// (`LearnSurahScreen._currentBlock`) — les deux la calculaient séparément,
-  /// avec le risque de proposer une portion au plan du jour et une autre à
-  /// l'écran de pratique. [nextVerse] en est le cas dégénéré `count == 1`.
+  /// que de repartir de `nextVerse + 1`. [nextVerse] en est le cas dégénéré
+  /// `count == 1`.
   List<int> nextBlock(int count) {
     final result = <int>[];
     for (int v = 1; v <= totalVerses && result.length < count; v++) {
@@ -46,18 +42,6 @@ class LearningProgress {
   int daysToFinish(int versesPerDay) => versesPerDay <= 0
       ? 0
       : ((totalVerses - learnedCount) / versesPerDay).ceil();
-
-  LearningProgress withVerseLearned(int verse) => LearningProgress(
-        sourate: sourate,
-        learnedVerses: {...learnedVerses, verse},
-        startDate: startDate,
-      );
-
-  LearningProgress withVerseUnlearned(int verse) => LearningProgress(
-        sourate: sourate,
-        learnedVerses: {...learnedVerses}..remove(verse),
-        startDate: startDate,
-      );
 
   Map<String, dynamic> toJson() => {
         'sourate': sourate.toJson(),

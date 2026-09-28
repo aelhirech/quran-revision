@@ -72,12 +72,7 @@ extension _CheckOutSections on _CheckOutScreenState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(SCheckOut.checkOutApprentissage.toUpperCase(),
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.4,
-                    color: palette.textMuted)),
+            _miniLabel(palette, SCheckOut.checkOutApprentissage),
             const SizedBox(height: 6),
             Text('${learn.sourate.nameFr} · ${learn.sourate.nameAr}',
                 style: TextStyle(
@@ -85,42 +80,60 @@ extension _CheckOutSections on _CheckOutScreenState {
                     fontWeight: FontWeight.w600,
                     color: palette.textPrimary)),
             const SizedBox(height: 10),
-            VerseToggleChips(
-              verses: learn.ayahIds,
-              unchecked: _notLearned,
-              onToggle: (v) => _setState(() {
-                if (!_notLearned.add(v)) _notLearned.remove(v);
-              }),
-              checkedBorderColor: palette.gold.withValues(alpha: 0.8),
-              childFor: (v, checked) => Text('$v',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: checked ? palette.goldDark : palette.textMuted)),
-              trailing: [
-                if (learn.ayahIds.length < learn.sourate.verses)
-                  VerseChip(
-                    borderColor: palette.gold.withValues(alpha: 0.7),
-                    onTap: _addLearnedVerse,
-                    child: Icon(Icons.add, size: 14, color: palette.textPrimary),
-                  ),
-              ],
-            ),
+            _goldToggleChips(palette, learn.ayahIds, _notLearned, trailing: [
+              if (learn.ayahIds.length < learn.sourate.verses)
+                VerseChip(
+                  borderColor: palette.gold.withValues(alpha: 0.7),
+                  onTap: _addLearnedVerse,
+                  child: Icon(Icons.add, size: 14, color: palette.textPrimary),
+                ),
+            ]),
             const SizedBox(height: 8),
-            Text(SCheckOut.checkOutApprentissageDesc,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
-                    color: palette.textMuted)),
-            Text(SCheckOut.checkOutApprisEnPlusHint,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
-                    color: palette.textMuted)),
+            _hint(palette, SCheckOut.checkOutApprentissageDesc),
+            _hint(palette, SCheckOut.checkOutApprisEnPlusHint),
+            if (_lastBlock.isNotEmpty) ...[
+              // US-12: the previous learning day's verses, checked by
+              // default — unchecking one withdraws it at close.
+              const SizedBox(height: 14),
+              _miniLabel(palette, SCheckOut.checkOutDernierBloc),
+              const SizedBox(height: 8),
+              _goldToggleChips(palette, _lastBlock, _retiredFromLastBlock),
+              const SizedBox(height: 8),
+              _hint(palette, SCheckOut.checkOutDernierBlocDesc),
+            ],
           ],
         ),
       ),
     ];
   }
+
+  Widget _miniLabel(AppPalette palette, String text) => Text(text.toUpperCase(),
+      style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.4,
+          color: palette.textMuted));
+
+  Widget _hint(AppPalette palette, String text) => Text(text,
+      style: TextStyle(
+          fontSize: 11, fontStyle: FontStyle.italic, color: palette.textMuted));
+
+  /// Checked by default; tapping a verse toggles it in [unchecked].
+  Widget _goldToggleChips(AppPalette palette, List<int> verses, Set<int> unchecked,
+          {List<Widget> trailing = const []}) =>
+      VerseToggleChips(
+        verses: verses,
+        unchecked: unchecked,
+        onToggle: (v) => _setState(() {
+          if (!unchecked.add(v)) unchecked.remove(v);
+        }),
+        checkedBorderColor: palette.gold.withValues(alpha: 0.8),
+        childFor: (v, checked) => Text('$v',
+            style: TextStyle(
+                fontSize: 11,
+                color: checked ? palette.goldDark : palette.textMuted)),
+        trailing: trailing,
+      );
 
   Widget _part2Body(AppPalette palette) {
     final preview = context.read<AppState>().todayPreviewUnits;

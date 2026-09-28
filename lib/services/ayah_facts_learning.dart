@@ -3,33 +3,20 @@ part of 'ayah_facts_service.dart';
 /// Faits d'apprentissage (`type = 'learn'`) — voir [AyahFactsService] pour le
 /// schéma partagé (`_open`/`_userId`, accessibles ici via `part of`).
 class AyahFactsLearning {
-  /// Marque plusieurs versets appris en un seul batch (une transaction, un
-  /// aller-retour SQLite) — utilisé pour un bloc de versets (1/3/5) marqué
-  /// d'un coup, pour ne pas risquer un bloc à moitié persisté si l'app est
-  /// interrompue entre deux écritures individuelles.
-  static Future<void> learnVerses(
-      int surahId, List<int> ayahIds, Riwaya riwaya) async {
-    if (ayahIds.isEmpty) return;
+  /// Verses of [surahId] still acquired on the most recent date strictly
+  /// before [beforeDate] — the "last learned block" the check-out lets the
+  /// user withdraw (US-12). Sorted, empty if nothing was learned before.
+  static Future<List<int>> lastLearnedBlock(
+      int surahId, String beforeDate, Riwaya riwaya) async {
     final db = await AyahFactsService._open();
-    final date = DateTime.now().toIso8601String().substring(0, 10);
-    final batch = db.batch();
-    for (final ayahId in ayahIds) {
-      batch.insert(
-        'ayah_facts',
-        AyahFact(
-          userId: AyahFactsService._userId,
-          date: date,
-          riwaya: riwaya,
-          surahId: surahId,
-          ayahId: ayahId,
-          type: AyahFactType.learn,
-          reach: true,
-          checkedOut: true,
-        ).toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-    }
-    await batch.commit(noResult: true);
+    final rows = await db.rawQuery(
+        'WITH learned AS (SELECT ayah_id, date FROM ayah_facts '
+        'WHERE riwaya = ? AND type = ? AND reach = 1 AND surah_id = ?) '
+        'SELECT ayah_id FROM learned '
+        'WHERE date = (SELECT MAX(date) FROM learned WHERE date < ?) '
+        'ORDER BY ayah_id',
+        [riwaya.name, AyahFactType.learn.name, surahId, beforeDate]);
+    return [for (final row in rows) row['ayah_id'] as int];
   }
 
   /// Repasse un verset à `reach = 0` ("visé, pas encore atteint") plutôt que
@@ -46,11 +33,18 @@ class AyahFactsLearning {
   /// would leave the verse acquired and make the gesture a silent no-op. What
   /// carries the history is the EXISTENCE of the dated rows, not their
   /// `reach` — same semantics as `setReach` on the revision side.
-  static Future<void> unlearnVerse(int surahId, int ayahId, Riwaya riwaya) async {
+  ///
+  /// One UPDATE for the whole list: a half-applied withdrawal could let the
+  /// check-out hand-off see the surah as complete.
+  static Future<void> unlearnVerses(
+      int surahId, List<int> ayahIds, Riwaya riwaya) async {
+    if (ayahIds.isEmpty) return;
     final db = await AyahFactsService._open();
+    final placeholders = List.filled(ayahIds.length, '?').join(', ');
     await db.update('ayah_facts', {'reach': 0},
-        where: 'surah_id = ? AND ayah_id = ? AND riwaya = ? AND type = ?',
-        whereArgs: [surahId, ayahId, riwaya.name, AyahFactType.learn.name]);
+        where: 'surah_id = ? AND riwaya = ? AND type = ? '
+            'AND ayah_id IN ($placeholders)',
+        whereArgs: [surahId, riwaya.name, AyahFactType.learn.name, ...ayahIds]);
   }
 
   static Future<Map<int, Set<int>>> learnedVersesBySourate(
@@ -165,11 +159,13 @@ class AyahFactsLearning {
   ///
   /// Filtre `checked_out = 0`, ce qui distingue la proposition du jour
   /// (écrite par [proposeLearnVerses]) des versets travaillés à la volée
-  /// dans l'écran de pratique ([learnVerses] écrit `checked_out = 1`) — sans
+  /// dans l'écran de pratique — sans
   /// ce filtre, pratiquer une autre sourate le même jour pouvait détourner
   /// le plan du jour vers elle (`ORDER BY surah_id` prend le plus petit id),
   /// et le check-out proposait alors de « désapprendre » des versets
   /// réellement acquis.
+  /// Still needed after US-12 removed that screen: its `checked_out = 1`
+  /// rows remain in existing devices' history.
   ///
   /// S'il reste plusieurs sourates candidates (l'utilisateur a changé de
   /// sourate en cours de journée après en avoir déjà acquis des versets),
