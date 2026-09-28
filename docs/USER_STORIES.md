@@ -106,7 +106,7 @@ dépendance au site source. Le téléchargement lui-même passe toujours par lui
 ---
 
 ### US-11 — Répéter en boucle une portion choisie (extension d'US-9)
-**État** : à scoper — blueprint du 2026-09-29. Rattachée à l'epic audio d'US-9 (archivée, pas
+**État** : scopée — blueprint + scoping du 2026-09-29. Item Backlog : « [P2] US-11 ». Rattachée à l'epic audio d'US-9 (archivée, pas
 ressortie), comme US-10.
 
 **Statement** : En tant qu'utilisateur qui mémorise ou consolide un passage, je veux pouvoir
@@ -150,12 +150,42 @@ le crit. 4 sur 286 versets, un simple menu déroulant ne suffit pas (défilement
 évaluer : un curseur à deux poignées pour le réglage grossier + un ajustement ±1 au verset près.
 Le choix du composant revient au scoping.
 
-**Scoping technique** : _(vide — à remplir par `quran-scoping`)_
+**Scoping technique** (2026-09-29) :
+- **Fichiers UI** : `lib/widgets/verse_bottom_sheet.dart` (285 lignes : la barre audio en sort,
+  voir ci-dessous) ; **nouveau** `lib/widgets/verse_audio_bar.dart` (récitateur, boucle,
+  téléchargement, portion) ; **nouveau** `lib/widgets/verse_range_slider.dart` (extrait de
+  `VerseRangePicker`) ; `lib/widgets/verse_range_picker.dart` (consomme le widget extrait) ;
+  `lib/core/strings.dart`. Aucun appelant de `VerseBottomSheet.show` ne change : la portion
+  s'applique partout par construction (crit. 1).
+- **Réutilisation, pas de duplication** : `VerseRangePicker` a déjà un `RangeSlider` + libellés
+  « v.X … N versets … v.Y » sur `1..sourate.verses`. On l'extrait en `VerseRangeSlider(min, max,
+  values, onChanged, onChangeEnd)` avec un **±1 sur chaque borne**, utilisé par les deux. Le ±1
+  profite aussi au check-in, au check-out et à l'onboarding. Les chips de découpe rapide restent
+  propres au picker.
+- **Variables** : état local du nouveau `_VerseAudioBarState` : `_audioStart`/`_audioEnd`
+  initialisés à `ayahStart`/`ayahEnd` (crit. 5 : rien de persisté), plus `_reciter`,
+  `_starting` et `_riwayaForReciter`, déplacés tels quels depuis `_VerseBottomSheetState`.
+  `_mediaId` et `playableSources` utilisent la **portion**, pas la plage affichée. `contextAyah`
+  reste hors audio (il n'est déjà pas dans `ayahStart..ayahEnd`).
+- **`ayah_facts`** : aucune lecture ni écriture (crit. 6).
+- **Décision data model** : état UI éphémère, local au widget. Ni `AppState`, ni
+  `SharedPreferences`.
+- **Crit. 4, précisé (même intention)** : `QuranAudioHandler.playLoop` remplace la playlist
+  (`setAudioSources`). Changer la portion pendant une lecture relance donc la boucle
+  **automatiquement**, au **relâché** du curseur (`onChangeEnd`) ou à chaque ±1, et jamais à
+  chaque pixel de glisser. La coupure dure quelques centaines de ms, et l'utilisateur n'a aucun
+  geste à faire. Si la nouvelle portion n'est pas jouable hors ligne (`playableSources == null`),
+  le signal hors connexion s'affiche, la boucle continue sur l'ancienne portion et le curseur y
+  revient.
+- **Plage d'un seul verset** : le curseur est masqué, rien à choisir.
+- **Risques** : aucun partage de fichier avec US-12 (qui ne touche que `learning_progress_card`
+  côté callers, pas la feuille). Tests : l'état UI n'est pas testable en Dart pur. Test widget
+  léger possible sur `VerseRangeSlider` (±1 bornés à min/max, fin ≥ début).
 
 ---
 
 ### US-12 — Recentrer l'apprentissage sur le check-out (Récap = suivi seulement)
-**État** : à scoper — blueprint du 2026-09-29. Modifie le comportement livré par US-4
+**État** : scopée — blueprint + scoping du 2026-09-29, item Backlog « [P2] US-12 ». Modifie le comportement livré par US-4
 (archivée) : son critère 4 (annuler un verset marqué par erreur) change de lieu, voir crit. 3.
 
 **Statement** : En tant qu'utilisateur qui apprend une sourate, je veux que le Récap me montre
@@ -188,7 +218,44 @@ en dehors du check-out — elle redonne une décision que le rituel quotidien po
 - La section « en cours d'apprentissage » du Récap reste ; seule la vue qui s'ouvrait au toucher
   disparaît.
 
-**Scoping technique** : _(vide — à remplir par `quran-scoping`)_
+**Scoping technique** (2026-09-29) :
+- **Fichiers UI** : suppression de `lib/screens/learn_surah_screen.dart` et de
+  `lib/widgets/verse_display_card.dart` (son seul appelant). `lib/screens/recap_screen.dart` :
+  suppression de `_openSourate` et de l'import. Le hand-off qu'il déclenchait est déjà fait par
+  `AppState.checkOut` (`app_state_checkout.dart`, `handOffLearnedSurahs`).
+  `lib/widgets/learning_progress_card.dart` : suppression du paramètre `onTap` et du chevron ;
+  l'icône livre et le glisser (`onDismiss`) restent. `lib/screens/check_out_screen.dart` (329
+  lignes) et `check_out_sections.dart` (224 lignes) : la nouvelle section va dans
+  `check_out_sections.dart`, et l'écran ne reçoit que l'état et l'appel.
+- **Faux orphelins, à garder** : `DomeProgressCard` (`cycle_progress_card`), `hadith_data`
+  (`home_screen`), `LearningProgress.nextBlock` (`app_state_learning`),
+  `AyahFactsLearning.unlearnVerse` (réutilisé ici), `S.blocRange` et `S.versetN`.
+  **Vrais orphelins, à supprimer** : `S.versetsParBloc` et `S.marquerBlocAppris` (FR/EN).
+- **Variables** : `CheckOutScreen._lastBlock` (`List<int>`, chargé avec `_learnPlan`) et
+  `_retiredFromLastBlock` (`Set<int>`, vide par défaut). Même convention que `_notLearned` :
+  **coché = tient, décoché = retiré**.
+- **`ayah_facts`** : **nouvelle requête** `AyahFactsLearning.lastLearnedBlock(surahId,
+  beforeDate, riwaya)`. Elle renvoie les `ayah_id` des lignes `type='learn' AND reach=1` à la
+  date `MAX(date) < beforeDate` pour cette sourate, triés. Le retrait appelle `unlearnVerse`
+  (existant), qui repasse **toutes** les lignes datées du verset à `reach=0`, sans jamais les
+  supprimer. Après un retrait, le « dernier bloc » suivant est donc le lot d'avant, ce qui est
+  cohérent.
+- **Décision data model** : dérivé par requête sur `ayah_facts`. Ni table, ni flag.
+- **Crit. 3, précisé (même intention)** : la section ne concerne que **la sourate de la portion
+  d'apprentissage de la journée clôturée** (`_learnPlan`). Pas de portion d'apprentissage ce
+  jour-là, ou pas de bloc antérieur : pas de section. Le bloc se cherche avant `widget.date`,
+  pas avant aujourd'hui, pour rester correct au check-out d'une journée en retard.
+- **Crit. 4, ordre obligatoire** : les `unlearnVerse` du dernier bloc passent **avant**
+  `state.checkOut(...)`, dans le même `Future.wait` que les `markLearnVerses`. Sinon
+  `handOffLearnedSurahs` peut basculer en révision une sourate dont on vient de retirer un
+  verset.
+- **Aucune interaction avec le cycle** : `isDaySealed`/`last_sealed_date` ne regardent que les
+  lignes `revise` et la date du jour, et le retrait ne touche que des lignes `learn` d'autres
+  dates. `nextVerse` repart au plus petit verset non acquis, donc le verset retiré est
+  reproposé en premier.
+- **Tests** : `lastLearnedBlock` (plusieurs dates, `reach=0` ignoré, rien avant la date → vide),
+  et un scénario « retirer un verset du dernier bloc puis compléter la sourate le même jour ne
+  déclenche pas le hand-off ». `unlearnVerse` est déjà testé (`ayah_facts_service_test.dart`).
 
 ---
 

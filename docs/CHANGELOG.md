@@ -48,6 +48,60 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
+### [P2] US-12 — Supprimer l'écran Apprendre détaillé, annulation déplacée au check-out
+Détail complet et justification : `docs/USER_STORIES.md` US-12 § Scoping technique.
+- **Suppression** : `lib/screens/learn_surah_screen.dart`, `lib/widgets/verse_display_card.dart`,
+  `S.versetsParBloc`/`S.marquerBlocAppris` (FR/EN). **Garder** `DomeProgressCard`, `hadith_data`,
+  `LearningProgress.nextBlock`, `unlearnVerse`, `S.blocRange`, `S.versetN` (utilisés ailleurs,
+  vérifié par grep).
+- **Récap** : `recap_screen.dart` perd `_openSourate` et son import. `LearningProgressCard` perd
+  `onTap` et le chevron ; l'icône livre et le glisser pour abandonner restent.
+- **Requête** : `AyahFactsLearning.lastLearnedBlock(int surahId, String beforeDate, Riwaya)` →
+  `List<int>` triée, les versets `type='learn', reach=1` à `MAX(date) < beforeDate`.
+- **Check-out** : si `_learnPlan != null` et que `lastLearnedBlock(_learnPlan.sourate.id,
+  widget.date)` n'est pas vide, afficher une section « dernier bloc appris » avec des chips
+  cochées par défaut (patron `VerseToggleChips`, décoché = retiré). La section va dans
+  `check_out_sections.dart`, l'état `_lastBlock`/`_retiredFromLastBlock` dans
+  `check_out_screen.dart`. Au scellement, lancer `unlearnVerse` pour chaque verset retiré dans le
+  **même `Future.wait`** que `markLearnVerses`, **avant** `state.checkOut` : sinon le hand-off
+  bascule en révision une sourate incomplète.
+- **Tests** : `lastLearnedBlock` (plusieurs dates, `reach=0` ignoré, vide avant la première
+  date) + scénario retrait puis complétion le même jour → pas de hand-off.
+- **Exclus** : autre écran/feuille de remplacement ; annulation au-delà du dernier bloc ; section
+  pour une sourate qui n'est pas la portion du jour.
+- **Taille** : `check_out_screen.dart` est à 329 lignes. S'il dépasse 400 lignes après le sprint,
+  ouvrir un item d'extraction (règle `CLAUDE.md`).
+- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` (écrans Récap et Check-out, retirer
+  `LearnSurahScreen`). Passer US-12 à « terminée » puis l'archiver.
+
+### [P2] US-11 — Portion audio réglable dans la vue Coran
+Détail complet : `docs/USER_STORIES.md` US-11 § Scoping technique. Indépendant d'US-12 (aucun
+fichier commun), à faire dans n'importe quel ordre.
+- **Extraction 1** : `lib/widgets/verse_range_slider.dart`, avec `VerseRangeSlider(min, max,
+  values, onChanged, onChangeEnd)` : le `RangeSlider` + libellés « v.X · N versets · v.Y » sortis
+  de `VerseRangePicker`, plus un **±1 sur chaque borne** (bornés à `[min, max]`, fin ≥ début).
+  `VerseRangePicker` le consomme ; ses chips de découpe restent chez lui.
+- **Extraction 2** : `lib/widgets/verse_audio_bar.dart`, `VerseAudioBar(sourate, ayahStart,
+  ayahEnd)` stateful. Y déplacer tels quels, depuis `verse_bottom_sheet.dart`, `_reciter`,
+  `_starting`, `_riwayaForReciter`, `_ensureReciterLoaded`, `_pickReciter`, `_toggleLoop`,
+  `_mediaId` et `_audioBar`. `VerseBottomSheet` ne fait plus que l'embarquer.
+- **Portion** : `_audioStart`/`_audioEnd` locaux, initialisés à la plage affichée et jamais
+  persistés. `_mediaId` et `playableSources` utilisent la portion, et le titre `MediaItem` aussi
+  (`S.blocRange`). Le `VerseRangeSlider` s'affiche sous la barre, masqué si la plage fait 1
+  verset.
+- **Changement pendant la lecture** : si la boucle chargée est celle de cette feuille, relancer
+  `playLoop` sur la nouvelle portion à `onChangeEnd` ou à chaque ±1, jamais sur `onChanged`. Si
+  `playableSources == null` hors ligne : snackbar `S.audioIndisponibleHorsConnexion`, la boucle
+  reste sur l'ancienne portion et le curseur y revient.
+- **Strings** : libellés du curseur/±1 dans `lib/core/strings.dart` (FR/EN, `Semantics`/tooltip
+  des ±1).
+- **Tests** : test widget `VerseRangeSlider` (±1 bornés, fin ≥ début). L'audio n'est pas
+  testable sans appareil : vérification manuelle sur iPhone à noter.
+- **Exclus** : compteur de répétitions, pause, vitesse ; mémorisation de la portion ;
+  surlignage des versets de la portion dans la liste ; sélection par toucher du texte.
+- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §8.6/§8.6bis (vue Coran, barre audio). Passer
+  US-11 à « terminée » puis l'archiver.
+
 ### [P2] US-10 Sprint B — Récitateur entier depuis Réglages, gestion du stockage, reprise automatique
 Le Sprint A est livré (2026-09-29) : ce sprint réutilise `AudioDownloadService` et `downloadSurah`
 tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de vérité, retour
