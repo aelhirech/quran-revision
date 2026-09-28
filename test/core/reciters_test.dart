@@ -55,4 +55,13 @@ void main() {
       expect(audioTrackUrls(reciter, 114, 1, 1).length, 1);
     });
   });
+
+  group('offline audio layout', () {
+    test('reciter id / zero-padded surah, then zero-padded verse file', () {
+      final reciter = reciterById('husary.t')!;
+      expect(audioSurahRelativeDir(reciter, 2), 'husary.t/002');
+      expect(audioTrackFileName(255), '255.mp3');
+      expect(audioTrackFileName(6), '006.mp3');
+    });
+  });
 }

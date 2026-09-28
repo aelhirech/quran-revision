@@ -24,8 +24,11 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 ## Stories actives
 
 ### US-10 — Écoute hors connexion (extension d'US-9)
-**État** : scopée — blueprint + scoping du 2026-09-28, 2 items Backlog (Sprint A puis B) dans
-`docs/CHANGELOG.md`. Reprend l'Idée produit « Téléchargement local des récitations ». Rattachée à
+**État** : en sprint — blueprint + scoping du 2026-09-28. **Sprint A livré le 2026-09-29**
+(téléchargement d'une sourate depuis la vue Coran, lecture locale, signal hors connexion —
+crit. 1 partie sourate, 2, 4 et 6 ; vérification sur appareil réel encore à faire). Reste le
+Sprint B dans le Backlog de `docs/CHANGELOG.md` (récitateur entier, Réglages, données mobiles,
+reprise automatique — crit. 1 partie récitateur, 3, 5). Reprend l'Idée produit « Téléchargement local des récitations ». Rattachée à
 l'epic audio d'US-9 (archivée, pas ressortie).
 
 **Statement** : En tant qu'utilisateur qui écoute ses sourates en boucle, je veux pouvoir garder

@@ -48,44 +48,10 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-10 Sprint A — Télécharger une sourate depuis la vue Coran, lecture locale, signal hors connexion
-Scopé le 2026-09-28 (voir `docs/USER_STORIES.md` US-10, section « Scoping technique »).
-- **Dépendances** : ajouter `connectivity_plus` (seul moyen de distinguer Wi-Fi et données
-  mobiles, et de détecter l'absence de réseau). Passer `path_provider`, déjà présente en
-  transitive dans `pubspec.lock`, en dépendance directe. Pas de `http` (`dart:io` `HttpClient`
-  suffit), pas de `background_downloader` (écarté au scoping).
-- **`lib/core/reciters.dart`** (pur) : `audioTrackRelativePath(Reciter, surahId, ayahId)` →
-  `'{reciter.id}/{SSS}/{VVV}.mp3'`, à côté d'`audioTrackUrls` et avec le même formatage à 3
-  chiffres. Pas de nouveau fichier.
-- **Nouveau `lib/services/audio_download_service.dart`** : instance unique (même exception
-  documentée que `QuranAudioHandler` en §6, parce qu'il porte le téléchargement en cours et sa
-  progression, exposée en `ValueNotifier` pour l'UI). Racine :
-  `getApplicationCacheDirectory()/quran_audio/`. Méthodes :
-  `trackSources(reciter, surahId, start, end)` renvoie une URI par verset (`file://` si le `.mp3`
-  existe, sinon l'URL KSU) ; `isSurahComplete(reciter, surahId)` compare le nombre de `.mp3` au
-  nombre de versets ; `downloadSurah(reciter, surahId)` télécharge séquentiellement les versets
-  absents, écrit chaque fichier en `.part` puis le renomme, et saute les `.mp3` déjà présents
-  (c'est la reprise). Refus immédiat, sans lancement, si la connexion n'est pas le Wi-Fi.
-- **`VerseBottomSheet._toggleLoop`** : remplace `audioTrackUrls(...)` par `trackSources(...)`.
-  `QuranAudioHandler.playLoop` ne change pas (`AudioSource.uri` accepte `file://`). Si l'app est
-  hors ligne et qu'au moins une source n'est pas locale : SnackBar
-  `S.audioIndisponibleHorsConnexion`, pas de lecture.
-- **Nouveau `lib/widgets/audio_download_button.dart`** (pour ne pas pousser
-  `verse_bottom_sheet.dart`, 269 lignes, vers le plafond), placé dans `_audioBar` : trois
-  états, « télécharger la sourate » / progression / « disponible hors connexion » (désactivé).
-  Il télécharge toujours la **sourate entière** de `widget.sourate`, pas la plage affichée. Sur
-  données mobiles : SnackBar `S.audioTelechargementWifi`, rien ne se lance.
-- **Textes** dans `lib/core/strings.dart` (FR/EN), couleurs via `AppPalette`.
-- **Tests** : `test/core/reciters_test.dart` pour le chemin relatif, et un test
-  `trackSources` sur un dossier temporaire (verset local → `file://`, verset absent → URL KSU).
-  Le téléchargement réseau lui-même n'est pas testable sur cette machine ; il sera vérifié sur
-  appareil.
-- **Exclu de ce sprint** (→ Sprint B) : récitateur entier, Réglages, réglage données mobiles,
-  reprise automatique au relancement (ici, reprise = retoucher le bouton).
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §6 (nouveau service) et §8.6bis (source locale).
-
 ### [P2] US-10 Sprint B — Récitateur entier depuis Réglages, gestion du stockage, reprise automatique
-À faire après le Sprint A, dont il réutilise `AudioDownloadService` et `downloadSurah`.
+Le Sprint A est livré (2026-09-29) : ce sprint réutilise `AudioDownloadService` et `downloadSurah`
+tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de vérité, retour
+`DownloadFailure?`, progression via `current`).
 - **`AudioDownloadService`** : `downloadReciter(reciter)` boucle sur les 114 sourates via
   `downloadSurah`, séquentiellement. File d'**intentions** en attente (`'reciterId'` pour un
   récitateur entier, `'reciterId:surahId'` pour une sourate), persistée via `StorageService`
@@ -101,7 +67,10 @@ Scopé le 2026-09-28 (voir `docs/USER_STORIES.md` US-10, section « Scoping tech
   (globale, `false` par défaut). Si elle vaut `false` et que la connexion n'est pas le Wi-Fi,
   l'intention reste en attente (au lieu du refus immédiat du Sprint A) et repart au prochain
   `resumePending()`. Le bouton du Sprint A met alors en file au lieu d'afficher « Wi-Fi
-  uniquement ».
+  uniquement ». La règle est **revérifiée avant chaque verset** dans la boucle de
+  `downloadSurah` (le Sprint A ne la vérifie qu'au départ : passer du Wi-Fi aux données
+  mobiles en cours de route continue aujourd'hui sur données mobiles) — hors règle, la sourate
+  s'arrête et son intention reste en attente.
 - **Nouveau `lib/widgets/offline_audio_card.dart`** (pas dans `profile_screen.dart`, déjà à
   378 lignes : n'y ajouter que l'insertion de la carte) : l'interrupteur « autoriser les données
   mobiles » ; une ligne par récitateur ayant au moins un fichier sur disque (nom, poids,

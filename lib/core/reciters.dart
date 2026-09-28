@@ -82,9 +82,19 @@ Reciter defaultReciterFor(Riwaya riwaya) => recitersFor(riwaya).first;
 /// (3 digits each), reverse-engineered from `js/engine.js` — no network call
 /// here, just URL construction.
 List<String> audioTrackUrls(Reciter reciter, int surahId, int ayahStart, int ayahEnd) {
-  final surah = surahId.toString().padLeft(3, '0');
+  final surah = _pad3(surahId);
   return [
     for (var ayah = ayahStart; ayah <= ayahEnd; ayah++)
-      '$_baseMp3Url/${reciter.folder}/$surah${ayah.toString().padLeft(3, '0')}.mp3',
+      '$_baseMp3Url/${reciter.folder}/$surah${_pad3(ayah)}.mp3',
   ];
 }
+
+/// Offline audio layout (US-10): `{reciter.id}/{surah}/{verse}.mp3` under the
+/// storage root — keyed by reciter id rather than KSU folder, so deleting a
+/// reciter is one directory and a surah is one sub-directory.
+String audioSurahRelativeDir(Reciter reciter, int surahId) =>
+    '${reciter.id}/${_pad3(surahId)}';
+
+String audioTrackFileName(int ayahId) => '${_pad3(ayahId)}.mp3';
+
+String _pad3(int n) => n.toString().padLeft(3, '0');

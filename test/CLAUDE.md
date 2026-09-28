@@ -14,6 +14,8 @@ dans le projet, ne pas en déduire une couverture UI.
 | `test/models/prayer_test.dart` | Modèle `Prayer` (rakaas, imamat). |
 | `test/services/ayah_facts_service_test.dart` | Sémantique `reach` (0=visé/1=atteint), `isDaySealed`, requêtes de plan/historique sur `ayah_facts`. |
 | `test/services/ayah_facts_migration_test.dart`, `ayah_facts_migration_v4_test.dart` | Migrations de schéma SQLite. |
+| `test/core/reciters_test.dart` | Catalogue de récitateurs (pas de fuite cross-riwaya), URL KSU, disposition des fichiers audio hors connexion. |
+| `test/services/audio_download_service_test.dart` | Audio hors connexion sur dossier temporaire (`AudioDownloadService.withRoot`) : source locale vs URL KSU, `.part` jamais compté, sourate complète. Ni le réseau ni le refus hors connexion (pas de plugin de connectivité en test). |
 | `test/state/app_state_checkin_test.dart` | Check-in : construction de la journée, répartition en rakaas, cas de regroupement par page partagée. |
 | `test/state/app_state_learning_test.dart` | Apprentissage : progression verset par verset, hand-off sourate mémorisée → révision. |
 
