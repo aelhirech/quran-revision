@@ -23,7 +23,66 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel [priorité: P1] [état: terminée — sprint C livré 2026-09-21 ; le verset de contexte reste au Backlog de `docs/CHANGELOG.md`, à archiver au prochain nettoyage]
+_Aucune story active — US-1 archivée le 2026-09-27 ; le prochain « Début de blueprint » remplit cette section._
+
+---
+
+---
+
+## Archivées
+
+Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
+### US-9 — Écoute audio en boucle depuis la vue Coran
+**État** : terminée — implémentée 2026-09-26 (`lib/services/quran_audio_handler.dart`,
+`lib/core/reciters.dart`, bouton dans `VerseBottomSheet`). Critère 3 (verrouillage/arrière-plan)
+codé (`audio_service` + config native iOS/Android) et **vérifié sur appareil réel le 2026-09-26**
+(notification media, contrôles écran verrouillé, audio qui survit à la mise en arrière-plan —
+retour utilisateur direct). Écart au scoping initial : le
+sélecteur de récitateur vit dans `VerseBottomSheet` (feuille modale interne), pas dans
+`lib/screens/profile_screen.dart` — plus simple, le critère 2 n'imposait pas cet emplacement.
+Détail technique complet : `docs/DOCUMENTATION_TECHNIQUE.md` §6/§8.6bis.
+
+**Statement** : En tant qu'utilisateur qui porte du Coran, je veux pouvoir déclencher l'écoute en
+boucle de la plage de versets déjà affichée (au Plan du jour, au Récap ou à l'écran Apprendre), y
+compris quand mon écran est verrouillé ou l'app en arrière-plan, afin de renforcer ma mémorisation
+pendant un temps où je ne suis de toute façon pas activement en train de réviser.
+
+**Critères d'acceptation** (haut niveau) :
+
+1. Given la vue Coran ouverte depuis n'importe laquelle des trois surfaces existantes (Plan du
+   jour, Récap, Apprendre), When l'utilisateur déclenche « écouter en boucle », Then l'audio joue
+   exactement la plage de versets déjà affichée par cette vue, en boucle continue jusqu'à arrêt
+   explicite — jamais un écran de sélection de contenu séparé (cohérent avec l'exclusion « pas de
+   lecteur de Coran autonome » d'US-1).
+2. Given la riwaya active de l'utilisateur (Hafs ou Warsh), When l'audio joue, Then la récitation
+   correspond à cette riwaya ; l'utilisateur peut choisir son récitateur parmi ceux disponibles
+   **pour cette riwaya seulement**, et ce choix est mémorisé d'une écoute à l'autre sans être
+   redemandé à chaque lecture.
+3. Given une lecture en cours, When l'utilisateur quitte la vue Coran, verrouille l'écran ou met
+   l'app en arrière-plan, Then l'audio continue sans interruption, avec des contrôles de lecture
+   basiques (lecture/pause/arrêt) accessibles depuis l'écran verrouillé/la notification système.
+4. Given une écoute en cours ou terminée, Then aucun verset n'est jamais marqué comme fait/révisé
+   par ce seul fait — l'écoute reste **purement passive** et ne modifie ni la progression du
+   cycle, ni le streak, ni aucun état que seuls le check-in/check-out font aujourd'hui évoluer.
+5. Given une plage ou un récitateur dont l'audio n'est pas disponible (verset hors couverture,
+   pas de réseau), When l'utilisateur déclenche l'écoute, Then l'app le **signale clairement**
+   plutôt que de boucler en silence sur un flux vide ou en échec.
+
+**Exclusions explicites** :
+- Pas d'écran de navigation/sélection audio indépendant de la vue Coran existante — la plage
+  écoutée est toujours celle déjà affichée, jamais un choix de sourate/plage dédié à l'audio.
+- Aucun crédit automatique dans `ayah_facts` déclenché par l'écoute (voir critère 4).
+- Pas de récitateur cross-riwaya (un récitateur Hafs ne s'affiche pas comme option en Warsh).
+
+---
+
+### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel
+**État** : terminée — sprint C livré le 2026-09-21 (message « verset revenu » au Plan du jour via
+`AppState.returningVersesContext` + étape guidée `return_proof_seen` dans `PlanScreen`). Le verset
+de contexte a été livré côté apprentissage le 2026-09-26 (`VerseBottomSheet.contextAyah`) ; son
+extension à la révision est une **Idée produit** de `docs/CHANGELOG.md` (à repasser par
+`quran-blueprint`), pas un item de Backlog. Priorité d'origine : P1.
 
 **Historique** : livrée en deux temps le 2026-09-13 (Phase 11 Sprint 1 : démo sur An-Nas/Al-Falaq/
 Al-Ikhlas + aperçu réel + retrait de l'ancien tour guidé ; Sprint 2 : bannières contextuelles sur
@@ -234,65 +293,6 @@ clés `hook_seen_*` restent orphelines sur les appareils — inoffensif, pas de 
    spotlight qui n'existe plus** (vérifié : aucun `TourKeys`, aucun spotlight ; `hasSeenTour` ne
    survit que comme proxy « onboarding terminé »). À corriger en même temps que les écrans
    d'onboarding.
-
----
-
----
-
-## Archivées
-
-Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
-
-### US-9 — Écoute audio en boucle depuis la vue Coran
-**État** : terminée — implémentée 2026-09-26 (`lib/services/quran_audio_handler.dart`,
-`lib/core/reciters.dart`, bouton dans `VerseBottomSheet`). Critère 3 (verrouillage/arrière-plan)
-codé (`audio_service` + config native iOS/Android) et **vérifié sur appareil réel le 2026-09-26**
-(notification media, contrôles écran verrouillé, audio qui survit à la mise en arrière-plan —
-retour utilisateur direct). Écart au scoping initial : le
-sélecteur de récitateur vit dans `VerseBottomSheet` (feuille modale interne), pas dans
-`lib/screens/profile_screen.dart` — plus simple, le critère 2 n'imposait pas cet emplacement.
-Détail technique complet : `docs/DOCUMENTATION_TECHNIQUE.md` §6/§8.6bis.
-
-**Statement** : En tant qu'utilisateur qui porte du Coran, je veux pouvoir déclencher l'écoute en
-boucle de la plage de versets déjà affichée (au Plan du jour, au Récap ou à l'écran Apprendre), y
-compris quand mon écran est verrouillé ou l'app en arrière-plan, afin de renforcer ma mémorisation
-pendant un temps où je ne suis de toute façon pas activement en train de réviser.
-
-**Critères d'acceptation** (haut niveau) :
-
-1. Given la vue Coran ouverte depuis n'importe laquelle des trois surfaces existantes (Plan du
-   jour, Récap, Apprendre), When l'utilisateur déclenche « écouter en boucle », Then l'audio joue
-   exactement la plage de versets déjà affichée par cette vue, en boucle continue jusqu'à arrêt
-   explicite — jamais un écran de sélection de contenu séparé (cohérent avec l'exclusion « pas de
-   lecteur de Coran autonome » d'US-1).
-2. Given la riwaya active de l'utilisateur (Hafs ou Warsh), When l'audio joue, Then la récitation
-   correspond à cette riwaya ; l'utilisateur peut choisir son récitateur parmi ceux disponibles
-   **pour cette riwaya seulement**, et ce choix est mémorisé d'une écoute à l'autre sans être
-   redemandé à chaque lecture.
-3. Given une lecture en cours, When l'utilisateur quitte la vue Coran, verrouille l'écran ou met
-   l'app en arrière-plan, Then l'audio continue sans interruption, avec des contrôles de lecture
-   basiques (lecture/pause/arrêt) accessibles depuis l'écran verrouillé/la notification système.
-4. Given une écoute en cours ou terminée, Then aucun verset n'est jamais marqué comme fait/révisé
-   par ce seul fait — l'écoute reste **purement passive** et ne modifie ni la progression du
-   cycle, ni le streak, ni aucun état que seuls le check-in/check-out font aujourd'hui évoluer.
-5. Given une plage ou un récitateur dont l'audio n'est pas disponible (verset hors couverture,
-   pas de réseau), When l'utilisateur déclenche l'écoute, Then l'app le **signale clairement**
-   plutôt que de boucler en silence sur un flux vide ou en échec.
-
-**Exclusions explicites** :
-- Pas d'écran de navigation/sélection audio indépendant de la vue Coran existante — la plage
-  écoutée est toujours celle déjà affichée, jamais un choix de sourate/plage dédié à l'audio.
-- Aucun crédit automatique dans `ayah_facts` déclenché par l'écoute (voir critère 4).
-- Pas de récitateur cross-riwaya (un récitateur Hafs ne s'affiche pas comme option en Warsh).
-
----
-
-### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel
-**État** : rouverte le 2026-09-20 — voir « Stories actives » en tête de fichier. Ce qui avait été
-livré les Phase 11 Sprints 1 et 2 (démo sur An-Nas/Al-Falaq/Al-Ikhlas, bannières passives sur
-Récap/Réglages) est **remplacé** par le nouveau blueprint, pas complété ; le détail de cette
-livraison vit dans `git log`. L'ancien énoncé est retiré d'ici pour ne pas décrire comme acquis un
-comportement que le prochain sprint supprime.
 
 ### US-2 — Plan quotidien réparti dans la journées grâce aux prières
 **État** : terminée — moteur pages/jour (Phase 8 Sprint 3) + répartition en rakaas ; Phase 9 Sprint 1 y ajoute la rakaa d'apprentissage en dernière position.

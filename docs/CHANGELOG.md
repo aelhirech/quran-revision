@@ -34,7 +34,7 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 - **`needs_work` retiré de tout le code applicatif (US-3, 2026-09-21)** : la colonne `ayah_facts.needs_work` reste dans le schéma SQLite (DEFAULT 0, jamais migrée/droppée sans utilisateurs réels) mais plus aucun code Dart ne l'écrit ni ne la lit — `AyahFactsRitual.setNeedsWork`/`lastRevisionFlags`, `AppState.setVerseNeedsWork`/`lastRevisionFlagsFor` et le toggle bookmark de `VerseBottomSheet` ont disparu. Le check-out est désormais **verset par verset** (`CheckOutRow`/`VerseToggleChips`, `Set<(int surahId, int ayahId)>`), plus par sourate/portion entière — un seul geste (décocher un verset précis) couvre révision et apprentissage. Ne jamais réintroduire de colonne/flag parallèle pour un besoin de correction fine : `reach` par verset suffit.
 
 **Cycle / `RevisionEngine`**
-- **Verset revenu + contexte (US-3 crit. 4, 2026-09-21)** : `RevisionEngine.contextVerseFor(surahId, ayahId, selections)` — pure, Dart — renvoie le verset `n-1` d'un verset donné **s'il reste dans la plage sélectionnée par l'utilisateur** (jamais hors plage, invariant E.3), `null` sinon. `AyahFactsRitual.returningVerses`/`AppState.returningVersesContext` identifient les versets laissés `reach=0` à un check-out **scellé** (`checked_out=1`) et redevenus candidats du plan du jour. Infrastructure prête, **pas encore consommée par un écran** — c'est US-1 sprint C (bloqué jusqu'ici) qui affichera le message « ce verset est revenu seul ».
+- **Verset revenu + contexte (US-3 crit. 4, 2026-09-21)** : `RevisionEngine.contextVerseFor(surahId, ayahId, selections)` — pure, Dart — renvoie le verset `n-1` d'un verset donné **s'il reste dans la plage sélectionnée par l'utilisateur** (jamais hors plage, invariant E.3), `null` sinon. `AyahFactsRitual.returningVerses`/`AppState.returningVersesContext` identifient les versets laissés `reach=0` à un check-out **scellé** (`checked_out=1`) et redevenus candidats du plan du jour. Consommé par `PlanScreen` (US-1 sprint C, 2026-09-21) pour le message « ce verset est revenu seul », affiché une fois via l'étape guidée `return_proof_seen`.
 
 **Infra / divers**
 - `sqflite_common_ffi` est en dépendance de **prod**, pas dev-only : `main.dart` bascule dessus derrière `if (Platform.isWindows)`, une condition runtime que Dart ne tree-shake pas — léger surcoût de taille binaire mobile assumé pour pouvoir tester sur cette machine sans device.
@@ -62,7 +62,8 @@ candidats plutôt que de dériver de dayFacts()" (ce sprint a corrigé la partie
 nativement sur `DayFactGroup`/`dayFacts()` (une seule requête SQL, `returningVerses` fusionnée
 dedans) éliminerait le second aller-retour, mais aucun code ne consomme ce statut aujourd'hui
 (`dayUnits`/`dayUnitsWithStatus` n'en ont pas besoin) — fusionner les deux requêtes maintenant
-serait spéculatif. Différé jusqu'à ce qu'un écran consomme réellement ce statut (US-1 sprint C) ou
+serait spéculatif (`PlanScreen` consomme `returningVersesContext` tel quel, pas un statut porté par
+`DayFactGroup`). Différé jusqu'à ce qu'un écran ait besoin de ce statut groupe par groupe ou
 qu'un profilage montre un coût réel (deux requêtes SQLite locales, base d'un seul utilisateur).
 
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
