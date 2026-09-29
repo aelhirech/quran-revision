@@ -55,6 +55,35 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
+### [P2] `QuranAudioHandler` expose la boucle chargée typée, `VerseAudioBar._loaded` disparaît
+Relevé en `/simplify` du sprint US-11 (2026-09-29, altitude). Le handler ne publie qu'un mediaId
+opaque (`reciter_sourate_début_fin`), comparé par égalité stricte (`isLoadedFor`) : la barre doit
+donc tenir sa propre copie de la boucle lancée. Conséquence visible : rouvrir la vue pendant
+qu'une **sous-portion** tourne (la portion repart de la plage affichée, crit. 5) ne reconnaît pas
+la boucle — pas de bouton stop, et bouger la portion ne la fait pas suivre. À faire : `playLoop`
+prend en plus `({String reciterId, int surahId, int start, int end})`, stocké et exposé en
+`QuranAudioHandler.currentLoop` (null après `stop`) ; `isLoadedFor`/`isCurrentlyLoaded` et
+`_loaded` sont remplacés par une lecture de `currentLoop` ; « cette boucle est à moi » = même
+récitateur, même sourate, plage incluse dans `ayahStart..ayahEnd` ; le repli hors connexion
+reprend `currentLoop.start/end`. Un seul appelant (`VerseAudioBar`). **Remonté P3 → P2
+(2026-09-29)** : gap visible sur une fonctionnalité qu'on vient de livrer (US-11 crit. 4 non tenu
+dans ce cas), ~30 lignes, un seul appelant — moins cher maintenant que le code est frais. Aucune
+perte de données (arrêt toujours possible depuis l'écran verrouillé), d'où pas P1.
+
+### [P2] Retester le filtre `checked_out = 0` de `learnPlanFor` sur des lignes héritées
+Relevé en `/code-review high` du sprint US-12 (2026-09-29, test-coverage). Le test « un verset
+travaillé à la volée dans l'écran de pratique ne détourne pas le plan du jour » a été supprimé
+avec `AyahFactsLearning.learnVerses`, son seul moyen d'écrire une ligne `learn` à
+`checked_out = 1`. Le filtre, lui, reste utile pour les lignes que l'ancien écran a laissées sur
+les appareils. À faire : dans `test/state/app_state_learning_test.dart`, insérer directement la
+ligne héritée (`databaseFactory.openDatabase` sur `history.db`, comme
+`clearFactsBetweenTests` dans `test/services/test_helpers.dart`) : sourate 30, versets 1-2, date
+du jour, `type='learn'`, `reach=1`, `checked_out=1`. Puis reprendre les assertions supprimées :
+`learnPlanFor(today)` renvoie la sourate 108, versets `[1, 2]`. **Remonté P3 → P2 (2026-09-29)** :
+ce filtre protège le plan d'apprentissage des lignes héritées réellement présentes sur l'appareil,
+et plus aucun test ne le verrouille — un refactor de `learnPlanFor` pourrait le casser en silence.
+Test seul, zéro risque, ~20 lignes.
+
 ### [P2] US-10 Sprint B — Récitateur entier depuis Réglages, gestion du stockage, reprise automatique
 Le Sprint A est livré (2026-09-29) : ce sprint réutilise `AudioDownloadService` et `downloadSurah`
 tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de vérité, retour
@@ -91,30 +120,6 @@ tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de
   à jour côté KSU, pré-vérification de l'espace libre, geste de téléchargement dans le check-in
   ou le check-out.
 - **Doc** : §6, §8.4 (Réglages), §8.6bis. Passer US-10 à « terminée » puis l'archiver.
-
-### [P3] Retester le filtre `checked_out = 0` de `learnPlanFor` sur des lignes héritées
-Relevé en `/code-review high` du sprint US-12 (2026-09-29, test-coverage). Le test « un verset
-travaillé à la volée dans l'écran de pratique ne détourne pas le plan du jour » a été supprimé
-avec `AyahFactsLearning.learnVerses`, son seul moyen d'écrire une ligne `learn` à
-`checked_out = 1`. Le filtre, lui, reste utile pour les lignes que l'ancien écran a laissées sur
-les appareils. À faire : dans `test/state/app_state_learning_test.dart`, insérer directement la
-ligne héritée (`databaseFactory.openDatabase` sur `history.db`, comme
-`clearFactsBetweenTests` dans `test/services/test_helpers.dart`) : sourate 30, versets 1-2, date
-du jour, `type='learn'`, `reach=1`, `checked_out=1`. Puis reprendre les assertions supprimées :
-`learnPlanFor(today)` renvoie la sourate 108, versets `[1, 2]`.
-
-### [P3] `QuranAudioHandler` expose la boucle chargée typée, `VerseAudioBar._loaded` disparaît
-Relevé en `/simplify` du sprint US-11 (2026-09-29, altitude). Le handler ne publie qu'un mediaId
-opaque (`reciter_sourate_début_fin`), comparé par égalité stricte (`isLoadedFor`) : la barre doit
-donc tenir sa propre copie de la boucle lancée. Conséquence visible : rouvrir la vue pendant
-qu'une **sous-portion** tourne (la portion repart de la plage affichée, crit. 5) ne reconnaît pas
-la boucle — pas de bouton stop, et bouger la portion ne la fait pas suivre. À faire : `playLoop`
-prend en plus `({String reciterId, int surahId, int start, int end})`, stocké et exposé en
-`QuranAudioHandler.currentLoop` (null après `stop`) ; `isLoadedFor`/`isCurrentlyLoaded` et
-`_loaded` sont remplacés par une lecture de `currentLoop` ; « cette boucle est à moi » = même
-récitateur, même sourate, plage incluse dans `ayahStart..ayahEnd` ; le repli hors connexion
-reprend `currentLoop.start/end`. Un seul appelant (`VerseAudioBar`). P3 : aucune perte de données,
-arrêt toujours possible depuis l'écran verrouillé.
 
 ### [P3] L'échéance du guide du premier check-out ignore les versets retirés
 Relevé en `/code-review high` du sprint US-12 (2026-09-29). `CheckOutScreen._guideStep` calcule
