@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:just_audio/just_audio.dart';
 
 /// Runs `just_audio` behind `audio_service` so the loop started from
-/// `VerseBottomSheet` keeps playing screen-locked/backgrounded, with
+/// `VerseAudioBar` keeps playing screen-locked/backgrounded, with
 /// play/pause/stop reachable from the system notification (US-9 criterion
 /// 3). Single global instance (unlike the other `lib/services/` classes,
 /// all static): `audio_service` itself imposes this lifecycle, and the loop

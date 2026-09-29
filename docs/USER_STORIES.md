@@ -105,9 +105,17 @@ dépendance au site source. Le téléchargement lui-même passe toujours par lui
 
 ---
 
+## Archivées
+
+Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
 ### US-11 — Répéter en boucle une portion choisie (extension d'US-9)
-**État** : scopée — blueprint + scoping du 2026-09-29. Item Backlog : « [P2] US-11 ». Rattachée à l'epic audio d'US-9 (archivée, pas
-ressortie), comme US-10.
+**État** : terminée — sprint `feature/phase-24-sprint2-us11-audio-portion` (2026-09-29) :
+`VerseRangeSlider` (curseur + ±1, partagé avec `VerseRangePicker`) et `VerseAudioBar` (barre audio
+sortie de `VerseBottomSheet`, portion locale non persistée). Curseur/±1 vérifiés en preview web ;
+**lecture sur portion et relance pendant l'écoute non vérifiées sur appareil réel** (audio
+indisponible sur web). Écart assumé au scoping : la boucle ne suit la portion que si elle **joue**
+(en pause, le prochain appui lance la nouvelle portion). Rattachée à l'epic audio d'US-9, comme US-10.
 
 **Statement** : En tant qu'utilisateur qui mémorise ou consolide un passage, je veux pouvoir
 restreindre la boucle audio à quelques versets précis de la plage affichée, afin de répéter
@@ -183,13 +191,6 @@ Le choix du composant revient au scoping.
   léger possible sur `VerseRangeSlider` (±1 bornés à min/max, fin ≥ début).
 
 ---
-
-
----
-
-## Archivées
-
-Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
 
 ### US-12 — Recentrer l'apprentissage sur le check-out (Récap = suivi seulement)
 **État** : terminée — sprint `feature/phase-24-sprint1-us12-learn-checkout` (2026-09-29) : `LearnSurahScreen` supprimé, carte du Récap en suivi seul, retrait du dernier bloc au check-out (`lastLearnedBlock`/`unlearnVerses`, écrit avant le hand-off, verrouillé par test). Vue du check-out non vérifiée sur appareil réel. Modifie le comportement livré par US-4 (archivée) : son critère 4 (annuler un verset marqué par erreur) change de lieu, voir crit. 3.
