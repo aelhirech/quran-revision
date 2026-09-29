@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quran_revision/core/revision_engine.dart';
 import 'package:quran_revision/models/ayah_fact.dart';
@@ -317,5 +319,40 @@ void main() {
     expect(state.config!.selections.any((s) => s.sourate.id == 108), isFalse);
 
     await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
+  });
+
+  // Rows written by the practice screen removed in US-12 (`checked_out = 1`)
+  // still live on existing devices: the filter must keep them out of the plan.
+  test(
+      'une ligne learn héritée à checked_out=1 ne détourne pas le plan du jour '
+      'vers sa sourate', () async {
+    final today = _isoDate(DateTime.now());
+    final state = newState();
+    await state.setLearningForToday(kawthar(state), 2);
+    // Both proposed verses reached: without the filter, no reach=0 row is
+    // left to prefer 108, and `ORDER BY surah_id` would pick legacy surah 30.
+    await state.markLearnVerses(today, 108, [1, 2], true);
+    final db = await databaseFactory.openDatabase(
+        p.join(await databaseFactory.getDatabasesPath(), 'history.db'));
+    for (final ayahId in [1, 2]) {
+      await db.insert(
+          'ayah_facts',
+          AyahFact(
+            date: today,
+            riwaya: Riwaya.hafs,
+            surahId: 30,
+            ayahId: ayahId,
+            type: AyahFactType.learn,
+            reach: true,
+            checkedOut: true,
+          ).toMap());
+    }
+
+    final plan = await AyahFactsLearning.learnPlanFor(today, Riwaya.hafs);
+    expect(plan!.surahId, 108);
+    expect(plan.ayahIds, [1, 2]);
+
+    await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
+    await AyahFactsLearning.deleteLearnFacts(30, Riwaya.hafs);
   });
 }

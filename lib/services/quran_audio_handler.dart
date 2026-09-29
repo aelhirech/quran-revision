@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:just_audio/just_audio.dart';
+
+typedef AudioLoop = ({String reciterId, int surahId, int start, int end});
 
 /// Runs `just_audio` behind `audio_service` so the loop started from
 /// `VerseAudioBar` keeps playing screen-locked/backgrounded, with
@@ -47,10 +51,10 @@ class QuranAudioHandler extends BaseAudioHandler {
   static Stream<PlaybackState> get playbackStateStream =>
       available ? instance.playbackState : const Stream.empty();
 
-  /// [available] + [isLoadedFor] combined — the single check callers need
-  /// instead of reading [available] themselves before touching [instance].
-  static bool isCurrentlyLoaded(String mediaId) =>
-      available && instance.isLoadedFor(mediaId);
+  /// The loop last started by [playLoop], null once stopped (or on an
+  /// unsupported platform) — lets a reopened view recognize a sub-portion it
+  /// started earlier, which an opaque mediaId comparison could not.
+  static AudioLoop? get currentLoop => available ? instance._loop : null;
 
   static const List<MediaControl> _pausedControls = [MediaControl.play, MediaControl.stop];
   static const List<MediaControl> _playingControls = [MediaControl.pause, MediaControl.stop];
@@ -63,6 +67,7 @@ class QuranAudioHandler extends BaseAudioHandler {
   };
 
   final AudioPlayer _player = AudioPlayer();
+  AudioLoop? _loop;
 
   QuranAudioHandler._() {
     _player.playbackEventStream.listen(_broadcastState);
@@ -71,21 +76,31 @@ class QuranAudioHandler extends BaseAudioHandler {
   Stream<bool> get playingStream => _player.playingStream;
   bool get playing => _player.playing;
 
-  /// Centralizes the "is this range the one currently loaded?" comparison —
-  /// avoids rebuilding `mediaItem.valueOrNull?.id == id` at every UI call
-  /// site.
-  bool isLoadedFor(String mediaId) => mediaItem.valueOrNull?.id == mediaId;
-
-  /// Plays [sources] (one mp3 per verse, remote or local `file://`) in a
-  /// continuous loop, under [item]'s label (surah/reciter name shown on the
-  /// lockscreen). Never touches `ayah_facts` — purely passive.
-  Future<void> playLoop({required List<Uri> sources, required MediaItem item}) async {
+  /// Plays [sources] (one mp3 per verse, remote or local `file://`) of [loop]
+  /// in a continuous loop, under [item]'s label (surah/reciter name shown on
+  /// the lockscreen). Returns once playback has started. Never touches
+  /// `ayah_facts` — purely passive.
+  Future<void> playLoop({
+    required AudioLoop loop,
+    required List<Uri> sources,
+    required MediaItem item,
+  }) async {
+    // The previous playlist is gone as soon as it is replaced: a failure
+    // below must not leave it advertised as the current loop.
+    _loop = null;
     mediaItem.add(item);
     await _player.setAudioSources(
       [for (final u in sources) AudioSource.uri(u)],
     );
     await _player.setLoopMode(LoopMode.all);
-    await _player.play();
+    _loop = loop;
+    // just_audio's play() only completes on pause/stop: awaiting it would
+    // keep the caller's "starting" state on for the whole playback. Its error
+    // no longer reaches the caller, so log it and drop the dead loop.
+    unawaited(_player.play().catchError((Object e) {
+      debugPrint('QuranAudioHandler play failed: $e');
+      if (_loop == loop) _loop = null;
+    }));
   }
 
   @override
@@ -96,6 +111,7 @@ class QuranAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> stop() async {
+    _loop = null;
     await _player.stop();
     await super.stop();
   }
