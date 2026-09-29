@@ -24,6 +24,13 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 **UI / lecture**
 - **Verset de contexte à l'apprentissage (2026-09-26)** : `VerseBottomSheet` accepte un `contextAyah` optionnel — le verset `verseStart - 1`, affiché en tête de liste et atténué (`VerseRow.isContext`), jamais coché/compté/inclus dans la plage audio. `PrayerPlanCard` ne le passe que pour la rakaa d'apprentissage (`r.isLearning`) quand `verseStart > 1` — décision produit : apprendre un verset avec celui qui le précède aide la mémorisation, la révision n'en a pas besoin au même degré. Ne pas étendre à la révision sans repasser par blueprint (voir idée produit ci-dessous).
 
+- **Portion audio (US-11, 2026-09-29)** : `VerseAudioBar` garde la portion en état local
+  (`_portion`, jamais persistée) et retient la boucle qu'elle a lancée (`_loaded`, mediaId +
+  portion). La boucle ne suit un changement de portion que si **cette** boucle joue, et jamais
+  après un démarrage raté : relancer une requête injouable (hors ligne + récitateur non
+  téléchargé) bouclait sans fin, bug trouvé en `/code-review`. Relance au relâché du curseur ou au
+  ±1 seulement, jamais à chaque pixel (`playLoop` remplace toute la playlist).
+
 **Cadrage produit encore valide**
 - « Prières où il est imam » = prières où c'est lui qui récite (seul ou en dirigeant) — un simple élargissement de libellé, pas un filtre d'exclusion ni une pondération de répartition.
 - L'apprentissage n'a plus d'onglet dédié : la sourate à apprendre est choisie au check-in, récitée dans la **dernière rakaa** du plan, confirmée au check-out.
@@ -47,34 +54,6 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 ## Backlog technique
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
-
-### [P2] US-11 — Portion audio réglable dans la vue Coran
-Détail complet : `docs/USER_STORIES.md` US-11 § Scoping technique. US-12 est livrée (aucun
-fichier commun avec ce sprint).
-- **Extraction 1** : `lib/widgets/verse_range_slider.dart`, avec `VerseRangeSlider(min, max,
-  values, onChanged, onChangeEnd)` : le `RangeSlider` + libellés « v.X · N versets · v.Y » sortis
-  de `VerseRangePicker`, plus un **±1 sur chaque borne** (bornés à `[min, max]`, fin ≥ début).
-  `VerseRangePicker` le consomme ; ses chips de découpe restent chez lui.
-- **Extraction 2** : `lib/widgets/verse_audio_bar.dart`, `VerseAudioBar(sourate, ayahStart,
-  ayahEnd)` stateful. Y déplacer tels quels, depuis `verse_bottom_sheet.dart`, `_reciter`,
-  `_starting`, `_riwayaForReciter`, `_ensureReciterLoaded`, `_pickReciter`, `_toggleLoop`,
-  `_mediaId` et `_audioBar`. `VerseBottomSheet` ne fait plus que l'embarquer.
-- **Portion** : `_audioStart`/`_audioEnd` locaux, initialisés à la plage affichée et jamais
-  persistés. `_mediaId` et `playableSources` utilisent la portion, et le titre `MediaItem` aussi
-  (`S.blocRange`). Le `VerseRangeSlider` s'affiche sous la barre, masqué si la plage fait 1
-  verset.
-- **Changement pendant la lecture** : si la boucle chargée est celle de cette feuille, relancer
-  `playLoop` sur la nouvelle portion à `onChangeEnd` ou à chaque ±1, jamais sur `onChanged`. Si
-  `playableSources == null` hors ligne : snackbar `S.audioIndisponibleHorsConnexion`, la boucle
-  reste sur l'ancienne portion et le curseur y revient.
-- **Strings** : libellés du curseur/±1 dans `lib/core/strings.dart` (FR/EN, `Semantics`/tooltip
-  des ±1).
-- **Tests** : test widget `VerseRangeSlider` (±1 bornés, fin ≥ début). L'audio n'est pas
-  testable sans appareil : vérification manuelle sur iPhone à noter.
-- **Exclus** : compteur de répétitions, pause, vitesse ; mémorisation de la portion ;
-  surlignage des versets de la portion dans la liste ; sélection par toucher du texte.
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §8.6/§8.6bis (vue Coran, barre audio). Passer
-  US-11 à « terminée » puis l'archiver.
 
 ### [P2] US-10 Sprint B — Récitateur entier depuis Réglages, gestion du stockage, reprise automatique
 Le Sprint A est livré (2026-09-29) : ce sprint réutilise `AudioDownloadService` et `downloadSurah`
@@ -123,6 +102,19 @@ ligne héritée (`databaseFactory.openDatabase` sur `history.db`, comme
 `clearFactsBetweenTests` dans `test/services/test_helpers.dart`) : sourate 30, versets 1-2, date
 du jour, `type='learn'`, `reach=1`, `checked_out=1`. Puis reprendre les assertions supprimées :
 `learnPlanFor(today)` renvoie la sourate 108, versets `[1, 2]`.
+
+### [P3] `QuranAudioHandler` expose la boucle chargée typée, `VerseAudioBar._loaded` disparaît
+Relevé en `/simplify` du sprint US-11 (2026-09-29, altitude). Le handler ne publie qu'un mediaId
+opaque (`reciter_sourate_début_fin`), comparé par égalité stricte (`isLoadedFor`) : la barre doit
+donc tenir sa propre copie de la boucle lancée. Conséquence visible : rouvrir la vue pendant
+qu'une **sous-portion** tourne (la portion repart de la plage affichée, crit. 5) ne reconnaît pas
+la boucle — pas de bouton stop, et bouger la portion ne la fait pas suivre. À faire : `playLoop`
+prend en plus `({String reciterId, int surahId, int start, int end})`, stocké et exposé en
+`QuranAudioHandler.currentLoop` (null après `stop`) ; `isLoadedFor`/`isCurrentlyLoaded` et
+`_loaded` sont remplacés par une lecture de `currentLoop` ; « cette boucle est à moi » = même
+récitateur, même sourate, plage incluse dans `ayahStart..ayahEnd` ; le repli hors connexion
+reprend `currentLoop.start/end`. Un seul appelant (`VerseAudioBar`). P3 : aucune perte de données,
+arrêt toujours possible depuis l'écran verrouillé.
 
 ### [P3] L'échéance du guide du premier check-out ignore les versets retirés
 Relevé en `/code-review high` du sprint US-12 (2026-09-29). `CheckOutScreen._guideStep` calcule

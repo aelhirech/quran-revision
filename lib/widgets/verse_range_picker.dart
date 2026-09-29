@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
+import 'verse_range_slider.dart';
 
 class VerseRangePicker extends StatefulWidget {
   final Sourate sourate;
@@ -74,7 +75,6 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
     final cs = Theme.of(context).colorScheme;
     final start = _range.start.round();
     final end = _range.end.round();
-    final count = end - start + 1;
 
     return Container(
       decoration: BoxDecoration(
@@ -97,25 +97,10 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
           Text(widget.sourate.nameAr,
               style: GoogleFonts.amiri(fontSize: 20, height: 1.8)),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('v.$start',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700, color: cs.primary)),
-              Text('$count ${S.versetsLabel}',
-                  style: const TextStyle(fontWeight: FontWeight.w500)),
-              Text('v.$end',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700, color: cs.primary)),
-            ],
-          ),
-          RangeSlider(
-            values: _range,
+          VerseRangeSlider(
             min: 1,
-            max: widget.sourate.verses.toDouble(),
-            divisions: widget.sourate.verses - 1,
-            activeColor: cs.primary,
+            max: widget.sourate.verses,
+            values: _range,
             onChanged: (v) => setState(() => _range = v),
           ),
           if (widget.sourate.verses > 50) ...[

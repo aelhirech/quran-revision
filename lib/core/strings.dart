@@ -231,6 +231,12 @@ class S {
   static String get ecouterEnBoucle => _t('Écouter en boucle', 'Listen on loop');
   static String get arreterEcoute => _t("Arrêter l'écoute", 'Stop listening');
   static String get choisirRecitateur => _t('Choisir un récitateur', 'Choose a reciter');
+
+  // Réglage fin d'une plage de versets (US-11)
+  static String get debutMoinsUn => _t('Commencer un verset plus tôt', 'Start one verse earlier');
+  static String get debutPlusUn => _t('Commencer un verset plus tard', 'Start one verse later');
+  static String get finMoinsUn => _t('Finir un verset plus tôt', 'End one verse earlier');
+  static String get finPlusUn => _t('Finir un verset plus tard', 'End one verse later');
   static String get audioIndisponibleAppareil => _t(
       "L'écoute audio n'est pas disponible sur cet appareil.",
       'Audio playback is not available on this device.');

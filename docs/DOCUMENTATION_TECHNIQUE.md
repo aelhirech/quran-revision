@@ -516,6 +516,23 @@ récitateur recrée son état au lieu de garder un « disponible » périmé. L'
 **qu'au premier plan** : iOS suspend l'app en arrière-plan, le téléchargement échoue et se
 reprend en retouchant le bouton (reprise automatique = Sprint B).
 
+**Barre audio extraite + portion (US-11, 2026-09-29)** : tout ce qui précède (`_reciter`,
+`_starting`, `_toggleLoop`, `_mediaId`, `AudioDownloadButton`) vit désormais dans
+`widgets/verse_audio_bar.dart` (`VerseAudioBar(sourate, ayahStart, ayahEnd)`) ; `VerseBottomSheet`
+redevient `StatelessWidget` et ne fait que l'embarquer. La barre ajoute une **portion** : état
+local `_portion`, initialisé à la plage affichée à chaque ouverture, jamais persisté ni écrit dans
+`ayah_facts`. `_mediaId`, `playableSources` et le titre `MediaItem` utilisent la portion, pas la
+plage affichée. Le réglage passe par `widgets/verse_range_slider.dart` (`VerseRangeSlider` :
+`RangeSlider` + ±1 par borne, logique pure dans `nudgeRange`), extrait de `VerseRangePicker` qui
+le consomme aussi — le ±1 profite donc au check-in, au check-out et à l'onboarding. Masqué si la
+plage affichée fait un seul verset. **Changer la portion pendant l'écoute** : `playLoop` remplace
+toute la playlist, il n'y a pas d'édition en place. La barre retient la boucle qu'elle a lancée
+(`_loaded`) et `_followPortionIfPlaying` relance au relâché du curseur (`onChangeEnd`) ou à chaque
+±1, jamais sur `onChanged` — seulement si cette boucle **joue**, et jamais après un démarrage raté
+(sinon boucle infinie). Hors connexion (`playableSources == null`) : snackbar, l'ancienne boucle
+continue et le curseur revient sur sa portion. Limite connue (Backlog P3 `currentLoop`) : rouvrir
+la vue pendant qu'une sous-portion tourne ne reconnaît pas cette boucle.
+
 ---
 
 ## 9. Direction artistique & theming
