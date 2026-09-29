@@ -40,15 +40,25 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
   late RangeValues _portion =
       RangeValues(widget.ayahStart.toDouble(), widget.ayahEnd.toDouble());
 
-  // The loop this bar last started. The player keeps looping it until a new
-  // portion actually starts, so an offline failure snaps the slider back here.
-  ({String mediaId, RangeValues portion})? _loaded;
-
   int get _audioStart => _portion.start.round();
   int get _audioEnd => _portion.end.round();
 
-  String _mediaId(Reciter reciter) =>
-      '${reciter.id}_${widget.sourate.id}_${_audioStart}_$_audioEnd';
+  /// The player's loop when it belongs to this view — same reciter and surah,
+  /// range within the displayed one. Covers a sub-portion started before the
+  /// view was closed and reopened (US-11 crit. 4 with crit. 5).
+  AudioLoop? get _ownLoop {
+    final loop = QuranAudioHandler.currentLoop;
+    final reciter = _reciter;
+    if (loop == null || reciter == null) return null;
+    final isOwn = loop.reciterId == reciter.id &&
+        loop.surahId == widget.sourate.id &&
+        loop.start >= widget.ayahStart &&
+        loop.end <= widget.ayahEnd;
+    return isOwn ? loop : null;
+  }
+
+  bool _playsPortion(AudioLoop loop) =>
+      loop.start == _audioStart && loop.end == _audioEnd;
 
   Future<void> _ensureReciterLoaded(Riwaya riwaya) async {
     if (_riwayaForReciter == riwaya) return;
@@ -60,12 +70,6 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
     if (_riwayaForReciter != riwaya) return;
     final reciter = (saved != null ? reciterById(saved) : null) ?? defaultReciterFor(riwaya);
     if (!mounted) return;
-    // Reopening the view while its range still loops: adopt that loop so
-    // moving the portion switches it too (US-11 crit. 4).
-    final mediaId = _mediaId(reciter);
-    if (QuranAudioHandler.isCurrentlyLoaded(mediaId)) {
-      _loaded = (mediaId: mediaId, portion: _portion);
-    }
     setState(() => _reciter = reciter);
   }
 
@@ -91,7 +95,10 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
     final reciter = _reciter;
     if (reciter == null || _starting) return;
     final handler = QuranAudioHandler.instance;
-    if (handler.isLoadedFor(_mediaId(reciter))) {
+    final own = _ownLoop;
+    // Paused on another portion: the next tap starts the new one. Playing on
+    // another portion (reopened view): the pause icon is shown, so pause.
+    if (own != null && (handler.playing || _playsPortion(own))) {
       await (handler.playing ? handler.pause() : handler.play());
       return;
     }
@@ -102,8 +109,6 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
     setState(() => _starting = true);
     // Snapshot: the slider may move while sources load; this start must
     // describe the portion it actually plays.
-    final mediaId = _mediaId(reciter);
-    final portion = _portion;
     final start = _audioStart;
     final end = _audioEnd;
     var started = false;
@@ -114,21 +119,23 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
       if (sources == null) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(S.audioIndisponibleHorsConnexion)));
-        final loaded = _loaded;
-        if (loaded != null && QuranAudioHandler.isCurrentlyLoaded(loaded.mediaId)) {
-          setState(() => _portion = loaded.portion);
+        // The previous loop keeps playing: show the portion it plays.
+        final own = _ownLoop;
+        if (own != null) {
+          setState(() => _portion =
+              RangeValues(own.start.toDouble(), own.end.toDouble()));
         }
         return;
       }
       await QuranAudioHandler.instance.playLoop(
+        loop: (reciterId: reciter.id, surahId: widget.sourate.id, start: start, end: end),
         sources: sources,
         item: MediaItem(
-          id: mediaId,
+          id: '${reciter.id}_${widget.sourate.id}_${start}_$end',
           title: '${widget.sourate.nameFr} · ${S.blocRange(start, end)}',
           artist: reciter.nameFr,
         ),
       );
-      _loaded = (mediaId: mediaId, portion: portion);
       started = true;
     } catch (e) {
       debugPrint('Audio playback error: $e');
@@ -151,11 +158,10 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
   /// playing — playLoop replaces the playlist, so there is no in-place edit.
   void _followPortionIfPlaying() {
     final reciter = _reciter;
-    final loaded = _loaded;
-    if (reciter == null || loaded == null || _starting) return;
-    if (!QuranAudioHandler.isCurrentlyLoaded(loaded.mediaId)) return;
+    final own = _ownLoop;
+    if (reciter == null || own == null || _starting) return;
     if (!QuranAudioHandler.instance.playing) return;
-    if (loaded.mediaId == _mediaId(reciter)) return;
+    if (_playsPortion(own)) return;
     _startLoop(reciter);
   }
 
@@ -169,7 +175,6 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
   Widget build(BuildContext context) {
     final riwaya = context.watch<AppState>().riwaya;
     final reciter = _reciter;
-    final mediaId = reciter != null ? _mediaId(reciter) : null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
       child: Column(
@@ -180,9 +185,8 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
               StreamBuilder<PlaybackState>(
                 stream: QuranAudioHandler.playbackStateStream,
                 builder: (context, snapshot) {
-                  final isThisRangeLoaded =
-                      mediaId != null && QuranAudioHandler.isCurrentlyLoaded(mediaId);
-                  final playing = isThisRangeLoaded && (snapshot.data?.playing ?? false);
+                  final ownsLoop = _ownLoop != null;
+                  final playing = ownsLoop && (snapshot.data?.playing ?? false);
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -197,7 +201,7 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
                             : Icon(playing ? Icons.pause : Icons.repeat),
                         tooltip: playing ? S.arreterEcoute : S.ecouterEnBoucle,
                       ),
-                      if (isThisRangeLoaded) ...[
+                      if (ownsLoop) ...[
                         const SizedBox(width: 4),
                         IconButton(
                           onPressed: () => QuranAudioHandler.instance.stop(),

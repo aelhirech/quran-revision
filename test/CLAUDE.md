@@ -17,7 +17,7 @@ dans le projet, ne pas en déduire une couverture UI.
 | `test/core/reciters_test.dart` | Catalogue de récitateurs (pas de fuite cross-riwaya), URL KSU, disposition des fichiers audio hors connexion. |
 | `test/services/audio_download_service_test.dart` | Audio hors connexion sur dossier temporaire (`AudioDownloadService.withRoot`) : source locale vs URL KSU, `.part` jamais compté, sourate complète. Ni le réseau ni le refus hors connexion (pas de plugin de connectivité en test). |
 | `test/state/app_state_checkin_test.dart` | Check-in : construction de la journée, répartition en rakaas, cas de regroupement par page partagée. |
-| `test/state/app_state_learning_test.dart` | Apprentissage : progression verset par verset, hand-off sourate mémorisée → révision, retrait du dernier bloc au check-out avant le hand-off (US-12). |
+| `test/state/app_state_learning_test.dart` | Apprentissage : progression verset par verset, hand-off sourate mémorisée → révision, retrait du dernier bloc au check-out avant le hand-off (US-12), filtre `checked_out = 0` de `learnPlanFor` face aux lignes héritées de l'ancien écran de pratique. |
 | `test/widgets/verse_range_slider_test.dart` | `nudgeRange` seul (fonction pure, pas de pump de widget) : ±1 bornés à min/max, fin jamais avant le début (US-11). |
 
 Avant de supposer qu'une fonctionnalité n'est pas testée, vérifier cette liste plutôt que
