@@ -21,6 +21,8 @@ import '../widgets/prayer_selector.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/step_dots.dart';
+import '../widgets/step_footer.dart';
+import '../widgets/step_transition.dart';
 import '../widgets/unit_row.dart';
 import '../widgets/verse_range_picker.dart';
 import 'check_in_detail_screen.dart';
@@ -227,9 +229,12 @@ class _CheckInScreenState extends State<CheckInScreen> {
                   _hero(units.fold(0, (s, u) => s + u.verseCount)),
                   if (!state.guideDone('checkin_done')) _guideStep(state),
                   Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      children: _stepChildren(palette, state, units),
+                    child: StepTransition(
+                      step: _step,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        children: _stepChildren(palette, state, units),
+                      ),
                     ),
                   ),
                   _ctaBar(palette),
@@ -286,62 +291,33 @@ class _CheckInScreenState extends State<CheckInScreen> {
   Widget _ctaBar(AppPalette palette) {
     final onLastStep = _step == _stepCount - 1;
     final ready = _effectivePrayers.isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (onLastStep && !ready)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(SCheckIn.checkInPrieresManquantes,
-                  style: TextStyle(fontSize: 11, color: palette.textMuted)),
+    return StepFooter(
+      hint: onLastStep && !ready
+          ? Text(SCheckIn.checkInPrieresManquantes,
+              style: TextStyle(fontSize: 11, color: palette.textMuted))
+          : null,
+      onBack: _step > 0 ? () => setState(() => _step--) : null,
+      primary: onLastStep
+          ? PrimaryCtaButton(
+              label: SCheckIn.checkInLancerPlan,
+              icon: Icons.check_rounded,
+              // Les ajustements (rythme, ajouts/retraits,
+              // apprentissage) sont déjà écrits en direct dans
+              // ayah_facts — "Valider" ne fait que rendre les
+              // prières à l'appelant, qui répartit en rakaas.
+              onPressed: ready
+                  ? () {
+                      HapticFeedback.mediumImpact();
+                      context.read<AppState>().markGuideDone('checkin_done');
+                      Navigator.of(context).pop(_effectivePrayers);
+                    }
+                  : null,
+            )
+          : PrimaryCtaButton(
+              label: SCheckIn.suivant,
+              icon: Icons.arrow_forward,
+              onPressed: () => setState(() => _step++),
             ),
-          SizedBox(
-            height: 54,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_step > 0) ...[
-                  Expanded(
-                    child: OutlinedActionButton(
-                        icon: Icons.arrow_back,
-                        label: SCheckIn.retour,
-                        onTap: () => setState(() => _step--)),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  flex: 2,
-                  child: onLastStep
-                      ? PrimaryCtaButton(
-                          label: SCheckIn.checkInLancerPlan,
-                          icon: Icons.check_rounded,
-                          // Les ajustements (rythme, ajouts/retraits,
-                          // apprentissage) sont déjà écrits en direct dans
-                          // ayah_facts — "Valider" ne fait que rendre les
-                          // prières à l'appelant, qui répartit en rakaas.
-                          onPressed: ready
-                              ? () {
-                                  HapticFeedback.mediumImpact();
-                                  context
-                                      .read<AppState>()
-                                      .markGuideDone('checkin_done');
-                                  Navigator.of(context).pop(_effectivePrayers);
-                                }
-                              : null,
-                        )
-                      : PrimaryCtaButton(
-                          label: SCheckIn.suivant,
-                          icon: Icons.arrow_forward,
-                          onPressed: () => setState(() => _step++),
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

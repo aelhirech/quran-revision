@@ -4,7 +4,6 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quran_revision/core/revision_engine.dart';
 import 'package:quran_revision/models/ayah_fact.dart';
-import 'package:quran_revision/models/learning_progress.dart';
 import 'package:quran_revision/models/riwaya.dart';
 import 'package:quran_revision/models/sourate.dart';
 import 'package:quran_revision/models/revision_unit.dart';
@@ -138,9 +137,9 @@ void main() {
             'la position déjà atteinte dans les autres (contrairement à '
             'saveConfig, qui repart de 0 quand la sélection change)');
     final progress = await state.learningProgressList();
-    expect(progress.memorisedCount, 1,
+    expect(progress.where((p) => p.isComplete).length, 1,
         reason: 'les faits `learn` sont conservés — ils sont la trace de '
-            'mémorisation qui alimente « Sourates mémorisées »');
+            'mémorisation de la sourate');
     expect(await state.learningInProgress(), isNull,
         reason: 'une sourate terminée ne compte plus comme "en cours"');
     expect(await state.handOffLearnedSurahs(), isEmpty,

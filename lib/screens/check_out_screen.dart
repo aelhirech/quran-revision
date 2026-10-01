@@ -17,6 +17,8 @@ import '../widgets/outlined_action_button.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
 import '../widgets/step_dots.dart';
+import '../widgets/step_footer.dart';
+import '../widgets/step_transition.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_range_picker.dart';
 import '../widgets/verse_toggle_chips.dart';
@@ -242,33 +244,36 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                     _hero(palette, showPart2),
                     if (!state.guideDone('checkout_done')) _guideStep(state),
                     Expanded(
-                      child: showPart2
-                          ? _part2Body(palette)
-                          : ListView(
-                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                              children: [
-                                for (final it in items)
-                                  CheckOutRow(
-                                    unit: it.unit,
-                                    uncheckedVerses: {
-                                      for (final v in it.unit.verses)
-                                        if (_uncheckedVerses
-                                            .contains((it.unit.sourate.id, v)))
-                                          v,
-                                    },
-                                    onToggleVerse: (v) =>
-                                        _toggleVerse(it.unit.sourate.id, v),
-                                  ),
-                                const SizedBox(height: 14),
-                                OutlinedActionButton(
-                                    icon: Icons.add,
-                                    label: SCheckOut.checkOutReviseEnPlus,
-                                    onTap: _addRevisedSourate),
-                                ..._learnSection(palette),
-                              ],
-                            ),
+                      child: StepTransition(
+                        step: _step,
+                        child: showPart2
+                            ? _part2Body(palette)
+                            : ListView(
+                                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                                children: [
+                                  for (final it in items)
+                                    CheckOutRow(
+                                      unit: it.unit,
+                                      uncheckedVerses: {
+                                        for (final v in it.unit.verses)
+                                          if (_uncheckedVerses
+                                              .contains((it.unit.sourate.id, v)))
+                                            v,
+                                      },
+                                      onToggleVerse: (v) =>
+                                          _toggleVerse(it.unit.sourate.id, v),
+                                    ),
+                                  const SizedBox(height: 14),
+                                  OutlinedActionButton(
+                                      icon: Icons.add,
+                                      label: SCheckOut.checkOutReviseEnPlus,
+                                      onTap: _addRevisedSourate),
+                                  ..._learnSection(palette),
+                                ],
+                              ),
+                      ),
                     ),
-                    _ctaBar(palette, showPart2),
+                    _ctaBar(showPart2),
                   ],
                 ),
               ),
@@ -332,7 +337,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     );
   }
 
-  Widget _ctaBar(AppPalette palette, bool showPart2) {
+  Widget _ctaBar(bool showPart2) {
     String label;
     VoidCallback? onPressed;
     if (!_isMultiDay) {
@@ -345,12 +350,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       label = _addToday ? SCheckOut.checkOutValiderAujourdhui : SCheckOut.checkOutTerminerSans;
       onPressed = _sealing ? null : _close;
     }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: SizedBox(
-        height: 52,
-        child: PrimaryCtaButton(label: label, onPressed: onPressed),
-      ),
+    return StepFooter(
+      // Part 2 of a multi-day catch-up had no way back to part 1 (US-15).
+      onBack: showPart2 && !_sealing ? () => setState(() => _step = 1) : null,
+      primary: PrimaryCtaButton(label: label, onPressed: onPressed),
     );
   }
 }

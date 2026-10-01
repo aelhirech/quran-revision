@@ -103,6 +103,10 @@ dépendance au site source. Le téléchargement lui-même passe toujours par lui
   ligne Réglages affiche l'erreur. Pas de pré-vérification d'espace libre (pas d'API sans
   dépendance native).
 
+## Archivées
+
+Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
 ### Cadre commun à US-13, US-14 et US-15 (blueprint UI/UX du 2026-09-30)
 
 Ces trois stories sortent d'un même besoin : « améliorer l'UI/UX, avec quelques effets waouh ».
@@ -133,9 +137,11 @@ par écran :
   et embarque déjà SQLite. Le détail et les angles morts sont dans le scoping technique d'US-15.
 
 ### US-15 — Une app qui paraît soignée et cohérente d'un écran à l'autre
-**État** : en sprint — blueprint du 2026-09-30, scoping du 2026-10-01. Sprint A livré le
-2026-10-01 (emojis, « Nouveau tour », chiffres du Récap, retour tactile ; vu en thème sombre
-seulement). Reste l'item Backlog « US-15 Sprint B ».
+**État** : terminée — Sprint A (`feature/phase-24-sprint6-finition`) et Sprint B
+(`feature/phase-24-sprint7-coherence`), 2026-10-01. Blueprint du 2026-09-30, scoping du
+2026-10-01. Les deux sprints ont été vérifiés sous Windows en clair et en sombre (crit. 5) ; le
+tableau de la passe `critique` (crit. 6) est dans le message de commit du Sprint B. Seul le
+retour tactile reste non vérifié faute d'appareil.
 
 **Statement** : En tant qu'utilisateur qui ouvre l'app deux fois par jour, je veux une interface
 cohérente, lisible et agréable au toucher, où chaque chiffre a un sens clair, afin que l'outil
@@ -265,10 +271,6 @@ retour + suivant, et transition animée). Elle ne diverge qu'entre les deux écr
     n'est injectable.
 
 ---
-
-## Archivées
-
-Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
 
 ### US-13 — Les jalons rares se vivent comme des moments
 **État** : terminée — sprint Clôture (`feature/phase-24-sprint5-cloture`, 2026-10-01). Blueprint du 2026-09-30, scoping du 2026-10-01. Reprend l'Idée produit

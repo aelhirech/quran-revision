@@ -49,7 +49,6 @@ class S {
 
   // Profile
   static String get joursEcoules => _t('Jours écoulés', 'Days elapsed');
-  static String get souratesMemoriees => _t('Sourates mémorisées', 'Memorized surahs');
   static String get reinitialiser => _t('Réinitialiser la configuration', 'Reset configuration');
   static String get reinitDesc => _t('Repart de zéro avec une nouvelle sélection', 'Start over with a new selection');
   static String get configBloqueeJourEnAttente => _t(

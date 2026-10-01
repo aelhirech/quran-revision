@@ -27,64 +27,69 @@ class _SouratePickerSheetState extends State<SouratePickerSheet> {
     final filtered =
         widget.sourates.where((s) => s.matchesSearch(_search)).toList();
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.80,
-      decoration: BoxDecoration(
+    // A Material (not a decorated Container) so the ListTiles' ink splash is
+    // painted on this surface instead of under it — invisible otherwise.
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.80,
+      child: Material(
         color: cs.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2)),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(widget.title ?? S.commencerSourate,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: SOnboarding.rechercherSourate,
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(widget.title ?? S.commencerSourate,
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: SOnboarding.rechercherSourate,
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onChanged: (v) => setState(() => _search = v),
               ),
-              onChanged: (v) => setState(() => _search = v),
             ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ListView.builder(
-              itemCount: filtered.length,
-              itemBuilder: (_, i) {
-                final s = filtered[i];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: cs.primaryContainer,
-                    child: Text('${s.id}',
-                        style: TextStyle(
-                            color: cs.primary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12)),
-                  ),
-                  title: Text(s.nameFr,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text('${s.nameAr}  ·  ${s.verses} versets'),
-                  onTap: () => Navigator.pop(context, s),
-                );
-              },
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView.builder(
+                itemCount: filtered.length,
+                itemBuilder: (_, i) {
+                  final s = filtered[i];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: cs.primaryContainer,
+                      child: Text('${s.id}',
+                          style: TextStyle(
+                              color: cs.primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12)),
+                    ),
+                    title: Text(s.nameFr,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    // Arabic last: placed first, the bidi algorithm pulled the
+                    // count to its left ("286 · البقرة versets").
+                    subtitle: Text('${S.versetsCount(s.verses)}  ·  ${s.nameAr}'),
+                    onTap: () => Navigator.pop(context, s),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

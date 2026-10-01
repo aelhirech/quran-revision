@@ -42,6 +42,9 @@ ThemeData buildAppTheme(Brightness brightness) {
     extensions: [palette],
     cardTheme: CardThemeData(
       elevation: 0,
+      // Cards sit in padded lists like the Container-based cards around them;
+      // Material's default 4px margin shifted them out of alignment.
+      margin: EdgeInsets.zero,
       color: palette.surfaceCard,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),

@@ -16,7 +16,6 @@ import '../models/user_config.dart';
 class ProfileInfoCard extends StatelessWidget {
   final UserConfig config;
   final int elapsed;
-  final int memorisees;
   final VoidCallback onEditRythme;
   final VoidCallback onEditSourates;
 
@@ -24,7 +23,6 @@ class ProfileInfoCard extends StatelessWidget {
     super.key,
     required this.config,
     required this.elapsed,
-    required this.memorisees,
     required this.onEditRythme,
     required this.onEditSourates,
   });
@@ -33,9 +31,6 @@ class ProfileInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Card(
-      elevation: 0,
-      color: cs.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
@@ -47,9 +42,6 @@ class ProfileInfoCard extends StatelessWidget {
           const Divider(height: 1, indent: 56),
           _row(cs, Icons.today_outlined, S.joursEcoules,
               S.joursDuration(elapsed), 120),
-          const Divider(height: 1, indent: 56),
-          _row(cs, Icons.menu_book_outlined, S.souratesMemoriees,
-              '$memorisees', 180),
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.08);
