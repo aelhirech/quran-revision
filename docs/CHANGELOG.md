@@ -38,6 +38,16 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
   vrai pendant toute l'écoute (bouton bloqué sur le spinner, et `_followPortionIfPlaying` jamais
   exécuté). Son erreur est donc loguée dans le handler, plus remontée à la barre.
 
+- **Clôture de journée (US-13/US-14, 2026-10-01)** :
+  - `AppState.checkOut` renvoie un `SealOutcome` (`lib/models/day_close.dart`). C'est l'**unique**
+    source des jalons : jamais un second calcul de « tour bouclé » ou de « sourate mémorisée »
+    côté écran.
+  - Le bilan de l'accueil (`dayRecap`) se relit toujours depuis `ayah_facts`, jamais mis en
+    cache, sinon une clôture corrigée afficherait l'ancien bilan.
+  - La transition de clôture est un état d'affichage de `DayPlanTab` (`_justClosedDate`, 4 s),
+    pas d'`AppState`. Elle ne joue ni après un jalon, ni à la réouverture d'une journée déjà
+    scellée.
+
 **Cadrage produit encore valide**
 - « Prières où il est imam » = prières où c'est lui qui récite (seul ou en dirigeant) — un simple élargissement de libellé, pas un filtre d'exclusion ni une pondération de répartition.
 - L'apprentissage n'a plus d'onglet dédié : la sourate à apprendre est choisie au check-in, récitée dans la **dernière rakaa** du plan, confirmée au check-out.
@@ -99,69 +109,8 @@ tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de
   ou le check-out.
 - **Doc** : §6, §8.4 (Réglages), §8.6bis. Passer US-10 à « terminée » puis l'archiver.
 
-### [P2] US-13 + US-14 — Sprint Clôture : jalons rares et fin de journée
-Les deux stories partagent le même point d'entrée (`CheckOutScreen._close()` →
-`AppState.checkOut`), donc un seul sprint. À faire **avant** US-15 Sprint A : les deux touchent
-l'accueil, et ce sprint-ci fixe l'état « journée clôturée ».
-- **Résultat de clôture** : `AppState.checkOut` renvoie
-  `({bool cycleWrapped, List<Sourate> memorized})` au lieu d'un `bool`. `memorized` est le retour
-  de `handOffLearnedSurahs(notify: false)`, aujourd'hui ignoré. Mettre à jour
-  `test/state/app_state_checkin_test.dart` (l. 116 et 426 lisent le `bool`) et ajouter un test
-  qui vérifie que `memorized` contient la sourate complétée ce jour, puis rien au second
-  scellement.
-- **US-13, le moment de jalon** :
-  - un nouveau widget dans `lib/widgets/` remplace `cycle_milestone_dialog.dart`, qui est
-    supprimé ;
-  - il couvre les trois cas : sourate mémorisée (nommée en calligraphie Amiri or, entrée dans le
-    tour présentée comme une capacité), tour bouclé, ou les deux dans un seul dialogue ;
-  - un seul bouton, et `barrierDismissible: false` comme aujourd'hui ;
-  - pour l'animation, `OrnamentalDivider` se dessine (`flutter_animate`, `scaleX` + fondu lent,
-    jamais `elasticOut`), sans emoji, uniquement avec les couleurs `AppPalette` ;
-  - les chaînes `cycleTermineTitle`/`cycleTermineBody` (« Cycle terminé ! ») sont **remplacées**
-    par un texte qui dit « tout a été revu, un nouveau tour commence ». Plus de mot
-    « fini »/« terminé ».
-- **US-14, la fin de journée** :
-  - `CheckOutScreen` ferme avec `Navigator.pop(outcome)`. `DayPlanTab._openCheckOut` relaie le
-    résultat et passe à `HomeScreen` la date clôturée, pour jouer **une fois** une transition
-    courte (fondu + changement d'icône, ~600 ms, aucun geste, aucune modale) avec une ligne qui
-    nomme le jour (« Ta journée est clôturée » / « Hier est clôturé ») ;
-  - pas de transition si `cycleWrapped || memorized.isNotEmpty`, car le jalon vient d'être
-    affiché ;
-  - à l'état `todayClosed`, l'accueil affiche le nouveau `lib/widgets/day_closed_summary.dart` :
-    - **bilan** : les sourates revues, et les versets appris s'il y en a ;
-    - « le reste revient demain » si un verset du jour est resté à `reach=0`, sans jamais
-      formuler de reproche ;
-    - **regard devant** : la durée du tour, et l'échéance conditionnelle de l'apprentissage en
-      cours.
-
-    Ce widget s'affiche chaque jour, pas seulement la première fois.
-  - **Données**, toutes dérivées, aucun stockage :
-    - `AppState.dayRecap(date)` s'appuie sur `AyahFactsRitual.dayFacts`, qui existe déjà ;
-    - il utilise aussi une nouvelle requête `AyahFactsLearning.learnedCountOn(date, riwaya)`,
-      un `COUNT` des lignes `learn` à `reach=1` de la date. `learnPlanFor` ne convient pas : il
-      filtre `checked_out = 0`.
-  - le regard devant de `CheckOutScreen._guideStep` (`cycleDaysFor` + `daysToFinish`) est
-    extrait dans un getter partagé par l'étape guidée et par `DayClosedSummary`, pas recalculé à
-    part ;
-  - après un rattrapage, l'accueil reste au repos, car le bilan ne vaut que pour aujourd'hui
-    (US-14 crit. 5, ajusté au scoping).
-- **Taille des fichiers** : `check_out_screen.dart` est à 356 lignes. Il ne reçoit que le
-  câblage. Si l'extraction du regard devant ne le fait pas redescendre sous 350, ouvrir l'item
-  d'extraction en fin de sprint.
-- **Chaînes** : `lib/core/strings_check_out.dart` pour la clôture, `strings.dart` pour les
-  jalons, en FR et en EN.
-- **Tests** : `dayRecap`/`learnedCountOn` en `sqflite_common_ffi` (revu, appris, reliquat, et le
-  jour J+1 qui ne remonte rien de J).
-- **Vérification visuelle** : `flutter run -d windows`, dans les deux thèmes, pour le moment de
-  jalon et l'accueil clôturé. Pour provoquer les jalons, il faut une sélection courte et un
-  apprentissage à un verset de la fin.
-- **Exclus** : paliers de streak, son, collection de jalons, tout effet au check-in, tout
-  changement de ce que crédite le check-out.
-- **Doc** : `DOCUMENTATION_TECHNIQUE.md` §7 (AppState : signature de `checkOut`, `dayRecap`) et
-  §8 (écrans d'accueil et de check-out). Passer US-13 et US-14 à « terminée », puis les archiver.
-
 ### [P2] US-15 Sprint A — Finition : emojis, chiffres de l'accueil et du Récap, retour tactile
-Après le Sprint Clôture.
+Le Sprint Clôture est livré : le 🎉 est parti, et `OrnamentalDivider(draw: true)` existe déjà pour remplacer le ✨.
 - **Emojis** :
   - `celebration_page.dart:47` ✨ est remplacé par `OrnamentalDivider` qui se dessine (même
     traitement que le jalon US-13). On garde le reste de la page d'onboarding tel quel ;

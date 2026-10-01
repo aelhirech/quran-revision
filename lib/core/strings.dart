@@ -197,12 +197,21 @@ class S {
           : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   static String get semaineDerniereLabel => _t('7 derniers jours', 'Last 7 days');
 
-  // Milestone cycle terminé
-  static String get cycleTermineTitle => _t('Cycle terminé !', 'Cycle complete!');
-  static String get cycleTermineBody => _t(
-    'Tu as révisé toutes tes sourates. Le prochain cycle commence maintenant.',
-    'You have revised all your surahs. The next cycle starts now.',
+  // Rare milestones (US-13) — never "finished"/"complete": revision has no
+  // end, only rounds (CLAUDE.md § Direction narrative).
+  static String get jalonTourTitre => _t('Un tour complet', 'A full round');
+  static String get jalonTourCorps => _t(
+    "Tout ce que tu portes a été revu, page après page. Un nouveau tour commence.",
+    'Everything you carry has been revised, page after page. A new round begins.',
   );
+  static String jalonMemoriseeTitre(int n) => n > 1
+      ? _t('Sourates mémorisées', 'Surahs memorized')
+      : _t('Sourate mémorisée', 'Surah memorized');
+  static String jalonMemoriseeCorps(String noms, int n) => _t(
+    '$noms ${n > 1 ? 'rejoignent' : 'rejoint'} ta révision : du Coran de plus que tu portes, et que le tour gardera vivant.',
+    '$noms ${n > 1 ? 'join' : 'joins'} your revision: more Quran you carry, kept alive by the round.',
+  );
+  static String get jalonDoubleTitre => _t('Une journée rare', 'A rare day');
   static String get continuer => _t('Continuer', 'Continue');
 
   // Streak / gamification

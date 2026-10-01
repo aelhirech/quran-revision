@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/day_dates.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/revision_unit.dart';
@@ -9,8 +10,8 @@ import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
-import '../widgets/cycle_milestone_dialog.dart';
 import '../widgets/guide_step.dart';
+import '../widgets/milestone_moment.dart';
 import '../widgets/outlined_action_button.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
@@ -81,8 +82,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   /// Calculé une fois : `DateTime.parse` sur une date locale résout le
   /// fuseau horaire, de loin la primitive la plus chère de cet écran, et les
   /// libellés le relisaient une dizaine de fois par build.
-  late final int _gapDays =
-      DateTime.now().difference(DateTime.parse(widget.date)).inDays;
+  late final int _gapDays = daysAgo(widget.date);
 
   bool get _isMultiDay => _gapDays > 1;
 
@@ -194,7 +194,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
           state.unlearnVerses(learn.sourate.id, _retiredFromLastBlock),
         ],
       ]);
-      final cycleWrapped = await state.checkOut(widget.date);
+      final outcome = await state.checkOut(widget.date);
       // Marked AFTER the real sealing, never on the guide's display or a
       // plain tap — see CLAUDE.md § "Modèle de données central" and the
       // guide rule (CHANGELOG, US-1 sprint B).
@@ -207,14 +207,15 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       // plan quand même à la ligne suivante (bug trouvé en revue de code).
       if (!_isMultiDay || _addToday) await state.ensureDayPlan();
       if (!mounted) return;
-      if (cycleWrapped) {
+      if (outcome.hasMilestone) {
         await showDialog<void>(
           context: context,
           barrierDismissible: false,
-          builder: (_) => const CycleMilestoneDialog(),
+          builder: (_) => MilestoneMoment(outcome: outcome),
         );
       }
-      if (mounted) Navigator.of(context).pop();
+      // The caller plays the daily close transition from this (US-14).
+      if (mounted) Navigator.of(context).pop(outcome);
     } finally {
       if (mounted) setState(() => _sealing = false);
     }
@@ -279,17 +280,14 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   /// (`LearningProgress.daysToFinish`). Generic fallback if neither applies
   /// (empty selection, or no learning in progress).
   Widget _guideStep(AppState state) {
-    final cycleTotal = state.daySelection.cycleTotal;
-    final pagesPerDay = state.config?.pagesPerDay ?? 0;
-    final cycleDays = cycleTotal > 0
-        ? state.cycleDaysFor(state.daySelection, pagesPerDay)
-        : null;
-    final learningDays = _progressAfterWithdrawal()
-        ?.daysToFinish(state.config?.versesToLearnPerDay ?? 0);
+    final cycleDays = state.roundDaysOf(state.daySelection);
+    final progress = _progressAfterWithdrawal();
+    final learningDays =
+        progress?.daysToFinish(state.config?.versesToLearnPerDay ?? 0) ?? 0;
     final body = [
       if (cycleDays != null) SGuide.guideCheckoutCycleBody(cycleDays),
-      if (learningDays != null && learningDays > 0)
-        SGuide.guideCheckoutLearningBody(learningDays),
+      if (progress != null && learningDays > 0)
+        SCheckOut.devantApprentissage(progress.sourate.nameFr, learningDays),
     ].join(' ');
     return GuideStep(
       icon: Icons.nightlight_outlined,

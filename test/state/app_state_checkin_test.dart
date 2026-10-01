@@ -113,7 +113,7 @@ void main() {
     expect(state.pendingDate, yesterday);
     expect(state.cyclePosition, 0);
 
-    final wrapped = await state.checkOut(yesterday);
+    final wrapped = (await state.checkOut(yesterday)).cycleWrapped;
     expect(wrapped, isFalse,
         reason: 'une seule sourate faite sur les deux du cycle : pas de bouclage');
     // Le curseur est en PAGES depuis le 2026-09-08 : la sourate 60 en couvre
@@ -423,7 +423,7 @@ void main() {
     await AyahFactsRitual.setReach(day, Riwaya.hafs, 107, 1, 10, true);
     await AyahFactsRitual.removeFromDayPlan(day, Riwaya.hafs, 108);
 
-    final wrapped = await state.checkOut(day);
+    final wrapped = (await state.checkOut(day)).cycleWrapped;
     expect(state.cyclePosition, 1,
         reason: 'le groupe de la page 602 compte comme 1 seule position de '
             'cycle, pas 2 (108 retirée n\'empêche pas 106/107 de compter) — '

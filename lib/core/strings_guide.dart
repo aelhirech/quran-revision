@@ -26,12 +26,11 @@ class SGuide {
       "The book icon, on every rakaa, opens the verses to recite — no need to ever leave the app.");
   static String get guideCheckoutTitle => S._t(
       "C'est ce moment qui fait avancer ton cycle", "This is what moves your cycle forward");
+  // The look-ahead sentence itself is shared with the home screen's day
+  // close (US-14): one wording, never two drifting copies.
   static String guideCheckoutCycleBody(int days) => S._t(
-      "Confirme ce que tu as réellement fait — c'est cette confirmation qui fait avancer ton cycle. À ce rythme, aucune de tes sourates ne reste plus de $days jours sans être revue.",
-      "Confirm what you actually did — this confirmation is what moves your cycle forward. At this pace, no surah of yours waits more than $days days without being revised.");
-  static String guideCheckoutLearningBody(int days) => S._t(
-      "Si tu tiens ce rythme, cette sourate sera mémorisée dans environ $days jours.",
-      'At this pace, this surah should be memorized in about $days days.');
+      "Confirme ce que tu as réellement fait — c'est cette confirmation qui fait avancer ton cycle. ${SCheckOut.devantTour(days)}",
+      "Confirm what you actually did — this confirmation is what moves your cycle forward. ${SCheckOut.devantTour(days)}");
   static String get guideCheckoutBody => S._t(
       "Confirme ce que tu as réellement fait aujourd'hui — cette confirmation, pas la simple coche pendant la prière, fait progresser ta révision.",
       "Confirm what you actually did today — this confirmation, not just ticking boxes during prayer, is what moves your revision forward.");
