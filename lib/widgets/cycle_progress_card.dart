@@ -46,6 +46,20 @@ class CycleProgressCard extends StatelessWidget {
     final palette = context.palette;
     final onPrimary = palette.onPrimary;
     final percent = (progress * 100).round();
+    // US-15: at the start of a round the dominant figure would be an empty
+    // "0 %" — show what is held instead. `total > 0` keeps the empty-cycle
+    // case (no pagination) on the plain display rather than "0 pages".
+    final newRound = pos == 0 && total > 0;
+    final String pagesText;
+    // `newRound` deliberately wins over `showTotal`: pages *held* are what is
+    // already acquired, not the weight still ahead (US-15 scoping 2026-10-01).
+    if (newRound) {
+      pagesText = S.pagesEnGarde(total);
+    } else if (showTotal) {
+      pagesText = '$pos / $total ${S.pagesLabel}';
+    } else {
+      pagesText = '$pos ${S.pagesLabel}';
+    }
 
     return DomeProgressCard(
       topRadius: topRadius,
@@ -60,29 +74,40 @@ class CycleProgressCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   letterSpacing: 2.5)),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('$percent',
-                  style: TextStyle(
-                      color: onPrimary,
-                      fontSize: 52,
-                      fontWeight: FontWeight.w600,
-                      height: 1)),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text('%',
+          if (newRound)
+            Text(S.nouveauTour,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.lora(
+                        color: onPrimary,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w600,
+                        height: 1.1))
+                .animate()
+                .fadeIn(delay: 100.ms)
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('$percent',
                     style: TextStyle(
-                        color: palette.gold, fontSize: 24, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
+                        color: onPrimary,
+                        fontSize: 52,
+                        fontWeight: FontWeight.w600,
+                        height: 1)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text('%',
+                      style: TextStyle(
+                          color: palette.gold, fontSize: 24, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
           const SizedBox(height: 6),
           InkWell(
             onTap: () => _showPagesInfo(context),
             child: Text(
-              showTotal ? '$pos / $total ${S.pagesLabel}' : '$pos ${S.pagesLabel}',
+              pagesText,
               style: GoogleFonts.lora(
                   color: onPrimary.withValues(alpha: 0.75),
                   fontStyle: FontStyle.italic,

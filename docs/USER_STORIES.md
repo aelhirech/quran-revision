@@ -133,8 +133,9 @@ par écran :
   et embarque déjà SQLite. Le détail et les angles morts sont dans le scoping technique d'US-15.
 
 ### US-15 — Une app qui paraît soignée et cohérente d'un écran à l'autre
-**État** : scopée — blueprint du 2026-09-30, scoping du 2026-10-01. Items Backlog : « US-15
-Sprint A » et « US-15 Sprint B ».
+**État** : en sprint — blueprint du 2026-09-30, scoping du 2026-10-01. Sprint A livré le
+2026-10-01 (emojis, « Nouveau tour », chiffres du Récap, retour tactile ; vu en thème sombre
+seulement). Reste l'item Backlog « US-15 Sprint B ».
 
 **Statement** : En tant qu'utilisateur qui ouvre l'app deux fois par jour, je veux une interface
 cohérente, lisible et agréable au toucher, où chaque chiffre a un sens clair, afin que l'outil

@@ -22,6 +22,9 @@ class S {
   static String get tahiyyatCount => _t('Fois en mosquée', 'Mosque entries');
   static String get revisionEnCours => _t('Révision en cours', 'Revision in progress');
   static String get cycleEnCours => _t('Cycle en cours', 'Current cycle');
+  static String get nouveauTour => _t('Nouveau tour', 'New round');
+  static String pagesEnGarde(int n) =>
+      _t('$n ${_pages(n)} en garde', '$n ${_pages(n)} in your keeping');
 
   // Plan screen
   static String get horsPrieresTitre =>
@@ -38,7 +41,6 @@ class S {
   // Recap
   static String get cycleActuel => _t('CYCLE ACTUEL', 'CURRENT CYCLE');
   static String get mesSourates => _t('Mes sourates', 'My surahs');
-  static String get souratesLabel => _t('sourates', 'surahs');
   static String get versetsLabel => _t('versets', 'verses');
   static String versetsCount(int n) =>
       locale == 'fr' ? '$n verset${n > 1 ? 's' : ''}' : '$n verse${n > 1 ? 's' : ''}';
@@ -93,9 +95,9 @@ class S {
 
 
   // Notifications
-  static String get notifMatinTitle => _t('Révision du Coran 🕌', 'Quran Revision 🕌');
+  static String get notifMatinTitle => _t('Révision du Coran', 'Quran Revision');
   static String get notifMatinBody => _t('Planifie ta révision du jour', 'Plan your daily revision');
-  static String get notifSoirTitle => _t('Bilan du jour 📖', 'Daily recap 📖');
+  static String get notifSoirTitle => _t('Bilan du jour', 'Daily recap');
   static String get notifSoirBody => _t('As-tu complété ta révision ?', 'Did you complete your revision?');
   static String get notifMinuitTitle => _t('Journée pas encore clôturée', 'Day not closed out yet');
   static String get notifMinuitBody =>
@@ -148,8 +150,13 @@ class S {
   static String get ok => _t('OK', 'OK');
 
   // Récap différencié
-  static String get enRevision => _t('En révision', 'In revision');
-  static String get memorisees => _t('Mémorisées', 'Memorized');
+  static String get memoriseesEnEntier =>
+      _t('Mémorisées en entier', 'Memorized in full');
+  static String get rythmeRevision => _t('Rythme de révision', 'Revision pace');
+  static String get versets7DerniersJours =>
+      _t('versets, 7 derniers jours', 'verses, last 7 days');
+  static String get versetsParSemaine =>
+      _t('versets par semaine (moy.)', 'verses per week (avg.)');
   static String get repartitionSourates => _t('Répartition', 'Breakdown');
 
   // Fraîcheur (SRS léger, grain verset) — badge court (FreshnessBadge)

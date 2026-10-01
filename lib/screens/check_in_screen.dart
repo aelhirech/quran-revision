@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
@@ -322,6 +323,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                           // prières à l'appelant, qui répartit en rakaas.
                           onPressed: ready
                               ? () {
+                                  HapticFeedback.mediumImpact();
                                   context
                                       .read<AppState>()
                                       .markGuideDone('checkin_done');

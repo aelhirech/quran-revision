@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
@@ -149,6 +150,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
 
   Future<void> _close() async {
     if (_sealing) return;
+    HapticFeedback.mediumImpact();
     setState(() => _sealing = true);
     try {
       final state = context.read<AppState>();
