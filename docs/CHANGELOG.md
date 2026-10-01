@@ -120,10 +120,34 @@ Le Sprint Clôture est livré : le 🎉 est parti, et `OrnamentalDivider(draw: t
   pourcentage est remplacé par « Nouveau tour », avec en sous-ligne « N pages en garde »
   (`total`). Le pourcentage reste dès que le tour est entamé (décision utilisateur du
   2026-10-01). Cela ne touche pas à `showTotal` ni à la règle par état d'US-1.
-- **Récap (`recap_screen.dart`, 322 lignes)** :
-  - on retire la tuile « Sourates » de `_statsRow`, doublon de « En révision » (même source,
-    `selections.length`) ;
-  - le libellé « Mémorisées » devient « Apprises avec l'app » (`S.memorisees`, FR et EN).
+- **Récap (`recap_screen.dart`, 322 lignes)**. Décision utilisateur du 2026-10-01, qui remplace
+  le renommage « Apprises avec l'app » :
+  - **Carte de répartition (`_repartitionCard`)** : deux tuiles.
+    - « Mémorisées en entier » compte les éléments de `config.selections` qui couvrent la
+      sourate du verset 1 au dernier (`SourateSelection` entière ; vérifier le champ ou getter
+      exact dans `lib/models/sourate_selection.dart`, sans le réimplémenter s'il existe).
+    - « En cours d'apprentissage » ne change pas.
+    - « En révision » et l'ancien `memorisedCount` disparaissent de cette carte. Supprimer
+      `S.enRevision`/`S.memorisees` s'ils n'ont plus d'appelant. `memorisedCount` est aussi
+      utilisé par Réglages : le garder s'il y sert encore.
+  - **`_statsRow`** : retirer la tuile « Sourates », doublon de la sélection (même source,
+    `selections.length`). Garder Versets et Pages.
+  - **Nouvelle rangée « Rythme »** : versets revus sur les **7 derniers jours** (fenêtre
+    glissante, comme le libellé « 7 derniers jours » de `HistoryCard`), et **moyenne par
+    semaine sur 8 semaines**.
+    - Une seule requête dans `AyahFactsService` : `revisionPace(today, riwaya)`.
+    - Elle lit les lignes `revise` à `reach=1` depuis `today - 55 j`. Elle renvoie
+      `({int last7Days, int last56Days, String? firstDate})`, avec un `SUM(CASE…)` pour les
+      7 jours et `MIN(date)` pour la première activité de la fenêtre.
+    - Un verset revu deux jours différents compte deux fois : on mesure un volume de
+      révision, comme `recentDayVerseStats`.
+    - **La moyenne divise par le nombre de semaines réellement couvertes** :
+      `clamp(ceil((daysAgo(firstDate) + 1) / 7), 1, 8)`, avec `daysAgo` de
+      `core/day_dates.dart`. Diviser toujours par 8 ferait paraître faible un utilisateur
+      arrivé depuis 10 jours, ce qui va contre la thèse de l'app.
+    - Test `sqflite_common_ffi` : les lignes hors fenêtre sont ignorées, `reach=0` n'est pas
+      compté, et la moyenne est juste pour un historique de 10 jours.
+    - Chaînes FR et EN dans `strings.dart`.
 - **Retour tactile** : `HapticFeedback.mediumImpact()` au moment de valider le check-in
   (`check_in_screen.dart`, bouton `checkInLancerPlan`) et à celui de sceller la journée
   (`check_out_screen.dart`, `_close()`), en appel direct, sans helper. Cocher une rakaa vibre

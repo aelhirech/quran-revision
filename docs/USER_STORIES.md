@@ -188,6 +188,15 @@ l'accueil et au Récap)** :
   « Nouveau tour » et « N pages en garde ».
 - **Emojis des titres de notification** (🕌 rappel du matin, 📖 rappel du soir) : retirés aussi,
   pour garder le même registre sobre hors de l'app.
+- **Chiffres du Récap (retour utilisateur du 2026-10-01, après test sous Windows)** : il remplace
+  le simple renommage « Apprises avec l'app » prévu au scoping. Compter seulement les sourates
+  apprises dans l'app n'a pas de sens pour quelqu'un qui arrive avec 113 sourates déjà sues. Le
+  Récap montre à la place :
+  - **« Mémorisées en entier »** : les sourates de la sélection de révision couvertes du premier
+    au dernier verset, qu'elles viennent de l'onboarding ou d'un apprentissage fini dans l'app.
+    Une portion (ex. Al-Baqara 255-260) n'y compte pas.
+  - **Versets revus, 7 derniers jours**, et **moyenne de versets revus par semaine sur les
+    8 dernières semaines**. Ce sont des chiffres de rythme, pas un compte de sourates.
 
 **Ajustement au scoping (2026-10-01)** — crit. 3 précisé, sens inchangé. « Même langage
 visuel » ne veut pas dire « même widget » pour la ligne de sourate. Le scoping du 2026-09-05
@@ -209,9 +218,14 @@ retour + suivant, et transition animée). Elle ne diverge qu'entre les deux écr
   - « En révision » (`_repartitionCard`) et « Sourates » (`_statsRow`) lisent la même source,
     `config.selections.length`. On retire la tuile « Sourates » de la rangée de stats, qui garde
     Versets et Pages.
-  - « Mémorisées » (`memorisedCount`) ne compte que les sourates apprises **dans l'app**. Elle
-    devient « Apprises avec l'app ». Le nouveau libellé lève à lui seul la contradiction apparente
-    avec « En révision » (113 vs 0), sans info-bulle.
+  - « Mémorisées » (`memorisedCount`) ne compte que les sourates apprises **dans l'app**.
+    _Remplacé le 2026-10-01 sur retour utilisateur_ : le renommage « Apprises avec l'app » est
+    abandonné. La carte de répartition devient « Mémorisées en entier » (sélections entières) et
+    « En cours d'apprentissage ». « En révision » est retirée : elle ne différait de « Mémorisées
+    en entier » que par les portions. Les sélections partielles restent visibles dans Réglages.
+  - Nouvelle rangée « Rythme » : versets revus sur les 7 derniers jours, et moyenne par semaine
+    sur 8 semaines. Les deux viennent d'une seule requête sur `ayah_facts`. Le détail est dans
+    l'item Backlog US-15 Sprint A.
 - **Accueil (crit. 2)** : `CycleProgressCard` prend un affichage « Nouveau tour » quand
   `pos == 0`, avec en sous-ligne le total de pages en garde (`pagesProgress.total`, déjà calculé).
   Aucune donnée nouvelle. Le Récap partage la carte : il bénéficie du même affichage, ce qui est
