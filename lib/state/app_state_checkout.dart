@@ -160,10 +160,12 @@ extension AppStateCheckOut on AppState {
   ///
   /// **Idempotent on the cycle** (Phase 9 Sprint 2): re-sealing an
   /// already-sealed day rewrites corrected `reach` values but no longer
-  /// advances `cyclePosition` — see the comment in the body. Returns `true`
-  /// if the cycle just wrapped (milestone to show on screen).
-  Future<bool> checkOut(String date) async {
-    if (_config == null) return false;
+  /// advances `cyclePosition` — see the comment in the body. Returns the
+  /// milestones the seal unlocked (cycle wrapped, surahs memorized).
+  Future<SealOutcome> checkOut(String date) async {
+    if (_config == null) {
+      return const SealOutcome(cycleWrapped: false, memorized: []);
+    }
     // Engine pass (pure CPU) and SQLite read are independent — started
     // together instead of in series.
     final sealedF = AyahFactsRitual.isDaySealed(date, _riwaya);
@@ -195,8 +197,26 @@ extension AppStateCheckOut on AppState {
     ]);
     // Only after sealing: a surah whose last verse was just confirmed
     // learned joins revision (see [handOffLearnedSurahs]).
-    await handOffLearnedSurahs(notify: false);
+    final memorized = await handOffLearnedSurahs(notify: false);
     _notify(); // the only notify of the whole operation
-    return cycleWraps;
+    return SealOutcome(cycleWrapped: cycleWraps, memorized: memorized);
+  }
+
+  /// Day recap shown on the home screen once [date] is sealed (US-14).
+  /// Rebuilt from `ayah_facts` on every call, never stored: a reopened and
+  /// corrected check-out must show the corrected recap.
+  Future<DayRecap> dayRecap(String date) async {
+    final unitsF = dayUnitsWithStatus(date: date);
+    final learn = await AyahFactsLearning.learnCountsOn(date, _riwaya);
+    final units = await unitsF;
+    return (
+      revised: {
+        for (final it in units)
+          if (it.reachedVerses.isNotEmpty) it.unit.sourate,
+      }.toList(),
+      learnedVerses: learn.reached,
+      leftover: units.any((it) => it.reachedVerses.length < it.unit.verseCount) ||
+          learn.reached < learn.total,
+    );
   }
 }

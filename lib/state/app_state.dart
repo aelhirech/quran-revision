@@ -6,6 +6,7 @@ import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/ayah_fact.dart';
 import '../models/daily_session.dart';
+import '../models/day_close.dart';
 import '../models/learning_progress.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';

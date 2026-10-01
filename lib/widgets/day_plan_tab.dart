@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/day_close.dart';
 import '../models/prayer.dart';
 import '../screens/check_in_screen.dart';
 import '../screens/check_out_screen.dart';
@@ -39,6 +41,8 @@ class _DayPlanTabState extends State<DayPlanTab> {
   // Loaded only once: a notification setting doesn't change often enough to
   // justify re-reading SharedPreferences on every build.
   ({int hour, int minute})? _eveningTime;
+  String? _justClosedDate;
+  Timer? _closingTimer;
 
   @override
   void initState() {
@@ -46,6 +50,12 @@ class _DayPlanTabState extends State<DayPlanTab> {
     StorageService.loadEveningTime().then((t) {
       if (mounted) setState(() => _eveningTime = t);
     });
+  }
+
+  @override
+  void dispose() {
+    _closingTimer?.cancel();
+    super.dispose();
   }
 
   bool get _pastEveningHour {
@@ -60,13 +70,28 @@ class _DayPlanTabState extends State<DayPlanTab> {
   /// rattrapage automatique d'un jour en attente ([_maybeShowCheckOut]) et le
   /// bouton « Clôturer ma journée » de PlanScreen, qui scelle aujourd'hui
   /// sans attendre le lendemain (Phase 9 Sprint 2).
-  Future<void> _openCheckOut(String date) =>
-      Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(
-          fullscreenDialog: true,
-          builder: (_) => CheckOutScreen(date: date),
-        ),
-      );
+  Future<void> _openCheckOut(String date) async {
+    // Reopening an already-sealed day is a correction, not a day's end: the
+    // close transition only plays on the first seal.
+    final state = context.read<AppState>();
+    final firstSeal = !(date == state.todayStr && state.todayClosed);
+    final outcome = await Navigator.of(context, rootNavigator: true).push<SealOutcome>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => CheckOutScreen(date: date),
+      ),
+    );
+    // Backed out (null), or a milestone already marked the moment: no
+    // second transition on top of it (US-14 crit. 4).
+    if (outcome == null || outcome.hasMilestone || !firstSeal || !mounted) return;
+    setState(() => _justClosedDate = date);
+    // The closing line is a transition, not a state: it fades away on its
+    // own, no gesture needed to dismiss it (US-14 crit. 1).
+    _closingTimer?.cancel();
+    _closingTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _justClosedDate = null);
+    });
+  }
 
   /// « Clôturer ma journée » depuis PlanScreen. Rebâtit la manche au retour si
   /// la journée n'a PAS été scellée (retour arrière) : le check-out peut avoir
@@ -161,6 +186,7 @@ class _DayPlanTabState extends State<DayPlanTab> {
     return HomeScreen(
       onIlluminer: () => _openCheckIn(state),
       onRouvrirCloture: () => _openCheckOut(state.todayStr),
+      justClosedDate: _justClosedDate,
     );
   }
 }

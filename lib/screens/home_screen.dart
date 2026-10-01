@@ -3,12 +3,14 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/day_dates.dart';
 import '../core/hadith_data.dart';
 import '../core/strings.dart';
 import '../models/riwaya.dart';
 import '../services/ayah_facts_service.dart';
 import '../state/app_state.dart';
 import '../widgets/cycle_progress_card.dart';
+import '../widgets/day_closed_summary.dart';
 import '../widgets/hadith_card.dart';
 import '../widgets/ornamental_divider.dart';
 import '../widgets/pagination_indisponible.dart';
@@ -29,10 +31,15 @@ class HomeScreen extends StatefulWidget {
   /// credits anything twice.
   final VoidCallback onRouvrirCloture;
 
+  /// Day just sealed (today or a catch-up day), for the short close
+  /// transition (US-14) — `null` once it has played.
+  final String? justClosedDate;
+
   const HomeScreen({
     super.key,
     required this.onIlluminer,
     required this.onRouvrirCloture,
+    this.justClosedDate,
   });
 
   @override
@@ -134,6 +141,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   // is by state, not by screen).
                   showTotal: closed,
                 ),
+                AnimatedSize(
+                  duration: 400.ms,
+                  curve: Curves.easeOutCubic,
+                  child: widget.justClosedDate == null
+                      ? const SizedBox(width: double.infinity)
+                      : _closingLine(palette, widget.justClosedDate!),
+                ),
+                if (closed) ...[
+                  const SizedBox(height: 16),
+                  DayClosedSummary(
+                      roundDays: state.roundDaysOf(daySelection),
+                      entrance: widget.justClosedDate == state.todayStr),
+                ],
                 const SizedBox(height: 16),
                 HadithCard(hadith: hadithDuJour(DateTime.now())),
                 const SizedBox(height: 28),
@@ -161,6 +181,31 @@ class _HomeScreenState extends State<HomeScreen> {
               ]),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// One sober line naming the day just closed — after a catch-up it names
+  /// that day, so nobody reads it as "today is closed" (US-14 crit. 5).
+  Widget _closingLine(AppPalette palette, String date) {
+    final gap = daysAgo(date);
+    final label = gap == 0
+        ? SCheckOut.clotureAujourdhui
+        : gap == 1
+            ? SCheckOut.clotureHier
+            : SCheckOut.clotureJourEnAttente;
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        children: [
+          const OrnamentalDivider(lineWidth: 36, draw: true),
+          const SizedBox(height: 8),
+          Text(label,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.amiri(fontSize: 17, color: palette.goldDark))
+              .animate()
+              .fadeIn(delay: 200.ms, duration: 600.ms),
         ],
       ),
     );

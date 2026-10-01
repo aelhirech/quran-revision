@@ -75,6 +75,23 @@ class AyahFactsLearning {
     return {for (final row in rows) row['ayah_id'] as int};
   }
 
+  /// Learning rows of day [date]: how many verses were acquired, out of how
+  /// many proposed. No `checked_out` filter, unlike [learnPlanFor]: this
+  /// reads a day AFTER it was sealed (US-14 day recap).
+  static Future<({int reached, int total})> learnCountsOn(
+      String date, Riwaya riwaya) async {
+    final db = await AyahFactsService._open();
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS total, SUM(reach) AS reached FROM ayah_facts '
+      'WHERE date = ? AND riwaya = ? AND type = ?',
+      [date, riwaya.name, AyahFactType.learn.name],
+    );
+    return (
+      reached: (rows.first['reached'] as int?) ?? 0,
+      total: (rows.first['total'] as int?) ?? 0,
+    );
+  }
+
   /// Date de première ligne `learn` par sourate (`MIN(date)` groupé) — sert
   /// de `startDate` approximatif pour `LearningProgress`.
   static Future<Map<int, DateTime>> learnStartDatesBySourate(

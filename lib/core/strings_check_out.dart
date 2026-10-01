@@ -49,4 +49,25 @@ class SCheckOut {
   static String get checkOutDernierBlocDesc => S._t(
       'Décoche un verset qui ne tient plus : il redeviendra à apprendre.',
       "Uncheck a verse that didn't hold: it goes back to learning.");
+
+  // Day close (US-14) — what the day brought, then the look ahead. Never a
+  // reproach: what didn't hold simply comes back tomorrow.
+  static String get clotureAujourdhui =>
+      S._t('Ta journée est scellée', 'Your day is sealed');
+  static String get clotureHier => S._t('Hier est clôturé', 'Yesterday is closed out');
+  static String get clotureJourEnAttente =>
+      S._t('Ta journée en attente est clôturée', 'Your pending day is closed out');
+  static String get bilanTitre => S._t("Ce qu'a apporté ta journée", 'What your day brought');
+  static String bilanRevu(String noms) => S._t('Revu : $noms', 'Revised: $noms');
+  static String bilanAppris(int n) => S._t(
+      'Appris : $n verset${n > 1 ? 's' : ''}', 'Memorized: $n verse${n > 1 ? 's' : ''}');
+  static String get bilanReste => S._t(
+      'Le reste revient demain, sans rien perdre.', 'The rest comes back tomorrow, nothing lost.');
+  static String get devantTitre => S._t('Devant toi', 'Ahead of you');
+  static String devantTour(int days) => S._t(
+      'À ce rythme, aucune de tes sourates ne reste plus de $days jours sans être revue.',
+      'At this pace, no surah of yours waits more than $days days without being revised.');
+  static String devantApprentissage(String nom, int days) => S._t(
+      'Si tu tiens ce rythme, $nom sera mémorisée dans environ $days jours.',
+      'At this pace, $nom should be memorized in about $days days.');
 }
