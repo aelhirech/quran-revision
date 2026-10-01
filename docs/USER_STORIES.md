@@ -103,6 +103,159 @@ dépendance au site source. Le téléchargement lui-même passe toujours par lui
   ligne Réglages affiche l'erreur. Pas de pré-vérification d'espace libre (pas d'API sans
   dépendance native).
 
+### Cadre commun à US-13, US-14 et US-15 (blueprint UI/UX du 2026-09-30)
+
+Ces trois stories sortent d'un même besoin : « améliorer l'UI/UX, avec quelques effets waouh ».
+Elles sont découpées **par moment de l'histoire** (voir `CLAUDE.md` § Direction narrative), pas
+par écran :
+- **Registre tranché : sobre et solennel.** On reste dans la DA Mus'haf/Tahajjud : lumière dorée,
+  ornement qui se dessine, fondu lent. Pas de confettis, pas d'emoji, rien de festif. Le sujet est
+  le Coran, pas un jeu.
+- **L'effet fort est réservé aux moments rares** (US-13). La clôture quotidienne (US-14) reste
+  courte, parce qu'un effet vu chaque soir s'use en quelques jours. Le reste (US-15), c'est de la
+  finition diffuse, pas du spectacle.
+- **Le milieu de journée n'est pas concerné** : pendant les prières, l'app reste quasi absente.
+  Le check-in reste *léger* : aucun effet ni projection n'y est ajouté.
+- **Impeccable** ([pbakaus/impeccable](https://github.com/pbakaus/impeccable)) sert de **grille de
+  diagnostic** (commandes `critique`/`audit`/`polish`/`delight`), pas de dépendance du projet. Il
+  est fait pour le web (HTML/CSS/React) : ses règles de détection automatique ne tournent pas sur
+  du Flutter. Ses grilles s'appliquent donc à la main, écran par écran. L'installer
+  (`/plugin marketplace add pbakaus/impeccable`) reste une action de l'utilisateur, hors de ces
+  stories.
+- **Prérequis relevé pendant le diagnostic, à traiter au scoping (ce n'est pas une story)** :
+  sur cette machine, la prévisualisation web s'arrête à l'accueil et au Récap. SQLite n'est pas
+  initialisé sur le web (`databaseFactory not initialized`), si bien que le check-in, le plan et
+  le check-out restent sur un spinner infini. Aucun device mobile n'est disponible non plus
+  (§12). Faire de la finition visuelle sans voir les écrans de la boucle quotidienne, c'est
+  travailler à l'aveugle : le scoping doit trancher comment les voir avant tout sprint de ces
+  trois stories.
+
+### US-13 — Les jalons rares se vivent comme des moments
+**État** : à scoper — blueprint du 2026-09-30. Reprend l'Idée produit « Annoncer la bascule d'une
+sourate mémorisée vers la révision » (`docs/CHANGELOG.md`), à retirer des Idées produit au
+scoping.
+
+**Statement** : En tant qu'utilisateur qui porte du Coran depuis des mois, je veux que les rares
+moments où un vrai cap est franchi (une sourate enfin mémorisée, un tour complet de ma révision)
+soient marqués avec la solennité qu'ils méritent, afin de sentir le chemin parcouru plutôt que de
+le découvrir par hasard dans un compteur.
+
+**Diagnostic (état actuel)** :
+- **Sourate mémorisée → révision** : la bascule se fait en silence au check-out. Le seul message
+  qui l'annonçait est parti avec l'écran d'apprentissage (US-12).
+- **Tour de cycle bouclé** : `CycleMilestoneDialog` affiche un emoji 🎉 qui rebondit
+  (`elasticOut`). C'est le registre festif générique (un tic typique des interfaces générées,
+  selon la grille d'impeccable), en rupture avec la DA Mus'haf.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given un check-out qui confirme le dernier verset d'une sourate en apprentissage, When la
+   journée est scellée, Then un moment dédié annonce que cette sourate est désormais mémorisée et
+   qu'elle entre dans la révision. Le moment la nomme, et son entrée dans le tour se présente
+   comme une **capacité** gagnée, jamais comme un allongement.
+2. Given un check-out qui fait boucler le tour de révision, When la journée est scellée, Then le
+   moment de tour bouclé est rendu dans le registre sobre (DA Mus'haf/Tahajjud, sans emoji). Le
+   texte ne dit jamais « fini » ou « terminé » : il dit que tout a été revu et qu'un nouveau tour
+   commence.
+3. Given les deux jalons le même soir, When la journée est scellée, Then les deux sont annoncés
+   dans un seul moment, jamais deux popups successifs.
+4. Given un jalon affiché, Then il se referme en un geste, et rien ne change dans la progression
+   (cycle, apprentissage, streak) du fait de son affichage.
+5. Given le thème sombre (Tahajjud), Then le moment est aussi soigné qu'en clair : pas de couleur
+   qui ne suit pas la palette.
+
+**Exclusions explicites** :
+- **Pas de palier de régularité (7/30/100 jours)**. `AppRules.streakMilestones` a déjà été retiré
+  (Phase 9 Sprint 2), et fêter la série transforme le streak en pression, alors que la thèse de
+  l'app est d'enlever du poids. À rouvrir seulement sur un retour utilisateur.
+- Pas de son. Pas d'écran de trophées ni de collection de jalons passés.
+- Pas de jalon pendant le check-in ni pendant les prières.
+
+### US-14 — Clôturer sa journée se ressent comme une récompense
+**État** : à scoper — blueprint du 2026-09-30.
+
+**Statement** : En tant qu'utilisateur qui vient de sceller sa journée, je veux que l'app me montre
+en un coup d'œil ce que cette journée a apporté et ce qu'elle rapproche, afin de finir sur un
+sentiment d'accompli plutôt que sur un simple retour à l'accueil.
+
+**Diagnostic (état actuel)** :
+- Sceller la journée ferme le check-out et renvoie à l'accueil, dont le bouton passe en « Journée
+  clôturée ». C'est une transition sèche, sans aucun retour sur l'effort qui vient d'être fait.
+- Le « regard devant » que la direction narrative place au check-out (durée du tour, échéance de
+  l'apprentissage) n'apparaît **que la première fois**, dans l'étape guidée `checkout_done`.
+  Dès le deuxième jour, il disparaît : la règle « devant au check-out » n'est tenue qu'une fois.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given un check-out qu'on scelle, When on revient à l'accueil, Then une transition courte et
+   sobre marque la fin de journée (pas un simple changement de libellé), **sans geste
+   supplémentaire** à faire pour la passer.
+2. Given une journée clôturée, Then l'accueil montre ce que la journée a apporté (ce qui a été
+   revu, et appris s'il y a lieu) et, en regard devant, la durée du tour et l'échéance
+   conditionnelle de l'apprentissage en cours. C'est vrai **chaque jour**, pas seulement la
+   première fois.
+3. Given une journée où une partie a été décochée au check-out, Then le bilan valorise ce qui a
+   tenu et dit sans reproche que le reste reviendra demain. Aucun « tu as raté X ».
+4. Given une clôture qui déclenche aussi un jalon (US-13), Then le jalon prend le pas et la
+   transition de clôture ne s'y ajoute pas en double.
+5. Given un rattrapage d'un jour passé (check-out poussé au lancement), Then la même fin de
+   journée s'applique, sans laisser croire que c'est aujourd'hui qui est clôturé.
+
+**Exclusions explicites** :
+- Pas de modale à fermer chaque soir : la récompense quotidienne tient dans la transition et dans
+  l'état de l'accueil, sinon elle devient une corvée dès la deuxième semaine.
+- Pas de projection au check-in ni sur l'accueil **avant** l'engagement (règle « derrière au
+  check-in »).
+- Aucun changement dans ce que le check-out crédite ou dans la façon dont il fait avancer le
+  cycle.
+
+### US-15 — Une app qui paraît soignée et cohérente d'un écran à l'autre
+**État** : à scoper — blueprint du 2026-09-30.
+
+**Statement** : En tant qu'utilisateur qui ouvre l'app deux fois par jour, je veux une interface
+cohérente, lisible et agréable au toucher, où chaque chiffre a un sens clair, afin que l'outil
+inspire la même confiance et le même respect que le sujet qu'il sert.
+
+**Diagnostic (état actuel, grilles `critique`/`polish` d'impeccable appliquées à la main à
+l'accueil et au Récap)** :
+- **Emoji en guise d'illustration** : ✨ à la célébration de l'onboarding, 🎉 au tour bouclé. Hors
+  DA.
+- **Récap en grille de tuiles-chiffres identiques** (grand nombre + petit libellé, ×6), avec des
+  doublons (« 113 en révision » à côté de « 113 sourates ») et une contradiction apparente
+  (« 113 en révision » mais « 0 mémorisées » : ce second chiffre ne compte que les sourates
+  apprises *dans l'app*, et rien ne le dit).
+- **Accueil au repos dominé par un « 0 % »** en début de tour : l'élément le plus gros de l'écran
+  montre du vide, alors que la règle est de montrer l'acquis (« derrière ») à ce moment-là.
+  Le même dôme se répète tel quel sur le Récap.
+- **Check-in / check-out** : en-tête et lignes de sourate dupliqués entre les deux écrans
+  (dette §8.5-14, jamais unifiée faute de pouvoir la vérifier visuellement).
+- **Retour tactile quasi absent** : quatre points de vibration dans toute l'app, et aucun sur les
+  gestes qui engagent (valider le check-in, sceller la journée).
+
+**Critères d'acceptation** (haut niveau) :
+1. Given n'importe quel écran de l'app, Then aucun emoji ne sert d'illustration ou de décor : les
+   illustrations passent par la DA (ornements, calligraphie, palette).
+2. Given le Récap et l'accueil, Then chaque chiffre affiché a un sens unique et explicite : pas
+   de doublon, pas deux chiffres qui semblent se contredire sans explication. Au repos, l'élément
+   dominant de l'accueil montre l'acquis, jamais un zéro vide.
+3. Given check-in et check-out, Then ils partagent le même langage visuel (en-tête, ligne de
+   sourate, navigation entre étapes, transitions), et passer d'une étape à l'autre est animé de
+   façon cohérente.
+4. Given les gestes qui engagent (valider le check-in, cocher une rakaa, sceller la journée),
+   Then chacun a un retour tactile et visuel discret et cohérent.
+5. Given le thème sombre Tahajjud et le thème clair Mus'haf, Then chaque écran retouché est
+   vérifié **visuellement** dans les deux thèmes avant d'être livré (voir le prérequis dans le
+   cadre commun ci-dessus).
+6. Given une passe `critique` avec la grille d'impeccable sur les trois onglets et sur le
+   check-in/check-out, Then elle ne remonte plus aucun problème de gravité haute.
+
+**Exclusions explicites** :
+- Pas de refonte de la navigation (3 onglets), des flux ni des règles métier : c'est de la
+  finition, pas un redesign. Le fond ne bouge pas.
+- Pas de nouvelle couleur ni de nouvelle police hors `AppPalette`/`app_theme` : on affine la DA
+  existante, on n'en crée pas une nouvelle.
+- Pas de retouche du premier contact (onboarding, US-1 retravaillé récemment), en dehors de la
+  suppression de l'emoji (crit. 1).
+- Pas d'animation pendant les prières (plan du jour) au-delà du retour tactile de coche.
+
 ---
 
 ## Archivées
