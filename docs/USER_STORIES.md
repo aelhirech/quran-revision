@@ -129,11 +129,13 @@ par écran :
   (§12). Faire de la finition visuelle sans voir les écrans de la boucle quotidienne, c'est
   travailler à l'aveugle : le scoping doit trancher comment les voir avant tout sprint de ces
   trois stories.
+  **Tranché au scoping du 2026-10-01** : desktop Windows (`flutter run -d windows`), qui compile
+  et embarque déjà SQLite. Le détail et les angles morts sont dans le scoping technique d'US-15.
 
 ### US-13 — Les jalons rares se vivent comme des moments
-**État** : à scoper — blueprint du 2026-09-30. Reprend l'Idée produit « Annoncer la bascule d'une
-sourate mémorisée vers la révision » (`docs/CHANGELOG.md`), à retirer des Idées produit au
-scoping.
+**État** : scopée — blueprint du 2026-09-30, scoping du 2026-10-01. Reprend l'Idée produit
+« Annoncer la bascule d'une sourate mémorisée vers la révision », retirée des Idées produit de
+`docs/CHANGELOG.md` à ce scoping. Item Backlog : « US-13 + US-14 — Sprint Clôture ».
 
 **Statement** : En tant qu'utilisateur qui porte du Coran depuis des mois, je veux que les rares
 moments où un vrai cap est franchi (une sourate enfin mémorisée, un tour complet de ma révision)
@@ -170,8 +172,35 @@ le découvrir par hasard dans un compteur.
 - Pas de son. Pas d'écran de trophées ni de collection de jalons passés.
 - Pas de jalon pendant le check-in ni pendant les prières.
 
+**Scoping technique** (2026-10-01) :
+- **Les deux jalons existent déjà dans le code, il suffit de les remonter.** La boucle du tour :
+  `AppState.checkOut` calcule `cycleWraps` et renvoie un `bool`. La bascule :
+  `handOffLearnedSurahs(notify: false)` renvoie déjà la `List<Sourate>` des sourates basculées,
+  mais `checkOut` ignore ce résultat. Aucune donnée nouvelle, aucune requête nouvelle, rien dans
+  `ayah_facts` ni dans `UserConfig`.
+- **Résultat de clôture partagé avec US-14** : `checkOut` renvoie un record
+  `({bool cycleWrapped, List<Sourate> memorized})`. US-14 s'en sert pour décider entre jalon et
+  transition de clôture (son crit. 4).
+- **Un seul widget remplace `CycleMilestoneDialog`** (supprimé) et couvre les 3 cas : bascule
+  seule, tour seul, les deux (crit. 3). Il reste un `showDialog` non dismissible au tap
+  extérieur avec un seul bouton (crit. 4) : c'est un moment rare, la règle « pas de modale »
+  d'US-14 ne vise que la clôture quotidienne. Pour l'animation sobre, l'ornement existant
+  `OrnamentalDivider` se dessine (`flutter_animate`, déjà en dépendance, `scaleX` + fondu lent,
+  sans `elasticOut`), et le nom de la sourate s'affiche en calligraphie Amiri or, comme dans les
+  badges arabes de `UnitRow`. Pas d'emoji. Couleurs uniquement via `AppPalette`, ce qui couvre
+  le thème Tahajjud (crit. 5).
+- **Textes** : `cycleTermineTitle`/`cycleTermineBody` (« Cycle terminé ! ») enfreignent la règle
+  « jamais fini/terminé ». Ils sont remplacés, pas complétés.
+- **Rattrapage d'un jour passé** : le même chemin `_close()` s'applique, donc un jalon franchi à
+  la clôture d'hier s'annonce aussi. C'est voulu, la bascule a bien eu lieu.
+- **Tests** : `test/state/app_state_checkin_test.dart` lit le `bool` renvoyé par `checkOut`
+  (l. 116 et 426) et doit passer à `.cycleWrapped`. Un nouveau test vérifie que `memorized`
+  contient la sourate dont le dernier verset est confirmé ce jour-là, et qu'elle n'y figure plus
+  lors d'un second scellement (bascule idempotente).
+
 ### US-14 — Clôturer sa journée se ressent comme une récompense
-**État** : à scoper — blueprint du 2026-09-30.
+**État** : scopée — blueprint du 2026-09-30, scoping du 2026-10-01. Item Backlog : « US-13 +
+US-14 — Sprint Clôture ».
 
 **Statement** : En tant qu'utilisateur qui vient de sceller sa journée, je veux que l'app me montre
 en un coup d'œil ce que cette journée a apporté et ce qu'elle rapproche, afin de finir sur un
@@ -207,8 +236,45 @@ sentiment d'accompli plutôt que sur un simple retour à l'accueil.
 - Aucun changement dans ce que le check-out crédite ou dans la façon dont il fait avancer le
   cycle.
 
+**Ajustement au scoping (2026-10-01)** — crit. 5 précisé, sens inchangé : après le rattrapage
+d'un jour passé, la transition nomme le jour clôturé (« Hier est clôturé », ou la date). Le bilan
+et le regard devant de l'accueil restent liés à **aujourd'hui**. Comme aujourd'hui n'est pas
+clôturé, l'accueil revient à son état de repos et ne montre pas le bilan d'hier. Sans cette règle,
+il faudrait garder en mémoire un « dernier jour clôturé » distinct de `todayClosed`, et c'est
+justement ce qui laisserait croire qu'aujourd'hui est clôturé.
+
+**Scoping technique** (2026-10-01) :
+- **Bilan du jour (crit. 2-3), dérivé d'`ayah_facts` à la demande, sans stockage** :
+  - ce qui a été revu : `AyahFactsRitual.dayFacts(date, riwaya)`, existant, qui donne les groupes
+    `revise` du jour avec `reachedVerses` ;
+  - ce qui a été appris : nouvelle requête `AyahFactsLearning.learnedCountOn(date, riwaya)`,
+    `COUNT(*)` des lignes `learn` à `reach=1` de la date. `learnPlanFor` ne convient pas : il
+    filtre `checked_out = 0` et ne voit plus rien une fois la journée scellée ;
+  - « le reste revient demain » s'affiche si au moins une ligne `revise`/`learn` du jour est
+    restée à `reach=0`.
+
+  Le tout est exposé par une seule méthode `AppState.dayRecap(date)`, chargée par l'accueil quand
+  `todayClosed` est vrai. Le bilan survit donc à un redémarrage de l'app le même jour.
+- **Regard devant (crit. 2)** : `CheckOutScreen._guideStep` calcule déjà la durée du tour
+  (`cycleDaysFor`) et l'échéance d'apprentissage (`LearningProgress.daysToFinish`), mais seulement
+  dans l'étape guidée `checkout_done`, donc une seule fois. Ce calcul est extrait dans un getter
+  partagé, appelé par l'étape guidée et par l'accueil clôturé. Il n'est pas réécrit.
+- **Transition (crit. 1)** : pas de modale, pas de route supplémentaire. Le check-out se ferme
+  avec un résultat (`Navigator.pop(outcome)`). `DayPlanTab._openCheckOut` le relaie, et l'accueil
+  joue une transition courte (fondu + changement d'icône, environ 600 ms, `flutter_animate`) avec
+  une ligne qui nomme le jour clôturé. Elle n'est **pas** jouée si un jalon US-13 vient d'être
+  affiché (crit. 4), grâce au résultat de clôture commun `({cycleWrapped, memorized})`.
+- **Taille des fichiers** : `check_out_screen.dart` fait 356 lignes, déjà au-dessus du plafond.
+  Il ne reçoit que le câblage (résultat de `checkOut`, `pop(outcome)`). Le bilan et le regard
+  devant vont dans un nouveau `lib/widgets/day_closed_summary.dart`. `home_screen.dart` (168
+  lignes) ne fait que l'insérer.
+- **Tests** : `dayRecap` et `learnedCountOn` en `sqflite_common_ffi` (revu, appris, présence de
+  reliquat, et le jour d'après qui ne remonte rien de la veille). La transition se vérifie
+  visuellement, voir le prérequis Windows dans le cadre commun.
+
 ### US-15 — Une app qui paraît soignée et cohérente d'un écran à l'autre
-**État** : à scoper — blueprint du 2026-09-30.
+**État** : scopée — blueprint du 2026-09-30, scoping du 2026-10-01. Items Backlog : « US-15
+Sprint A » et « US-15 Sprint B ».
 
 **Statement** : En tant qu'utilisateur qui ouvre l'app deux fois par jour, je veux une interface
 cohérente, lisible et agréable au toucher, où chaque chiffre a un sens clair, afin que l'outil
@@ -255,6 +321,73 @@ l'accueil et au Récap)** :
 - Pas de retouche du premier contact (onboarding, US-1 retravaillé récemment), en dehors de la
   suppression de l'emoji (crit. 1).
 - Pas d'animation pendant les prières (plan du jour) au-delà du retour tactile de coche.
+
+**Décisions utilisateur au scoping (2026-10-01)** :
+- **Accueil au repos (crit. 2)** : le pourcentage du tour reste affiché quand le tour est entamé,
+  car c'est déjà de l'acquis. Quand le curseur est à 0, le chiffre est remplacé par
+  « Nouveau tour » et « N pages en garde ».
+- **Emojis des titres de notification** (🕌 rappel du matin, 📖 rappel du soir) : retirés aussi,
+  pour garder le même registre sobre hors de l'app.
+
+**Ajustement au scoping (2026-10-01)** — crit. 3 précisé, sens inchangé. « Même langage
+visuel » ne veut pas dire « même widget » pour la ligne de sourate. Le scoping du 2026-09-05
+(`docs/DOCUMENTATION_TECHNIQUE.md` §8.1bis) avait tranché que `UnitRow` (check-in) et
+`CheckOutRow` (check-out) remplissent deux fonctions différentes et ne se fusionnent pas. Leur
+conteneur est d'ailleurs déjà identique, à un padding près (14×12 contre 14). L'en-tête est déjà
+commun (`CheckHero`). Ce qui manque vraiment, c'est la **navigation entre étapes** (pied de page
+retour + suivant, et transition animée). Elle ne diverge qu'entre les deux écrans.
+
+**Scoping technique** (2026-10-01) :
+- **Emojis (crit. 1), inventaire complet de `lib/`** :
+  - `celebration_page.dart:47` ✨, remplacé par l'ornement `OrnamentalDivider` qui se dessine. Ce
+    traitement est le même que celui du moment de jalon d'US-13, en inline, sans nouveau widget ;
+  - `strings.dart:96` 🕌 et `:98` 📖, titres de notification ;
+  - `cycle_milestone_dialog.dart:21` 🎉, **traité par US-13** : le widget disparaît.
+
+  `✓` de `S.complet` est un symbole typographique, pas une illustration. Il reste.
+- **Récap (crit. 2)** :
+  - « En révision » (`_repartitionCard`) et « Sourates » (`_statsRow`) lisent la même source,
+    `config.selections.length`. On retire la tuile « Sourates » de la rangée de stats, qui garde
+    Versets et Pages.
+  - « Mémorisées » (`memorisedCount`) ne compte que les sourates apprises **dans l'app**. Elle
+    devient « Apprises avec l'app ». Le nouveau libellé lève à lui seul la contradiction apparente
+    avec « En révision » (113 vs 0), sans info-bulle.
+- **Accueil (crit. 2)** : `CycleProgressCard` prend un affichage « Nouveau tour » quand
+  `pos == 0`, avec en sous-ligne le total de pages en garde (`pagesProgress.total`, déjà calculé).
+  Aucune donnée nouvelle. Le Récap partage la carte : il bénéficie du même affichage, ce qui est
+  voulu.
+- **Check-in / check-out (crit. 3)** :
+  - Le pied de page « retour + action principale » de `CheckInScreen` (l. ~299-340,
+    `OutlinedActionButton` + `PrimaryCtaButton`) est extrait dans un widget partagé
+    `lib/widgets/step_footer.dart`.
+  - `CheckOutScreen` l'utilise pour son étape 2 multi-jours, qui n'a aujourd'hui aucun bouton
+    retour.
+  - Le contenu d'étape des deux écrans passe dans un même `AnimatedSwitcher` (fondu + léger
+    glissement), défini une seule fois dans ce widget ou à côté.
+  - Le padding de `UnitRow` s'aligne sur celui de `CheckOutRow`.
+  - La dette §8.5-14 de `docs/DOCUMENTATION_TECHNIQUE.md` est soldée, et la doc mise à jour.
+- **Retour tactile (crit. 4)** : cocher une rakaa vibre déjà (`prayer_plan_card.dart:93`,
+  `selectionClick`). Il manque les deux gestes qui engagent : valider le check-in et sceller la
+  journée. On y ajoute `HapticFeedback.mediumImpact()` en appel direct dans les deux écrans, sans
+  helper : deux appels ne justifient pas d'abstraction. Les 4 vibrations existantes restent.
+- **Vérification visuelle (crit. 5-6)** : impeccable ne tourne pas sur Flutter. Sa grille
+  `critique` s'applique donc à la main, écran par écran, en clair et en sombre. Le résultat est
+  consigné dans le message de commit du Sprint B (écran, problème, gravité, corrigé ou non). Le
+  critère est tenu quand aucune ligne de gravité haute ne reste ouverte.
+- **Prérequis visuel du cadre commun, tranché** : la cible desktop Windows
+  (`flutter run -d windows`) compile sur cette machine (`flutter build windows --debug` vérifié le
+  2026-10-01). Elle embarque SQLite via `sqflite_common_ffi`, déjà branché dans `main.dart` derrière
+  `Platform.isWindows`. Le web (`sqflite_common_ffi_web`) est écarté : nouvelle dépendance et
+  fichiers wasm, pour un projet qui ne cible pas le web. Côté thèmes, l'app suit le mode
+  clair/sombre de Windows (`ThemeMode.system`). On redimensionne la fenêtre vers ~390×844.
+
+  Ce que Windows ne montre pas :
+  - l'audio : barre désactivée ;
+  - les permissions de notification ;
+  - les safe areas ;
+  - le retour tactile ;
+  - le check-out d'un jour passé : il faut vieillir `history.db` à la main, car aucune horloge
+    n'est injectable.
 
 ---
 
