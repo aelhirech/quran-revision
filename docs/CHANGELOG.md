@@ -124,8 +124,8 @@ Le Sprint Clôture est livré : le 🎉 est parti, et `OrnamentalDivider(draw: t
   le renommage « Apprises avec l'app » :
   - **Carte de répartition (`_repartitionCard`)** : deux tuiles.
     - « Mémorisées en entier » compte les éléments de `config.selections` qui couvrent la
-      sourate du verset 1 au dernier (`SourateSelection` entière ; vérifier le champ ou getter
-      exact dans `lib/models/sourate_selection.dart`, sans le réimplémenter s'il existe).
+      sourate du verset 1 au dernier : `selections.where((s) => s.isWhole).length` (getter
+      existant de `SourateSelection`).
     - « En cours d'apprentissage » ne change pas.
     - « En révision » et l'ancien `memorisedCount` disparaissent de cette carte. Supprimer
       `S.enRevision`/`S.memorisees` s'ils n'ont plus d'appelant. `memorisedCount` est aussi
