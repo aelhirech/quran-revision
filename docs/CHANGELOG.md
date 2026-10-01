@@ -178,6 +178,25 @@ Après le Sprint A.
 - **Exclus** : refonte de la navigation et des flux, animation pendant les prières.
 - **Fin** : passer US-15 à « terminée », puis l'archiver.
 
+### [P3] Retour visuel du toucher invisible dans les feuilles « choisir une sourate/un récitateur »
+Relevé le 2026-10-01 sous Windows, en thème sombre : 75 assertions de debug « ListTile
+background color or ink splashes may be invisible ».
+- **Où** : `SouratePickerSheet` (`lib/widgets/sourate_picker_sheet.dart`, ~l. 30) et
+  `ReciterPickerSheet` (`lib/widgets/reciter_picker_sheet.dart`, ~l. 18) peignent leur fond dans
+  un `Container(decoration: BoxDecoration(color: cs.surface, borderRadius: …top 24))`.
+- **Effet** : leurs `ListTile` dessinent le surlignage et l'onde de toucher sur le `Material`
+  ancêtre, qui se trouve **sous** ce fond. Le toucher d'une ligne n'a donc aucun retour visuel.
+  Il n'y a pas de plantage en release, mais l'assertion inonde les logs de debug.
+- **Fix** : dans les deux feuilles, remplacer le `Container` décoré par
+  `Material(color: cs.surface, shape: const RoundedRectangleBorder(borderRadius:
+  BorderRadius.vertical(top: Radius.circular(24))), clipBehavior: Clip.antiAlias, child: …)`.
+  On garde la hauteur de `SouratePickerSheet` via un `SizedBox`.
+- **Vérification** : `flutter run -d windows` en sombre. On ouvre le choix de sourate (ajout au
+  check-in) et le choix de récitateur (vue Coran) : plus aucune assertion, et l'onde est visible
+  au toucher.
+- À regrouper avec **US-15 Sprint A** si le sprint touche déjà ces fichiers. Sinon, c'est un mini
+  sprint à part.
+
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
 qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) vit dans `ShellScreen`. Un
