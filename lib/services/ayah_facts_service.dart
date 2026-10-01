@@ -1,5 +1,6 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+import '../core/day_dates.dart';
 import '../core/streak_engine.dart';
 import '../models/ayah_fact.dart';
 import '../models/learning_progress.dart';
@@ -173,5 +174,33 @@ class AyahFactsService {
           total: (row['total'] as int?) ?? 0,
         ),
     };
+  }
+
+  /// Revision volume (US-15 Recap): verses revised over the sliding last 7
+  /// days, and the weekly average over the last 8 weeks. A verse revised on
+  /// two days counts twice, as in [recentDayVerseStats].
+  static Future<({int last7Days, int weeklyAverage})> revisionPace(
+      DateTime today, Riwaya riwaya) async {
+    String dayKey(int offset) =>
+        DateTime(today.year, today.month, today.day - offset)
+            .toIso8601String()
+            .substring(0, 10);
+    final db = await _open();
+    final rows = await db.rawQuery(
+      'SELECT SUM(CASE WHEN date >= ? THEN 1 ELSE 0 END) as last7, '
+      'COUNT(*) as last56, MIN(date) as first_date FROM ayah_facts '
+      'WHERE riwaya = ? AND type = ? AND reach = 1 AND date >= ? AND date <= ?',
+      [dayKey(6), riwaya.name, AyahFactType.revise.name, dayKey(55), dayKey(0)],
+    );
+    final row = rows.first;
+    final firstDate = row['first_date'] as String?;
+    if (firstDate == null) return (last7Days: 0, weeklyAverage: 0);
+    // Divide by the weeks actually covered, not always 8: someone who
+    // started 10 days ago would otherwise look slow, against the app's thesis.
+    final weeks = ((daysAgo(firstDate, now: today) + 1) / 7).ceil().clamp(1, 8);
+    return (
+      last7Days: row['last7'] as int,
+      weeklyAverage: ((row['last56'] as int) / weeks).round(),
+    );
   }
 }

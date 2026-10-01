@@ -44,14 +44,7 @@ class _CelebrationPageState extends State<_CelebrationPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Spacer(flex: 3),
-                const Text('✨', style: TextStyle(fontSize: 56))
-                    .animate()
-                    .scale(
-                        begin: const Offset(0.3, 0.3),
-                        duration: 600.ms,
-                        curve: Curves.elasticOut)
-                    .then()
-                    .shimmer(duration: 800.ms),
+                const OrnamentalDivider(lineWidth: 48, draw: true),
                 const SizedBox(height: 20),
                 Text(
                   SOnboarding.bienvenueTitre,

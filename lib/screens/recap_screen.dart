@@ -30,6 +30,7 @@ class _RecapScreenState extends State<RecapScreen> {
   int _totalDays = 0;
   List<SessionRecord> _sessions = [];
   List<LearningProgress> _learningProgress = [];
+  ({int last7Days, int weeklyAverage}) _pace = (last7Days: 0, weeklyAverage: 0);
   Set<String> _lastPauseDates = {};
   Riwaya? _lastRiwaya;
 
@@ -55,6 +56,7 @@ class _RecapScreenState extends State<RecapScreen> {
     final totalF = AyahFactsService.totalActiveDays(riwaya: riwaya);
     final statsF = AyahFactsService.recentDayVerseStats(limit: 7, riwaya: riwaya);
     final progressF = state.learningProgressList();
+    final paceF = AyahFactsService.revisionPace(DateTime.now(), riwaya);
     // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
     // sans être passé par un plan du jour cette session.
     final freshnessF = state.refreshFreshness(notify: false);
@@ -62,6 +64,7 @@ class _RecapScreenState extends State<RecapScreen> {
     final total = await totalF;
     final stats = await statsF;
     final progress = await progressF;
+    final pace = await paceF;
     await freshnessF;
 
     // totalUnits = versets proposés ce jour-là (pas le total du cycle) —
@@ -81,6 +84,7 @@ class _RecapScreenState extends State<RecapScreen> {
         _totalDays = total;
         _sessions = sessions;
         _learningProgress = progress;
+        _pace = pace;
       });
     }
   }
@@ -144,6 +148,7 @@ class _RecapScreenState extends State<RecapScreen> {
                 const SizedBox(height: 16),
                 _statsRow(cs, state, pagesProgress.total),
                 const SizedBox(height: 16),
+                ..._paceSection(cs),
                 HistoryCard(sessions: _sessions),
                 const SizedBox(height: 16),
                 ..._learningSection(cs),
@@ -169,11 +174,7 @@ class _RecapScreenState extends State<RecapScreen> {
     final inProgress = _learningProgress.where((p) => !p.isComplete).toList();
     if (inProgress.isEmpty) return const [];
     return [
-      Text(S.enCoursDApprentissage,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 14, color: cs.onSurface))
-          .animate()
-          .fadeIn(),
+      _sectionHeader(cs, S.enCoursDApprentissage),
       const SizedBox(height: 12),
       for (final (i, p) in inProgress.indexed)
         LearningProgressCard(
@@ -200,8 +201,9 @@ class _RecapScreenState extends State<RecapScreen> {
   }
 
   Widget _repartitionCard(ColorScheme cs, AppState state) {
-    final enRevision = state.config!.selections.length;
-    final memorisees = _learningProgress.memorisedCount;
+    // Counts whole surahs held, whether brought at onboarding or learned in
+    // the app — a partial range (e.g. Al-Baqara 255-260) does not count.
+    final enEntier = state.config!.selections.where((s) => s.isWhole).length;
     final enCours = _learningProgress.where((p) => !p.isComplete).length;
 
     return Container(
@@ -222,14 +224,11 @@ class _RecapScreenState extends State<RecapScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _repartitionChip(cs, enRevision, S.enRevision,
-                  Icons.loop_outlined, cs.primary),
+              _repartitionChip(cs, enEntier, S.memoriseesEnEntier,
+                  Icons.check_circle_outline, cs.primary),
               const SizedBox(width: 8),
               _repartitionChip(cs, enCours, S.enCoursDApprentissage,
                   Icons.edit_note_outlined, cs.tertiary),
-              const SizedBox(width: 8),
-              _repartitionChip(cs, memorisees, S.memorisees,
-                  Icons.check_circle_outline, cs.primary),
             ],
           ),
         ],
@@ -273,19 +272,42 @@ class _RecapScreenState extends State<RecapScreen> {
     final selections = state.config!.selections;
     final totalVerses = selections.fold(0, (sum, s) => sum + s.verseCount);
 
-    return Row(
-      children: [
-        _statChip(cs, '${selections.length}', S.souratesLabel,
-            Icons.menu_book_outlined, 0),
-        const SizedBox(width: 12),
-        _statChip(cs, '$totalVerses', S.versetsLabel,
-            Icons.format_list_numbered, 100),
-        const SizedBox(width: 12),
-        _statChip(cs, '$cycleTotal', S.pagesLabel,
-            Icons.auto_stories_outlined, 200),
-      ],
+    return _chipPair(
+      _statChip(cs, '$totalVerses', S.versetsLabel,
+          Icons.format_list_numbered, 0),
+      _statChip(cs, '$cycleTotal', S.pagesLabel,
+          Icons.auto_stories_outlined, 100),
     );
   }
+
+  List<Widget> _paceSection(ColorScheme cs) {
+    return [
+      _sectionHeader(cs, S.rythmeRevision),
+      const SizedBox(height: 12),
+      _chipPair(
+        _statChip(cs, '${_pace.last7Days}', S.versets7DerniersJours,
+            Icons.date_range_outlined, 150),
+        _statChip(cs, '${_pace.weeklyAverage}', S.versetsParSemaine,
+            Icons.timeline_outlined, 250),
+      ),
+      const SizedBox(height: 16),
+    ];
+  }
+
+  Widget _sectionHeader(ColorScheme cs, String text) => Text(text,
+          style: TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 14, color: cs.onSurface))
+      .animate()
+      .fadeIn();
+
+  // Equal tile heights when only one of the two labels wraps (FR/EN lengths
+  // differ).
+  Widget _chipPair(Widget left, Widget right) => IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [left, const SizedBox(width: 12), right],
+        ),
+      );
 
   Widget _statChip(
       ColorScheme cs, String value, String label, IconData icon, int delayMs) {
@@ -307,6 +329,7 @@ class _RecapScreenState extends State<RecapScreen> {
                     fontWeight: FontWeight.w800,
                     color: cs.onSurface)),
             Text(label,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 11,
                     color: cs.onSurfaceVariant,

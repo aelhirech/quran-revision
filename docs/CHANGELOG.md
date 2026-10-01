@@ -47,6 +47,10 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
   - La transition de clôture est un état d'affichage de `DayPlanTab` (`_justClosedDate`, 4 s),
     pas d'`AppState`. Elle ne joue ni après un jalon, ni à la réouverture d'une journée déjà
     scellée.
+- **Début de tour (US-15, 2026-10-01)** : `CycleProgressCard` affiche « Nouveau tour » et
+  « N pages en garde » quand `pos == 0 && total > 0`, et cet affichage prime sur `showTotal`.
+  Ce n'est pas une fuite de la règle US-1 crit. 4 : des pages en garde sont de l'acquis, pas le
+  poids restant.
 
 **Cadrage produit encore valide**
 - « Prières où il est imam » = prières où c'est lui qui récite (seul ou en dirigeant) — un simple élargissement de libellé, pas un filtre d'exclusion ni une pondération de répartition.
@@ -109,56 +113,13 @@ tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de
   ou le check-out.
 - **Doc** : §6, §8.4 (Réglages), §8.6bis. Passer US-10 à « terminée » puis l'archiver.
 
-### [P2] US-15 Sprint A — Finition : emojis, chiffres de l'accueil et du Récap, retour tactile
-Le Sprint Clôture est livré : le 🎉 est parti, et `OrnamentalDivider(draw: true)` existe déjà pour remplacer le ✨.
-- **Emojis** :
-  - `celebration_page.dart:47` ✨ est remplacé par `OrnamentalDivider` qui se dessine (même
-    traitement que le jalon US-13). On garde le reste de la page d'onboarding tel quel ;
-  - dans `strings.dart:96/98`, on retire 🕌 et 📖 des titres de notification ;
-  - le 🎉 est déjà parti au Sprint Clôture.
-- **Accueil et Récap, carte partagée `CycleProgressCard`** : quand `pos == 0`, le grand
-  pourcentage est remplacé par « Nouveau tour », avec en sous-ligne « N pages en garde »
-  (`total`). Le pourcentage reste dès que le tour est entamé (décision utilisateur du
-  2026-10-01). Cela ne touche pas à `showTotal` ni à la règle par état d'US-1.
-- **Récap (`recap_screen.dart`, 322 lignes)**. Décision utilisateur du 2026-10-01, qui remplace
-  le renommage « Apprises avec l'app » :
-  - **Carte de répartition (`_repartitionCard`)** : deux tuiles.
-    - « Mémorisées en entier » compte les éléments de `config.selections` qui couvrent la
-      sourate du verset 1 au dernier : `selections.where((s) => s.isWhole).length` (getter
-      existant de `SourateSelection`).
-    - « En cours d'apprentissage » ne change pas.
-    - « En révision » et l'ancien `memorisedCount` disparaissent de cette carte. Supprimer
-      `S.enRevision`/`S.memorisees` s'ils n'ont plus d'appelant. `memorisedCount` est aussi
-      utilisé par Réglages : le garder s'il y sert encore.
-  - **`_statsRow`** : retirer la tuile « Sourates », doublon de la sélection (même source,
-    `selections.length`). Garder Versets et Pages.
-  - **Nouvelle rangée « Rythme »** : versets revus sur les **7 derniers jours** (fenêtre
-    glissante, comme le libellé « 7 derniers jours » de `HistoryCard`), et **moyenne par
-    semaine sur 8 semaines**.
-    - Une seule requête dans `AyahFactsService` : `revisionPace(today, riwaya)`.
-    - Elle lit les lignes `revise` à `reach=1` depuis `today - 55 j`. Elle renvoie
-      `({int last7Days, int last56Days, String? firstDate})`, avec un `SUM(CASE…)` pour les
-      7 jours et `MIN(date)` pour la première activité de la fenêtre.
-    - Un verset revu deux jours différents compte deux fois : on mesure un volume de
-      révision, comme `recentDayVerseStats`.
-    - **La moyenne divise par le nombre de semaines réellement couvertes** :
-      `clamp(ceil((daysAgo(firstDate) + 1) / 7), 1, 8)`, avec `daysAgo` de
-      `core/day_dates.dart`. Diviser toujours par 8 ferait paraître faible un utilisateur
-      arrivé depuis 10 jours, ce qui va contre la thèse de l'app.
-    - Test `sqflite_common_ffi` : les lignes hors fenêtre sont ignorées, `reach=0` n'est pas
-      compté, et la moyenne est juste pour un historique de 10 jours.
-    - Chaînes FR et EN dans `strings.dart`.
-- **Retour tactile** : `HapticFeedback.mediumImpact()` au moment de valider le check-in
-  (`check_in_screen.dart`, bouton `checkInLancerPlan`) et à celui de sceller la journée
-  (`check_out_screen.dart`, `_close()`), en appel direct, sans helper. Cocher une rakaa vibre
-  déjà.
-- **Vérification visuelle** : `flutter run -d windows`, en clair et en sombre (mode
-  d'application de Windows), sur l'accueil (repos en début de tour, tour entamé), le Récap et la
-  dernière page de l'onboarding.
-- **Exclus** : toute autre retouche de l'onboarding, et toute nouvelle couleur ou police.
-
 ### [P2] US-15 Sprint B — Check-in/check-out cohérents, et passe `critique` dans les deux thèmes
-Après le Sprint A.
+Le Sprint A est livré (2026-10-01).
+- **Reliquat de vérification du Sprint A** : celui-ci n'a pu être vu qu'en thème sombre (changer
+  le thème de Windows est un réglage système, hors de portée de Claude). Pendant la passe
+  `critique` en clair, revoir aussi l'accueil (« Nouveau tour »), le Récap (rangée « Rythme ») et
+  la dernière page de l'onboarding, jamais vue : son ornement qui se dessine en haut s'ajoute à
+  celui sous le sous-titre, à garder ou retirer selon le rendu.
 - **Nouveau `lib/widgets/step_footer.dart`** : le pied de page « retour + action principale »
   est extrait de `CheckInScreen` (l. ~299-340, `OutlinedActionButton` + `PrimaryCtaButton`).
   `CheckOutScreen` l'utilise pour l'étape 2 du rattrapage multi-jours, qui n'a pas de bouton
@@ -194,8 +155,20 @@ background color or ink splashes may be invisible ».
 - **Vérification** : `flutter run -d windows` en sombre. On ouvre le choix de sourate (ajout au
   check-in) et le choix de récitateur (vue Coran) : plus aucune assertion, et l'onde est visible
   au toucher.
-- À regrouper avec **US-15 Sprint A** si le sprint touche déjà ces fichiers. Sinon, c'est un mini
-  sprint à part.
+- À regrouper avec **US-15 Sprint B** (passe `critique`, même vérification sous Windows). Sinon,
+  c'est un mini sprint à part.
+
+### [P3] Clé de jour `YYYY-MM-DD` recopiée inline une douzaine de fois
+Relevé en `/simplify` du Sprint A d'US-15 (2026-10-01).
+- **Où** : `DateTime(...).toIso8601String().substring(0, 10)` dans `core/streak_engine.dart`,
+  `services/ayah_facts_ritual.dart`, `services/storage_service.dart`,
+  `services/ayah_facts_service.dart` (`revisionPace`), `state/app_state.dart`,
+  `widgets/history_card.dart`, `screens/day_plan_tab.dart` et `screens/check_in_screen.dart`.
+  Côté tests, `_isoDate` est défini trois fois dans `test/state/`.
+- **Fix** : ajouter `String dayKey(DateTime d)` dans `lib/core/day_dates.dart`, à côté de
+  `daysAgo`, puis remplacer **toutes** les copies d'un coup, tests compris. Une migration
+  partielle laisserait deux idiomes côte à côte.
+- **Vérification** : `flutter test`, sans changement de comportement attendu.
 
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`

@@ -350,4 +350,51 @@ void main() {
           reason: "les deux lignes datees restent, seul leur reach retombe");
     });
   });
+
+  group('revisionPace — rythme du Récap (US-15)', () {
+    final today = DateTime(2021, 3, 31);
+    String day(int offset) => DateTime(2021, 3, 31 - offset)
+        .toIso8601String()
+        .substring(0, 10);
+    Future<void> revise(int offset, RevisionUnit unit, {bool reach = true}) async {
+      await AyahFactsRitual.proposeUnits(day(offset), Riwaya.hafs, [unit]);
+      if (reach) {
+        await AyahFactsRitual.setReachForUnits(
+            day(offset), Riwaya.hafs, [unit], true);
+      }
+    }
+
+    setUp(clearFactsBetweenTests);
+
+    test('aucun historique : zéro partout', () async {
+      final pace = await AyahFactsService.revisionPace(today, Riwaya.hafs);
+      expect(pace, (last7Days: 0, weeklyAverage: 0));
+    });
+
+    test('ignore les lignes hors fenêtre et reach=0', () async {
+      await revise(0, testUnit(1, 1, 5)); // 5, dans les 7 jours
+      await revise(6, testUnit(2, 1, 3)); // 3, borne des 7 jours
+      await revise(7, testUnit(3, 1, 4)); // 4, hors 7 jours, dans 8 semaines
+      await revise(55, testUnit(4, 1, 2)); // 2, borne des 8 semaines
+      await revise(56, testUnit(5, 1, 10)); // hors fenêtre
+      await revise(1, testUnit(6, 1, 10), reach: false); // proposé, pas revu
+      await AyahFactsRitual.proposeUnits(day(1), Riwaya.warsh, [testUnit(7, 1, 10)]);
+      await AyahFactsRitual.setReachForUnits(
+          day(1), Riwaya.warsh, [testUnit(7, 1, 10)], true); // autre riwaya
+
+      final pace = await AyahFactsService.revisionPace(today, Riwaya.hafs);
+      expect(pace.last7Days, 8);
+      // 14 versets sur 8 semaines couvertes (première activité à J-55).
+      expect(pace.weeklyAverage, (14 / 8).round());
+    });
+
+    test('historique de 10 jours : moyenne sur 2 semaines, pas 8', () async {
+      await revise(9, testUnit(1, 1, 20));
+      await revise(0, testUnit(2, 1, 10));
+
+      final pace = await AyahFactsService.revisionPace(today, Riwaya.hafs);
+      expect(pace.last7Days, 10);
+      expect(pace.weeklyAverage, 15); // 30 versets / 2 semaines
+    });
+  });
 }
