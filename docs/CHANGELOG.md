@@ -99,32 +99,6 @@ tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de
   ou le check-out.
 - **Doc** : §6, §8.4 (Réglages), §8.6bis. Passer US-10 à « terminée » puis l'archiver.
 
-### [P3] L'échéance du guide du premier check-out ignore les versets retirés
-Relevé en `/code-review high` du sprint US-12 (2026-09-29). `CheckOutScreen._guideStep` calcule
-`_learningProgress.daysToFinish(...)` sur la progression chargée avant tout retrait. Décocher des
-versets du dernier bloc ne met pas à jour l'échéance affichée sur le même écran. À faire : passer
-à `daysToFinish` un `LearningProgress` dont `learnedVerses` exclut `_retiredFromLastBlock`, et
-seulement quand la sourate de `_learningProgress` est celle de `_learnPlan`. Ne concerne que le
-tout premier check-out (le guide disparaît ensuite), d'où P3.
-
-### [P3] `returningVerses` scanne tout l'historique scellé avant de filtrer en Dart
-Relevé en `/code-review high` du sprint US-3 (2026-09-21, efficiency). `AyahFactsRitual.
-returningVerses` récupère toutes les lignes `reach=0, checked_out=1` de la riwaya avant
-d'intersecter avec les candidats du jour côté Dart, plutôt qu'un filtre SQL sur les candidats.
-Négligeable à l'échelle réelle de l'app (un seul utilisateur, base locale, quelques centaines de
-lignes même après plusieurs mois) — ne traiter que si un profilage montre un coût réel.
-
-### [P3] `returningVersesContext` fait 2 requêtes SQL séparées (`dayFacts` puis `returningVerses`) plutôt qu'une
-Relevé en `/code-review high` du sprint 2026-09-26 (altitude), reste de l'ancien item "recalcule ses
-candidats plutôt que de dériver de dayFacts()" (ce sprint a corrigé la partie recalcul via
-`dayUnits()`/`RevisionUnit`, voir `docs/DOCUMENTATION_TECHNIQUE.md` §7). Porter le statut « revenu »
-nativement sur `DayFactGroup`/`dayFacts()` (une seule requête SQL, `returningVerses` fusionnée
-dedans) éliminerait le second aller-retour, mais aucun code ne consomme ce statut aujourd'hui
-(`dayUnits`/`dayUnitsWithStatus` n'en ont pas besoin) — fusionner les deux requêtes maintenant
-serait spéculatif (`PlanScreen` consomme `returningVersesContext` tel quel, pas un statut porté par
-`DayFactGroup`). Différé jusqu'à ce qu'un écran ait besoin de ce statut groupe par groupe ou
-qu'un profilage montre un coût réel (deux requêtes SQLite locales, base d'un seul utilisateur).
-
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
 qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) vit dans `ShellScreen`. Un
@@ -132,21 +106,6 @@ futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
 
-### [P3] Le wizard d'onboarding reconstruit le cycle à chaque frappe clavier
-`_OnboardingScreenState.build()` appelle `_daySelection` (donc `RevisionEngine.buildDayUnits`) sans
-garde, et le `PageView(children:)` construit toutes ses pages à chaque build — donc chaque tap de
-sourate et chaque frappe dans la recherche de la page Sélection reconstruit le cycle entier, alors
-que seules les pages Rythme et Jour 1 en consomment le résultat et qu'aucune des deux n'est visible
-à ce moment. Coût mesuré à l'analyse : ~15-20k opérations + ~1500 constructions de `Random` +
-~700-800 allocations par frappe sur une sélection « tout le Coran » (`pageMetadataFor` est un lookup
-en cache, il n'est pas en cause).
-**Différé délibérément** : aucun profilage n'a montré de saccade, et le correctif naturel (passer en
-`PageView.builder` pour n'évaluer `_daySelection` que dans les `itemBuilder` des pages concernées)
-**change la liveness des pages** — `PageView(children:)` garde toutes les pages vivantes, `.builder`
-peut disposer les pages hors écran, ce qui mettrait en jeu l'état du champ de recherche et la
-position de scroll de la liste des 114 sourates. Ne traiter que si un profilage sur appareil réel
-montre une saccade, et vérifier ces deux états après coup. **Ne pas mémoïser `_daySelection` dans un
-champ** : un flag à invalider est exactement ce que le projet refuse (voir `_lastQuickFraction`).
 ## Idées produit (non scopées)
 
 Vision/features pas encore prêtes à l'implémentation — pas de priorité technique tant qu'elles n'ont pas été cadrées (`quran-blueprint` → user story dans `docs/USER_STORIES.md`, puis `quran-scoping` → item ci-dessus). Ne pas lancer à la volée.
