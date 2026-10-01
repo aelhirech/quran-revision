@@ -93,9 +93,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         riwaya: _riwaya,
       );
 
-  /// Day 1 of [_config], computed fresh on every build: the wizard's
-  /// `PageView` builds all pages eagerly and keeps them alive, so anything
-  /// cached here would freeze on the first (empty) selection.
+  /// Day 1 of [_config], computed fresh on every read: a cached copy would
+  /// freeze on the first (empty) selection. Read only inside the `Builder`s
+  /// of the pages that show it — `PageView` only builds the visible page,
+  /// so typing on the selection page never rebuilds the cycle.
   DaySelection get _daySelection => RevisionEngine.buildDayUnits(
         config: _config,
         cyclePosition: 0,
@@ -281,10 +282,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final showIntroAndRiwaya = widget.presetRiwaya == null;
-    // Derived once per frame and shared by the pace step and the day-1 step:
-    // both promise something about the same plan, so they must read one
-    // derivation rather than two built side by side.
-    final daySelection = _daySelection;
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: PageView(
@@ -308,24 +305,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             onSearchChanged: (v) => setState(() => _search = v),
             onNext: _selections.isEmpty ? null : _nextPage,
           ),
-          _RhythmPage(
-            pagesPerDay: _pagesPerDay,
-            cycleDays: daySelection.cycleDays(
-                _pagesPerDay, PageMetadataService.pageMetadataFor(_riwaya)),
-            onPagesPerDayChanged: (v) => setState(() => _pagesPerDay = v),
-            onBack: _prevPage,
-            onNext: _nextPage,
+          Builder(
+            builder: (_) => _RhythmPage(
+              pagesPerDay: _pagesPerDay,
+              cycleDays: _daySelection.cycleDays(
+                  _pagesPerDay, PageMetadataService.pageMetadataFor(_riwaya)),
+              onPagesPerDayChanged: (v) => setState(() => _pagesPerDay = v),
+              onBack: _prevPage,
+              onNext: _nextPage,
+            ),
           ),
           _NotificationsPage(onBack: _prevPage, onNext: _nextPage),
           // Last step before the celebration (US-1 criterion 3): the real
           // day-1 plan, plus the shape the user's day will take.
-          _PreviewPage(
-            units: daySelection.units,
-            paginationUnavailable:
-                daySelection.paginationUnavailable(_selections.isNotEmpty),
-            onBack: _prevPage,
-            onConfirm: _selections.isEmpty ? null : _showCelebration,
-          ),
+          Builder(builder: (_) {
+            final daySelection = _daySelection;
+            return _PreviewPage(
+              units: daySelection.units,
+              paginationUnavailable:
+                  daySelection.paginationUnavailable(_selections.isNotEmpty),
+              onBack: _prevPage,
+              onConfirm: _selections.isEmpty ? null : _showCelebration,
+            );
+          }),
         ],
       ),
     );

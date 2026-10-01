@@ -207,17 +207,19 @@ class AyahFactsRitual {
     return result;
   }
 
-  /// Among [candidates] (surah/ayah pairs in today's freshly-proposed plan),
-  /// which ones were explicitly left undone (`reach = 0`) at the check-out of
-  /// a PRIOR, already-sealed day (`checked_out = 1 AND date < [today]`) —
-  /// the "returning verse" the guided moment proves (US-3 crit. 4, US-1 crit.
-  /// 7). Restricted to `checked_out = 1`: a still-open pending day's rows are
-  /// `reach = 0` by construction and haven't been declared undone by the
-  /// user yet, only a real check-out counts.
+  /// Among the verses of [today]'s revision plan, which ones were explicitly
+  /// left undone (`reach = 0`) at the check-out of a PRIOR, already-sealed
+  /// day (`checked_out = 1 AND date < [today]`) — the "returning verse" the
+  /// guided moment proves (US-3 crit. 4, US-1 crit. 7). Restricted to
+  /// `checked_out = 1`: a still-open pending day's rows are `reach = 0` by
+  /// construction and haven't been declared undone by the user yet, only a
+  /// real check-out counts.
   static Future<Set<(int, int)>> returningVerses(
-      String today, Riwaya riwaya, Iterable<(int, int)> candidates) async {
-    if (candidates.isEmpty) return {};
+      String today, Riwaya riwaya) async {
     final db = await AyahFactsService._open();
+    // EXISTS: today's own rows are the candidates, joined in SQL rather than
+    // bound as parameters — a large day could exceed SQLite's host-parameter
+    // limit.
     // NOT EXISTS: a verse reached on a later day than its sealed reach=0 row
     // was caught up since, so it isn't "returning" anymore. Bounded to before
     // [today] so ticking the returning verse today doesn't hide its banner.
@@ -225,16 +227,19 @@ class AyahFactsRitual {
         SELECT DISTINCT f.surah_id, f.ayah_id FROM ayah_facts f
         WHERE f.riwaya = ? AND f.type = ? AND f.reach = 0
           AND f.checked_out = 1 AND f.date < ?
+          AND EXISTS (
+            SELECT 1 FROM ayah_facts t
+            WHERE t.date = ? AND t.riwaya = f.riwaya AND t.type = f.type
+              AND t.surah_id = f.surah_id AND t.ayah_id = f.ayah_id)
           AND NOT EXISTS (
             SELECT 1 FROM ayah_facts g
             WHERE g.riwaya = f.riwaya AND g.type = f.type
               AND g.surah_id = f.surah_id AND g.ayah_id = f.ayah_id
               AND g.reach = 1 AND g.date > f.date AND g.date < ?)
-        ''', [riwaya.name, AyahFactType.revise.name, today, today]);
-    final leftUndone = {
+        ''', [riwaya.name, AyahFactType.revise.name, today, today, today]);
+    return {
       for (final r in rows) (r['surah_id'] as int, r['ayah_id'] as int),
     };
-    return {for (final c in candidates) if (leftUndone.contains(c)) c};
   }
 
   /// Scelle une journée : `checked_out = 1` pour ses lignes de révision.

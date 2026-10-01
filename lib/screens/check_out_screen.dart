@@ -284,7 +284,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     final cycleDays = cycleTotal > 0
         ? state.cycleDaysFor(state.daySelection, pagesPerDay)
         : null;
-    final learningDays = _learningProgress
+    final learningDays = _progressAfterWithdrawal()
         ?.daysToFinish(state.config?.versesToLearnPerDay ?? 0);
     final body = [
       if (cycleDays != null) SGuide.guideCheckoutCycleBody(cycleDays),
@@ -296,6 +296,21 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       title: SGuide.guideCheckoutTitle,
       body: body.isEmpty ? SGuide.guideCheckoutBody : body,
     );
+  }
+
+  /// [_learningProgress] minus the verses withdrawn from the last block on
+  /// this screen: the withdrawal is only written at close ([_close]), so the
+  /// loaded progress still counts them as learned until then.
+  LearningProgress? _progressAfterWithdrawal() {
+    final progress = _learningProgress;
+    final learn = _learnPlan;
+    // [_lastBlock] belongs to [_learnPlan]'s surah, which may not be the one
+    // [_learningProgress] tracks (most recently started unfinished surah).
+    if (progress == null || learn == null || learn.sourate.id != progress.sourate.id) {
+      return progress;
+    }
+    return progress.copyWith(
+        learnedVerses: progress.learnedVerses.difference(_retiredFromLastBlock));
   }
 
   Widget _hero(AppPalette palette, bool showPart2) {

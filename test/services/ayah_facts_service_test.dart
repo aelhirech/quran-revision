@@ -124,11 +124,13 @@ void main() {
           type: AyahFactType.revise);
       // Verset 2 reste reach=0, puis la journée est scellée (checked_out=1).
       await AyahFactsRitual.sealDay(d1, Riwaya.hafs);
+      await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [testUnit(50, 1, 3)]);
 
-      final returning = await AyahFactsRitual.returningVerses(
-          today, Riwaya.hafs, {(50, 1), (50, 2), (50, 3)});
+      final returning =
+          await AyahFactsRitual.returningVerses(today, Riwaya.hafs);
       expect(returning, {(50, 2)},
           reason: 'seul le verset laissé à reach=0 au scellement revient');
+      await AyahFactsRitual.sealDay(today, Riwaya.hafs);
     });
 
     test('un verset atteint un jour ultérieur n\'est plus "revenu"', () async {
@@ -144,10 +146,12 @@ void main() {
       await AyahFactsRitual.setReachForVerses(d2, Riwaya.hafs, 52, [2], true,
           type: AyahFactType.revise);
       await AyahFactsRitual.sealDay(d2, Riwaya.hafs);
+      await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [testUnit(52, 1, 2)]);
 
-      final returning = await AyahFactsRitual.returningVerses(
-          today, Riwaya.hafs, {(52, 1), (52, 2)});
+      final returning =
+          await AyahFactsRitual.returningVerses(today, Riwaya.hafs);
       expect(returning, isEmpty);
+      await AyahFactsRitual.sealDay(today, Riwaya.hafs);
     });
 
     test('cocher le verset revenu AUJOURD\'HUI ne le fait pas disparaître',
@@ -162,8 +166,8 @@ void main() {
       await AyahFactsRitual.setReachForVerses(today, Riwaya.hafs, 53, [2], true,
           type: AyahFactType.revise);
 
-      final returning = await AyahFactsRitual.returningVerses(
-          today, Riwaya.hafs, {(53, 2)});
+      final returning =
+          await AyahFactsRitual.returningVerses(today, Riwaya.hafs);
       expect(returning, {(53, 2)});
       await AyahFactsRitual.sealDay(today, Riwaya.hafs);
     });
@@ -176,10 +180,27 @@ void main() {
           pending, Riwaya.hafs, [testUnit(51, 1, 2)]);
       // reach=0 par défaut, mais jamais scellé : ce n'est pas une déclaration
       // "laissé de côté" de l'utilisateur, juste un plan pas encore clôturé.
-      final returning = await AyahFactsRitual.returningVerses(
-          today, Riwaya.hafs, {(51, 1), (51, 2)});
+      await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [testUnit(51, 1, 2)]);
+      final returning =
+          await AyahFactsRitual.returningVerses(today, Riwaya.hafs);
       expect(returning, isEmpty);
       await AyahFactsRitual.sealDay(pending, Riwaya.hafs);
+      await AyahFactsRitual.sealDay(today, Riwaya.hafs);
+    });
+
+    test('un verset laissé de côté mais absent du plan du jour n\'est pas "revenu"',
+        () async {
+      const d1 = '2020-04-10';
+      const today = '2020-04-11';
+      await AyahFactsRitual.proposeUnits(d1, Riwaya.hafs, [testUnit(54, 1, 2)]);
+      await AyahFactsRitual.sealDay(d1, Riwaya.hafs);
+      // Both verses were left undone, but only verse 1 is back today.
+      await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [testUnit(54, 1, 1)]);
+
+      final returning =
+          await AyahFactsRitual.returningVerses(today, Riwaya.hafs);
+      expect(returning, {(54, 1)});
+      await AyahFactsRitual.sealDay(today, Riwaya.hafs);
     });
   });
 

@@ -43,6 +43,12 @@ class LearningProgress {
       ? 0
       : ((totalVerses - learnedCount) / versesPerDay).ceil();
 
+  LearningProgress copyWith({Set<int>? learnedVerses}) => LearningProgress(
+        sourate: sourate,
+        learnedVerses: learnedVerses ?? this.learnedVerses,
+        startDate: startDate,
+      );
+
   Map<String, dynamic> toJson() => {
         'sourate': sourate.toJson(),
         'learnedVerses': learnedVerses.toList(),
