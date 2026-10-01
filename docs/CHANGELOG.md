@@ -52,6 +52,14 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
   Ce n'est pas une fuite de la règle US-1 crit. 4 : des pages en garde sont de l'acquis, pas le
   poids restant.
 
+- **Cartes et pas d'étapes (US-15 Sprint B, 2026-10-01)** :
+  - Le style des `Card` vient du `cardTheme` (`app_theme.dart`, marge nulle comprise). Ne pas
+    le recopier widget par widget : une copie locale ne suit plus le thème quand il change.
+  - Le check-in et le check-out passent d'une étape à l'autre par `StepFooter` et
+    `StepTransition`. Une nouvelle étape dans l'un de ces deux écrans les réutilise.
+  - `PrimaryCtaButton` réduit un libellé trop long au lieu de le couper, et n'a plus d'ombre
+    quand il est désactivé.
+
 **Cadrage produit encore valide**
 - « Prières où il est imam » = prières où c'est lui qui récite (seul ou en dirigeant) — un simple élargissement de libellé, pas un filtre d'exclusion ni une pondération de répartition.
 - L'apprentissage n'a plus d'onglet dédié : la sourate à apprendre est choisie au check-in, récitée dans la **dernière rakaa** du plan, confirmée au check-out.
@@ -113,51 +121,6 @@ tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de
   ou le check-out.
 - **Doc** : §6, §8.4 (Réglages), §8.6bis. Passer US-10 à « terminée » puis l'archiver.
 
-### [P2] US-15 Sprint B — Check-in/check-out cohérents, et passe `critique` dans les deux thèmes
-Le Sprint A est livré (2026-10-01).
-- **Reliquat de vérification du Sprint A** : celui-ci n'a pu être vu qu'en thème sombre (changer
-  le thème de Windows est un réglage système, hors de portée de Claude). Pendant la passe
-  `critique` en clair, revoir aussi l'accueil (« Nouveau tour »), le Récap (rangée « Rythme ») et
-  la dernière page de l'onboarding, jamais vue : son ornement qui se dessine en haut s'ajoute à
-  celui sous le sous-titre, à garder ou retirer selon le rendu.
-- **Nouveau `lib/widgets/step_footer.dart`** : le pied de page « retour + action principale »
-  est extrait de `CheckInScreen` (l. ~299-340, `OutlinedActionButton` + `PrimaryCtaButton`).
-  `CheckOutScreen` l'utilise pour l'étape 2 du rattrapage multi-jours, qui n'a pas de bouton
-  retour aujourd'hui (`_step = 1`).
-- **Transitions** : le contenu d'étape des deux écrans passe dans un même `AnimatedSwitcher`
-  (fondu + léger glissement), défini une seule fois.
-- **Lignes** : `UnitRow` et `CheckOutRow` ne fusionnent **pas** (décision §8.1bis maintenue,
-  deux fonctions différentes). On aligne seulement le padding de `UnitRow` sur 14.
-- **Doc** : marquer résolue la dette `DOCUMENTATION_TECHNIQUE.md` §8.5-14, puisque l'en-tête est
-  déjà commun (`CheckHero`) et la navigation commune après ce sprint.
-- **Passe `critique`** : appliquer à la main la grille d'impeccable aux 3 onglets, au check-in et
-  au check-out, en clair et en sombre (`flutter run -d windows`).
-  - Consigner le tableau « écran, problème, gravité, corrigé ou non » dans le message de commit.
-  - Corriger tout ce qui est de gravité haute dans ce sprint.
-  - Les gravités moyenne et basse vont au Backlog seulement si leur correction est entièrement
-    tranchée, sinon en Idée produit.
-- **Exclus** : refonte de la navigation et des flux, animation pendant les prières.
-- **Fin** : passer US-15 à « terminée », puis l'archiver.
-
-### [P3] Retour visuel du toucher invisible dans les feuilles « choisir une sourate/un récitateur »
-Relevé le 2026-10-01 sous Windows, en thème sombre : 75 assertions de debug « ListTile
-background color or ink splashes may be invisible ».
-- **Où** : `SouratePickerSheet` (`lib/widgets/sourate_picker_sheet.dart`, ~l. 30) et
-  `ReciterPickerSheet` (`lib/widgets/reciter_picker_sheet.dart`, ~l. 18) peignent leur fond dans
-  un `Container(decoration: BoxDecoration(color: cs.surface, borderRadius: …top 24))`.
-- **Effet** : leurs `ListTile` dessinent le surlignage et l'onde de toucher sur le `Material`
-  ancêtre, qui se trouve **sous** ce fond. Le toucher d'une ligne n'a donc aucun retour visuel.
-  Il n'y a pas de plantage en release, mais l'assertion inonde les logs de debug.
-- **Fix** : dans les deux feuilles, remplacer le `Container` décoré par
-  `Material(color: cs.surface, shape: const RoundedRectangleBorder(borderRadius:
-  BorderRadius.vertical(top: Radius.circular(24))), clipBehavior: Clip.antiAlias, child: …)`.
-  On garde la hauteur de `SouratePickerSheet` via un `SizedBox`.
-- **Vérification** : `flutter run -d windows` en sombre. On ouvre le choix de sourate (ajout au
-  check-in) et le choix de récitateur (vue Coran) : plus aucune assertion, et l'onde est visible
-  au toucher.
-- À regrouper avec **US-15 Sprint B** (passe `critique`, même vérification sous Windows). Sinon,
-  c'est un mini sprint à part.
-
 ### [P3] Clé de jour `YYYY-MM-DD` recopiée inline une douzaine de fois
 Relevé en `/simplify` du Sprint A d'US-15 (2026-10-01).
 - **Où** : `DateTime(...).toIso8601String().substring(0, 10)` dans `core/streak_engine.dart`,
@@ -169,6 +132,19 @@ Relevé en `/simplify` du Sprint A d'US-15 (2026-10-01).
   `daysAgo`, puis remplacer **toutes** les copies d'un coup, tests compris. Une migration
   partielle laisserait deux idiomes côte à côte.
 - **Vérification** : `flutter test`, sans changement de comportement attendu.
+
+### [P3] Cartes `Container` décorées qui recopient le `cardTheme`
+Relevé en `/simplify` du Sprint B d'US-15 (2026-10-01).
+- **Où** : une quinzaine de cartes refont à la main le style du thème avec un `Container` +
+  `BoxDecoration(color: palette.surfaceCard, borderRadius: 16, border: palette.cardBorder)` :
+  `settings_card.dart`, `history_card.dart`, `hadith_card.dart`, `recap_screen.dart`
+  (`_repartitionCard`, `_statChip`), `prayer_plan_card.dart`, entre autres.
+- **Fix** : remplacer **uniquement** celles qui utilisent exactement ces trois valeurs par
+  `Card(clipBehavior: Clip.antiAlias, child: …)`, qui lit `cardTheme` (`app_theme.dart`, marge
+  nulle depuis ce sprint). Celles qui utilisent `surfaceCardSolid`, un autre rayon ou une autre
+  bordure restent telles quelles.
+- **Vérification** : `flutter run -d windows`, en clair et en sombre, sur chaque écran touché :
+  aucun changement visuel attendu, sauf l'onde au toucher désormais bornée par l'arrondi.
 
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
@@ -189,6 +165,11 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
 - **Mode "versets à retravailler" en jeu à part** — mécanique de jeu à définir avant tout code.
 - **Gamification narrative [H]** — vision long terme, direction artistique déjà validée (Mus'haf/Tahajjud), mécanique narrative encore à définir.
 - **Versets revenus en révision → section "à réviser en dehors des prières", pas verset de contexte** (reformulation 2026-09-26 des items P2 "verset de contexte") : pour la révision, le contexte n'aide pas autant qu'à l'apprentissage (déjà traité, voir décision UI/lecture ci-dessus) — l'idée retenue est plutôt de faire atterrir les versets revenus dans le bloc hors-prières existant (`OutsidePrayersBlock`) plutôt que de les représenter avec leur contexte. À passer par `quran-blueprint` avant scoping : reste à définir comment ça s'articule avec `distributeToRakaas`/`RevisionUnit.==` (règle D) et si ça remplace ou complète le banner `return_proof_seen` actuel.
+- **Un seul style de titre en capitales (« eyebrow »)** (relevé au Sprint B d'US-15) : huit
+  titres en capitales ont chacun leur taille et leur espacement (`check_in_screen.dart`,
+  `check_out_sections.dart`, `day_closed_summary.dart`, `prayer_selector.dart`,
+  `streak_card.dart`, `verse_chips_scaffold.dart`, `check_hero.dart`, `cycle_progress_card.dart`).
+  Il reste à choisir le style commun avant d'écrire un widget ou un style de thème partagé.
 
 ---
 

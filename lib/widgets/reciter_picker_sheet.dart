@@ -15,11 +15,12 @@ class ReciterPickerSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return SafeArea(
-      child: Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+      // A Material (not a decorated Container) so the ListTiles' ink splash is
+      // painted on this surface instead of under it — invisible otherwise.
+      child: Material(
+        color: cs.surface,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

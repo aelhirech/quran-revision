@@ -38,7 +38,9 @@ class PrimaryCtaButton extends StatelessWidget {
       height: height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        boxShadow: shadow,
+        // No shadow when disabled: the light theme's hard gold offset showed
+        // through the translucent disabled fill and read as an active button.
+        boxShadow: onPressed == null ? null : shadow,
       ),
       child: FilledButton(
         onPressed: onPressed,
@@ -53,11 +55,16 @@ class PrimaryCtaButton extends StatelessWidget {
               Icon(icon, size: 18),
               const SizedBox(width: 8),
             ],
+            // Shrinks a long label to fit rather than cutting it: next to the
+            // StepFooter's back button, "Voir mon plan du jour" lost its end.
             Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(letterSpacing: 0.3),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: const TextStyle(letterSpacing: 0.3),
+                ),
               ),
             ),
           ],

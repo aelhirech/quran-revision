@@ -33,7 +33,7 @@ class UnitRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final content = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: palette.surfaceCardSolid,
         borderRadius: BorderRadius.circular(16),

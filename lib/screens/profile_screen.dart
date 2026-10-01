@@ -3,8 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
-import '../models/learning_progress.dart';
-import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
@@ -27,15 +25,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Set<int> _selectedIds = {};
   int _pagesPerDay = 1;
   String _search = '';
-  int _memorisees = 0;
-  Riwaya? _lastRiwaya;
-
-  Future<void> _loadMemorisees() async {
-    final state = context.read<AppState>();
-    final progress = await state.learningProgressList();
-    if (!mounted) return;
-    setState(() => _memorisees = progress.memorisedCount);
-  }
 
   @override
   void didChangeDependencies() {
@@ -45,14 +34,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (config != null && !_editing) {
       _selectedIds = config.selections.map((s) => s.sourate.id).toSet();
       _pagesPerDay = config.pagesPerDay;
-    }
-    // Hafs/Warsh ont chacun leur propre progression d'apprentissage — sans ce
-    // suivi, changer de riwaya depuis SettingsCard (même écran, ProfileScreen
-    // ne quitte jamais l'IndexedStack) laisserait "sourates mémorisées"
-    // afficher le compte de l'ancienne riwaya. Même pattern que RecapScreen.
-    if (state.riwaya != _lastRiwaya) {
-      _lastRiwaya = state.riwaya;
-      _loadMemorisees();
     }
   }
 
@@ -203,7 +184,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ProfileInfoCard(
             config: config,
             elapsed: daysElapsed,
-            memorisees: _memorisees,
             onEditRythme: _showDurationDialog,
             onEditSourates: () => setState(() => _editing = true),
           ),
@@ -220,12 +200,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _pauseCard(ColorScheme cs, AppState state) {
     final paused = state.isPausedToday;
+    // Theme card (app_theme cardTheme); only the paused tint overrides it.
     return Card(
-      elevation: 0,
-      color: paused
-          ? cs.tertiaryContainer.withValues(alpha: 0.5)
-          : cs.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      color: paused ? cs.tertiaryContainer.withValues(alpha: 0.5) : null,
+      // The tile paints a square background; without a clip it shows past
+      // the rounded corners.
+      clipBehavior: Clip.antiAlias,
       child: SwitchListTile.adaptive(
         value: paused,
         onChanged: (_) => state.togglePauseToday(),

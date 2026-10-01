@@ -67,7 +67,10 @@ class CycleProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(label,
+          // Uppercased here, not in the strings: `S.cycleEnCours` is also used
+          // mid-sentence (PlanSummaryBar). Home said "Cycle en cours", Recap
+          // "CYCLE ACTUEL" — same eyebrow, two cases.
+          Text(label.toUpperCase(),
               style: GoogleFonts.lora(
                   color: onPrimary.withValues(alpha: 0.65),
                   fontSize: 11,

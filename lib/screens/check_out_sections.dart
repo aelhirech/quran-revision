@@ -128,6 +128,9 @@ extension _CheckOutSections on _CheckOutScreenState {
           if (!unchecked.add(v)) unchecked.remove(v);
         }),
         checkedBorderColor: palette.gold.withValues(alpha: 0.8),
+        // A border-only difference (gold vs grey) was too faint to read
+        // learned vs not at a glance (US-15 critique pass).
+        checkedFillColor: palette.gold.withValues(alpha: 0.15),
         childFor: (v, checked) => Text('$v',
             style: TextStyle(
                 fontSize: 11,

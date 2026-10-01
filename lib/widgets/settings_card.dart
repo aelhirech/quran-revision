@@ -93,6 +93,8 @@ class _SettingsCardState extends State<SettingsCard> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
+      // Tile hover/ink highlights are square: clip them to the rounded card.
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: context.palette.surfaceCard,
         borderRadius: BorderRadius.circular(16),
