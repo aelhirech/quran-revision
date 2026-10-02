@@ -39,43 +39,34 @@ class PrayerPlanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final palette = context.palette;
-    return Container(
+    return Card(
       margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: palette.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.cardBorder),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: palette.gold, width: 2)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(pp.prayer.displayName,
-                      style: GoogleFonts.lora(
-                          fontWeight: FontWeight.w600,
-                          color: palette.textPrimary,
-                          fontSize: 15)),
-                  Text(pp.prayer.nameAr,
-                      style: GoogleFonts.amiri(color: palette.textPrimary, fontSize: 18)),
-                ],
-              ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: palette.gold, width: 2)),
             ),
-            ...pp.rakaas.map((r) => _rakaaRow(context, r, cs, palette)),
-            const SizedBox(height: 4),
-          ],
-        ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(pp.prayer.displayName,
+                    style: GoogleFonts.lora(
+                        fontWeight: FontWeight.w600,
+                        color: palette.textPrimary,
+                        fontSize: 15)),
+                Text(pp.prayer.nameAr,
+                    style: GoogleFonts.amiri(color: palette.textPrimary, fontSize: 18)),
+              ],
+            ),
+          ),
+          ...pp.rakaas.map((r) => _rakaaRow(context, r, cs, palette)),
+          const SizedBox(height: 4),
+        ],
       ),
     );
   }

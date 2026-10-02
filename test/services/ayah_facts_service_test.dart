@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quran_revision/core/day_dates.dart';
 import 'package:quran_revision/models/riwaya.dart';
 import 'package:quran_revision/models/revision_unit.dart';
 import 'package:quran_revision/models/ayah_fact.dart';
@@ -50,7 +51,7 @@ void main() {
       // qu'il n'est pas scellé) se comptait lui-même comme "en attente",
       // renvoyant l'utilisateur vers l'écran de rattrapage pour son propre
       // plan du jour à chaque réouverture de l'app.
-      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final today = dayKey(DateTime.now());
       await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [testUnit(3, 1, 5)]);
       expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.hafs), isNull);
       await AyahFactsRitual.sealDay(today, Riwaya.hafs);
@@ -253,7 +254,7 @@ void main() {
   // une sourate démarrée ne doit pas disparaître de "en cours") restent
   // couverts ici, sur le nouveau chemin d'écriture.
   group('démarrage d\'une sourate sans verset appris', () {
-    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final today = dayKey(DateTime.now());
 
     test('apparaît dans loadMainLearningProgress avec 0 verset appris',
         () async {
@@ -353,9 +354,7 @@ void main() {
 
   group('revisionPace — rythme du Récap (US-15)', () {
     final today = DateTime(2021, 3, 31);
-    String day(int offset) => DateTime(2021, 3, 31 - offset)
-        .toIso8601String()
-        .substring(0, 10);
+    String day(int offset) => dayKey(DateTime(2021, 3, 31 - offset));
     Future<void> revise(int offset, RevisionUnit unit, {bool reach = true}) async {
       await AyahFactsRitual.proposeUnits(day(offset), Riwaya.hafs, [unit]);
       if (reach) {

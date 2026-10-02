@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/day_dates.dart';
 import '../models/prayer.dart';
 import '../models/riwaya.dart';
 import '../models/user_config.dart';
@@ -38,7 +39,7 @@ class StorageService {
       String key, Riwaya riwaya, DateTime date, Object payload) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_track(key, riwaya), jsonEncode({
-      'date': date.toIso8601String().substring(0, 10),
+      'date': dayKey(date),
       'payload': payload,
     }));
   }
@@ -61,8 +62,7 @@ class StorageService {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final date = DateTime.parse(decoded['date'] as String);
       if (purgeIfStale &&
-          date.toIso8601String().substring(0, 10) !=
-              DateTime.now().toIso8601String().substring(0, 10)) {
+          dayKey(date) != dayKey(DateTime.now())) {
         await prefs.remove(trackedKey);
         return null;
       }

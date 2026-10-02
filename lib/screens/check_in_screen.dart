@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/day_dates.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/prayer.dart';
@@ -124,11 +125,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
     if (!mounted || last == null || last.prayers.isEmpty) return;
     setState(() {
       _lastPrayers = last.prayers;
-      _isYesterday = last.date.toIso8601String().substring(0, 10) ==
-          DateTime.now()
-              .subtract(const Duration(days: 1))
-              .toIso8601String()
-              .substring(0, 10);
+      _isYesterday = dayKey(last.date) ==
+          dayKey(DateTime.now().subtract(const Duration(days: 1)));
     });
   }
 

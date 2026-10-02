@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/day_dates.dart';
 import '../core/freshness_engine.dart';
 import '../core/quran_data.dart';
 import '../core/rakaa_distributor.dart';
@@ -180,7 +181,7 @@ class AppState extends ChangeNotifier {
   /// onto today, and recomputing it in the UI would recreate a second
   /// source of truth.
   String get todayStr =>
-      DateTime.now().toIso8601String().substring(0, 10);
+      dayKey(DateTime.now());
 
   bool get isPausedToday => _pauseDates.contains(todayStr);
 

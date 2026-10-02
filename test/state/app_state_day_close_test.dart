@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quran_revision/core/day_dates.dart';
 import 'package:quran_revision/models/revision_unit.dart';
 import 'package:quran_revision/models/riwaya.dart';
 import 'package:quran_revision/models/sourate.dart';
@@ -14,7 +15,6 @@ import '../services/test_helpers.dart';
 
 /// Day close (US-13/US-14): what sealing a day unlocks (`SealOutcome`) and
 /// the day recap rebuilt from `ayah_facts` (`dayRecap`).
-String _isoDate(DateTime d) => d.toIso8601String().substring(0, 10);
 
 void main() {
   setUpAll(() async {
@@ -50,7 +50,7 @@ void main() {
   test(
       'sceller le jour où le dernier verset est acquis annonce la sourate '
       'mémorisée, une seule fois', () async {
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
     final state = newState();
     await state.setLearningForToday(byId(state, 108), 3);
     await state.markLearnVerses(today, 108, [1, 2, 3], true);
@@ -70,7 +70,7 @@ void main() {
   test(
       'tour bouclé et sourate mémorisée le même soir remontent dans un seul '
       'résultat (US-13 crit. 3)', () async {
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
     final probe = AppState(null, riwaya: Riwaya.hafs);
     // Al-Kawthar alone fits on one page: a one-entry cycle, wrapped by a
     // single done day.
@@ -98,7 +98,7 @@ void main() {
 
   test('le bilan du jour dit ce qui a été revu, appris, et ce qui revient',
       () async {
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
     final state = newState();
     final mumtahanah = byId(state, 60);
     await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [
@@ -119,7 +119,7 @@ void main() {
     expect((await state.dayRecap(today)).leftover, isFalse);
 
     final tomorrow =
-        _isoDate(DateTime.now().add(const Duration(days: 1)));
+        dayKey(DateTime.now().add(const Duration(days: 1)));
     final empty = await state.dayRecap(tomorrow);
     expect(empty.revised, isEmpty);
     expect(empty.learnedVerses, 0);
@@ -130,7 +130,7 @@ void main() {
   });
 
   test('le bilan survit au scellement (checked_out = 1)', () async {
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
     final state = newState();
     await state.setLearningForToday(byId(state, 108), 1);
     await state.markLearnVerses(today, 108, [1], true);

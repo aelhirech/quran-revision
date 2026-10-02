@@ -181,16 +181,14 @@ class AyahFactsService {
   /// two days counts twice, as in [recentDayVerseStats].
   static Future<({int last7Days, int weeklyAverage})> revisionPace(
       DateTime today, Riwaya riwaya) async {
-    String dayKey(int offset) =>
-        DateTime(today.year, today.month, today.day - offset)
-            .toIso8601String()
-            .substring(0, 10);
+    String daysBefore(int offset) =>
+        dayKey(DateTime(today.year, today.month, today.day - offset));
     final db = await _open();
     final rows = await db.rawQuery(
       'SELECT SUM(CASE WHEN date >= ? THEN 1 ELSE 0 END) as last7, '
       'COUNT(*) as last56, MIN(date) as first_date FROM ayah_facts '
       'WHERE riwaya = ? AND type = ? AND reach = 1 AND date >= ? AND date <= ?',
-      [dayKey(6), riwaya.name, AyahFactType.revise.name, dayKey(55), dayKey(0)],
+      [daysBefore(6), riwaya.name, AyahFactType.revise.name, daysBefore(55), daysBefore(0)],
     );
     final row = rows.first;
     final firstDate = row['first_date'] as String?;

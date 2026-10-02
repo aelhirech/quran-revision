@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quran_revision/core/day_dates.dart';
 import 'package:quran_revision/core/revision_engine.dart';
 import 'package:quran_revision/models/revision_unit.dart';
 import 'package:quran_revision/models/riwaya.dart';
@@ -22,8 +23,6 @@ import '../services/test_helpers.dart';
 // `setUpAll`, comme `HafsService`) n'a d'entrée que pour de vrais numéros de
 // sourate — un id fictif n'aurait aucune page et produirait toujours 0 unité.
 Sourate _sourate(int id) => testSourate(id, verses: 10, words: 50);
-
-String _isoDate(DateTime d) => d.toIso8601String().substring(0, 10);
 
 // Sourates 60/65 : chacune réelle, multi-page (jamais éligible au
 // regroupement par page partagée — voir cadrage 2026-09-05, ce fichier ne
@@ -70,8 +69,8 @@ void main() {
   });
 
   test('ensureDayPlan gèle le moteur tant qu\'un jour précédent est en attente', () async {
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
-    final today = _isoDate(DateTime.now());
+    final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
+    final today = dayKey(DateTime.now());
 
     // Simule : hier, le moteur a proposé un plan jamais scellé (l'utilisateur
     // n'a pas fait de check-out) — un jour "en attente" pour aujourd'hui.
@@ -97,8 +96,8 @@ void main() {
   test(
       'checkOut scelle, avance le cycle une fois, puis ensureDayPlan peut proposer aujourd\'hui',
       () async {
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 2)));
-    final today = _isoDate(DateTime.now());
+    final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 2)));
+    final today = dayKey(DateTime.now());
     final config = _config();
 
     final state = AppState(config, riwaya: Riwaya.hafs);
@@ -143,7 +142,7 @@ void main() {
     // unité "non faite", mais une unité retirée au check-in (plus aucune
     // ligne en base) était traitée comme "non faite" — ce qui bloquait à
     // tort le comptage d'unités suivantes réellement complétées.
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 3)));
+    final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 3)));
     // Sourates 67/69/71 (3+3+2 pages réelles) : pagesPerDay=8 fait tenir les
     // 3 ENTIÈRES le même jour (3 groupes distincts, aucune ne partage de
     // page avec une autre), condition nécessaire pour que checkOut ait
@@ -216,7 +215,7 @@ void main() {
 
     var day = DateTime.now().subtract(Duration(days: cycle.length + 1));
     for (var i = 0; i < cycle.length; i++) {
-      final dateStr = _isoDate(day);
+      final dateStr = dayKey(day);
       final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: state.cyclePosition,
@@ -291,7 +290,7 @@ void main() {
     final state = AppState(config, riwaya: Riwaya.hafs);
     // Date dédiée (-20j), non partagée avec les autres tests de ce fichier,
     // pour ne pas mélanger des lignes ayah_facts d'un autre scénario.
-    final day = _isoDate(DateTime.now().subtract(const Duration(days: 20)));
+    final day = dayKey(DateTime.now().subtract(const Duration(days: 20)));
 
     final selection = await RevisionEngine.buildDayUnits(
         config: config,
@@ -338,7 +337,7 @@ void main() {
       riwaya: Riwaya.hafs,
     );
     final state = AppState(config, riwaya: Riwaya.hafs);
-    final day = _isoDate(DateTime.now().subtract(const Duration(days: 25)));
+    final day = dayKey(DateTime.now().subtract(const Duration(days: 25)));
 
     final selection = await RevisionEngine.buildDayUnits(
         config: config,
@@ -401,7 +400,7 @@ void main() {
       riwaya: Riwaya.hafs,
     );
     final state = AppState(config, riwaya: Riwaya.hafs);
-    final day = _isoDate(DateTime.now().subtract(const Duration(days: 30)));
+    final day = dayKey(DateTime.now().subtract(const Duration(days: 30)));
 
     final selection = await RevisionEngine.buildDayUnits(
       config: config,
@@ -450,7 +449,7 @@ void main() {
       riwaya: Riwaya.hafs,
     );
     final state = AppState(config, riwaya: Riwaya.hafs);
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
 
     final selection = await RevisionEngine.buildDayUnits(
       config: config,
@@ -486,7 +485,7 @@ void main() {
       riwaya: Riwaya.hafs,
     );
     final state = AppState(config, riwaya: Riwaya.hafs);
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
 
     // Deux plages disjointes de la même sourate proposées le même jour.
     final garde =
@@ -512,7 +511,7 @@ void main() {
       '`_selection` depuis la config COURANTE (checkOut), donc changer la '
       'sélection avant de le sceller le ferait recompter sur un cycle que sa '
       'propre proposition n\'a jamais produit', () async {
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
     final config = _config();
     final state = AppState(config, riwaya: Riwaya.hafs);
 
@@ -548,7 +547,7 @@ void main() {
       'en attente de check-out — même risque que saveConfig : buildCycle '
       'réordonne aussi sur shuffleEnabled, pas seulement sur selections '
       '(trouvé en /code-review du sprint config-lock-pending)', () async {
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
     final config = _config(); // shuffleEnabled: false
     final state = AppState(config, riwaya: Riwaya.hafs);
 

@@ -43,78 +43,75 @@ class LearningProgressCard extends StatelessWidget {
           await onDismiss();
           return false;
         },
-        child: Container(
-          decoration: BoxDecoration(
-            color: palette.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.cardBorder),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  IndexBadge(text: '${s.id}', size: 34),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(s.nameFr,
-                            style: GoogleFonts.lora(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                                color: palette.textPrimary)),
-                        Text(s.nameAr,
-                            style: GoogleFonts.amiri(
-                                fontSize: 16, color: palette.textPrimary)),
-                      ],
-                    ),
-                  ),
-                  if (progress.isComplete)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: cs.primaryContainer,
-                        borderRadius: BorderRadius.circular(12),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IndexBadge(text: '${s.id}', size: 34),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(s.nameFr,
+                              style: GoogleFonts.lora(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  color: palette.textPrimary)),
+                          Text(s.nameAr,
+                              style: GoogleFonts.amiri(
+                                  fontSize: 16, color: palette.textPrimary)),
+                        ],
                       ),
-                      child: Text(S.complet,
+                    ),
+                    if (progress.isComplete)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: cs.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(S.complet,
+                            style: TextStyle(
+                                color: palette.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12)),
+                      )
+                    else
+                      Text(S.versetN(progress.nextVerse, s.verses),
                           style: TextStyle(
-                              color: palette.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12)),
-                    )
-                  else
-                    Text(S.versetN(progress.nextVerse, s.verses),
-                        style: TextStyle(
-                            color: palette.textMuted, fontSize: 12)),
-                  IconButton(
-                    icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 18),
-                    tooltip: S.voirLeTexte,
-                    onPressed: () =>
-                        VerseBottomSheet.show(context, s, 1, s.verses),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: progress.progress,
-                  minHeight: 3,
-                  backgroundColor: palette.textPrimary.withValues(alpha: 0.1),
-                  color: palette.gold,
+                              color: palette.textMuted, fontSize: 12)),
+                    IconButton(
+                      icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 18),
+                      tooltip: S.voirLeTexte,
+                      onPressed: () =>
+                          VerseBottomSheet.show(context, s, 1, s.verses),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(S.versetsAppris(progress.learnedCount, s.verses),
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                      color: palette.textMuted)),
-            ],
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: progress.progress,
+                    minHeight: 3,
+                    backgroundColor: palette.textPrimary.withValues(alpha: 0.1),
+                    color: palette.gold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(S.versetsAppris(progress.learnedCount, s.verses),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                        color: palette.textMuted)),
+              ],
+            ),
           ),
         ).animate()
             .fadeIn(delay: Duration(milliseconds: 80 * index))

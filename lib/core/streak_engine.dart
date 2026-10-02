@@ -1,3 +1,5 @@
+import 'day_dates.dart';
+
 // Calcul du streak (jours consécutifs d'activité) — module pur, extrait de
 // l'ancien HistoryService.currentStreak pour rester testable sans SQLite et
 // réutilisable par AyahFactsService.
@@ -13,11 +15,8 @@ class StreakEngine {
   }) {
     if (activeDates.isEmpty) return 0;
 
-    final todayStr = today.toIso8601String().substring(0, 10);
-    final yesterdayStr = today
-        .subtract(const Duration(days: 1))
-        .toIso8601String()
-        .substring(0, 10);
+    final todayStr = dayKey(today);
+    final yesterdayStr = dayKey(today.subtract(const Duration(days: 1)));
 
     // Le streak est vivant si aujourd'hui a une activité, est en pause,
     // ou si hier a une activité.
@@ -32,7 +31,7 @@ class StreakEngine {
 
     // On remonte jour par jour : les jours de pause sont sautés (cap à 30 d'affilée)
     while (skippedInARow < 30) {
-      final key = cursor.toIso8601String().substring(0, 10);
+      final key = dayKey(cursor);
       if (activeDates.contains(key)) {
         streak++;
         skippedInARow = 0;

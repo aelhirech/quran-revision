@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quran_revision/core/day_dates.dart';
 import 'package:quran_revision/core/streak_engine.dart';
 
 void main() {
   final today = DateTime(2026, 8, 30);
 
-  String d(int daysAgo) =>
-      today.subtract(Duration(days: daysAgo)).toIso8601String().substring(0, 10);
+  String d(int daysAgo) => dayKey(today.subtract(Duration(days: daysAgo)));
 
   group('StreakEngine.compute', () {
     test('aucune activité → 0', () {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../core/app_colors.dart';
 import '../core/app_rules.dart';
+import '../core/day_dates.dart';
 import '../core/strings.dart';
 import '../models/session_record.dart';
 
@@ -15,15 +15,10 @@ class HistoryCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     // Map date string → session pour lookup O(1)
     final byDate = {
-      for (final s in sessions) s.date.toIso8601String().substring(0, 10): s
+      for (final s in sessions) dayKey(s.date): s
     };
 
-    return Container(
-      decoration: BoxDecoration(
-        color: context.palette.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.palette.cardBorder),
-      ),
+    return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -71,9 +66,9 @@ class HistoryCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: days.asMap().entries.map((entry) {
           final day = entry.value;
-          final key = day.toIso8601String().substring(0, 10);
+          final key = dayKey(day);
           final session = byDate[key];
-          final isToday = key == today.toIso8601String().substring(0, 10);
+          final isToday = key == dayKey(today);
           final dayLabelIndex = (day.weekday - 1) % 7;
           return _dayCell(cs, dayLabels[dayLabelIndex], day.day, session, isToday);
         }).toList(),
