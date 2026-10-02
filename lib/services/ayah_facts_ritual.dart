@@ -17,7 +17,7 @@ class AyahFactsRitual {
   /// n'est pas un rattrapage (voir cadrage, "Verrouillage").
   static Future<String?> pendingDate({required Riwaya riwaya}) async {
     final db = await AyahFactsService._open();
-    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final today = dayKey(DateTime.now());
     final rows = await db.rawQuery(
       'SELECT MIN(date) as d FROM ayah_facts '
       'WHERE riwaya = ? AND type = ? AND checked_out = 0 AND date < ?',

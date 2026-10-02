@@ -55,6 +55,14 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 - **Cartes et pas d'étapes (US-15 Sprint B, 2026-10-01)** :
   - Le style des `Card` vient du `cardTheme` (`app_theme.dart`, marge nulle comprise). Ne pas
     le recopier widget par widget : une copie locale ne suit plus le thème quand il change.
+    Une nouvelle carte `surfaceCard` + rayon 16 + `cardBorder` s'écrit `Card(...)`, jamais
+    `Container(decoration: …)` (nettoyage du 2026-10-02 : 11 copies retirées). Si elle contient
+    un `InkWell`, il va **dans** la `Card` : posé au-dessus, son onde est peinte sous le fond.
+    Restent en `Container`, volontairement : les cartes `surfaceCardSolid` et
+    `SouratesRecapCard` (rayon 20).
+- **Clé de jour (2026-10-02)** : `dayKey(DateTime)` (`core/day_dates.dart`) est la seule façon
+  d'écrire une date `YYYY-MM-DD` (format de `ayah_facts.date` et des préférences par jour).
+  Ne pas réécrire `toIso8601String().substring(0, 10)` à la main.
   - Le check-in et le check-out passent d'une étape à l'autre par `StepFooter` et
     `StepTransition`. Une nouvelle étape dans l'un de ces deux écrans les réutilise.
   - `PrimaryCtaButton` réduit un libellé trop long au lieu de le couper, et n'a plus d'ombre
@@ -120,31 +128,6 @@ tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de
   à jour côté KSU, pré-vérification de l'espace libre, geste de téléchargement dans le check-in
   ou le check-out.
 - **Doc** : §6, §8.4 (Réglages), §8.6bis. Passer US-10 à « terminée » puis l'archiver.
-
-### [P3] Clé de jour `YYYY-MM-DD` recopiée inline une douzaine de fois
-Relevé en `/simplify` du Sprint A d'US-15 (2026-10-01).
-- **Où** : `DateTime(...).toIso8601String().substring(0, 10)` dans `core/streak_engine.dart`,
-  `services/ayah_facts_ritual.dart`, `services/storage_service.dart`,
-  `services/ayah_facts_service.dart` (`revisionPace`), `state/app_state.dart`,
-  `widgets/history_card.dart`, `screens/day_plan_tab.dart` et `screens/check_in_screen.dart`.
-  Côté tests, `_isoDate` est défini trois fois dans `test/state/`.
-- **Fix** : ajouter `String dayKey(DateTime d)` dans `lib/core/day_dates.dart`, à côté de
-  `daysAgo`, puis remplacer **toutes** les copies d'un coup, tests compris. Une migration
-  partielle laisserait deux idiomes côte à côte.
-- **Vérification** : `flutter test`, sans changement de comportement attendu.
-
-### [P3] Cartes `Container` décorées qui recopient le `cardTheme`
-Relevé en `/simplify` du Sprint B d'US-15 (2026-10-01).
-- **Où** : une quinzaine de cartes refont à la main le style du thème avec un `Container` +
-  `BoxDecoration(color: palette.surfaceCard, borderRadius: 16, border: palette.cardBorder)` :
-  `settings_card.dart`, `history_card.dart`, `hadith_card.dart`, `recap_screen.dart`
-  (`_repartitionCard`, `_statChip`), `prayer_plan_card.dart`, entre autres.
-- **Fix** : remplacer **uniquement** celles qui utilisent exactement ces trois valeurs par
-  `Card(clipBehavior: Clip.antiAlias, child: …)`, qui lit `cardTheme` (`app_theme.dart`, marge
-  nulle depuis ce sprint). Celles qui utilisent `surfaceCardSolid`, un autre rayon ou une autre
-  bordure restent telles quelles.
-- **Vérification** : `flutter run -d windows`, en clair et en sombre, sur chaque écran touché :
-  aucun changement visuel attendu, sauf l'onde au toucher désormais bornée par l'arrondi.
 
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`

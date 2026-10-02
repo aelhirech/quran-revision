@@ -16,44 +16,41 @@ class OutsidePrayersBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     if (units.isEmpty) return const SizedBox.shrink();
     final palette = context.palette;
-    return Container(
+    return Card(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: palette.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(S.horsPrieresTitre,
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: palette.textPrimary)),
-          const SizedBox(height: 4),
-          Text(S.horsPrieresDesc,
-              style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
-          const SizedBox(height: 10),
-          for (final u in units)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: UnitRangeLabel(unit: u, nameColor: palette.textPrimary),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 18),
-                    tooltip: S.voirLeTexte,
-                    onPressed: () => VerseBottomSheet.show(
-                        context, u.sourate, u.verseStart, u.verseEnd),
-                  ),
-                ],
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(S.horsPrieresTitre,
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: palette.textPrimary)),
+            const SizedBox(height: 4),
+            Text(S.horsPrieresDesc,
+                style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
+            const SizedBox(height: 10),
+            for (final u in units)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: UnitRangeLabel(unit: u, nameColor: palette.textPrimary),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 18),
+                      tooltip: S.voirLeTexte,
+                      onPressed: () => VerseBottomSheet.show(
+                          context, u.sourate, u.verseStart, u.verseEnd),
+                    ),
+                  ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

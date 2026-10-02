@@ -92,80 +92,73 @@ class _SettingsCardState extends State<SettingsCard> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      // Tile hover/ink highlights are square: clip them to the rounded card.
+    // Card = the theme's card (app_theme cardTheme) and the Material the tiles'
+    // ink paints on; the clip keeps square hover highlights in the corners.
+    return Card(
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: context.palette.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.palette.cardBorder),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: Column(
-          children: [
-            ListTile(
-              leading: Icon(Icons.language, color: cs.primary),
-              title: Text(S.langueLabel),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _langChip(context, 'FR', 'fr', cs),
-                  const SizedBox(width: 8),
-                  _langChip(context, 'EN', 'en', cs),
-                ],
-              ),
+      child: Column(
+        children: [
+          ListTile(
+            leading: Icon(Icons.language, color: cs.primary),
+            title: Text(S.langueLabel),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _langChip(context, 'FR', 'fr', cs),
+                const SizedBox(width: 8),
+                _langChip(context, 'EN', 'en', cs),
+              ],
             ),
+          ),
+          const Divider(height: 1, indent: 56),
+          ListTile(
+            leading: Icon(Icons.menu_book_outlined, color: cs.primary),
+            title: Text(S.riwayaLabel),
+            subtitle: Text(S.riwayaSubtitle),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _riwayaChip(context, S.hafs, Riwaya.hafs, cs),
+                const SizedBox(width: 8),
+                _riwayaChip(context, S.warsh, Riwaya.warsh, cs),
+              ],
+            ),
+          ),
+          const Divider(height: 1, indent: 56),
+          SwitchListTile(
+            secondary: Icon(Icons.shuffle, color: cs.primary),
+            title: Text(SOnboarding.aleatoireLabel),
+            subtitle: Text(SOnboarding.aleatoireSubtitle),
+            value: context.watch<AppState>().config?.shuffleEnabled ?? true,
+            onChanged: _toggleShuffle,
+          ),
+          const Divider(height: 1, indent: 56),
+          SwitchListTile(
+            secondary: Icon(Icons.notifications_outlined, color: cs.primary),
+            title: Text(S.notificationsLabel),
+            subtitle: Text(S.notifSubtitle),
+            value: _notifEnabled,
+            onChanged: _toggleNotif,
+          ),
+          if (_notifEnabled) ...[
             const Divider(height: 1, indent: 56),
             ListTile(
-              leading: Icon(Icons.menu_book_outlined, color: cs.primary),
-              title: Text(S.riwayaLabel),
-              subtitle: Text(S.riwayaSubtitle),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _riwayaChip(context, S.hafs, Riwaya.hafs, cs),
-                  const SizedBox(width: 8),
-                  _riwayaChip(context, S.warsh, Riwaya.warsh, cs),
-                ],
-              ),
+              leading: Icon(Icons.wb_sunny_outlined, color: cs.primary),
+              title: Text(S.rappelMatinLabel),
+              trailing: Text(_formatTime(_morningTime),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary)),
+              onTap: _pickMorningTime,
             ),
             const Divider(height: 1, indent: 56),
-            SwitchListTile(
-              secondary: Icon(Icons.shuffle, color: cs.primary),
-              title: Text(SOnboarding.aleatoireLabel),
-              subtitle: Text(SOnboarding.aleatoireSubtitle),
-              value: context.watch<AppState>().config?.shuffleEnabled ?? true,
-              onChanged: _toggleShuffle,
+            ListTile(
+              leading: Icon(Icons.nightlight_outlined, color: cs.primary),
+              title: Text(S.rappelSoirLabel),
+              trailing: Text(_formatTime(_eveningTime),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary)),
+              onTap: _pickEveningTime,
             ),
-            const Divider(height: 1, indent: 56),
-            SwitchListTile(
-              secondary: Icon(Icons.notifications_outlined, color: cs.primary),
-              title: Text(S.notificationsLabel),
-              subtitle: Text(S.notifSubtitle),
-              value: _notifEnabled,
-              onChanged: _toggleNotif,
-            ),
-            if (_notifEnabled) ...[
-              const Divider(height: 1, indent: 56),
-              ListTile(
-                leading: Icon(Icons.wb_sunny_outlined, color: cs.primary),
-                title: Text(S.rappelMatinLabel),
-                trailing: Text(_formatTime(_morningTime),
-                    style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary)),
-                onTap: _pickMorningTime,
-              ),
-              const Divider(height: 1, indent: 56),
-              ListTile(
-                leading: Icon(Icons.nightlight_outlined, color: cs.primary),
-                title: Text(S.rappelSoirLabel),
-                trailing: Text(_formatTime(_eveningTime),
-                    style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary)),
-                onTap: _pickEveningTime,
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     ).animate().fadeIn(delay: 150.ms);
   }

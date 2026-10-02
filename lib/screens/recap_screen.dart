@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/riwaya.dart';
@@ -206,32 +205,29 @@ class _RecapScreenState extends State<RecapScreen> {
     final enEntier = state.config!.selections.where((s) => s.isWhole).length;
     final enCours = _learningProgress.where((p) => !p.isComplete).length;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: context.palette.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.palette.cardBorder),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(S.repartitionSourates,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: cs.onSurface)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _repartitionChip(cs, enEntier, S.memoriseesEnEntier,
-                  Icons.check_circle_outline, cs.primary),
-              const SizedBox(width: 8),
-              _repartitionChip(cs, enCours, S.enCoursDApprentissage,
-                  Icons.edit_note_outlined, cs.tertiary),
-            ],
-          ),
-        ],
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(S.repartitionSourates,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: cs.onSurface)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _repartitionChip(cs, enEntier, S.memoriseesEnEntier,
+                    Icons.check_circle_outline, cs.primary),
+                const SizedBox(width: 8),
+                _repartitionChip(cs, enCours, S.enCoursDApprentissage,
+                    Icons.edit_note_outlined, cs.tertiary),
+              ],
+            ),
+          ],
+        ),
       ),
     ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.08);
   }
@@ -312,29 +308,26 @@ class _RecapScreenState extends State<RecapScreen> {
   Widget _statChip(
       ColorScheme cs, String value, String label, IconData icon, int delayMs) {
     return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: context.palette.surfaceCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.palette.cardBorder),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-        child: Column(
-          children: [
-            Icon(icon, color: cs.primary, size: 22),
-            const SizedBox(height: 8),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: cs.onSurface)),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w500)),
-          ],
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          child: Column(
+            children: [
+              Icon(icon, color: cs.primary, size: 22),
+              const SizedBox(height: 8),
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: cs.onSurface)),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w500)),
+            ],
+          ),
         ),
       )
           .animate()

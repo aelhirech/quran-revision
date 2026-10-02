@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quran_revision/core/day_dates.dart';
 import 'package:quran_revision/core/revision_engine.dart';
 import 'package:quran_revision/models/ayah_fact.dart';
 import 'package:quran_revision/models/riwaya.dart';
@@ -20,7 +21,6 @@ import '../services/test_helpers.dart';
 /// apprendre sont des lignes `ayah_facts` datées (`type='learn'`), proposées
 /// au check-in et confirmées au check-out — mêmes sémantiques `reach=0`
 /// (visé) → `reach=1` (acquis) que la révision.
-String _isoDate(DateTime d) => d.toIso8601String().substring(0, 10);
 
 // Sourates 60/65 en révision : réelles et multi-pages, sans rapport avec la
 // sourate apprise (108, Al-Kawthar — 3 versets, la plus courte du Coran,
@@ -81,7 +81,7 @@ void main() {
 
   test('les versets déjà acquis un jour précédent sont sautés, pas reproposés',
       () async {
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
     await AyahFactsLearning.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
     await AyahFactsRitual.setReachForVerses(
         yesterday, Riwaya.hafs, 108, [1], true,
@@ -100,7 +100,7 @@ void main() {
   test(
       "ensureDayPlan propose de lui-même la suite d'une sourate déjà en cours "
       "d'apprentissage", () async {
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
     // Sourate démarrée hier, aucun verset encore acquis (reach=0).
     await AyahFactsLearning.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
 
@@ -121,7 +121,7 @@ void main() {
   test(
       'une sourate entièrement mémorisée rejoint la sélection de révision sans '
       'remettre le cycle à zéro', () async {
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
     final state = newState(cyclePosition: 1);
     await state.setLearningForToday(kawthar(state), 3);
     // Check-out : les 3 versets sont confirmés acquis.
@@ -151,12 +151,12 @@ void main() {
   test(
       '« Je n\'apprends rien aujourd\'hui » survit à une réouverture de l\'app',
       () async {
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
     await AyahFactsLearning.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
     // Les tests de ce fichier partagent la même base : repartir d'une
     // journée réellement neuve, sinon `ensureDayPlan` considère le plan du
     // jour comme déjà généré (c'est justement ce que ce test vérifie).
-    await AyahFactsRitual.clearDayProposal(_isoDate(DateTime.now()), Riwaya.hafs);
+    await AyahFactsRitual.clearDayProposal(dayKey(DateTime.now()), Riwaya.hafs);
 
     final state = newState();
     await state.ensureDayPlan(); // génère le plan du jour + propose la suite
@@ -176,7 +176,7 @@ void main() {
   test(
       'check-out : déclarer un verset appris EN PLUS étend la portion du jour',
       () async {
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
     final state = newState();
     await state.setLearningForToday(kawthar(state), 1);
     expect((await state.learningPlanFor(today))!.ayahIds, [1]);
@@ -196,7 +196,7 @@ void main() {
   test(
       'check-out : déclarer en plus le groupe SUIVANT du cycle le fait avancer '
       "d'autant (cadrage 2026-09-07)", () async {
-    final day = _isoDate(DateTime.now().subtract(const Duration(days: 2)));
+    final day = dayKey(DateTime.now().subtract(const Duration(days: 2)));
     final state = newState();
     // Toutes les PAGES du cycle (sourates 60 et 65), dans l'ordre réel.
     final groups = RevisionEngine.buildCycle(
@@ -225,7 +225,7 @@ void main() {
   test(
       "une sourate hors sélection déclarée en plus ne fait PAS sauter le cycle",
       () async {
-    final day = _isoDate(DateTime.now().subtract(const Duration(days: 3)));
+    final day = dayKey(DateTime.now().subtract(const Duration(days: 3)));
     final state = newState();
     final extra = state.sourates.firstWhere((s) => s.id == 112);
 
@@ -254,7 +254,7 @@ void main() {
   });
 
   test('un verset décoché au check-out reste "à continuer" (reach=0)', () async {
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
     final state = newState();
     await state.setLearningForToday(kawthar(state), 3);
 
@@ -273,9 +273,9 @@ void main() {
   // US-12: the check-out can withdraw the previous learning day's verses.
   test('lastLearnedBlock renvoie les versets acquis au dernier jour antérieur',
       () async {
-    final today = _isoDate(DateTime.now());
-    final d3 = _isoDate(DateTime.now().subtract(const Duration(days: 3)));
-    final d1 = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final today = dayKey(DateTime.now());
+    final d3 = dayKey(DateTime.now().subtract(const Duration(days: 3)));
+    final d1 = dayKey(DateTime.now().subtract(const Duration(days: 1)));
     final state = newState();
     await AyahFactsLearning.proposeLearnVerses(d3, Riwaya.hafs, 114, [1, 2]);
     await state.markLearnVerses(d3, 114, [1, 2], true);
@@ -303,8 +303,8 @@ void main() {
   test(
       'retirer un verset du dernier bloc avant le hand-off empêche la bascule '
       'en révision', () async {
-    final today = _isoDate(DateTime.now());
-    final yesterday = _isoDate(DateTime.now().subtract(const Duration(days: 1)));
+    final today = dayKey(DateTime.now());
+    final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
     final state = newState();
     await AyahFactsLearning.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1, 2]);
     await state.markLearnVerses(yesterday, 108, [1, 2], true);
@@ -325,7 +325,7 @@ void main() {
   test(
       'une ligne learn héritée à checked_out=1 ne détourne pas le plan du jour '
       'vers sa sourate', () async {
-    final today = _isoDate(DateTime.now());
+    final today = dayKey(DateTime.now());
     final state = newState();
     await state.setLearningForToday(kawthar(state), 2);
     // Both proposed verses reached: without the filter, no reach=0 row is

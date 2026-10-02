@@ -62,46 +62,43 @@ extension _CheckOutSections on _CheckOutScreenState {
     if (learn == null || learn.ayahIds.isEmpty) return const [];
     return [
       const SizedBox(height: 18),
-      Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: palette.surfaceCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.cardBorder),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _miniLabel(palette, SCheckOut.checkOutApprentissage),
-            const SizedBox(height: 6),
-            Text('${learn.sourate.nameFr} · ${learn.sourate.nameAr}',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: palette.textPrimary)),
-            const SizedBox(height: 10),
-            _goldToggleChips(palette, learn.ayahIds, _notLearned, trailing: [
-              if (learn.ayahIds.length < learn.sourate.verses)
-                VerseChip(
-                  borderColor: palette.gold.withValues(alpha: 0.7),
-                  onTap: _addLearnedVerse,
-                  child: Icon(Icons.add, size: 14, color: palette.textPrimary),
-                ),
-            ]),
-            const SizedBox(height: 8),
-            _hint(palette, SCheckOut.checkOutApprentissageDesc),
-            _hint(palette, SCheckOut.checkOutApprisEnPlusHint),
-            if (_lastBlock.isNotEmpty) ...[
-              // US-12: the previous learning day's verses, checked by
-              // default — unchecking one withdraws it at close.
-              const SizedBox(height: 14),
-              _miniLabel(palette, SCheckOut.checkOutDernierBloc),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _miniLabel(palette, SCheckOut.checkOutApprentissage),
+              const SizedBox(height: 6),
+              Text('${learn.sourate.nameFr} · ${learn.sourate.nameAr}',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: palette.textPrimary)),
+              const SizedBox(height: 10),
+              _goldToggleChips(palette, learn.ayahIds, _notLearned, trailing: [
+                if (learn.ayahIds.length < learn.sourate.verses)
+                  VerseChip(
+                    borderColor: palette.gold.withValues(alpha: 0.7),
+                    onTap: _addLearnedVerse,
+                    child: Icon(Icons.add, size: 14, color: palette.textPrimary),
+                  ),
+              ]),
               const SizedBox(height: 8),
-              _goldToggleChips(palette, _lastBlock, _retiredFromLastBlock),
-              const SizedBox(height: 8),
-              _hint(palette, SCheckOut.checkOutDernierBlocDesc),
+              _hint(palette, SCheckOut.checkOutApprentissageDesc),
+              _hint(palette, SCheckOut.checkOutApprisEnPlusHint),
+              if (_lastBlock.isNotEmpty) ...[
+                // US-12: the previous learning day's verses, checked by
+                // default — unchecking one withdraws it at close.
+                const SizedBox(height: 14),
+                _miniLabel(palette, SCheckOut.checkOutDernierBloc),
+                const SizedBox(height: 8),
+                _goldToggleChips(palette, _lastBlock, _retiredFromLastBlock),
+                const SizedBox(height: 8),
+                _hint(palette, SCheckOut.checkOutDernierBlocDesc),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     ];
@@ -143,44 +140,41 @@ extension _CheckOutSections on _CheckOutScreenState {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: palette.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.cardBorder),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      SCheckOut.checkOutAjouterAujourdhui,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: palette.textPrimary,
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        SCheckOut.checkOutAjouterAujourdhui,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: palette.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      SCheckOut.checkOutAjouterDesc,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: palette.textMuted,
+                      const SizedBox(height: 2),
+                      Text(
+                        SCheckOut.checkOutAjouterDesc,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: palette.textMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Switch(
-                value: _addToday,
-                onChanged: (v) => _setState(() => _addToday = v),
-                activeThumbColor: palette.primary,
-              ),
-            ],
+                Switch(
+                  value: _addToday,
+                  onChanged: (v) => _setState(() => _addToday = v),
+                  activeThumbColor: palette.primary,
+                ),
+              ],
+            ),
           ),
         ),
         if (_addToday) ...[

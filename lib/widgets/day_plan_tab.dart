@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../core/day_dates.dart';
 import '../models/day_close.dart';
 import '../models/prayer.dart';
 import '../screens/check_in_screen.dart';
@@ -168,7 +169,7 @@ class _DayPlanTabState extends State<DayPlanTab> {
       // Date figée à la construction du plan, pas relue au moment du tap :
       // l'app laissée ouverte au passage de minuit clôturerait sinon la
       // journée neuve (vide) au lieu de celle qui vient d'être révisée.
-      final sessionDate = session.date.toIso8601String().substring(0, 10);
+      final sessionDate = dayKey(session.date);
       final firstCheckOutGuidePending = !state.guideDone('checkout_done');
       if (firstCheckOutGuidePending && _pastEveningHour) {
         _maybeShowFirstCheckOutGuide(state, sessionDate);
