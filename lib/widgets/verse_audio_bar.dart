@@ -197,7 +197,7 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
                                 height: 18,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : Icon(playing ? Icons.pause : Icons.repeat),
+                            : Icon(playing ? Icons.pause : Icons.play_arrow),
                         tooltip: playing ? S.arreterEcoute : S.ecouterEnBoucle,
                       ),
                       if (ownsLoop) ...[

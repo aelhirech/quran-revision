@@ -487,13 +487,25 @@ Trois écrans avaient chacun leur propre implémentation quasi identique du beso
 ### 8.6bis Écoute audio en boucle (US-9, 2026-09-26)
 
 `VerseBottomSheet` redevient `StatefulWidget` (`_reciter`, `_starting`) pour porter une barre audio
-sous l'en-tête : un bouton lecture/pause (icône boucle quand arrêté, pause quand actif — l'action
+sous l'en-tête : un bouton lecture/pause (icône lecture quand arrêté depuis US-16 — avant,
+une icône « répéter » que l'utilisateur ne lisait pas comme « lancer » —, pause quand actif — l'action
 répète toujours l'appel `_toggleLoop`, jamais deux boutons séparés), un bouton arrêt visible
 seulement quand la plage de **cette** feuille est celle réellement chargée par le lecteur, et un
 sélecteur de récitateur (feuille modale interne, jamais un écran séparé — voir exclusion US-9). La
 plage lue est toujours exactement `(widget.sourate.id, widget.ayahStart, widget.ayahEnd)`, quelle
 que soit la surface d'où la feuille a été ouverte (US-9 critère 1) : aucun paramètre supplémentaire,
 la vue Coran unifiée portait déjà tout ce qu'il fallait.
+
+**Disposition (US-16, 2026-10-05)** : seule la poignée de la feuille est fixe. En-tête et barre
+audio défilent avec les versets, dans un `CustomScrollView` branché sur le `scrollController` du
+`DraggableScrollableSheet` : `SliverToBoxAdapter(en-tête)`, `SliverToBoxAdapter(VerseAudioBar)`,
+puis `SliverList.separated` des `VerseRow`. **En-tête et barre ne doivent jamais devenir des items
+d'une liste paresseuse** (`ListView.builder`/`SliverList`) : un item sorti de l'écran y est
+détruit, `_VerseAudioBarState` serait recréé au retour en haut et la portion US-11 repartirait sur
+la plage entière pendant que la boucle joue toujours l'ancienne. Verrouillé par
+`test/widgets/verse_bottom_sheet_test.dart`. L'audio continue quand la barre sort de l'écran ;
+pour l'arrêter depuis la vue, on remonte en haut (ou contrôles système US-9) — pas de barre
+flottante, choix produit d'US-16.
 
 **Source audio — `quran.ksu.edu.sa`, reverse-engineered, pas d'API publique.** Le domaine annoncé
 au blueprint (`/ayat/`) est en réalité la page de téléchargement du logiciel de bureau "Ayat" ; la
