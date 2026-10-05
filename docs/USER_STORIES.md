@@ -23,13 +23,100 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
+### US-16 — La vue Coran donne la place au texte (extension d'US-9/US-11)
+**État** : scopée — blueprint + scoping du 2026-10-05. Rattachée à l'epic audio d'US-9
+(archivée, pas ressortie), comme US-10 et US-11.
+
+**Statement** : En tant qu'utilisateur qui ouvre la vue Coran pour lire ou écouter un passage, je
+veux que le texte occupe l'essentiel de l'écran et que le bouton d'écoute se lise d'un coup d'œil
+comme un « lecture », afin de lire confortablement sans qu'un bandeau fixe me mange la moitié de la
+feuille.
+
+**Diagnostic (état actuel)** : au-dessus de la liste des versets restent figés la poignée, l'en-tête
+(nom arabe en grand, plage, bismillah) et la barre audio (bouton, téléchargement, récitateur,
+curseur de portion). Sur une plage courte ou un petit téléphone, cela laisse très peu de lignes de
+Coran visibles. Par ailleurs, le bouton principal de la barre affiche une icône « répéter » à
+l'arrêt, que l'utilisateur ne lit pas spontanément comme « lancer l'écoute ».
+
+**Critères d'acceptation** (haut niveau) :
+1. Given la vue Coran ouverte depuis n'importe quelle surface, When l'utilisateur fait défiler les
+   versets, Then l'en-tête (nom de la sourate, plage, bismillah) **et** la barre audio défilent avec
+   le texte et sortent de l'écran. Seule la poignée de la feuille reste fixe.
+2. Given la vue Coran à l'ouverture, Then l'en-tête et la barre audio sont visibles tout en haut,
+   exactement comme aujourd'hui : rien n'est replié ni masqué par défaut.
+3. Given la barre audio à l'arrêt, Then le bouton principal montre une icône **lecture** (play) ;
+   en lecture, il montre **pause**. L'icône « répéter » disparaît. Le comportement reste inchangé :
+   la lecture est toujours en boucle (US-9), et aucun libellé ni badge « en boucle » n'est ajouté.
+4. Given une écoute en cours puis un défilement qui fait sortir la barre audio de l'écran, Then
+   l'audio continue sans interruption, et les contrôles restent accessibles depuis la notification
+   système / l'écran verrouillé (US-9 crit. 3). Pour arrêter depuis la vue, l'utilisateur remonte en
+   haut de la liste.
+5. Given la portion (US-11), le téléchargement (US-10) et le choix du récitateur, Then ils
+   fonctionnent à l'identique : seule leur position (qui défile) change.
+
+**Exclusions explicites** :
+- Pas de barre de lecture flottante ou « collante » ajoutée pour compenser : choix utilisateur du
+  2026-10-05, la barre défile avec le reste. Si un vrai usage montre qu'on perd le contrôle en cours
+  d'écoute, à recadrer.
+- Pas de repli du curseur de portion derrière un bouton (US-11 veut zéro geste ajouté).
+- Pas de nouveau réglage : taille de police, hauteur de feuille, mode plein écran restent hors
+  périmètre.
+- Pas de changement de ce que la boucle joue ni de la progression (US-9 crit. 4).
+
+**Scoping technique** (2026-10-05) :
+- **Fichiers UI** : `lib/widgets/verse_bottom_sheet.dart` (128 lignes) — la `Column` [poignée,
+  en-tête, barre audio, `Expanded(ListView)`] devient [poignée, `Expanded(CustomScrollView)`] ;
+  `lib/widgets/verse_audio_bar.dart` (247 lignes) — une icône change. Les 4 appelants de
+  `VerseBottomSheet.show` (Plan du jour, hors prières, Récap, apprentissage) ne bougent pas.
+- **Variables / champs** : aucun. L'état de la barre (`_portion`, `_reciter`, `_starting`) reste
+  local à `_VerseAudioBarState`.
+- **`ayah_facts`** : aucune lecture ni écriture.
+- **Décision data model** : état UI éphémère, déjà existant ; rien à ajouter.
+- **Réutilisation** : `VerseBottomSheet`/`VerseRow`/`VerseAudioBar` tels quels. Le
+  `scrollController` du `DraggableScrollableSheet` passe simplement du `ListView` au
+  `CustomScrollView`.
+- **Risques / dépendances** :
+  - **Piège principal : ne pas mettre l'en-tête et la barre comme items d'un `ListView`.** Un
+    `ListView.builder`/`separated` est paresseux : un item sorti de l'écran (au-delà du
+    `cacheExtent`) est **détruit**. `_VerseAudioBarState` serait recréé au retour en haut, et la
+    portion US-11 choisie repartirait sur la plage entière alors que la boucle joue toujours
+    l'ancienne sous-portion (bouton « pause » affiché, curseur faux, puis relance sur la plage
+    entière au tap suivant). D'où des `SliverToBoxAdapter` (non paresseux : leur enfant reste
+    monté quelle que soit la position de défilement) pour l'en-tête et la barre, suivis d'un
+    `SliverList` pour les versets.
+  - Le `RangeSlider` (geste horizontal) est désormais dans une zone qui défile verticalement :
+    un glissé très diagonal sur le curseur peut être pris par le défilement. Comportement standard
+    Flutter, à vérifier sur appareil, pas de correctif prévu.
+  - Effet de bord bénéfique : glisser sur l'en-tête agrandit/réduit désormais la feuille (avant,
+    seule la liste réagissait au glissé).
+  - US-10 Sprint B (Backlog) touche `verse_audio_bar.dart`/`AudioDownloadButton` côté
+    téléchargement : pas de conflit (ici, seule l'icône du bouton principal change), ordre libre.
+- **Tests** : rien de testable en Dart pur. Un test widget est possible (sous Windows,
+  `QuranAudioHandler.available=false`, la barre se construit quand même) : faire défiler la liste
+  jusqu'en bas puis remonter, et vérifier que la même instance de `VerseAudioBar` est montée et
+  que la portion modifiée est conservée. Icône play/pause et défilement réel : vérification
+  visuelle.
+- **Item Backlog** : `[P2] US-16 — La vue Coran défile d'un bloc, bouton lecture lisible`.
+
+**Ajustement au scoping** (2026-10-05) — crit. 5 précisé, sens inchangé : une portion réglée
+(US-11) est **conservée** quand la barre sort de l'écran puis revient ; le défilement ne remet
+jamais la portion à la plage entière (cas technique non prévu au blueprint, voir le piège
+ci-dessus). Validé par l'utilisateur : non — précision qui découle de « fonctionnent à
+l'identique », à confirmer.
+
+## Archivées
+
+Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
 ### US-10 — Écoute hors connexion (extension d'US-9)
-**État** : en sprint — blueprint + scoping du 2026-09-28. **Sprint A livré le 2026-09-29**
+**État** : terminée — blueprint + scoping du 2026-09-28. Sprint A livré le 2026-09-29
 (téléchargement d'une sourate depuis la vue Coran, lecture locale, signal hors connexion —
-crit. 1 partie sourate, 2, 4 et 6 ; vérification sur appareil réel encore à faire). Reste le
-Sprint B dans le Backlog de `docs/CHANGELOG.md` (récitateur entier, Réglages, données mobiles,
-reprise automatique — crit. 1 partie récitateur, 3, 5). Reprend l'Idée produit « Téléchargement local des récitations ». Rattachée à
-l'epic audio d'US-9 (archivée, pas ressortie).
+crit. 1 partie sourate, 2, 4 et 6). Sprint B livré le 2026-10-05
+(`feature/phase-24-sprint9-audio-hors-connexion` : récitateur entier depuis Réglages, file
+d'intentions persistée, reprise automatique, règle données mobiles — crit. 1 partie récitateur,
+3, 5). Écart au scoping : la persistance vit dans `AudioPrefs`, pas `StorageService` (plafond de
+taille de fichier). **Non vérifiée sur appareil réel** (réseau, arrière-plan iOS). Reprend
+l'Idée produit « Téléchargement local des récitations ». Rattachée à l'epic audio d'US-9.
 
 **Statement** : En tant qu'utilisateur qui écoute ses sourates en boucle, je veux pouvoir garder
 sur mon téléphone l'audio d'une sourate ou d'un récitateur entier, afin de continuer à écouter
@@ -102,10 +189,6 @@ dépendance au site source. Le téléchargement lui-même passe toujours par lui
 - **Espace disque insuffisant** : le téléchargement s'arrête, l'intention reste en attente et la
   ligne Réglages affiche l'erreur. Pas de pré-vérification d'espace libre (pas d'API sans
   dépendance native).
-
-## Archivées
-
-Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
 
 ### Cadre commun à US-13, US-14 et US-15 (blueprint UI/UX du 2026-09-30)
 

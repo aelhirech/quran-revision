@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
+import '../services/audio_download_service.dart';
 import '../state/app_state.dart';
 import '../widgets/day_plan_tab.dart';
 import 'recap_screen.dart';
@@ -80,6 +81,8 @@ class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       context.read<AppState>().ensureDayPlan();
+      // iOS suspended any download while in the background (US-10 crit. 3).
+      AudioDownloadService.instance.resumePending();
     }
   }
 

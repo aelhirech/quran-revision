@@ -9,6 +9,7 @@ import '../models/user_config.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/guide_step.dart';
+import '../widgets/offline_audio_card.dart';
 import '../widgets/pages_per_day_dropdown.dart';
 import '../widgets/profile_info_card.dart';
 import '../widgets/settings_card.dart';
@@ -189,6 +190,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
           const SettingsCard(),
+          const SizedBox(height: 16),
+          const OfflineAudioCard(),
           const SizedBox(height: 16),
           _pauseCard(cs, state),
           const SizedBox(height: 16),
