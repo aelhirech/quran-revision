@@ -23,9 +23,18 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
+Aucune story active (US-16 archivée le 2026-10-05).
+
+## Archivées
+
+Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
 ### US-16 — La vue Coran donne la place au texte (extension d'US-9/US-11)
-**État** : scopée — blueprint + scoping du 2026-10-05. Rattachée à l'epic audio d'US-9
-(archivée, pas ressortie), comme US-10 et US-11.
+**État** : terminée — blueprint + scoping du 2026-10-05, livrée le même jour
+(`feature/phase-24-sprint10-vue-coran-defile`). Test de régression de la portion conservée au
+défilement (`test/widgets/verse_bottom_sheet_test.dart`). **Non vérifiée sur appareil réel**
+(rendu de l'icône, audio qui continue barre hors écran, glissé diagonal sur le curseur).
+Rattachée à l'epic audio d'US-9 (archivée, pas ressortie), comme US-10 et US-11.
 
 **Statement** : En tant qu'utilisateur qui ouvre la vue Coran pour lire ou écouter un passage, je
 veux que le texte occupe l'essentiel de l'écran et que le bouton d'écoute se lise d'un coup d'œil
@@ -103,10 +112,6 @@ l'arrêt, que l'utilisateur ne lit pas spontanément comme « lancer l'écoute �
 jamais la portion à la plage entière (cas technique non prévu au blueprint, voir le piège
 ci-dessus). Validé par l'utilisateur : non — précision qui découle de « fonctionnent à
 l'identique », à confirmer.
-
-## Archivées
-
-Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
 
 ### US-10 — Écoute hors connexion (extension d'US-9)
 **État** : terminée — blueprint + scoping du 2026-09-28. Sprint A livré le 2026-09-29

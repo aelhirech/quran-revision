@@ -74,22 +74,34 @@ class VerseBottomSheet extends StatelessWidget {
         child: Column(
           children: [
             const DraggableHandle(),
-            _header(cs),
-            VerseAudioBar(sourate: sourate, ayahStart: ayahStart, ayahEnd: ayahEnd),
             Expanded(
-              child: ListView.separated(
+              child: CustomScrollView(
                 controller: scrollController,
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-                itemCount: verses.length,
-                separatorBuilder: (context, index) => const Divider(height: 24),
-                itemBuilder: (_, i) {
-                  final ayahId = ayahNumbers[i];
-                  return VerseRow(
-                    number: ayahId,
-                    text: verses[i],
-                    isContext: contextAyah != null && ayahId == contextAyah,
-                  );
-                },
+                slivers: [
+                  // Header and audio bar scroll with the text but must stay
+                  // SliverToBoxAdapters: a lazy list would dispose the bar once
+                  // off-screen and lose its US-11 portion while the loop plays.
+                  SliverToBoxAdapter(child: _header(cs)),
+                  SliverToBoxAdapter(
+                    child: VerseAudioBar(
+                        sourate: sourate, ayahStart: ayahStart, ayahEnd: ayahEnd),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                    sliver: SliverList.separated(
+                      itemCount: verses.length,
+                      separatorBuilder: (context, index) => const Divider(height: 24),
+                      itemBuilder: (_, i) {
+                        final ayahId = ayahNumbers[i];
+                        return VerseRow(
+                          number: ayahId,
+                          text: verses[i],
+                          isContext: contextAyah != null && ayahId == contextAyah,
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

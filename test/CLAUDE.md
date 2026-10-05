@@ -3,8 +3,9 @@
 ## État actuel
 
 Couverture réelle depuis Phase 9 (2026-09-08+), concentrée sur les moteurs et modèles les plus
-sensibles. `widget_test.dart` reste un placeholder (`expect(true, isTrue)`) — aucun test de widget
-dans le projet, ne pas en déduire une couverture UI.
+sensibles. `widget_test.dart` reste un placeholder (`expect(true, isTrue)`). Un seul vrai test de
+widget (`verse_bottom_sheet_test.dart`, US-16), qui verrouille un piège d'état, pas l'apparence —
+ne pas en déduire une couverture UI.
 
 | Fichier | Ce qu'il couvre |
 |---|---|
@@ -21,6 +22,7 @@ dans le projet, ne pas en déduire une couverture UI.
 | `test/state/app_state_day_close_test.dart` | Clôture (US-13/US-14) : `SealOutcome` (sourate mémorisée annoncée une seule fois, tour bouclé + mémorisation réunis dans un seul résultat), `dayRecap` (revu, appris, reliquat, rien d'un autre jour, lisible après scellement). |
 | `test/core/day_dates_test.dart` | `daysAgo` : jours entiers quelle que soit l'heure, pas de glissement au changement d'heure. |
 | `test/widgets/verse_range_slider_test.dart` | `nudgeRange` seul (fonction pure, pas de pump de widget) : ±1 bornés à min/max, fin jamais avant le début (US-11). |
+| `test/widgets/verse_bottom_sheet_test.dart` | Test widget (US-16) : la `VerseAudioBar` garde son état et sa portion US-11 après un défilement qui la fait sortir de l'écran puis revenir. Monte la feuille avec le vrai thème (`buildAppTheme`, sinon `context.palette` plante) et `GoogleFonts.config.allowRuntimeFetching = false`. Le premier glissé ne fait qu'agrandir la feuille, d'où plusieurs glissés. Un `SliverList` garde toujours son dernier enfant : seule la barre placée **parmi** les versets reproduit le piège. |
 
 Avant de supposer qu'une fonctionnalité n'est pas testée, vérifier cette liste plutôt que
 de se fier au seul nom du dossier.
@@ -57,8 +59,10 @@ jusqu'ici. À la place :
   `lib/core/revision_engine.dart`, etc.
 - Respecter les règles d'architecture du projet (voir `CLAUDE.md`/`docs/DOCUMENTATION_TECHNIQUE.md`) :
   `core/` reste pur Dart, services stateless sans `notifyListeners`, modèles testés via `copyWith`.
-- Ne pas écrire de tests widget tant que le thème/design (Mus'haf/Tahajjud) n'est pas stabilisé —
-  préférer les unit tests sur la logique pure d'abord.
+- Ne pas écrire de tests widget **d'apparence** tant que le thème/design (Mus'haf/Tahajjud) n'est
+  pas stabilisé — préférer les unit tests sur la logique pure d'abord. Exception admise : un test
+  widget qui verrouille un piège d'état ou de cycle de vie impossible à tester en Dart pur
+  (précédent : `verse_bottom_sheet_test.dart`, US-16).
 
 ## Avant de refactorer `RevisionEngine`, `FreshnessEngine` ou `AyahFactsService`
 Ces fichiers portent des règles métier fixées au fil de plusieurs sprints (voir
