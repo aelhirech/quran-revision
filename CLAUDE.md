@@ -11,7 +11,7 @@ Quatre phrases suffisent pour piloter tout le cycle défini dans le Sprint Workf
 ### « Début de blueprint » (+ description du besoin) — skill `quran-blueprint`
 Phase de cadrage business — **zéro code, zéro branche, zéro écriture dans le Backlog technique**.
 Transforme le besoin décrit dans le prompt (+ ce qui traîne déjà dans `docs/USER_STORIES.md`) en
-user stories testables (statement + critères d'acceptation), plafonnées à ~10 stories actives,
+user stories testables (statement + critères d'acceptation), plafonnées à ~15 stories actives,
 ajustées plutôt qu'empilées. S'arrête sur `docs/USER_STORIES.md` mis à jour et validé par
 l'utilisateur — n'enchaîne jamais sur le scoping technique ni sur l'implémentation dans la même
 phase. Détail complet des étapes : `SKILL.md` du plugin `quran-blueprint`.

@@ -129,6 +129,34 @@ tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de
   ou le check-out.
 - **Doc** : §6, §8.4 (Réglages), §8.6bis. Passer US-10 à « terminée » puis l'archiver.
 
+### [P2] US-16 — La vue Coran défile d'un bloc, bouton lecture lisible
+Purement visuel, aucune donnée touchée. Réutilise `VerseBottomSheet`/`VerseAudioBar` tels que
+décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §8.6/§8.6bis.
+- **`VerseBottomSheet`** (`lib/widgets/verse_bottom_sheet.dart`) : le `Column` du
+  `DraggableScrollableSheet` devient `[const DraggableHandle(), Expanded(CustomScrollView(
+  controller: scrollController, slivers: [SliverToBoxAdapter(_header(cs)),
+  SliverToBoxAdapter(VerseAudioBar(...)), SliverPadding(padding: EdgeInsets.fromLTRB(20, 8, 20,
+  32), sliver: SliverList.separated(...même itemBuilder/separatorBuilder qu'aujourd'hui...))]))]`.
+  Seule la poignée reste fixe (crit. 1). Ouverture inchangée : en-tête et barre en haut (crit. 2).
+  **`SliverToBoxAdapter` obligatoire, jamais d'en-tête/barre comme items d'un `ListView`** : un
+  `ListView` paresseux détruit un item sorti de l'écran, donc `_VerseAudioBarState` et sa
+  `_portion` US-11 seraient perdus au retour en haut (crit. 5 ajusté). Laisser un commentaire
+  anglais d'une ligne qui le dit, c'est le genre de détail qu'un futur refactor « simplifie ».
+- **`VerseAudioBar`** (`lib/widgets/verse_audio_bar.dart`, l.201) : `Icons.repeat` →
+  `Icons.play_arrow` (crit. 3). Tooltip, bouton stop, logique `_toggleLoop` inchangés ; aucun
+  libellé ni badge « en boucle » ajouté.
+- **Réutilisé tel quel** : `QuranAudioHandler` (l'audio continue quand la barre sort de l'écran,
+  contrôles système US-9 — crit. 4, rien à faire), `AudioDownloadButton`, `VerseRangeSlider`,
+  `ReciterPickerSheet` (crit. 5).
+- **Tests** : `test/widgets/verse_bottom_sheet_test.dart` — monter la feuille sur une plage
+  longue (ex. Al-Baqara 1–50), déplacer la portion, faire défiler jusqu'en bas puis remonter,
+  vérifier que la portion affichée est la même (régression du piège ci-dessus). Icône et
+  défilement réels : vérification visuelle (+ glissé diagonal sur le curseur, sur appareil).
+- **Exclus** : barre flottante/collante, repli du curseur, nouveau réglage (taille de police,
+  hauteur de feuille, plein écran), tout changement de ce que joue la boucle.
+- **Doc** : §8.6bis (la barre défile avec le texte ; icône play/pause). Passer US-16 à
+  « terminée » puis l'archiver.
+
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
 qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) vit dans `ShellScreen`. Un
