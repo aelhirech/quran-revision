@@ -6,8 +6,8 @@ import '../core/strings.dart';
 import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../services/audio_download_service.dart';
+import '../services/audio_prefs.dart';
 import '../services/quran_audio_handler.dart';
-import '../services/storage_service.dart';
 import '../state/app_state.dart';
 import 'audio_download_button.dart';
 import 'reciter_picker_sheet.dart';
@@ -63,12 +63,11 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
   Future<void> _ensureReciterLoaded(Riwaya riwaya) async {
     if (_riwayaForReciter == riwaya) return;
     _riwayaForReciter = riwaya;
-    final saved = await StorageService.loadAudioReciter(riwaya);
+    final reciter = await AudioPrefs.chosenReciter(riwaya);
     // A newer call for a different riwaya may have started (and even
     // resolved) while this one was awaiting storage — applying this result
     // would overwrite that more recent one with a stale reciter.
     if (_riwayaForReciter != riwaya) return;
-    final reciter = (saved != null ? reciterById(saved) : null) ?? defaultReciterFor(riwaya);
     if (!mounted) return;
     setState(() => _reciter = reciter);
   }
@@ -83,7 +82,7 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
     );
     if (picked == null || !mounted) return;
     setState(() => _reciter = picked);
-    await StorageService.saveAudioReciter(riwaya, picked.id);
+    await AudioPrefs.saveReciter(riwaya, picked.id);
   }
 
   Future<void> _toggleLoop() async {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -10,6 +11,7 @@ import 'models/riwaya.dart';
 import 'models/user_config.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/shell_screen.dart';
+import 'services/audio_download_service.dart';
 import 'services/hafs_service.dart';
 import 'services/hizb_metadata_service.dart';
 import 'services/notification_service.dart';
@@ -78,6 +80,8 @@ void main() async {
   await surahMetaF;
   await audioF;
   final warshAvailable = await warshAvailableF;
+  // After the text assets: a queued surah needs its verse count.
+  unawaited(AudioDownloadService.instance.resumePending());
 
   // Migration one-shot des installations pré-parcours-par-riwaya (config,
   // cycle, pauses) vers le parcours Hafs — doit tourner avant toute lecture

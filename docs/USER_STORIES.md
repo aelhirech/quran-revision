@@ -23,86 +23,6 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-### US-10 — Écoute hors connexion (extension d'US-9)
-**État** : en sprint — blueprint + scoping du 2026-09-28. **Sprint A livré le 2026-09-29**
-(téléchargement d'une sourate depuis la vue Coran, lecture locale, signal hors connexion —
-crit. 1 partie sourate, 2, 4 et 6 ; vérification sur appareil réel encore à faire). Reste le
-Sprint B dans le Backlog de `docs/CHANGELOG.md` (récitateur entier, Réglages, données mobiles,
-reprise automatique — crit. 1 partie récitateur, 3, 5). Reprend l'Idée produit « Téléchargement local des récitations ». Rattachée à
-l'epic audio d'US-9 (archivée, pas ressortie).
-
-**Statement** : En tant qu'utilisateur qui écoute ses sourates en boucle, je veux pouvoir garder
-sur mon téléphone l'audio d'une sourate ou d'un récitateur entier, afin de continuer à écouter
-sans connexion (voyage, trajet, mosquée sans réseau).
-
-**Limite assumée** : la story supprime la dépendance au réseau **au moment de l'écoute**, pas la
-dépendance au site source. Le téléchargement lui-même passe toujours par lui.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given la vue Coran ouverte sur une plage, When l'utilisateur demande à télécharger, Then c'est
-   la **sourate entière** de cette plage qui est stockée, pour le récitateur actuellement choisi.
-   Given l'écran Réglages, When il demande le récitateur entier, Then tout le Coran de ce
-   récitateur (dans sa riwaya) est stocké.
-2. Given une sourate stockée pour le récitateur choisi, When l'utilisateur lance l'écoute sans
-   aucune connexion, Then la boucle joue normalement, avec le même comportement qu'en ligne
-   (arrière-plan, écran verrouillé, contrôles US-9).
-3. Given le réglage par défaut, When un téléchargement est demandé sur données mobiles, Then il
-   attend le Wi-Fi. Un réglage permet d'autoriser explicitement les données mobiles. Un
-   téléchargement interrompu (coupure, app fermée) reprend là où il s'est arrêté, sans tout
-   recommencer ni laisser une sourate à moitié marquée « disponible ».
-   _Ajusté au scoping (2026-09-28, validé par l'utilisateur)_ : le téléchargement avance **tant
-   que l'app est au premier plan**. iOS suspend l'app peu après sa mise en arrière-plan, et un
-   vrai téléchargement en fond demanderait une librairie dédiée, écartée. Il se met en pause en
-   arrière-plan et reprend **automatiquement** au retour dans l'app ou au lancement suivant, en
-   sautant les versets déjà complets.
-4. Given une plage non stockée (ou stockée pour un autre récitateur), When l'utilisateur écoute
-   en ligne, Then l'app streame comme aujourd'hui. When il est hors ligne, Then elle **signale
-   clairement** que l'audio n'est pas disponible hors connexion (continuité d'US-9 crit. 5),
-   jamais une boucle muette.
-5. Given plusieurs récitateurs téléchargés au fil du temps, When l'utilisateur change de
-   récitateur, Then l'audio des précédents est **conservé**. Réglages affiche une ligne par
-   récitateur stocké (poids occupé, état prêt/en cours) avec un bouton pour le supprimer.
-6. Given un téléchargement terminé ou en cours, Then rien ne change dans la progression : ni
-   cycle, ni streak, ni plan du jour (l'audio reste purement passif, US-9 crit. 4).
-
-**Exclusions explicites** :
-- Pas de téléchargement automatique : il ne se déclenche que sur geste explicite. Choix
-  utilisateur du 2026-09-28, pris en connaissance de cause même s'il s'écarte de la thèse « l'app
-  décide ». Aucun geste de téléchargement dans le check-in ni dans le check-out.
-- Pas d'écran de liste des 114 sourates à cocher. Une sourate se télécharge depuis la vue Coran,
-  un récitateur entier depuis Réglages (maintient l'exclusion US-9 « pas d'écran audio
-  indépendant »).
-- Pas de suppression sourate par sourate, seulement par récitateur.
-- Pas de détection de mise à jour d'un fichier côté source : un fichier téléchargé est
-  considéré comme définitif.
-- Pas de source audio alternative à KSU : c'est un autre sujet, à cadrer à part si KSU casse.
-
-**Scoping technique** (2026-09-28) :
-- **Poids mesuré** (HEAD sur les 286 fichiers d'Al-Baqara, ~8 % du mushaf) : environ 93 Mo, que
-  ce soit chez Husary en 64 kbps ou chez Qatami en 128 kbps. Un récitateur entier pèse donc
-  **environ 1,1 à 1,2 Go**, et sans doute ~2 Go en 192 kbps. Ce poids est annoncé dans une
-  confirmation avant le téléchargement complet. Une sourate pèse de quelques centaines de Ko à
-  ~95 Mo, sans confirmation.
-- **Source de vérité « téléchargé » = le disque, rien d'autre.** Chaque verset est écrit en
-  `.part` puis renommé : un `.mp3` présent est donc toujours complet. Une sourate est
-  « disponible » quand son nombre de `.mp3` égale son nombre de versets. Pas de marqueur, pas de
-  table, pas de flag SharedPreferences qui pourrait diverger du disque. Rien dans `ayah_facts`.
-- **Seule persistance ajoutée** : l'**intention** en attente (liste des téléchargements demandés
-  mais pas finis) et le réglage « données mobiles », dans `StorageService`, en préférences
-  **globales** (pas scopées par riwaya : l'id d'un récitateur appartient déjà à une seule
-  riwaya).
-- **Dossier** : cache applicatif (`path_provider`), pas Application Support. Sur iOS, 1 Go dans
-  Application Support part dans la sauvegarde iCloud de l'utilisateur. Le cache n'est pas
-  sauvegardé mais peut être purgé par le système. Ce mode de dégradation est acceptable : un
-  fichier purgé repasse en streaming, ou en signal hors connexion (crit. 4), et la sourate
-  redevient « à télécharger ».
-- **Plage à moitié stockée** : lecture fichier par fichier, local si présent, sinon réseau.
-  `QuranAudioHandler.playLoop` prend déjà une liste d'URI, et un `file://` passe tel quel.
-  **Hors ligne avec au moins un verset manquant** : signal, pas de lecture partielle.
-- **Espace disque insuffisant** : le téléchargement s'arrête, l'intention reste en attente et la
-  ligne Réglages affiche l'erreur. Pas de pré-vérification d'espace libre (pas d'API sans
-  dépendance native).
-
 ### US-16 — La vue Coran donne la place au texte (extension d'US-9/US-11)
 **État** : scopée — blueprint + scoping du 2026-10-05. Rattachée à l'epic audio d'US-9
 (archivée, pas ressortie), comme US-10 et US-11.
@@ -187,6 +107,88 @@ l'identique », à confirmer.
 ## Archivées
 
 Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
+### US-10 — Écoute hors connexion (extension d'US-9)
+**État** : terminée — blueprint + scoping du 2026-09-28. Sprint A livré le 2026-09-29
+(téléchargement d'une sourate depuis la vue Coran, lecture locale, signal hors connexion —
+crit. 1 partie sourate, 2, 4 et 6). Sprint B livré le 2026-10-05
+(`feature/phase-24-sprint9-audio-hors-connexion` : récitateur entier depuis Réglages, file
+d'intentions persistée, reprise automatique, règle données mobiles — crit. 1 partie récitateur,
+3, 5). Écart au scoping : la persistance vit dans `AudioPrefs`, pas `StorageService` (plafond de
+taille de fichier). **Non vérifiée sur appareil réel** (réseau, arrière-plan iOS). Reprend
+l'Idée produit « Téléchargement local des récitations ». Rattachée à l'epic audio d'US-9.
+
+**Statement** : En tant qu'utilisateur qui écoute ses sourates en boucle, je veux pouvoir garder
+sur mon téléphone l'audio d'une sourate ou d'un récitateur entier, afin de continuer à écouter
+sans connexion (voyage, trajet, mosquée sans réseau).
+
+**Limite assumée** : la story supprime la dépendance au réseau **au moment de l'écoute**, pas la
+dépendance au site source. Le téléchargement lui-même passe toujours par lui.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given la vue Coran ouverte sur une plage, When l'utilisateur demande à télécharger, Then c'est
+   la **sourate entière** de cette plage qui est stockée, pour le récitateur actuellement choisi.
+   Given l'écran Réglages, When il demande le récitateur entier, Then tout le Coran de ce
+   récitateur (dans sa riwaya) est stocké.
+2. Given une sourate stockée pour le récitateur choisi, When l'utilisateur lance l'écoute sans
+   aucune connexion, Then la boucle joue normalement, avec le même comportement qu'en ligne
+   (arrière-plan, écran verrouillé, contrôles US-9).
+3. Given le réglage par défaut, When un téléchargement est demandé sur données mobiles, Then il
+   attend le Wi-Fi. Un réglage permet d'autoriser explicitement les données mobiles. Un
+   téléchargement interrompu (coupure, app fermée) reprend là où il s'est arrêté, sans tout
+   recommencer ni laisser une sourate à moitié marquée « disponible ».
+   _Ajusté au scoping (2026-09-28, validé par l'utilisateur)_ : le téléchargement avance **tant
+   que l'app est au premier plan**. iOS suspend l'app peu après sa mise en arrière-plan, et un
+   vrai téléchargement en fond demanderait une librairie dédiée, écartée. Il se met en pause en
+   arrière-plan et reprend **automatiquement** au retour dans l'app ou au lancement suivant, en
+   sautant les versets déjà complets.
+4. Given une plage non stockée (ou stockée pour un autre récitateur), When l'utilisateur écoute
+   en ligne, Then l'app streame comme aujourd'hui. When il est hors ligne, Then elle **signale
+   clairement** que l'audio n'est pas disponible hors connexion (continuité d'US-9 crit. 5),
+   jamais une boucle muette.
+5. Given plusieurs récitateurs téléchargés au fil du temps, When l'utilisateur change de
+   récitateur, Then l'audio des précédents est **conservé**. Réglages affiche une ligne par
+   récitateur stocké (poids occupé, état prêt/en cours) avec un bouton pour le supprimer.
+6. Given un téléchargement terminé ou en cours, Then rien ne change dans la progression : ni
+   cycle, ni streak, ni plan du jour (l'audio reste purement passif, US-9 crit. 4).
+
+**Exclusions explicites** :
+- Pas de téléchargement automatique : il ne se déclenche que sur geste explicite. Choix
+  utilisateur du 2026-09-28, pris en connaissance de cause même s'il s'écarte de la thèse « l'app
+  décide ». Aucun geste de téléchargement dans le check-in ni dans le check-out.
+- Pas d'écran de liste des 114 sourates à cocher. Une sourate se télécharge depuis la vue Coran,
+  un récitateur entier depuis Réglages (maintient l'exclusion US-9 « pas d'écran audio
+  indépendant »).
+- Pas de suppression sourate par sourate, seulement par récitateur.
+- Pas de détection de mise à jour d'un fichier côté source : un fichier téléchargé est
+  considéré comme définitif.
+- Pas de source audio alternative à KSU : c'est un autre sujet, à cadrer à part si KSU casse.
+
+**Scoping technique** (2026-09-28) :
+- **Poids mesuré** (HEAD sur les 286 fichiers d'Al-Baqara, ~8 % du mushaf) : environ 93 Mo, que
+  ce soit chez Husary en 64 kbps ou chez Qatami en 128 kbps. Un récitateur entier pèse donc
+  **environ 1,1 à 1,2 Go**, et sans doute ~2 Go en 192 kbps. Ce poids est annoncé dans une
+  confirmation avant le téléchargement complet. Une sourate pèse de quelques centaines de Ko à
+  ~95 Mo, sans confirmation.
+- **Source de vérité « téléchargé » = le disque, rien d'autre.** Chaque verset est écrit en
+  `.part` puis renommé : un `.mp3` présent est donc toujours complet. Une sourate est
+  « disponible » quand son nombre de `.mp3` égale son nombre de versets. Pas de marqueur, pas de
+  table, pas de flag SharedPreferences qui pourrait diverger du disque. Rien dans `ayah_facts`.
+- **Seule persistance ajoutée** : l'**intention** en attente (liste des téléchargements demandés
+  mais pas finis) et le réglage « données mobiles », dans `StorageService`, en préférences
+  **globales** (pas scopées par riwaya : l'id d'un récitateur appartient déjà à une seule
+  riwaya).
+- **Dossier** : cache applicatif (`path_provider`), pas Application Support. Sur iOS, 1 Go dans
+  Application Support part dans la sauvegarde iCloud de l'utilisateur. Le cache n'est pas
+  sauvegardé mais peut être purgé par le système. Ce mode de dégradation est acceptable : un
+  fichier purgé repasse en streaming, ou en signal hors connexion (crit. 4), et la sourate
+  redevient « à télécharger ».
+- **Plage à moitié stockée** : lecture fichier par fichier, local si présent, sinon réseau.
+  `QuranAudioHandler.playLoop` prend déjà une liste d'URI, et un `file://` passe tel quel.
+  **Hors ligne avec au moins un verset manquant** : signal, pas de lecture partielle.
+- **Espace disque insuffisant** : le téléchargement s'arrête, l'intention reste en attente et la
+  ligne Réglages affiche l'erreur. Pas de pré-vérification d'espace libre (pas d'API sans
+  dépendance native).
 
 ### Cadre commun à US-13, US-14 et US-15 (blueprint UI/UX du 2026-09-30)
 

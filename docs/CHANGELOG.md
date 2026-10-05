@@ -37,6 +37,20 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
   `just_audio`, ce `Future` ne se termine qu'à la pause/l'arrêt. L'attendre gardait `_starting`
   vrai pendant toute l'écoute (bouton bloqué sur le spinner, et `_followPortionIfPlaying` jamais
   exécuté). Son erreur est donc loguée dans le handler, plus remontée à la barre.
+- **File de téléchargement audio (US-10 Sprint B, 2026-10-05)** :
+  - La file (`AudioDownloadService.pending`, persistée par `AudioPrefs`) ne retient que les
+    **demandes** (`'reciterId'` ou `'reciterId:surahId'`), jamais ce qui est stocké : le disque
+    reste la seule vérité. Une demande ne sort de la file que quand tout est sur disque.
+  - Une seule boucle tourne (`resumePending`). Un appel pendant qu'elle tourne programme un
+    passage de plus, jamais une boucle parallèle : c'est ce qui relance une sourate coupée par
+    l'arrière-plan iOS.
+  - Pas de Wi-Fi ou disque plein arrêtent la file (`blockedBy`). Une sourate en échec réseau est
+    sautée et gardée : un fichier manquant chez KSU ne doit pas bloquer tout le reste.
+  - La règle réseau est revérifiée avant chaque verset téléchargé (pas une fois au départ).
+  - `deleteReciter` attend la fin du verset en cours avant d'effacer : effacer sous lui ferait
+    échouer son renommage, lu comme « disque plein ».
+  - Préférences audio (récitateur, file, données mobiles) : `AudioPrefs`, jamais
+    `StorageService` (déjà au plafond de taille).
 
 - **Clôture de journée (US-13/US-14, 2026-10-01)** :
   - `AppState.checkOut` renvoie un `SealOutcome` (`lib/models/day_close.dart`). C'est l'**unique**
@@ -92,43 +106,6 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-10 Sprint B — Récitateur entier depuis Réglages, gestion du stockage, reprise automatique
-Le Sprint A est livré (2026-09-29) : ce sprint réutilise `AudioDownloadService` et `downloadSurah`
-tels que décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §6 (disque = source de vérité, retour
-`DownloadFailure?`, progression via `current`).
-- **`AudioDownloadService`** : `downloadReciter(reciter)` boucle sur les 114 sourates via
-  `downloadSurah`, séquentiellement. File d'**intentions** en attente (`'reciterId'` pour un
-  récitateur entier, `'reciterId:surahId'` pour une sourate), persistée via `StorageService`
-  (`loadPendingAudioDownloads`/`savePendingAudioDownloads`, préférence globale, pas scopée par
-  riwaya). Une intention est retirée seulement quand tout est sur disque. `resumePending()`
-  relance la file, en respectant la règle réseau ; il est appelé au lancement (`main.dart`,
-  après `QuranAudioHandler.initialize`) et au retour de l'arrière-plan (observateur existant de
-  `ShellScreen`). `reciterDiskUsage(reciter)` additionne la taille des fichiers.
-  `deleteReciter(reciter)` annule le téléchargement s'il est en cours, retire l'intention et
-  supprime le dossier. Une `FileSystemException` (espace plein) arrête la file, garde
-  l'intention et expose l'erreur dans la progression.
-- **Règle réseau** : `StorageService.loadAllowMobileDownload`/`saveAllowMobileDownload`
-  (globale, `false` par défaut). Si elle vaut `false` et que la connexion n'est pas le Wi-Fi,
-  l'intention reste en attente (au lieu du refus immédiat du Sprint A) et repart au prochain
-  `resumePending()`. Le bouton du Sprint A met alors en file au lieu d'afficher « Wi-Fi
-  uniquement ». La règle est **revérifiée avant chaque verset** dans la boucle de
-  `downloadSurah` (le Sprint A ne la vérifie qu'au départ : passer du Wi-Fi aux données
-  mobiles en cours de route continue aujourd'hui sur données mobiles) — hors règle, la sourate
-  s'arrête et son intention reste en attente.
-- **Nouveau `lib/widgets/offline_audio_card.dart`** (pas dans `profile_screen.dart`, déjà à
-  378 lignes : n'y ajouter que l'insertion de la carte) : l'interrupteur « autoriser les données
-  mobiles » ; une ligne par récitateur ayant au moins un fichier sur disque (nom, poids,
-  état prêt/en cours/en attente du Wi-Fi/espace insuffisant, bouton supprimer avec
-  confirmation) ; une action « télécharger tout le Coran » pour le récitateur choisi dans la
-  riwaya active, précédée d'une confirmation qui annonce **environ 1 à 2 Go** et la nécessité
-  de garder l'app ouverte en Wi-Fi.
-- **Tests** : la persistance de la file dans `StorageService` et `reciterDiskUsage` sur un
-  dossier temporaire.
-- **Exclus** : téléchargement en arrière-plan réel, suppression par sourate, détection de mise
-  à jour côté KSU, pré-vérification de l'espace libre, geste de téléchargement dans le check-in
-  ou le check-out.
-- **Doc** : §6, §8.4 (Réglages), §8.6bis. Passer US-10 à « terminée » puis l'archiver.
-
 ### [P2] US-16 — La vue Coran défile d'un bloc, bouton lecture lisible
 Purement visuel, aucune donnée touchée. Réutilise `VerseBottomSheet`/`VerseAudioBar` tels que
 décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §8.6/§8.6bis.
@@ -159,10 +136,28 @@ décrits dans `docs/DOCUMENTATION_TECHNIQUE.md` §8.6/§8.6bis.
 
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
-qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) vit dans `ShellScreen`. Un
+qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) — et depuis US-10 Sprint B
+`AudioDownloadService.resumePending()` — vit dans `ShellScreen`. Un
 futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce hook. Différé :
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
+
+### [P3] Téléchargement audio derrière un portail captif
+Relevé au sprint US-10 B (2026-10-05). Sur un Wi-Fi d'hôtel/gare non authentifié, le portail
+répond `200` avec une page HTML, que `_downloadTrack` enregistre comme `.mp3` : le verset passe
+pour « téléchargé » et la boucle hors connexion échoue sur ce fichier. Correctif tranché : dans
+`AudioDownloadService._downloadTrack`, après le contrôle du statut, refuser une réponse dont
+`response.headers.contentType?.primaryType != 'audio'` (`drain` puis `HttpException`, comme un
+statut non 200) — la sourate est alors sautée et retentée au passage suivant. Test : aucun
+(réseau non testable ici), vérification sur appareil.
+
+### [P3] File audio : demande Warsh quand le texte Warsh n'a pas chargé
+Relevé au sprint US-10 B (2026-10-05). `_downloadSurah` lit le nombre de versets via
+`VerseService.verseCount`, donc `QuranTextAsset.verseCounts` (`_verseCounts!`) : si l'asset
+Warsh a échoué au démarrage (`warshAvailable == false`), une demande Warsh en file lève une
+exception non rattrapée qui interrompt tout le passage. Correctif tranché : dans `_downloadSurah`,
+entourer la lecture du nombre de versets d'un `try`/`catch` qui renvoie
+`DownloadFailure.interrupted` (demande gardée, passage qui continue). Cas rare : asset embarqué.
 
 ## Idées produit (non scopées)
 

@@ -269,10 +269,40 @@ class S {
   static String get audioIndisponibleHorsConnexion => _t(
       "Cette plage n'est pas téléchargée pour ce récitateur — reconnecte-toi pour l'écouter.",
       "This range isn't downloaded for this reciter — reconnect to listen to it.");
-  static String get audioTelechargementWifi => _t(
-      'Téléchargement en Wi-Fi uniquement — connecte-toi à un réseau Wi-Fi.',
-      'Downloads run on Wi-Fi only — connect to a Wi-Fi network.');
-  static String get audioErreurTelechargement => _t(
-      'Le téléchargement a été interrompu. Touche à nouveau pour reprendre là où il s\'est arrêté.',
-      'The download was interrupted. Tap again to resume where it stopped.');
+  static String get audioEnAttenteWifi => _t(
+      "En attente du Wi-Fi : le téléchargement partira dès que tu seras en Wi-Fi, app ouverte. Les données mobiles s'autorisent dans Réglages.",
+      'Waiting for Wi-Fi: the download starts as soon as you are on Wi-Fi, with the app open. Mobile data can be allowed in Settings.');
+  static String get audioEtatPret => _t('Prêt hors connexion', 'Ready offline');
+  static String audioEtatEnCours(int surahId, int done, int total) =>
+      _t('Sourate $surahId : $done / $total versets', 'Surah $surahId: $done / $total verses');
+  static String get audioEtatAttenteWifi => _t('En attente du Wi-Fi', 'Waiting for Wi-Fi');
+  static String get audioEtatEspacePlein => _t('Espace insuffisant', 'Not enough storage');
+  static String get audioEtatAttente => _t(
+      "En attente : reprendra au prochain retour dans l'app",
+      'Waiting: resumes next time you open the app');
+  static String get ecouteHorsConnexion => _t('Écoute hors connexion', 'Offline listening');
+  static String get autoriserDonneesMobiles =>
+      _t('Autoriser les données mobiles', 'Allow mobile data');
+  static String get autoriserDonneesMobilesDetail => _t(
+      'Sinon, les téléchargements attendent le Wi-Fi', 'Otherwise, downloads wait for Wi-Fi');
+  static String get telechargerToutLeCoran =>
+      _t('Télécharger tout le Coran', 'Download the whole Quran');
+  static String get telechargerToutLeCoranDetail => _t(
+      'Pour le récitateur choisi dans la vue Coran', 'For the reciter chosen in the Quran view');
+  static String telechargerToutConfirm(String reciter) => _t(
+      "Tout le Coran récité par $reciter : environ 1 à 2 Go. Le téléchargement avance en Wi-Fi tant que l'app reste ouverte, et reprend tout seul à chaque retour dans l'app.",
+      'The whole Quran recited by $reciter: about 1 to 2 GB. It downloads over Wi-Fi while the app stays open, and resumes on its own each time you come back.');
+  static String get telecharger => _t('Télécharger', 'Download');
+  static String supprimerAudioTitre(String reciter) =>
+      _t("Supprimer l'audio de $reciter ?", "Delete $reciter's audio?");
+  static String supprimerAudioConfirm(String size) => _t(
+      'Libère $size. Ces sourates repasseront en écoute en ligne.',
+      'Frees $size. These surahs will stream again.');
+
+  /// Storage size, MB under 1 GB, GB with one decimal above.
+  static String tailleAudio(int bytes) {
+    if (bytes < 1000000000) return _t('${(bytes / 1e6).round()} Mo', '${(bytes / 1e6).round()} MB');
+    final gb = (bytes / 1e9).toStringAsFixed(1);
+    return _t('${gb.replaceAll('.', ',')} Go', '$gb GB');
+  }
 }

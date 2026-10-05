@@ -5,8 +5,15 @@ import '../core/strings.dart';
 import '../models/sourate.dart';
 import '../services/audio_download_service.dart';
 
+/// Why a queued download isn't running — shared with the Settings card.
+String queuedStateLabel(DownloadFailure? blockedBy) => switch (blockedBy) {
+      DownloadFailure.notOnWifi => S.audioEtatAttenteWifi,
+      DownloadFailure.storageFull => S.audioEtatEspacePlein,
+      _ => S.audioEtatAttente,
+    };
+
 /// Downloads the WHOLE surah for [reciter], whatever range the sheet shows
-/// (US-10 criterion 1). Three states: download / progress / available.
+/// (US-10 criterion 1). Four states: download / progress / queued / available.
 class AudioDownloadButton extends StatefulWidget {
   final Reciter reciter;
   final Sourate sourate;
@@ -35,7 +42,7 @@ class _AudioDownloadButtonState extends State<AudioDownloadButton> {
   }
 
   // Also catches the end of a download started from an earlier, since
-  // closed, sheet.
+  // closed, sheet — or from Settings.
   void _onDownloadChanged() {
     if (_service.current.value == null) _refreshComplete();
   }
@@ -50,21 +57,20 @@ class _AudioDownloadButtonState extends State<AudioDownloadButton> {
   }
 
   Future<void> _download() async {
-    final failure = await _service.downloadSurah(
-        widget.reciter, widget.sourate.id, widget.sourate.verses);
-    if (failure == null || !mounted) return;
-    final message = switch (failure) {
-      DownloadFailure.notOnWifi => S.audioTelechargementWifi,
-      DownloadFailure.interrupted => S.audioErreurTelechargement,
-    };
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    final startsNow = await _service.queueSurah(widget.reciter, widget.sourate.id);
+    if (startsNow || !mounted) return;
+    _showSnack(S.audioEnAttenteWifi);
   }
+
+  void _showSnack(String message) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<SurahDownload?>(
-      valueListenable: _service.current,
-      builder: (context, running, _) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([_service.current, _service.pending, _service.blockedBy]),
+      builder: (context, _) {
+        final running = _service.current.value;
         if (running != null && running.isFor(widget.reciter, widget.sourate.id)) {
           return Tooltip(
             message: S.telechargementEnCours(running.done, running.total),
@@ -75,7 +81,7 @@ class _AudioDownloadButtonState extends State<AudioDownloadButton> {
                 height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  // 0 done (Wi-Fi check, first verse) spins instead of an empty ring.
+                  // 0 done (network check, first verse) spins instead of an empty ring.
                   value: running.done == 0 ? null : running.done / running.total,
                 ),
               ),
@@ -89,9 +95,17 @@ class _AudioDownloadButtonState extends State<AudioDownloadButton> {
             tooltip: S.disponibleHorsConnexion,
           );
         }
+        if (_service.isQueued(widget.reciter, widget.sourate.id)) {
+          final reason = queuedStateLabel(_service.blockedBy.value);
+          // Tooltips need a long press on a phone: a tap tells why it waits.
+          return IconButton(
+            onPressed: () => _showSnack(reason),
+            icon: const Icon(Icons.schedule),
+            tooltip: reason,
+          );
+        }
         return IconButton(
-          // Another surah downloading: one download at a time.
-          onPressed: running == null ? _download : null,
+          onPressed: _download,
           icon: const Icon(Icons.download_for_offline_outlined),
           tooltip: S.telechargerSourate,
         );
