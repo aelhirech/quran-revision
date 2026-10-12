@@ -259,7 +259,15 @@ class AudioDownloadService {
   /// download resumes. The network rule is checked before each verse, so
   /// leaving Wi-Fi mid-surah stops it instead of going on over mobile data.
   Future<DownloadFailure?> _downloadSurah(Reciter reciter, int surahId) async {
-    final verseCount = VerseService.verseCount(surahId, reciter.riwaya);
+    final int verseCount;
+    try {
+      verseCount = VerseService.verseCount(surahId, reciter.riwaya);
+    } catch (e) {
+      // The riwaya's text asset failed to load at startup (Warsh): the intent
+      // is kept for a later launch instead of aborting the whole pass.
+      debugPrint('Audio download skipped, no verse count (${reciter.id}, surah $surahId): $e');
+      return DownloadFailure.interrupted;
+    }
     final dir = await _surahDir(reciter, surahId);
     final local = await _localTrackNames(dir);
     if (_hasAllVerses(local, verseCount)) return null;
@@ -298,6 +306,12 @@ class AudioDownloadService {
     if (response.statusCode != HttpStatus.ok) {
       await response.drain<void>();
       throw HttpException('HTTP ${response.statusCode}', uri: request.uri);
+    }
+    // A captive portal (hotel, station Wi-Fi) answers 200 with an HTML page,
+    // which would be stored as a complete verse and break the offline loop.
+    if (response.headers.contentType?.primaryType != 'audio') {
+      await response.drain<void>();
+      throw HttpException('Not audio: ${response.headers.contentType}', uri: request.uri);
     }
     final part = File('${target.path}.part');
     final sink = part.openWrite();

@@ -47,6 +47,9 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
   - Pas de Wi-Fi ou disque plein arrêtent la file (`blockedBy`). Une sourate en échec réseau est
     sautée et gardée : un fichier manquant chez KSU ne doit pas bloquer tout le reste.
   - La règle réseau est revérifiée avant chaque verset téléchargé (pas une fois au départ).
+  - Un verset n'est écrit que si la réponse est de type `audio/*` (2026-10-12) : un portail
+    captif répond `200` avec du HTML. KSU sert `audio/mpeg` sur tous ses dossiers ; si ce type
+    change un jour, tous les téléchargements seront sautés — regarder là en premier.
   - `deleteReciter` attend la fin du verset en cours avant d'effacer : effacer sous lui ferait
     échouer son renommage, lu comme « disque plein ».
   - Préférences audio (récitateur, file, données mobiles) : `AudioPrefs`, jamais
@@ -113,23 +116,6 @@ qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) — et dep
 futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce hook. Différé :
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
-
-### [P3] Téléchargement audio derrière un portail captif
-Relevé au sprint US-10 B (2026-10-05). Sur un Wi-Fi d'hôtel/gare non authentifié, le portail
-répond `200` avec une page HTML, que `_downloadTrack` enregistre comme `.mp3` : le verset passe
-pour « téléchargé » et la boucle hors connexion échoue sur ce fichier. Correctif tranché : dans
-`AudioDownloadService._downloadTrack`, après le contrôle du statut, refuser une réponse dont
-`response.headers.contentType?.primaryType != 'audio'` (`drain` puis `HttpException`, comme un
-statut non 200) — la sourate est alors sautée et retentée au passage suivant. Test : aucun
-(réseau non testable ici), vérification sur appareil.
-
-### [P3] File audio : demande Warsh quand le texte Warsh n'a pas chargé
-Relevé au sprint US-10 B (2026-10-05). `_downloadSurah` lit le nombre de versets via
-`VerseService.verseCount`, donc `QuranTextAsset.verseCounts` (`_verseCounts!`) : si l'asset
-Warsh a échoué au démarrage (`warshAvailable == false`), une demande Warsh en file lève une
-exception non rattrapée qui interrompt tout le passage. Correctif tranché : dans `_downloadSurah`,
-entourer la lecture du nombre de versets d'un `try`/`catch` qui renvoie
-`DownloadFailure.interrupted` (demande gardée, passage qui continue). Cas rare : asset embarqué.
 
 ## Idées produit (non scopées)
 

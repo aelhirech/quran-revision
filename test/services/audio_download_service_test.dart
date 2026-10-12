@@ -95,6 +95,19 @@ void main() {
       expect(service.blockedBy.value, isNull);
     });
 
+    // WarshService is never initialized in this file: same state as a Warsh
+    // asset that failed to load at startup.
+    test('a Warsh intent without Warsh text is kept and does not stop the pass', () async {
+      for (var ayah = 1; ayah <= 7; ayah++) {
+        await writeTrack(1, ayah);
+      }
+      await service.queueSurah(reciterById('husary.w')!, 1);
+      await service.queueSurah(reciter, 1);
+      await service.resumePending();
+      expect(await AudioPrefs.loadPendingDownloads(), ['husary.w:1']);
+      expect(service.blockedBy.value, isNull);
+    });
+
     test('deleting a reciter drops its intents and files, not a prefix namesake', () async {
       final husary = reciterById('husary')!;
       await writeTrack(1, 1);
