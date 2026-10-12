@@ -23,8 +23,19 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
+Aucune story active : le prochain « Début de blueprint » remplit cette liste.
+
+## Archivées
+
+Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
 ### US-17 — L'onboarding montre une journée d'usage, boutons à l'appui (extension d'US-1)
-**État** : scopée — blueprint et scoping du 2026-10-12. Rattachée à l'epic « premier contact » d'US-1
+**État** : terminée — blueprint, scoping et livraison du 2026-10-12
+(`feature/phase-24-sprint12-onboarding-recit`). Récit vérifié sous Windows dans l'app réelle
+(clair, sombre, FR, EN, plan long, seconde riwaya, 320×568 avec texte ×1,5, boutons inertes).
+**Étape audio non vérifiée sur appareil réel** : elle ne s'affiche pas sous Windows (disparition
+au premier lancement de l'écoute, portion réglée conservée). La vérification d'usage (tendre le
+téléphone à quelqu'un sans rien dire) reste à faire. Rattachée à l'epic « premier contact » d'US-1
 (archivée, pas ressortie) et, pour l'écoute, à l'epic audio d'US-9.
 
 **Statement** : En tant que nouvel utilisateur qui vient de configurer ses sourates et son rythme,
@@ -135,10 +146,6 @@ l'onboarding, sur quoi appuyer en premier et à quoi sert le bouton Coran.
   Intro et Méthode, déjà sautées dans ce cas.
 - Crit. 4 : l'étape audio n'apparaît que si l'audio est disponible sur l'appareil.
 Validé par l'utilisateur : non, à confirmer.
-
-## Archivées
-
-Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
 
 ### US-16 — La vue Coran donne la place au texte (extension d'US-9/US-11)
 **État** : terminée — blueprint + scoping du 2026-10-05, livrée le même jour

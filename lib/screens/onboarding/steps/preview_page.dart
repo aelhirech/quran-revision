@@ -1,7 +1,7 @@
 part of '../onboarding_screen.dart';
 
-/// Last step before the celebration (US-1 criterion 3): the REAL day-1 plan,
-/// followed by the shape the user's day will take. Absorbed the former
+/// Last step before the celebration (US-1 criterion 3): the story of a day of
+/// use (US-17), then the REAL day-1 plan. Absorbed the former
 /// `_RecapPage`, which held this slot while only repeating the surah/verse
 /// counts the celebration shows right after.
 ///
@@ -16,12 +16,14 @@ part of '../onboarding_screen.dart';
 class _PreviewPage extends StatelessWidget {
   final List<RevisionUnit> units;
   final bool paginationUnavailable;
+  final bool showDayStory;
   final VoidCallback onBack;
   final VoidCallback? onConfirm;
 
   const _PreviewPage({
     required this.units,
     required this.paginationUnavailable,
+    required this.showDayStory,
     required this.onBack,
     required this.onConfirm,
   });
@@ -44,6 +46,20 @@ class _PreviewPage extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               children: [
+                if (showDayStory) ...[
+                  const _DayStory(),
+                  const SizedBox(height: 4),
+                  const OrnamentalDivider(),
+                  const SizedBox(height: 20),
+                ],
+                Text(
+                  SOnboarding.planJour1Titre,
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary),
+                ),
+                const SizedBox(height: 12),
                 if (paginationUnavailable)
                   const PaginationIndisponible()
                 else
@@ -52,22 +68,6 @@ class _PreviewPage extends StatelessWidget {
                       unit: unit,
                       subtitle: S.versetsCount(unit.verseCount),
                     ),
-                const SizedBox(height: 24),
-                const OrnamentalDivider(),
-                const SizedBox(height: 20),
-                Text(
-                  SOnboarding.journeeFormeTitre,
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: palette.textPrimary),
-                ),
-                const SizedBox(height: 12),
-                _DayShapeLine(icon: Icons.wb_twilight, label: SOnboarding.journeeFormeMatin),
-                _DayShapeLine(
-                    icon: Icons.self_improvement, label: SOnboarding.journeeFormeMilieu),
-                _DayShapeLine(
-                    icon: Icons.nightlight_round, label: SOnboarding.journeeFormeSoir),
               ],
             ),
           ),
@@ -77,32 +77,6 @@ class _PreviewPage extends StatelessWidget {
               width: double.infinity,
               child: PrimaryCtaButton(label: SOnboarding.commencer, onPressed: onConfirm),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DayShapeLine extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _DayShapeLine({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: palette.goldDark),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 13.5, color: palette.textMuted, height: 1.5)),
           ),
         ],
       ),

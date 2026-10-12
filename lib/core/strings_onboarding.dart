@@ -58,20 +58,30 @@ class SOnboarding {
   // Onboarding — preview of the first day's plan (US-1)
   static String get previewTitle => S._t('Voici ton premier jour', "Here's your first day");
   static String get previewSubtitle => S._t(
-      "D'après ta sélection et ton rythme, voici ce que l'app te proposera dès aujourd'hui.",
-      "Based on your selection and pace, here's what the app will suggest for you right away.");
+      "Ta journée avec l'app tient en quatre gestes.",
+      'Your day with the app comes down to four gestures.');
 
-  // Onboarding — the shape of a day, announced on the last step (US-1 crit. 3)
-  static String get journeeFormeTitre =>
-      S._t('La forme de ta journée', 'The shape of your day');
-  static String get journeeFormeMatin => S._t(
-      "Le matin, tu t'engages sur ta portion du jour.",
-      "In the morning, you commit to the day's portion.");
-  static String get journeeFormeMilieu => S._t(
-      'Tu la révises dans tes prières.', 'You revise it within your prayers.');
-  static String get journeeFormeSoir => S._t(
-      "Le soir, tu clôtures — ce qui n'a pas tenu revient demain.",
-      "In the evening, you close out — whatever didn't hold comes back tomorrow.");
+  // Onboarding — the story of a day of use, on the last step (US-17)
+  static String get recitMatinTitre => S._t('Le matin', 'In the morning');
+  static String get recitMatinCorps => S._t(
+      "L'app a déjà préparé ta portion : les pages à réviser, les versets à apprendre. Tu confirmes, ou tu ajustes.",
+      'The app has already prepared your portion: the pages to revise, the verses to learn. You confirm, or you adjust.');
+  static String get recitPrieresTitre =>
+      S._t('Dans tes prières', 'In your prayers');
+  static String get recitPrieresCorps => S._t(
+      'Ta portion est répartie dans tes rakaas. Sur chaque ligne, ce bouton ouvre le texte à réciter.',
+      'Your portion is spread across your rakaas. On each line, this button opens the text to recite.');
+  static String get recitEcouteTitre => S._t(
+      'Avant de prier, ou quand tu veux', 'Before praying, or whenever you like');
+  static String get recitEcouteCorps => S._t(
+      "Écoute le passage en boucle et répète-le jusqu'à ce qu'il tienne.",
+      'Listen to the passage on a loop and repeat it until it holds.');
+  static String get recitSoirTitre => S._t('Le soir', 'In the evening');
+  static String get recitSoirCorps => S._t(
+      'Tu confirmes ce qui a tenu. Le reste revient demain, tout seul.',
+      'You confirm what held. The rest comes back tomorrow, on its own.');
+  static String get planJour1Titre =>
+      S._t("Ta portion d'aujourd'hui", "Today's portion");
   // Onboarding — config
   static String get rechercherSourate => S._t('Rechercher une sourate...', 'Search a surah...');
   static String get commencer => S._t('Commencer la révision', 'Start revision');

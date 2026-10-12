@@ -106,6 +106,7 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
 
   Future<void> _startLoop(Reciter reciter) async {
     setState(() => _starting = true);
+    final appState = context.read<AppState>();
     // Snapshot: the slider may move while sources load; this start must
     // describe the portion it actually plays.
     final start = _audioStart;
@@ -136,6 +137,7 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
         ),
       );
       started = true;
+      appState.markGuideDone('audio_loop_started');
     } catch (e) {
       debugPrint('Audio playback error: $e');
       if (mounted) {
