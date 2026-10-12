@@ -61,19 +61,24 @@ implémente, on ne redécide pas).
 
 ### Git : `main` local par défaut
 - **Toujours partir du `main` local** (celui de cet ordi) pour créer une branche, comparer un diff ou merger — pas de `git fetch`/`git pull`, pas de `origin/main`, sauf si l'utilisateur précise explicitement `origin/main` (distant). Le `main` local peut contenir des merges pas encore pushés : partir d'`origin/main` les ferait disparaître silencieusement de la branche.
-- **« Merge vers main » ≠ « push ».** Si l'utilisateur demande seulement de merger (ex. « merge vers le main local », « merge sans pusher »), merger la feature branch dans le `main` local et **s'arrêter là** : pas de `git push`. Le push de `main` déclenche TestFlight (étape 8 de « Fin de sprint ») — il ne se fait que sur demande explicite. Dans ce cas, les étapes 7 (bump build number) et 8 (confirmation du push) de « Fin de sprint » ne s'appliquent qu'au moment du push réel, pas au merge local.
+- **« Merge vers main » ≠ « push ».** Si l'utilisateur demande seulement de merger (ex. « merge vers le main local », « merge sans pusher »), merger la feature branch dans le `main` local et **s'arrêter là** : pas de `git push`. Le push de `main` déclenche TestFlight — il ne se fait que sur demande explicite. Le bump du build number et la confirmation du push (voir « Fin de sprint ») ne s'appliquent qu'au moment du push réel, pas au merge local.
 
-### « Fin de sprint »
-Exécuter dans l'ordre, sans redemander de confirmation entre chaque étape **sauf pour les étapes 1-2 et pour le push final** :
-1. **Demander confirmation avant de lancer `/simplify`** — sur-ingénierie, réutilisation, cleanups. **Sauter cette étape si le sprint est structurellement trivial** (bump de version, renommage de string, changement de config sans logique) : rien à simplifier dans ce genre de diff, la passe ne consomme des tokens que pour un résultat vide.
-2. **Demander confirmation avant de lancer `/code-review`** (niveau `medium` par défaut) — bugs de correction. **Toujours préciser le niveau explicitement** : sans niveau, la commande réutilise silencieusement le dernier niveau tapé dans la session, qui peut dériver vers `high`/`max` sans qu'on s'en aperçoive. Monter à `/code-review high` si le sprint touche `RevisionEngine`, `FreshnessEngine`, ou `AppState`.
-3. Appliquer les fixes remontés par les deux passes.
-4. Mettre à jour `docs/CHANGELOG.md` : retirer du **Backlog technique** les items traités par ce sprint (l'historique de ce qui a été livré vit dans `git log`, pas dans une ligne barrée qui traîne), ajouter les nouvelles dettes/gaps identifiés avec une priorité qui reflète le risque réel (pas tout à P3 par défaut) dans le **Backlog technique** — **uniquement si leur implémentation est entièrement tranchée, voir § « Critère de bascule Backlog technique vs Idée produit » ci-dessus** —, ajouter les idées produit non scopées ou contenant une décision ouverte dans **Idées produit** (pas dans le Backlog technique — une idée n'a pas de priorité tant qu'elle n'est pas passée par `quran-blueprint`/`quran-scoping`), noter une décision transversale dans « Décisions actives à connaître » seulement si elle décrit un invariant du code ACTUEL à respecter (pas un choix produit fait puis défait — ça vit dans `git log`). Mettre à jour `docs/DOCUMENTATION_TECHNIQUE.md` en plus si le sprint a touché `RevisionEngine`, `FreshnessEngine`, `AppState`, ou ajouté/supprimé un écran/service.
-5. Commit sur la feature branch (feature(sprint-N):)
-6. Vérifier que la demande utilisateur a bien été traitée dans son intégralité avec soit une modification de code soit un enregistrement dans docs/CHANGELOG.md après discussion avec l'utilisateur : (Pourquoi on la pas traité, décision manquantes, trop flou pour être implémenter etc)
-7. **Avant de merger et pusher `main`, si le sprint touche du code iOS : bumper le build number dans `pubspec.yaml`.** Depuis le 2026-08-31, `codemagic.yaml` ne calcule plus automatiquement le build number (le lookup App Store Connect/TestFlight s'est montré peu fiable — voir incident du même jour : collision `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` car le build 5 avait déjà été publié et rien ne répercutait le nombre utilisé dans `pubspec.yaml`). `pubspec.yaml` (`version: X.Y.Z+N`) est donc la **seule source de vérité** du build number iOS : `flutter build ipa` lit `+N` directement, sans override. Avant de pusher `main`, vérifier le dernier build number publié sur TestFlight/App Store Connect et bumper `+N` strictement au-dessus dans `pubspec.yaml`.
-8. **Avant de merger et pusher `main` : demander confirmation explicite.** Depuis le 2026-08-29, CI/CD Codemagic connectée à ce dépôt (`codemagic.yaml`, workflow `ios-testflight`) : un `git push` sur `main` déclenche automatiquement build + signing + **publication TestFlight**. La confirmation est donc requise pour une vraie raison opérationnelle (déclenchement automatique d'une distribution externe), pas seulement par prudence générale. Toutes les autres étapes ci-dessus peuvent s'enchaîner sans interruption ; celle-ci non.
-9. **Avant de merger et pusher `main` : se mettre d'accord avec l'utilisateur sur le contenu du prochain sprint.** Distinct de la confirmation du push elle-même (étape 8) — l'objectif est d'éviter d'ouvrir un nouveau sprint sur un malentendu de scope (ex. redemander "tout traiter" alors qu'un tri réel montre que la moitié n'est pas de la dette). Proposer une liste courte issue du **Backlog technique** de `docs/CHANGELOG.md` (jamais des **Idées produit**, qui doivent d'abord passer par `quran-blueprint`/`quran-scoping`), avec priorité et effort/risque honnêtes — pas juste "qu'est-ce qu'on fait ensuite ?".
+### « Fin de sprint » — skill `quran-close`
+Toute la clôture passe par le skill `quran-close` : l'invoquer dès que l'utilisateur dit « Fin de
+sprint », sans dérouler les étapes de mémoire. Il enchaîne revue (`/simplify` et `/code-review`,
+sur confirmation, niveau toujours explicite), fixes, mise à jour de `docs/CHANGELOG.md`/
+`docs/USER_STORIES.md`/`docs/DOCUMENTATION_TECHNIQUE.md`, commit sur la feature branch, contrôle
+que la demande a été traitée en entier, accord sur le sprint suivant, merge vers le `main` local,
+puis suppression de la feature branch mergée. Détail complet : `SKILL.md` du plugin `quran-close`.
+
+Deux raisons opérationnelles que le skill applique et qu'il faut connaître ici :
+- **Le push de `main` demande une confirmation explicite.** Depuis le 2026-08-29, Codemagic
+  (`codemagic.yaml`, workflow `ios-testflight`) lance build + signing + **publication TestFlight**
+  à chaque `git push` sur `main`.
+- **`pubspec.yaml` (`version: X.Y.Z+N`) est la seule source de vérité du build number iOS.**
+  Depuis le 2026-08-31, `codemagic.yaml` ne le calcule plus (collision
+  `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` le même jour : le build 5 était déjà publié). Avant
+  un push qui touche du code iOS, bumper `+N` strictement au-dessus du dernier build publié.
 
 ## Au début de chaque session
 1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` et `docs/CHANGELOG.md` en entier ; lire aussi `docs/USER_STORIES.md` s'il existe et que le travail touche un blueprint/scoping en cours.
