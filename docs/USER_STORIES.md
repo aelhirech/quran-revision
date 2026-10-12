@@ -23,7 +23,118 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-Aucune story active (US-16 archivée le 2026-10-05).
+### US-17 — L'onboarding montre une journée d'usage, boutons à l'appui (extension d'US-1)
+**État** : scopée — blueprint et scoping du 2026-10-12. Rattachée à l'epic « premier contact » d'US-1
+(archivée, pas ressortie) et, pour l'écoute, à l'epic audio d'US-9.
+
+**Statement** : En tant que nouvel utilisateur qui vient de configurer ses sourates et son rythme,
+je veux voir, avant d'entrer dans l'app, le récit d'une journée d'usage illustré par les boutons
+que je vais réellement toucher, afin de savoir quoi faire le lendemain matin sans que quelqu'un
+ait à me l'expliquer.
+
+**Diagnostic (état actuel)** :
+- Quand l'app est montrée à quelqu'un, c'est son auteur qui explique à voix haute comment elle
+  s'utilise. Des testeurs finissent l'onboarding sans savoir quoi faire ensuite.
+- L'onboarding explique **pourquoi** (diagnostic, trois couches) mais presque pas **comment** : la
+  forme de la journée tient en trois lignes de texte avec une icône générique, sans montrer aucun
+  bouton de l'app.
+- L'écoute en boucle (US-9, US-10, US-11) est arrivée après US-1 : ni l'onboarding ni
+  l'accompagnement des premiers gestes n'en parlent.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given le dernier écran de l'onboarding (le vrai plan du jour 1), Then les trois lignes « forme
+   de ta journée » sont remplacées par le récit d'une journée en quatre moments, dans cet ordre :
+   **le matin** (le bouton « Illuminer ma journée avec le Coran »), **le plan** (ce qui a été
+   réparti dans les prières), **avant de prier ou à un moment choisi** (le bouton Coran : écouter
+   en boucle et répéter), **le soir** (clôturer : ce qui a tenu est confirmé, le reste revient
+   demain). Aucun écran n'est ajouté à l'onboarding.
+2. Given chaque moment du récit, Then il montre le bouton concerné **tel qu'il apparaît dans
+   l'app** (même forme, même libellé, même icône), dans la langue et le thème en cours. Le bouton
+   montré est inerte : le toucher ne déclenche rien et n'ouvre rien.
+3. Given le moment du matin, Then le récit dit que l'app **propose** (les pages du jour, les
+   versets à apprendre, les sourates) et que l'utilisateur **confirme ou ajuste**. Il ne présente
+   jamais la matinée comme une suite de réglages à remplir.
+4. Given un utilisateur qui lance pour la première fois l'écoute depuis la vue Coran, Then
+   l'accompagnement existant des premiers gestes lui dit une fois à quoi elle sert (écouter en
+   boucle, répéter, avant de réciter en prière). Comme pour les autres étapes, il n'est considéré
+   comme donné que lorsque l'écoute a réellement été lancée, jamais parce qu'il a été affiché.
+5. Given un écran étroit, un texte agrandi ou un plan du jour 1 long, Then le récit reste lisible
+   en entier et le bouton de fin d'onboarding reste atteignable.
+
+**Vérification d'usage** (non automatisable, à faire par l'utilisateur) : tendre le téléphone à
+quelqu'un qui ne connaît pas l'app, sans rien dire. La story est tenue s'il sait, à la fin de
+l'onboarding, sur quoi appuyer en premier et à quoi sert le bouton Coran.
+
+**Exclusions explicites** :
+- **Pas de bouton cliquable ni de mini-parcours dans l'onboarding** (choix utilisateur du
+  2026-10-12). Maintient l'exclusion d'US-1 : la démo a été supprimée, pas déplacée.
+  L'interactivité reste sur les gestes réels.
+- **Pas de capture d'écran** en guise d'illustration : une image figée serait fausse en thème
+  sombre et en anglais, et se périme à chaque retouche d'un bouton.
+- **Pas d'écran ajouté**, et la page Méthode (trois couches, US-1 crit. 1) n'est pas touchée
+  (choix utilisateur du 2026-10-12).
+- Pas de vidéo, pas d'animation de tutoriel, pas de voix.
+- Pas de moyen de revoir le récit depuis les Réglages.
+- Aucune projection (durée du tour, échéance) dans le récit : il décrit des gestes, pas des
+  chiffres.
+- L'écoute reste passive : la mentionner ne change rien à ce qu'elle crédite (US-9 crit. 4).
+
+**Scoping technique** (2026-10-12) :
+- **Fichiers UI** : **nouveau** `lib/screens/onboarding/widgets/day_story.dart` (`part of`, ~110
+  lignes : `_DayStory`, `_DayStoryMoment`, `_Inert`) ; `steps/preview_page.dart` (112 lignes,
+  `_DayShapeLine` supprimé) ; `onboarding_screen.dart` (335 lignes, **au plafond** : il ne reçoit
+  qu'une ligne `part` et un paramètre) ; `lib/widgets/verse_bottom_sheet.dart` (140 lignes) ;
+  `lib/widgets/verse_audio_bar.dart` (247 lignes) ; `lib/core/strings_onboarding.dart` (122
+  lignes) ; `lib/core/strings_guide.dart` (65 lignes).
+- **Variables / champs** : aucun champ nouveau. Un nouvel id `audio_loop_started` dans le
+  `Set<String>` existant `AppState._guideDone` (clé `SharedPreferences` `guide_done`). Un
+  paramètre `showDayStory` sur `_PreviewPage`.
+- **`ayah_facts`** : aucune lecture ni écriture.
+- **Décision data model** : le récit est de l'affichage pur. L'étape audio réutilise le flag
+  d'accompagnement existant : ni table, ni nouvelle clé.
+- **Réutilisation** :
+  - `PrimaryCtaButton` (les vrais boutons Illuminer et Clôturer sont ce widget, `home_screen.dart`
+    l. 164 et `plan_screen.dart` l. 330) ; `IndexBadge` pour numéroter les moments, comme la page
+    Méthode ; `GuideStep` + `guideDone`/`markGuideDone` pour l'étape audio.
+  - Les libellés viennent des constantes des vrais boutons (`SCheckIn.illuminerMaJournee`,
+    `S.cloturerMaJournee`), jamais d'une copie.
+  - L'icône livre et le bouton lecture sont écrits en ligne dans leurs écrans (l'icône livre
+    existe déjà en 4 copies). Ils sont reproduits tels quels dans le récit, sans extraire de
+    widget partagé : ce sont deux lignes, et leur style vient du thème.
+- **Risques / dépendances** :
+  - **Un bouton désactivé (`onPressed: null`) n'est pas fidèle** : `FilledButton` passe en gris et
+    `PrimaryCtaButton` retire son ombre. Le rendu fidèle et inerte s'obtient avec un `onPressed`
+    vide sous `IgnorePointer` + `ExcludeSemantics` (le lecteur d'écran n'annonce pas un bouton).
+  - **Confusion avec le vrai bouton « Commencer »** épinglé en bas : les boutons du récit sont
+    montrés à leur largeur naturelle, alignés à gauche, hauteur 44, dans des moments numérotés.
+    À vérifier visuellement sous Windows, en clair et en sombre.
+  - **Piège d'ordre des slivers dans la vue Coran** : l'étape audio doit se placer **après** la
+    barre audio. Placée avant, sa disparition décalerait la barre d'un rang, Flutter recréerait
+    `_VerseAudioBarState` pendant que la boucle joue et la portion US-11 serait perdue (même
+    classe de bug que le piège d'US-16).
+  - L'étape audio reste affichée tant que l'écoute n'a jamais été lancée, y compris pour qui
+    n'utilise pas l'audio. Elle défile avec le texte, ce qui limite la gêne. C'est la règle
+    d'US-1 (pas de croix), assumée.
+  - Aucun item du Backlog ne touche ces fichiers.
+- **Tests** : aucun test automatisé. Le récit est de l'apparence (`test/CLAUDE.md` l'exclut), et
+  l'étape audio ne s'affiche que si l'audio est disponible, ce qui n'est pas le cas en test ni
+  sous Windows. Récit : vérification visuelle sous Windows (clair, sombre, FR, EN, fenêtre
+  étroite). Étape audio : appareil réel uniquement.
+- **Item Backlog** : `[P2] US-17 — L'onboarding raconte une journée d'usage, l'écoute est
+  accompagnée`.
+
+**Ajustement au scoping** (2026-10-12) — crit. 1 et 2 précisés, sens inchangé :
+- Chaque moment montre **un** contrôle réel. Le moment « dans tes prières » montre l'icône livre
+  (le bouton Coran, sur chaque ligne du plan) ; le moment « avant de prier » montre le bouton
+  lecture de la vue Coran. Le blueprint rattachait le bouton Coran au troisième moment : dans
+  l'app, ce sont deux boutons successifs.
+- Le récit passe **avant** la liste du plan du jour 1 (aujourd'hui il est après). Une liste de
+  plusieurs courtes sourates l'enterrait. Le vrai plan reste affiché en dessous, sous un titre
+  (US-1 crit. 3 tenu).
+- Le récit ne s'affiche pas quand on configure une seconde riwaya : même règle que les pages
+  Intro et Méthode, déjà sautées dans ce cas.
+- Crit. 4 : l'étape audio n'apparaît que si l'audio est disponible sur l'appareil.
+Validé par l'utilisateur : non, à confirmer.
 
 ## Archivées
 
