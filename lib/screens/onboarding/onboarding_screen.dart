@@ -38,6 +38,7 @@ part 'widgets/step_header.dart';
 part 'widgets/group_toggle.dart';
 part 'widgets/sourate_list.dart';
 part 'widgets/recap_card.dart';
+part 'widgets/day_story.dart';
 
 /// Nombre d'étapes comptées dans le stepper (`_StepHeader`) — Intro/Méthode/
 /// Riwaya n'y figurent pas (pages d'accueil et de pédagogie, pas de config),
@@ -316,14 +317,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           _NotificationsPage(onBack: _prevPage, onNext: _nextPage),
-          // Last step before the celebration (US-1 criterion 3): the real
-          // day-1 plan, plus the shape the user's day will take.
+          // Last step before the celebration (US-1 criterion 3): the story
+          // of a day of use, then the real day-1 plan.
           Builder(builder: (_) {
             final daySelection = _daySelection;
             return _PreviewPage(
               units: daySelection.units,
               paginationUnavailable:
                   daySelection.paginationUnavailable(_selections.isNotEmpty),
+              showDayStory: showIntroAndRiwaya,
               onBack: _prevPage,
               onConfirm: _selections.isEmpty ? null : _showCelebration,
             );

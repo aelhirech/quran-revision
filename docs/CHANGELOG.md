@@ -109,76 +109,15 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-17 — L'onboarding raconte une journée d'usage, l'écoute est accompagnée
-Scoping du 2026-10-12 (`docs/USER_STORIES.md`, US-17). Un seul sprint. Réutilise l'écran Jour 1
-(`docs/DOCUMENTATION_TECHNIQUE.md` §8.2) et l'accompagnement `GuideStep`/`guide_done` d'US-1.
-Aucune logique métier, rien dans `ayah_facts`.
-- **Nouveau `lib/screens/onboarding/widgets/day_story.dart`** (`part of '../onboarding_screen.dart'`,
-  parce qu'`onboarding_screen.dart` est à 335 lignes) : `_DayStory`, une `Column` de quatre
-  `_DayStoryMoment(index, title, body, control)`. Chaque moment : `IndexBadge` à gauche, titre
-  (15, w700, `textPrimary`), corps (13.5, `textMuted`), puis le contrôle aligné à gauche, à sa
-  largeur naturelle. Les contrôles, dans l'ordre :
-  1. `PrimaryCtaButton(icon: Icons.wb_sunny_outlined, label: SCheckIn.illuminerMaJournee, height: 44)`
-  2. `Icon(Icons.menu_book_outlined, color: palette.gold)`
-  3. `IconButton.filled(icon: Icon(Icons.play_arrow))`
-  4. `PrimaryCtaButton(icon: Icons.nightlight_outlined, label: S.cloturerMaJournee, height: 44)`
-
-  Les boutons reçoivent un `onPressed` vide et sont enveloppés par un `_Inert` privé
-  (`IgnorePointer` + `ExcludeSemantics`). Jamais `onPressed: null` : le bouton passerait en gris
-  et perdrait son ombre.
-- **`steps/preview_page.dart`** : supprimer `_DayShapeLine`, ses trois appels, le titre
-  `journeeFormeTitre` et l'`OrnamentalDivider` du bas. Nouvel ordre du `ListView` : `_DayStory`
-  (si `showDayStory`), `OrnamentalDivider`, titre `SOnboarding.planJour1Titre`, puis les `UnitRow`
-  ou `PaginationIndisponible`. Nouveau paramètre `bool showDayStory` ; à `false`, ni récit ni
-  séparateur.
-- **`onboarding_screen.dart`** : ajouter la ligne `part` et passer
-  `showDayStory: showIntroAndRiwaya` à `_PreviewPage`. Rien d'autre.
-- **`lib/core/strings_onboarding.dart`** : supprimer `journeeFormeTitre`, `journeeFormeMatin`,
-  `journeeFormeMilieu`, `journeeFormeSoir`. Remplacer le texte de `previewSubtitle` et ajouter :
-  - `previewSubtitle` : « Ta journée avec l'app tient en quatre gestes. » / "Your day with the
-    app comes down to four gestures."
-  - `recitMatinTitre` : « Le matin » / "In the morning"
-  - `recitMatinCorps` : « L'app a déjà préparé ta portion : les pages à réviser, les versets à
-    apprendre. Tu confirmes, ou tu ajustes. » / "The app has already prepared your portion: the
-    pages to revise, the verses to learn. You confirm, or you adjust."
-  - `recitPrieresTitre` : « Dans tes prières » / "In your prayers"
-  - `recitPrieresCorps` : « Ta portion est répartie dans tes rakaas. Sur chaque ligne, ce bouton
-    ouvre le texte à réciter. » / "Your portion is spread across your rakaas. On each line, this
-    button opens the text to recite."
-  - `recitEcouteTitre` : « Avant de prier, ou quand tu veux » / "Before praying, or whenever you
-    like"
-  - `recitEcouteCorps` : « Écoute le passage en boucle et répète-le jusqu'à ce qu'il tienne. » /
-    "Listen to the passage on a loop and repeat it until it holds."
-  - `recitSoirTitre` : « Le soir » / "In the evening"
-  - `recitSoirCorps` : « Tu confirmes ce qui a tenu. Le reste revient demain, tout seul. » /
-    "You confirm what held. The rest comes back tomorrow, on its own."
-  - `planJour1Titre` : « Ta portion d'aujourd'hui » / "Today's portion"
-- **`lib/widgets/verse_bottom_sheet.dart`** : un `SliverToBoxAdapter(GuideStep(icon:
-  Icons.play_arrow, title: SGuide.guideAudioTitle, body: SGuide.guideAudioBody))`, affiché si
-  `QuranAudioHandler.available && !state.guideDone('audio_loop_started')`, inséré **juste après**
-  le sliver de la `VerseAudioBar`, jamais avant (sa disparition décalerait la barre d'un rang et
-  recréerait son état pendant la lecture). Lire `AppState` une seule fois dans `build`.
-- **`lib/widgets/verse_audio_bar.dart`**, `_startLoop` : lire `context.read<AppState>()` **avant**
-  le premier `await`, puis appeler `markGuideDone('audio_loop_started')` juste après
-  `started = true`. Pas ailleurs : ni au tap, ni sur l'échec hors connexion.
-- **`lib/core/strings_guide.dart`** : `guideAudioTitle` « Écoute, puis répète » / "Listen, then
-  repeat" ; `guideAudioBody` « Le bouton lecture joue ce passage en boucle. Écoute-le avant de le
-  réciter en prière. » / "The play button loops this passage. Listen to it before reciting it in
-  prayer."
-- **Réutilisé tel quel** : `PrimaryCtaButton`, `IndexBadge`, `GuideStep`, `guideDone`/
-  `markGuideDone`, `UnitRow`, `PaginationIndisponible`. L'étape `verses_reachable` ne change pas.
-- **Tests** : aucun test automatisé (apparence pour le récit ; audio indisponible en test et sous
-  Windows pour l'étape). Sous Windows, fenêtre ~390×844 : récit en clair et en sombre, en FR et
-  en EN, boutons du récit sans effet au clic, « Commencer » atteignable avec un plan long (5
-  pages par jour sur le dernier juz), seconde riwaya sans récit. Sur appareil : l'étape audio
-  disparaît au premier lancement réel et la portion réglée survit à sa disparition.
-- **Exclus** : bouton cliquable ou mini-parcours, capture d'écran, écran ajouté, page Méthode,
-  replay depuis Réglages, chiffre de projection dans le récit, extraction de l'icône livre ou du
-  bouton lecture en widget partagé.
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §8.2 (page Jour 1 : récit avant le plan, masqué
-  pour une seconde riwaya), la liste des ids d'étapes guidées (ajouter `audio_loop_started`) et
-  §8.6bis (étape placée après la barre, et pourquoi). Passer US-17 à « terminée » puis
-  l'archiver.
+### [P3] Page Intro de l'onboarding : débordement sur petit écran avec texte agrandi
+Relevé au sprint US-17 (2026-10-12) en vérifiant sous Windows : à 320×568 avec texte ×1,5,
+`_IntroPage` (`lib/screens/onboarding/steps/intro_page.dart`) déborde de 279 px en bas et son
+bouton sort de l'écran. Elle est bâtie sur une `Column` avec des `Spacer`. Correctif : envelopper
+cette `Column` dans `LayoutBuilder` → `SingleChildScrollView` → `ConstrainedBox(minHeight:
+constraints.maxHeight)` → `IntrinsicHeight`, ce qui garde les `Spacer` (donc le centrage actuel)
+quand la place suffit et fait défiler la page sinon. Textes, styles et animations inchangés.
+Vérification sous Windows : à 320×568 texte ×1,5, plus de débordement et bouton atteignable en
+défilant ; à 390×844, rendu identique à aujourd'hui. P3 : aucun effet à taille de texte normale.
 
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`

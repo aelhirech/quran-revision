@@ -24,6 +24,11 @@ class SGuide {
   static String get guideVersesBody => S._t(
       "L'icône livre, sur chaque rakaa, ouvre les versets à réciter — jamais besoin de sortir de l'app.",
       "The book icon, on every rakaa, opens the verses to recite — no need to ever leave the app.");
+  static String get guideAudioTitle =>
+      S._t('Écoute, puis répète', 'Listen, then repeat');
+  static String get guideAudioBody => S._t(
+      'Le bouton lecture joue ce passage en boucle. Écoute-le avant de le réciter en prière.',
+      'The play button loops this passage. Listen to it before reciting it in prayer.');
   static String get guideCheckoutTitle => S._t(
       "C'est ce moment qui fait avancer ton cycle", "This is what moves your cycle forward");
   // The look-ahead sentence itself is shared with the home screen's day

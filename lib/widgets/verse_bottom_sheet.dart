@@ -3,11 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
+import '../services/quran_audio_handler.dart';
 import '../services/surah_metadata_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
 import 'bismillah_line.dart';
 import 'draggable_handle.dart';
+import 'guide_step.dart';
 import 'verse_audio_bar.dart';
 import 'verse_row.dart';
 
@@ -52,7 +54,8 @@ class VerseBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final riwaya = context.watch<AppState>().riwaya;
+    final state = context.watch<AppState>();
+    final riwaya = state.riwaya;
     final ayahNumbers = [
       ?contextAyah,
       for (var v = ayahStart; v <= ayahEnd; v++) v,
@@ -86,6 +89,17 @@ class VerseBottomSheet extends StatelessWidget {
                     child: VerseAudioBar(
                         sourate: sourate, ayahStart: ayahStart, ayahEnd: ayahEnd),
                   ),
+                  // Must stay AFTER the bar: placed before, its removal would
+                  // shift the bar's slot and recreate its state mid-playback.
+                  if (QuranAudioHandler.available &&
+                      !state.guideDone('audio_loop_started'))
+                    SliverToBoxAdapter(
+                      child: GuideStep(
+                        icon: Icons.play_arrow,
+                        title: SGuide.guideAudioTitle,
+                        body: SGuide.guideAudioBody,
+                      ),
+                    ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                     sliver: SliverList.separated(
