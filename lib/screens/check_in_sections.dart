@@ -27,10 +27,13 @@ extension _CheckInSections on _CheckInScreenState {
               onTrailing: () => _remove(unit),
             ),
           const SizedBox(height: 14),
-          OutlinedActionButton(
-              icon: Icons.add,
-              label: SCheckIn.checkInAjouterSourate,
-              onTap: _openAddSheet),
+          if (state
+              .addableSelections({for (final u in units) u.sourate.id})
+              .isNotEmpty)
+            OutlinedActionButton(
+                icon: Icons.add,
+                label: SCheckIn.checkInAjouterSourate,
+                onTap: _openAddSheet),
         ];
       case 1:
         return [_learningSection(palette, state)];

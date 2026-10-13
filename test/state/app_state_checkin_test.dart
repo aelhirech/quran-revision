@@ -572,4 +572,32 @@ void main() {
         reason: 'une fois le jour en attente scellé, le mélange redevient modifiable');
     expect(state.config!.shuffleEnabled, isTrue);
   });
+
+  test('addableSelections ne propose que la sélection, hors plan, dans l\'ordre du mushaf',
+      () {
+    final partial =
+        SourateSelection(sourate: _sourate(65), verseStart: 3, verseEnd: 6);
+    final config = UserConfig(
+      selections: [
+        partial,
+        SourateSelection.whole(_sourate(60)),
+        SourateSelection.whole(_sourate(70)),
+      ],
+      pagesPerDay: 1,
+      startDate: DateTime.now(),
+      shuffleEnabled: false,
+      riwaya: Riwaya.hafs,
+    );
+    final state = AppState(config, riwaya: Riwaya.hafs);
+
+    final all = state.addableSelections({});
+    expect([for (final sel in all) sel.sourate.id], [60, 65, 70],
+        reason: 'ordre du mushaf, et aucune sourate hors sélection (ex. 1)');
+    expect(all[1], partial,
+        reason: 'la plage partielle est gardée pour ouvrir le sélecteur dessus');
+
+    final sansPlan = state.addableSelections({60, 1});
+    expect([for (final sel in sansPlan) sel.sourate.id], [65, 70],
+        reason: 'une sourate déjà au plan du jour n\'est pas reproposée');
+  });
 }

@@ -7,9 +7,8 @@ extension _CheckOutSections on _CheckOutScreenState {
   /// « J'ai révisé une sourate en plus » — le pendant du décochage : le
   /// check-out confirme ce qui a réellement été fait, en moins **comme en
   /// plus**. La sourate rejoint le plan de ce jour-là et son "fait par
-  /// défaut" la confirmera à la clôture ; comme tout ajout hors-sélection,
-  /// elle alimente historique et fraîcheur sans faire avancer le cycle
-  /// au-delà de ce que le moteur avait proposé (voir `AppState.checkOut`).
+  /// défaut" la confirmera à la clôture. Seules les sourates de la sélection
+  /// sont proposées (« faire plus », voir `AppState.checkOut`).
   /// Choix de la sourate puis de la **portion** réellement révisée
   /// (`VerseRangePicker`, le même sélecteur que l'onboarding) — on peut
   /// n'avoir fait qu'une partie de la sourate en plus. Fermer le sélecteur
@@ -18,13 +17,16 @@ extension _CheckOutSections on _CheckOutScreenState {
   Future<void> _addRevisedSourate() async {
     final state = context.read<AppState>();
     final present = _items!.map((it) => it.unit.sourate.id).toSet();
-    final candidates =
-        state.sourates.where((s) => !present.contains(s.id)).toList();
-    final picked = await SouratePickerSheet.show(context,
-        sourates: candidates, title: SCheckOut.checkOutSourateEnPlusTitre);
-    if (picked == null || !mounted) return;
+    final candidates = state.addableSelections(present);
+    final pickedSourate = await SouratePickerSheet.show(context,
+        sourates: [for (final sel in candidates) sel.sourate],
+        title: SCheckOut.checkOutSourateEnPlusTitre);
+    if (pickedSourate == null || !mounted) return;
+    final sel =
+        candidates.firstWhere((sel) => sel.sourate.id == pickedSourate.id);
+    final picked = sel.sourate;
     final range = await VerseRangePicker.show(context,
-        sourate: picked, current: SourateSelection.whole(picked));
+        sourate: picked, current: sel);
     if (range == null || !mounted) return;
     await state.addToDayPlan(
       RevisionUnit(

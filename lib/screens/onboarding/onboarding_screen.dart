@@ -174,6 +174,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
   }
 
+  void _toggleGroup(List<Sourate> group) {
+    final allSelected = group.every((s) => _selections.containsKey(s.id));
+    setState(() {
+      for (final s in group) {
+        if (allSelected) {
+          _selections.remove(s.id);
+        } else {
+          // putIfAbsent: keeps a partial range already set by long-press.
+          _selections.putIfAbsent(s.id, () => SourateSelection.whole(s));
+        }
+      }
+    });
+  }
+
   Future<void> _longPressSourate(Sourate s) async {
     final wasSelected = _selections.containsKey(s.id);
     if (!wasSelected) {
@@ -297,6 +311,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             lastQuickFraction: _lastQuickFraction,
             onQuickSelect: _quickSelect,
             onToggleSourate: _toggleSourate,
+            onToggleGroup: _toggleGroup,
             onLongPress: _longPressSourate,
             onGroupByHizbChanged: (v) => setState(() => _groupByHizb = v),
             onSearchChanged: (v) => setState(() => _search = v),

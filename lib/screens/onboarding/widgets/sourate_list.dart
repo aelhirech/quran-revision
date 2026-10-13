@@ -41,12 +41,14 @@ class _SourateList extends StatelessWidget {
   final List<Object> items;
   final Map<int, SourateSelection> selections;
   final void Function(Sourate) onToggle;
+  final void Function(List<Sourate>) onToggleGroup;
   final Future<void> Function(Sourate) onLongPress;
 
   const _SourateList({
     required this.items,
     required this.selections,
     required this.onToggle,
+    required this.onToggleGroup,
     required this.onLongPress,
   });
 
@@ -59,7 +61,8 @@ class _SourateList extends StatelessWidget {
         for (final section in sections)
           if (section.header != null)
             SliverStickyHeader(
-              header: _hizbHeader(palette, SOnboarding.hizb(section.header!)),
+              header: _hizbHeader(palette, SOnboarding.hizb(section.header!),
+                  section.entries),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, i) => _tile(palette, section.entries[i]),
@@ -78,24 +81,46 @@ class _SourateList extends StatelessWidget {
     );
   }
 
-  Widget _hizbHeader(AppPalette palette, String label) {
-    return Container(
-      height: 28,
+  Widget _hizbHeader(AppPalette palette, String label, List<Sourate> group) {
+    final picked = group.where((s) => selections.containsKey(s.id)).length;
+    final bool? state =
+        picked == group.length ? true : (picked == 0 ? false : null);
+    void toggle() {
+      HapticFeedback.selectionClick();
+      onToggleGroup(group);
+    }
+
+    return Material(
       color: Color.alphaBlend(palette.gold.withValues(alpha: 0.14), palette.cream),
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      // FittedBox : l'en-tête épinglé a une hauteur fixe (height ci-dessus) —
-      // sans ça, un réglage d'accessibilité "texte agrandi" ferait déborder
-      // le label hors de sa bande.
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: palette.goldDark,
-                letterSpacing: 0.8)),
+      child: InkWell(
+        onTap: toggle,
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.only(left: 16, right: 20),
+          child: Row(
+            children: [
+              // FittedBox: the pinned header has a fixed height, so larger
+              // accessibility text would otherwise overflow the label.
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(label,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: palette.goldDark,
+                          letterSpacing: 0.8)),
+                ),
+              ),
+              Checkbox(
+                value: state,
+                tristate: true,
+                onChanged: (_) => toggle(),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -156,6 +156,11 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     sourate demandée : c'est chaque appelant qui restreint, pour ne pas analyser toute la
     sélection quand la série porte sur une sourate.
 
+- **Ajout de sourate au plan (sprint 21, 2026-10-13)** : « Ajouter une sourate » (check-in) et
+  « J'ai révisé une sourate en plus » (check-out) ne proposent que `UserConfig.selections`
+  (`AppState.addableSelections`). Le sélecteur de plage s'ouvre sur la plage choisie mais reste
+  réglable au-delà : voulu, ne pas le borner sans décision.
+
 **Cadrage produit encore valide**
 - « Prières où il est imam » = prières où c'est lui qui récite (seul ou en dirigeant) — un simple élargissement de libellé, pas un filtre d'exclusion ni une pondération de répartition.
 - L'apprentissage n'a plus d'onglet dédié : la sourate à apprendre est choisie au check-in, récitée dans la **dernière rakaa** du plan, confirmée au check-out.
@@ -188,21 +193,19 @@ futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
 
-### [P3] « 1 sourates sélectionnées » : le compteur de l'onboarding n'accorde pas
-Relevé au sprint 20 (2026-10-13), vu sous Windows. Aucune donnée touchée : un libellé.
-- `S.souratesCount(n, v)` (`lib/core/strings.dart`) écrit toujours le pluriel : « 1 sourates
-  sélectionnées · 1 versets », « 1 surahs selected ». Deux appelants : l'en-tête de
-  `onboarding/steps/selection_page.dart` et `onboarding/steps/celebration_page.dart`.
-- En français, singulier si `n <= 1` (« 0 sourate sélectionnée », « 1 sourate sélectionnée »).
-  En anglais, singulier si `n == 1` (« 1 surah selected »). La partie versets passe par
-  `S.versetsCount(v)`, qui accorde déjà.
-- **Tests** : aucun (libellé). Sous Windows : l'en-tête de la sélection avec 0, 1 puis 2
-  sourates, et l'écran de célébration avec une seule sourate.
-
 ## Idées produit (non scopées)
 
 Vision/features pas encore prêtes à l'implémentation — pas de priorité technique tant qu'elles n'ont pas été cadrées (`quran-blueprint` → user story dans `docs/USER_STORIES.md`, puis `quran-scoping` → item ci-dessus). Ne pas lancer à la volée.
 
+- **Rattrapage d'un jour passé : le curseur lit celui d'aujourd'hui** (relevé en `/code-review`
+  du sprint 21, déduit du code, non reproduit) : `_completedPagesFor` parcourt le cycle depuis
+  `cyclePosition` d'aujourd'hui même pour un check-out passé ; une sourate de la sélection déclarée
+  « en plus » un jour passé pourrait faire sauter des groupes jamais révisés si ce jour est scellé
+  après que le curseur a bougé. `ensureDayPlan` gèle le plan tant qu'un jour est en attente, ce
+  qui rend le cas rare. À reproduire par un test avant de décider d'un correctif.
+- **Onboarding : case de hizb dont toutes les sourates ont une plage partielle** (sprint 21) : elle
+  s'affiche cochée, et un appui retire alors ces sourates, plages comprises. Conforme à l'item
+  (une plage partielle « compte comme sélectionnée »), à revoir sur usage.
 - **SRS réel par verset** (score de difficulté depuis l'historique `ayah_facts`, aujourd'hui écrasé par `lastRevisionDatesPerVerse` qui ne garde que `MAX(date)`) — dépendait de `needsWork`, **retiré du code au sprint US-3** (2026-09-21) ; à rescoper sur un autre signal (ex. fréquence des décochages verset par verset) avant toute implémentation.
 - **Coran en SQLite** (texte + word-by-word + tajweed) — débloquerait "tajweed coloré" ci-dessous, JOIN naturel avec `ayah_facts`. Garde-fou : ne pas migrer parce que "c'est plus propre", seulement si cette feature est réellement engagée. Les questions de mots (US-22) s'en passent : leurs données sont un asset texte.
 - **Affichage tajweed coloré** — bloqué faute de données tajwid (QUL), voir Coran SQLite. Passera par `AppPalette`/tokens sémantiques, jamais de couleur en dur.
