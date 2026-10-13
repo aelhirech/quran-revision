@@ -143,13 +143,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
   /// addition.
   Future<void> _addSourate(Sourate s) async {
     if (!mounted) return;
-    final range = await showModalBottomSheet<SourateSelection>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) =>
-          VerseRangePicker(sourate: s, current: SourateSelection.whole(s)),
-    );
+    final range = await VerseRangePicker.show(context,
+        sourate: s, current: SourateSelection.whole(s));
     if (range == null || !mounted) return;
     await context.read<AppState>().addToDayPlan(RevisionUnit(
         sourate: s,

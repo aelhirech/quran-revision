@@ -179,12 +179,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (!wasSelected) {
       setState(() => _selections[s.id] = SourateSelection.whole(s));
     }
-    final result = await showModalBottomSheet<SourateSelection>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => VerseRangePicker(sourate: s, current: _selections[s.id]!),
-    );
+    final result = await VerseRangePicker.show(context,
+        sourate: s, current: _selections[s.id]!);
     if (!mounted) return;
     if (result != null) {
       setState(() => _selections[s.id] = result);
