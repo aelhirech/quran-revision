@@ -126,100 +126,6 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-20 Sprint A — Moteur des séries de l'onglet Renforcement
-Premier des deux sprints d'US-20. Il livre le moteur pur et ses tests, sans rien d'affiché : le
-Sprint B le branche sur l'onglet. Aucune écriture nulle part (`ayah_facts`, `SharedPreferences`).
-Mesures du scoping dans `docs/USER_STORIES.md`, US-20.
-- **`lib/core/reinforcement_engine.dart`** (nouveau, Dart pur, ~200 lignes) :
-  - `class Passage` : `surahId`, `ayahId`, `index` (rang dans le verset), `words` (les tokens
-    d'origine, signes compris), `startsVerse`, `endsVerse`, et le getter `text`
-    (`words.join(' ')`).
-  - `class SeriesQuestion` : `prompt`, `answer`, `choices` (2 à 4 `Passage`, mélangés, la bonne
-    réponse une seule fois).
-  - **Normalisation** (privée) d'un token : retirer
-    `[ؐ-ًؚ-ٰٟۖ-ۭـ‏]`, remplacer U+0671 par U+0627.
-    Un **mot** est un token qui garde au moins une lettre après ce retrait (le signe « ۞ » seul
-    n'en est pas un). La **clé** d'un passage est la suite de ses mots normalisés, joints par une
-    espace.
-  - `static List<Passage> passagesOf(int surahId, int ayahId, String verse)` : le verset est
-    découpé sur les espaces. 12 mots au plus : un seul passage. Au-delà : une coupe après chaque
-    token qui porte un signe de pause (U+06D6, U+06D7, U+06D8, U+06DA), puis les morceaux voisins
-    sont regroupés tant que le passage ne dépasse pas 12 mots. Un morceau sans signe de pause
-    reste entier, même long : aucune coupe ailleurs qu'à un signe. Un token qui n'est pas un mot
-    reste dans son passage sans être compté.
-  - `static Map<int, Set<int>> carriedVerses({required List<SourateSelection> selections,
-    required List<LearningProgress> learning})` : par sourate, l'union des plages
-    `verseStart..verseEnd` des sélections et des `learnedVerses` des apprentissages **non
-    complets**.
-  - `static List<SeriesQuestion> buildSeries({required Map<int, Set<int>> carried, required
-    String Function(int surahId, int ayahId) textOf, required Random random,
-    Set<(int, int)> today = const {}, Set<(int, int, int)> avoid = const {}, int? surahId})` :
-    1. **Chaîne** : pour chaque sourate de `carried`, les passages de ses versets portés, par
-       verset croissant. « q suit p » : même verset et rang suivant, ou premier passage du verset
-       `ayahId + 1` quand celui-ci est porté et que p termine le sien.
-    2. **Question posable** (p → q) : q suit p, et la clé de p comme celle de q n'apparaissent
-       qu'une fois parmi les passages portés de la sourate.
-    3. **Tirage de 10 questions**, mélangées par `random`. Celles dont le passage posé
-       `(surahId, ayahId, index)` est dans `avoid` passent après les autres. Sans `surahId` : 5 au
-       plus parmi celles dont le verset posé est dans `today`, les autres parmi le reste ; si l'un
-       des deux groupes manque, l'autre complète. Avec `surahId` : seulement les questions de
-       cette sourate, `today` ignoré.
-    4. **Mauvais choix**, 3 au plus, pris parmi les passages portés hors p et q, de clé
-       différente de celle de q et différentes entre elles. À chaque tirage, les passages de même
-       nature que q (`startsVerse` égal) sont préférés ; à défaut, n'importe lequel. Dans
-       l'ordre : un passage **similaire** à q (mots normalisés en commun, divisés par la taille du
-       plus grand des deux ensembles, ≥ 0,5) ; un **voisin** (même sourate, à 3 rangs au plus de q
-       dans la chaîne) ; un passage d'une **autre sourate** ; puis, pour compléter, la même
-       sourate, puis n'importe où.
-    5. Une question sans aucun mauvais choix est écartée, et la suivante du tirage la remplace.
-       Liste vide si rien n'est posable.
-  - Les cinq seuils (10 questions, 5 du plan du jour, 12 mots, 0,5, 3 rangs) sont des constantes
-    privées de ce fichier, pas d'`AppRules` : un seul lecteur.
-- **`lib/state/app_state_reinforcement.dart`** (nouveau, `part of`, ~30 lignes) :
-  `Future<({Map<int, Set<int>> carried, Set<(int, int)> today})> reinforcementInputs()`. Lance
-  `learningProgressList()` et `dayUnits()` ensemble. `carried` vient de
-  `ReinforcementEngine.carriedVerses`. `today` : les versets des unités du jour
-  (`RevisionUnit.verses`) qui sont dans `carried`. Deux collections vides si `config == null`.
-  Aucune écriture, aucun `_notify()`.
-- **`lib/state/app_state.dart`** (334 lignes, au plafond) : une ligne `part` et l'import du
-  moteur, rien d'autre.
-- **Réutilisé tel quel** : `AppState.dayUnits`, `AppState.learningProgressList`,
-  `RevisionUnit.verses`. Le texte arrive par le paramètre `textOf` : le moteur n'importe aucun
-  service.
-- **Tests** :
-  - `test/core/reinforcement_engine_test.dart` (vrais textes Hafs et Warsh chargés en `setUpAll`,
-    `Random` à graine fixe) :
-    1. Pour chaque verset des deux riwayas, les tokens des passages recollés sont ceux du verset,
-       et une coupe ne tombe qu'après un token portant un signe de pause.
-    2. Hafs 2:255 donne 6 passages de 12, 7, 7, 6, 12 et 6 mots ; Hafs 94:5 en donne un seul.
-    3. Sur les sourates 78 à 114 et 20 graines : q suit p ; 2 à 4 choix ; la bonne réponse une
-       seule fois ; tout choix dans `carried` ; toutes les clés différentes.
-    4. Sourate 109 seule : une seule question, 109:1 → 109:2. Sourate 55 seule : aucun passage
-       posé ni attendu n'a la clé du verset 13 (le refrain, 31 occurrences).
-    5. `carried = {2: 255..260}` : aucun verset hors de 255..260 dans aucune question, et le
-       dernier passage de 260 n'est jamais posé.
-    6. Sourates 93 à 95, `surahId: 94` : la question posée sur 94:4 propose 94:6 (seul passage
-       similaire à 94:5, à 0,75).
-    7. Sourates 78 à 114, `today` = les versets de la sourate 78 : exactement 5 questions posées
-       dans la 78.
-    8. Deux séries de suite sur les sourates 78 à 114, la seconde avec en `avoid` les passages
-       posés de la première : aucun en commun.
-    9. `carried = {108: {1, 2}}` : liste vide. `{108: {1, 2, 3}}` : des questions à 2 choix.
-    10. Avec `surahId` : tous les passages posés sont dans cette sourate, des choix viennent
-        d'ailleurs.
-    11. `carriedVerses` : sélection 2:255–260, apprentissage en cours de la 67 avec {1, 2, 3},
-        apprentissage complet de la 112 → `{2: 255..260, 67: {1, 2, 3}}`.
-    12. Les invariants du test 3 tiennent sur une sélection Warsh.
-  - `test/state/app_state_reinforcement_test.dart` (`initFfiTestDb`, `clearFactsBetweenTests`) :
-    un verset proposé à l'apprentissage aujourd'hui et pas encore appris n'est ni dans `carried`
-    ni dans `today` ; les versets du plan du jour sont dans `today`.
-- **Exclus** : tout affichage, toute persistance, les paliers (US-21), les questions de mots
-  (US-22), tout cache des passages entre deux séries.
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §5 (nouvelle sous-section `ReinforcementEngine` :
-  passage, question posable, mauvais choix, seuils), §7 (`reinforcementInputs`), §10 (les signes
-  de pause dépendent de l'encodage QUL du texte), §11, §14 ; `test/CLAUDE.md` (deux lignes).
-  US-20 passe à « en sprint ».
-
 ### [P2] US-20 Sprint B — Onglet Renforcement et écran de série
 **Le Sprint A est livré** : ce sprint branche `ReinforcementEngine.buildSeries` et
 `AppState.reinforcementInputs()` sur un quatrième onglet. Rien n'est persisté. Maquettes :
@@ -470,6 +376,18 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   numéros à trois chiffres (14 px avec deux), et `IndexBadge` coupe un numéro à trois chiffres
   (« 282 » affiché « 28 »). Il reste à choisir le correctif (réduire, passer à la ligne, plafonner
   l'agrandissement du texte) avant d'en faire un item de Backlog.
+- **Renforcement : qualité des mauvais choix à régler sur usage** (relevé au Sprint A d'US-20,
+  2026-10-13) : le mauvais choix « similaire » est tiré au hasard parmi les passages similaires,
+  pas le plus proche, et les deux seuils (12 mots par passage, moitié des mots en commun) viennent
+  des mesures du scoping, pas d'un usage. Il reste à jouer de vraies séries (après le Sprint B)
+  pour choisir : garder le hasard, prendre toujours le plus proche (mais alors le même piège
+  revient à chaque fois), ou déplacer un seuil.
+- **Sourate entièrement apprise alors qu'une plage en est déjà sélectionnée** (relevé en
+  `/code-review` du Sprint A d'US-20, 2026-10-13) : `handOffLearnedSurahs` ne bascule pas une
+  sourate qui a déjà une sélection, même partielle. Les versets appris hors de cette plage
+  n'entrent donc ni dans le tour de révision ni dans les séries de Renforcement, alors que le
+  Récap compte la sourate comme mémorisée. Il reste à choisir : élargir la sélection à la sourate
+  entière au hand-off, ou la laisser telle que l'utilisateur l'a réglée.
 - **Un seul style de titre en capitales (« eyebrow »)** (relevé au Sprint B d'US-15) : huit
   titres en capitales ont chacun leur taille et leur espacement (`check_in_screen.dart`,
   `check_out_sections.dart`, `day_closed_summary.dart`, `prayer_selector.dart`,

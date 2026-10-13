@@ -180,6 +180,46 @@ C'est l'objet de configuration central, il mérite d'être détaillé séparéme
 
 **`_CommitmentSheet` supprimée (Phase 9 Sprint 2)** — avec elle disparaît le bug de `clamp(1, 0)` sur un plan à zéro rakaa assignée, corrigé en `/code-review` au sprint précédent : il n'y a plus de déclaration « une part fait » à borner.
 
+### 5.6 `ReinforcementEngine` (`lib/core/reinforcement_engine.dart`, US-20 Sprint A, 2026-10-13)
+
+Compose les séries de l'onglet Renforcement : dix questions « quelle est la suite ? ». Dart pur,
+aucune lecture ni écriture : le texte arrive par le paramètre `textOf`, le hasard par `random`
+(graine fixe en test). Rien n'est encore affiché : l'onglet arrive au Sprint B.
+
+- **Passage** (`passagesOf`) : l'unité d'une question. Un verset de 12 mots au plus est un seul
+  passage. Un verset plus long est coupé après chaque token portant un signe de pause (U+06D6,
+  U+06D7, U+06D8, U+06DA), puis les morceaux voisins sont regroupés tant que le passage ne dépasse
+  pas 12 mots. Aucune coupe ailleurs : un morceau sans signe de pause reste entier, même long.
+  Recoller les passages par une espace redonne le verset exact.
+- **Mot et clé** : un token est normalisé en retirant voyelles, signes coraniques, tatweel et
+  l'espace insécable, et en ramenant U+0671 à U+0627. Un mot est un token qui garde une lettre.
+  La clé d'un passage est la suite de ses mots normalisés : deux passages de même clé sont le
+  même texte. En Hafs, le signe « ۞ » est collé au mot suivant par une espace insécable (199
+  versets) ; en Warsh, c'est un token seul, qui ne compte pas comme mot.
+- **Ce que l'utilisateur porte** (`carriedVerses`) : par sourate, les plages de la sélection et
+  les versets déjà appris des apprentissages non terminés. Aucun verset hors de cet ensemble
+  n'apparaît dans une question, ni posé ni proposé.
+- **Question posable** (p → q) : q suit p dans la chaîne des passages portés de la sourate (rang
+  suivant du même verset, ou premier passage du verset suivant s'il est porté), et ni la clé de p
+  ni celle de q ne se répète dans cette sourate. C'est ce qui écarte le refrain d'Ar-Rahman et
+  Al-Kafirun 3 et 5 : il n'y a jamais deux bonnes réponses.
+- **Tirage** (`buildSeries`) : 5 questions au plus viennent du plan du jour (`today`), le reste
+  d'ailleurs ; si un groupe manque, l'autre complète. Les passages posés à la série précédente
+  (`avoid`) ne reviennent que lorsque tout le reste est épuisé, plan du jour compris. Avec
+  `surahId`, seules les questions de cette sourate sont posées et `today` est ignoré.
+- **Mauvais choix**, 3 au plus, tous de clé différente, entre eux comme du passage posé et de sa
+  suite : un passage similaire à la bonne suite
+  (au moins la moitié des mots en commun, rapportés au plus grand des deux), un voisin (à 3 rangs
+  au plus dans la sourate), un passage d'une autre sourate, puis la même sourate et enfin
+  n'importe où pour compléter. À chaque tirage, un passage de même nature que la bonne suite
+  (début de verset ou non) est préféré : sinon la forme seule désignerait la réponse. Une question
+  sans aucun mauvais choix est écartée ; une sélection trop petite donne une liste vide.
+- **Seuils** : 10 questions, 5 du plan du jour, 12 mots, 0,5 de similarité, 3 rangs, 3 mauvais
+  choix. Constantes privées du fichier, pas d'`AppRules` : un seul lecteur. Les deux seuils de
+  qualité (12 mots, 0,5) sont posés sur mesure, à ajuster sur retour d'usage.
+- **Coût** : une série recalcule tous les passages portés, sans cache. Mesuré sous `flutter test`
+  sur 113 sourates : 350 à 450 ms. La mesure dans l'app est prévue au Sprint B.
+
 ---
 
 ## 6. Services (`lib/services/`)
@@ -243,7 +283,7 @@ L'index unique est nécessaire pour la correction, pas seulement la performance 
 
 ---
 
-## 7. `AppState` (`lib/state/app_state.dart` + `app_state_dayplan.dart`/`app_state_checkout.dart`/`app_state_learning.dart`)
+## 7. `AppState` (`lib/state/app_state.dart` + `app_state_dayplan.dart`/`app_state_checkout.dart`/`app_state_learning.dart`/`app_state_reinforcement.dart`)
 
 > **Découpé en 4 fichiers le 2026-09-08 (Phase 9 Sprint 5)**, sans changement de comportement —
 > `app_state.dart` était monté à 861 lignes. Un seul `AppState`, une seule classe : les champs et
@@ -301,6 +341,15 @@ Même modèle que la révision : la portion à apprendre est un ensemble de lign
 - **`lastLearnedBlock(surahId, date)` / `unlearnVerses(surahId, ayahIds)`** (US-12) — le dernier bloc appris avant la journée clôturée, et son retrait au check-out (§8.3). `unlearnVerses` doit s'écrire **avant** `checkOut`, sinon le hand-off ci-dessus peut basculer une sourate incomplète.
 - **`addSelectionKeepingCycle(selection)`** — ajoute une sourate à `UserConfig.selections` **sans** remettre `cyclePosition` à 0. `saveConfig` le fait, lui, dès que la sélection change ; c'est justifié quand l'utilisateur remanie sa sélection, pas quand une sourate fraîchement mémorisée rejoint le cycle en cours.
 - `toggleTodayUnitReach`/`setUnitReach`/`reachStatusFor` prennent un drapeau `learning` qui bascule le `type` visé (`revise` par défaut) — la rakaa d'apprentissage se coche exactement comme les autres dans `PlanScreen`, mais écrit sous `type='learn'`. **Côté apprentissage, ces trois méthodes travaillent sur la liste exacte des versets proposés** (`learningPlanFor(today).ayahIds`, via `setReachForVerses`), jamais sur la plage `verseStart..verseEnd` : une portion à trous (`[2, 4, 5]`, possible après un verset désappris au milieu) ne serait sinon jamais vue comme faite, le verset 3 n'ayant aucune ligne à passer à `reach = 1` (trouvé en `/code-review`).
+
+### Renforcement (US-20 Sprint A) — `app_state_reinforcement.dart`
+
+- **`reinforcementInputs()`** renvoie `({carried, today})`, les deux entrées de
+  `ReinforcementEngine.buildSeries` (§5.6). `carried` vient de `ReinforcementEngine.carriedVerses`
+  (sélection et `learningProgressList()`), `today` des versets de `dayUnits()` qui sont portés.
+  Lecture seule : aucune écriture dans `ayah_facts`, aucun `_notify()`. Deux collections vides
+  sans configuration. Un verset proposé à l'apprentissage mais pas encore appris n'y figure pas :
+  `dayUnits()` ne lit que les lignes `revise`, et `carriedVerses` que les versets acquis.
 
 ### Autres méthodes notables
 
@@ -626,6 +675,7 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 - **Texte arabe du Coran** : jamais d'appel direct à `HafsService`/`WarshService` depuis un écran/widget — toujours via `VerseService` (`lib/services/verse_service.dart`), qui arbitre Hafs vs Warsh selon la `Riwaya` passée en paramètre. **Depuis le Sprint 8, Hafs (6236 versets) et Warsh (6214 versets) ont chacun leur propre numérotation native — ce n'est plus une hypothèse "texte différent, numérotation identique"** (fausse, voir §6). Source : QUL (Tarteel AI), Hafs explicitement crédité King Fahd Complex, Warsh moins explicitement sourcé (voir Backlog).
 - **Traductions** (US-19) : éditions distribuées par Tanzil (`tanzil.net/trans/fr.hamidullah`, `tanzil.net/trans/en.sahih`), embarquées sans aucune modification dans `assets/quran/translations/` (une ligne `sourate|verset|texte` par verset, 6236 lignes, puis un bloc de commentaires). Condition d'usage : **non commercial**. Ces deux fichiers ne relèvent pas de la licence MIT du dépôt. Mise à jour par nouveau téléchargement. Elles suivent la numérotation Hafs et ne s'affichent jamais en Warsh.
 - **Données statiques** : `lib/core/quran_data.dart` contient id/noms (FR/AR) des 113 sourates (hors Al-Fatiha) — les comptes de versets/mots ne sont plus stockés ici depuis le Sprint 8 (riwaya-dépendants, injectés via `buildSourates()` depuis `HafsService`/`WarshService`, voir §6). Le regroupement par Hizb vient de `HizbMetadataService` (donnée QUL officielle), plus de l'ancienne estimation locale. `lib/core/hadith_data.dart` contient les hadiths motivants (rotation quotidienne déterministe via `hadithDuJour(date)`) et le hadith d'intention affiché sur la preview.
+- **Signes de pause** (US-20) : la découpe en passages de `ReinforcementEngine` (§5.6) repose sur les signes de pause tels que les encode le texte QUL embarqué. En Hafs : U+06D6, U+06D7, U+06D8, U+06DA. En Warsh : U+06D6 seul (9 948 occurrences). Changer la source du texte changerait la découpe : `reinforcement_engine_test.dart` (test 2, Al-Baqara 255 en six passages) le signalerait.
 - **Prières** : les noms affichés passent par l'extension `PrayerL10n.displayName` (`lib/core/prayer_l10n.dart`), séparée du modèle `Prayer` pour ne pas polluer `models/` d'une dépendance à `S`.
 
 ---
@@ -640,6 +690,8 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 - **`test/services/ayah_facts_service_test.dart`** (Phase 6 Sprint 2 ; `setNeedsWork`/`lastRevisionFlags` retirés US-3, 2026-09-21) — suite sur `AyahFactsService`, avec `sqflite_common_ffi`. Couvre le rituel check-in/check-out : `pendingDate` (gating, y compris l'exclusion du jour même — bug trouvé en revue de code), idempotence de `proposeUnits`, `setReach`/`isRangeReached`, `setReachForVerses` à la granularité verset (US-3), `returningVerses` (verset revenu d'un check-out scellé, US-3 crit. 4), `removeFromDayPlan`, `sealDay`, groupement de `dayFacts`, démarrage d'apprentissage (`startLearning`). Fixtures partagées (`testSourate`/`testUnit`/`initFfiTestDb`) factorisées dans `test/services/test_helpers.dart` (Phase 8 Sprint 1, `/simplify` + `/code-review`), réutilisées par les deux fichiers de migration ci-dessous et par `test/state/app_state_checkin_test.dart` (`testSourate` avec `verses`/`words` réduits, pour ne pas déclencher le découpage `RevisionEngine`).
 - **`test/services/ayah_facts_migration_test.dart` / `ayah_facts_migration_v4_test.dart`** (Phase 8 Sprint 1) — couvrent `AyahFactsService._open()`/`onUpgrade` directement (angle jusqu'ici non testé, voir §14 "priorités" : Sprint 8/Phase 6 le signalait déjà pour la logique riwaya). Chaque scénario dans son propre fichier : `AyahFactsService._db` est un singleton process-wide, `flutter test` isole chaque fichier dans son propre process, seule façon fiable de contrôler l'état de la base AVANT le premier `_open()`. Verrouille le bug de migration chaînée `oldVersion < 4`/`oldVersion < 5` documenté ci-dessus (§6).
 - **`test/state/app_state_checkin_test.dart`** (Phase 6 Sprint 2, 3 tests initiaux ; **8 tests après Phase 9 Sprint 2**, dont « clôturer deux fois la même journée ne fait avancer le cycle qu'une fois ») — première suite sur `AppState` (nécessite `TestWidgetsFlutterBinding.ensureInitialized()` + `HafsService.initialize()`/`PageMetadataService.initialize()` réels via `rootBundle`, `AppState` construit `_sourates` dès son constructeur). Couvre le gating du moteur quotidien de bout en bout, `checkOut` (avancée du cycle par **groupe** depuis Sprint 3, unité retirée au check-in ignorée plutôt que bloquante, groupe entièrement retiré ignoré) et le regroupement par page partagée (`cyclePosition` avance par groupe complété, pas par unité — sourates réelles 106/107/108, page 602, l'exemple même du cadrage). Les sourates de test sont choisies avec de vrais ids (`PageMetadataService` charge la vraie pagination, pas de mock) délibérément isolées les unes des autres — sauf pour le test de regroupement, qui choisit délibérément des voisines.
+- **`test/core/reinforcement_engine_test.dart`** (US-20 Sprint A, 14 tests, vrais textes Hafs et Warsh, `Random` à graine fixe) : découpe sans perte sur tous les versets des deux riwayas, questions répétées écartées, plage partielle jamais dépassée, passage similaire proposé, part du plan du jour, questions non reposées, sélection trop petite, `carriedVerses`. Sa normalisation du texte est réécrite dans le test, pas empruntée au moteur.
+- **`test/state/app_state_reinforcement_test.dart`** (3 tests) : `reinforcementInputs` sans configuration, avec un plan du jour, et avec un verset proposé à l'apprentissage mais pas encore appris.
 - **Piège de test découvert au Sprint 2** : `databaseFactoryFfi.getDatabasesPath()` résout un chemin par défaut **partagé** entre fichiers de test — `flutter test` lance les fichiers dans des process séparés mais qui peuvent écrire dans le même `history.db` s'ils tournent en parallèle. Les suites SQLite pointent chacune vers un répertoire temporaire dédié (`initFfiTestDb` dans `setUpAll`) plutôt que de compter sur des dates de test disjointes pour s'isoler — à reproduire pour toute nouvelle suite touchant `AyahFactsService`/`AppState`.
 - **Second piège, même famille (Phase 9 Sprint 2)** : `initFfiTestDb` isole les *fichiers* entre eux, pas les *tests* d'un même fichier — ils partagent une seule `history.db` pour tout le process, et plusieurs réutilisent les mêmes dates relatives (J-1, J-3…). Un test héritait donc du `checked_out` posé par le précédent sur la même date, ce qu'a révélé le passage d'`isDaySealed` à un prédicat monotone. `clearFactsBetweenTests()` (`test_helpers.dart`) vide `ayah_facts` en `setUp` — **sans fermer la connexion** : `openDatabase` renvoie l'instance déjà en cache pour ce chemin, la même que celle mémorisée par `AyahFactsService._db`, et la fermer laisserait le service sur un handle clos.
 
@@ -691,6 +743,7 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 | Comprendre/modifier la répartition en rakaas | `lib/core/rakaa_distributor.dart` |
 | Comprendre le calcul de fraîcheur (SRS léger) | `lib/core/freshness_engine.dart` |
 | Comprendre le calcul de streak | `lib/core/streak_engine.dart` |
+| Comprendre/modifier la composition d'une série de l'onglet Renforcement (passages, questions, mauvais choix) | `lib/core/reinforcement_engine.dart`, `lib/state/app_state_reinforcement.dart` (`reinforcementInputs`) |
 | Ajouter/modifier une chaîne affichée à l'utilisateur | `lib/core/strings.dart` |
 | Modifier les couleurs/thème (Mus'haf/Tahajjud) | `lib/core/app_colors.dart`, `lib/core/app_theme.dart` |
 | Changer les métadonnées d'une sourate (nb de mots, etc.) | `lib/core/quran_data.dart` |
@@ -725,6 +778,7 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 | Modifier les tests de fraîcheur / streak | `test/core/freshness_engine_test.dart`, `test/core/streak_engine_test.dart` |
 | Modifier les tests du rituel check-in/check-out | `test/services/ayah_facts_service_test.dart`, `test/state/app_state_checkin_test.dart` |
 | Modifier les tests de l'apprentissage quotidien (Phase 9) | `test/state/app_state_learning_test.dart` |
+| Modifier les tests des séries de l'onglet Renforcement | `test/core/reinforcement_engine_test.dart`, `test/state/app_state_reinforcement_test.dart` |
 | Builder/distribuer l'app iOS | Xcode (`ios/Runner.xcworkspace`) — Archive → Distribute App, manuel |
 
 ---
