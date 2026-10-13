@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/strings.dart';
+import '../models/riwaya.dart';
 import '../models/sourate.dart';
 import '../services/quran_audio_handler.dart';
 import '../services/surah_metadata_service.dart';
+import '../services/translation_service.dart';
 import '../services/verse_service.dart';
 import '../state/app_state.dart';
 import 'bismillah_line.dart';
@@ -51,11 +53,23 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
   // the same portion. Never persisted: each opening restarts from the full
   // range (US-11 crit. 5, US-18 crit. 4).
   late RangeValues _portion;
+  bool _showTranslation = false;
 
   @override
   void initState() {
     super.initState();
     _portion = RangeValues(widget.ayahStart.toDouble(), widget.ayahEnd.toDouble());
+  }
+
+  Future<void> _toggleTranslation() async {
+    // Decided before the await: a second tap during the first load must not
+    // flip the result back.
+    final show = !_showTranslation;
+    if (show) {
+      await TranslationService.load(S.locale);
+      if (!mounted) return;
+    }
+    setState(() => _showTranslation = show);
   }
 
   @override
@@ -85,7 +99,7 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
                   // Header and audio bar scroll with the text but must stay
                   // SliverToBoxAdapters: a lazy list would dispose the bar once
                   // off-screen and lose its reciter/loading state while the loop plays.
-                  SliverToBoxAdapter(child: _header(cs)),
+                  SliverToBoxAdapter(child: _header(cs, riwaya)),
                   SliverToBoxAdapter(
                     child: VerseAudioBar(
                       sourate: widget.sourate,
@@ -116,6 +130,9 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
                         return VerseRow(
                           number: ayahId,
                           text: VerseService.getVerse(widget.sourate.id, ayahId, riwaya: riwaya),
+                          translation: _showTranslation
+                              ? TranslationService.verse(S.locale, widget.sourate.id, ayahId)
+                              : null,
                         );
                       },
                     ),
@@ -129,29 +146,59 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
     );
   }
 
-  Widget _header(ColorScheme cs) {
+  Widget _header(ColorScheme cs, Riwaya riwaya) {
+    final secondary = TextStyle(
+      fontSize: 12,
+      color: cs.onSurfaceVariant,
+      fontWeight: FontWeight.w500,
+    );
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      child: Column(
+      // A Stack, not a Row: the button must not push the title off-centre.
+      child: Stack(
         children: [
-          Text(
-            widget.sourate.nameAr,
-            style: GoogleFonts.scheherazadeNew(fontSize: 28, height: 1.8),
-            textDirection: TextDirection.rtl,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${widget.sourate.nameFr}  ·  ${S.blocRange(widget.ayahStart, widget.ayahEnd)}',
-            style: TextStyle(
-              fontSize: 12,
-              color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              children: [
+                Text(
+                  widget.sourate.nameAr,
+                  style: GoogleFonts.scheherazadeNew(fontSize: 28, height: 1.8),
+                  textDirection: TextDirection.rtl,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.sourate.nameFr}  ·  ${S.blocRange(widget.ayahStart, widget.ayahEnd)}',
+                  style: secondary,
+                ),
+                if (_showTranslation) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    S.traductionSource,
+                    textAlign: TextAlign.center,
+                    style: secondary.copyWith(fontSize: 11, fontWeight: FontWeight.normal),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                if (widget.ayahStart == 1 && SurahMetadataService.bismillahPre(widget.sourate.id))
+                  const BismillahLine(),
+                Divider(color: cs.outlineVariant),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          if (widget.ayahStart == 1 && SurahMetadataService.bismillahPre(widget.sourate.id))
-            const BismillahLine(),
-          Divider(color: cs.outlineVariant),
+          // Translations follow the Hafs verse numbering: shown next to Warsh
+          // they would sit under verses they do not translate.
+          if (riwaya == Riwaya.hafs)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                icon: const Icon(Icons.translate),
+                isSelected: _showTranslation,
+                tooltip: _showTranslation ? S.masquerTraduction : S.afficherTraduction,
+                onPressed: _toggleTranslation,
+              ),
+            ),
         ],
       ),
     );

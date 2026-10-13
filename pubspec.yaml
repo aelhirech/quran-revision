@@ -72,6 +72,8 @@ flutter:
   assets:
     - assets/quran/hafs.json
     - assets/quran/warsh.json
+    - assets/quran/translations/fr.hamidullah.txt
+    - assets/quran/translations/en.sahih.txt
     - assets/quran/metadata/quran-metadata-hizb.json
     - assets/quran/metadata/quran-metadata-page-hafs.json
     - assets/quran/metadata/quran-metadata-page-warsh.json

@@ -4,7 +4,7 @@
 
 Couverture réelle depuis Phase 9 (2026-09-08+), concentrée sur les moteurs et modèles les plus
 sensibles. `widget_test.dart` reste un placeholder (`expect(true, isTrue)`). Un seul vrai fichier de
-tests widget (`verse_bottom_sheet_test.dart`, US-16 et US-18), qui verrouille des pièges d'état, pas l'apparence —
+tests widget (`verse_bottom_sheet_test.dart`, US-16, US-18 et US-19), qui verrouille des pièges d'état, pas l'apparence —
 ne pas en déduire une couverture UI.
 
 | Fichier | Ce qu'il couvre |
@@ -21,8 +21,9 @@ ne pas en déduire une couverture UI.
 | `test/state/app_state_learning_test.dart` | Apprentissage : progression verset par verset, hand-off sourate mémorisée → révision, retrait du dernier bloc au check-out avant le hand-off (US-12), filtre `checked_out = 0` de `learnPlanFor` face aux lignes héritées de l'ancien écran de pratique. |
 | `test/state/app_state_day_close_test.dart` | Clôture (US-13/US-14) : `SealOutcome` (sourate mémorisée annoncée une seule fois, tour bouclé + mémorisation réunis dans un seul résultat), `dayRecap` (revu, appris, reliquat, rien d'un autre jour, lisible après scellement). |
 | `test/core/day_dates_test.dart` | `daysAgo` : jours entiers quelle que soit l'heure, pas de glissement au changement d'heure. |
+| `test/services/translation_service_test.dart` | Vrais fichiers Tanzil (US-19) : chaque verset Hafs a une traduction non vide en français et en anglais, deux textes connus (112:1) attrapent des fichiers inversés, une langue jamais chargée renvoie `null`. |
 | `test/widgets/verse_range_slider_test.dart` | `nudgeRange` seul (fonction pure, pas de pump de widget) : ±1 bornés à min/max, fin jamais avant le début (US-11). |
-| `test/widgets/verse_bottom_sheet_test.dart` | Tests widget. US-16 : la `VerseAudioBar` garde son état après un défilement qui la fait sortir de l'écran puis revenir. US-18 : resserrer la portion masque les versets et l'élargir les réaffiche, l'en-tête garde la plage d'origine, le texte suit la poignée pendant le glissé (avant le relâché), une feuille rouverte repart de la plage entière. Lire le premier `VerseRow`, ne jamais les compter (liste paresseuse). Le chemin audio (relance de la boucle) n'est pas couvert : pas d'audio en test. Monte la feuille avec le vrai thème (`buildAppTheme`, sinon `context.palette` plante) et `GoogleFonts.config.allowRuntimeFetching = false`. Le premier glissé ne fait qu'agrandir la feuille, d'où plusieurs glissés. Un `SliverList` garde toujours son dernier enfant : seule la barre placée **parmi** les versets reproduit le piège. |
+| `test/widgets/verse_bottom_sheet_test.dart` | Tests widget. US-16 : la `VerseAudioBar` garde son état après un défilement qui la fait sortir de l'écran puis revenir. US-18 : resserrer la portion masque les versets et l'élargir les réaffiche, l'en-tête garde la plage d'origine, le texte suit la poignée pendant le glissé (avant le relâché), une feuille rouverte repart de la plage entière. US-19 : afficher la traduction ne recrée pas l'état de la `VerseAudioBar`, un verset masqué par la portion ne laisse pas sa traduction, un second appui la retire, une feuille rouverte repart de l'arabe seul, aucun bouton en Warsh. La traduction et `WarshService` se préchargent en `setUpAll` (un gros asset lu dans `testWidgets` ne se termine jamais sous l'horloge simulée). Lire le premier `VerseRow`, ne jamais les compter (liste paresseuse). Le chemin audio (relance de la boucle) n'est pas couvert : pas d'audio en test. Monte la feuille avec le vrai thème (`buildAppTheme`, sinon `context.palette` plante) et `GoogleFonts.config.allowRuntimeFetching = false`. Le premier glissé ne fait qu'agrandir la feuille, d'où plusieurs glissés. Un `SliverList` garde toujours son dernier enfant : seule la barre placée **parmi** les versets reproduit le piège. |
 
 Avant de supposer qu'une fonctionnalité n'est pas testée, vérifier cette liste plutôt que
 de se fier au seul nom du dossier.
