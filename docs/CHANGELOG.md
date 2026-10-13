@@ -102,8 +102,9 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
   - `PrimaryCtaButton` réduit un libellé trop long au lieu de le couper, et n'a plus d'ombre
     quand il est désactivé.
 - **Accès aux sourates (2026-10-13)** : la liste des sourates s'ouvre par
-  `SouratePickerSheet.show`, et une sourate se retrouve par son id avec `AppState.sourateById`.
-  Ne réécrire ni le `showModalBottomSheet` ni la recherche dans un écran.
+  `SouratePickerSheet.show`, le sélecteur de plage de versets par `VerseRangePicker.show`, et
+  une sourate se retrouve par son id avec `AppState.sourateById`. Ne réécrire ni le
+  `showModalBottomSheet` ni la recherche dans un écran.
 - **Onglet Renforcement (US-20, 2026-10-13)** :
   - L'onglet et l'écran de série ne créditent rien et n'écrivent rien : ni `ayah_facts`, ni
     préférence, ni champ d'`AppState`. Reconnaître un passage n'est pas le réciter. Ce qu'une
@@ -187,19 +188,16 @@ futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
 
-### [P3] Ouvrir le sélecteur de plage de versets : le même bloc écrit trois fois
-Relevé au sprint 19 (2026-10-13), en traitant le même défaut pour `SouratePickerSheet`. Aucun
-bug : du code recopié. Différé parce qu'il sort de l'item du sprint et touche l'onboarding.
-- Le bloc `showModalBottomSheet<SourateSelection>(context: context, isScrollControlled: true,
-  backgroundColor: Colors.transparent, builder: (_) => VerseRangePicker(…))` existe trois fois :
-  `check_in_screen.dart` (`_addSourate`), `check_out_sections.dart` (`_addRevisedSourate`) et
-  `onboarding/onboarding_screen.dart`. Ajouter à `VerseRangePicker` une méthode
-  `static Future<SourateSelection?> show(BuildContext context, {required Sourate sourate,
-  required SourateSelection current})`, sur le modèle de `SouratePickerSheet.show`, et y faire
-  passer les trois appelants.
-- **Tests** : `flutter test` avant et après, aucun comportement ne change. Sous Windows : choisir
-  une plage à l'onboarding, au check-in (« Ajouter une sourate ») et au check-out (« J'ai révisé
-  une sourate en plus »).
+### [P3] « 1 sourates sélectionnées » : le compteur de l'onboarding n'accorde pas
+Relevé au sprint 20 (2026-10-13), vu sous Windows. Aucune donnée touchée : un libellé.
+- `S.souratesCount(n, v)` (`lib/core/strings.dart`) écrit toujours le pluriel : « 1 sourates
+  sélectionnées · 1 versets », « 1 surahs selected ». Deux appelants : l'en-tête de
+  `onboarding/steps/selection_page.dart` et `onboarding/steps/celebration_page.dart`.
+- En français, singulier si `n <= 1` (« 0 sourate sélectionnée », « 1 sourate sélectionnée »).
+  En anglais, singulier si `n == 1` (« 1 surah selected »). La partie versets passe par
+  `S.versetsCount(v)`, qui accorde déjà.
+- **Tests** : aucun (libellé). Sous Windows : l'en-tête de la sélection avec 0, 1 puis 2
+  sourates, et l'écran de célébration avec une seule sourate.
 
 ## Idées produit (non scopées)
 
@@ -288,6 +286,11 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   ligne « mot : sens » est écrit dans la police du système et non en Amiri : lisible sous
   Windows, non vérifié sur iPhone. Il reste à choisir où afficher la référence et comment
   désigner le mot autrement que par la couleur, et à regarder cette ligne sur un iPhone.
+- **Sélecteur de plage : « Tout sélectionner » passe sur deux lignes** (relevé au sprint 20,
+  2026-10-13, vu sous Windows à 390 px, taille de texte par défaut, en clair et en sombre) : dans
+  `VerseRangePicker`, le bouton de gauche écrit « Tout / sélectionner » sur deux lignes, calé à
+  gauche, à côté d'un « Confirmer » sur une ligne. Rien ne déborde. Il reste à choisir :
+  raccourcir le libellé, réduire le texte comme `PrimaryCtaButton`, ou empiler les deux boutons.
 
 ---
 

@@ -23,13 +23,8 @@ extension _CheckOutSections on _CheckOutScreenState {
     final picked = await SouratePickerSheet.show(context,
         sourates: candidates, title: SCheckOut.checkOutSourateEnPlusTitre);
     if (picked == null || !mounted) return;
-    final range = await showModalBottomSheet<SourateSelection>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => VerseRangePicker(
-          sourate: picked, current: SourateSelection.whole(picked)),
-    );
+    final range = await VerseRangePicker.show(context,
+        sourate: picked, current: SourateSelection.whole(picked));
     if (range == null || !mounted) return;
     await state.addToDayPlan(
       RevisionUnit(

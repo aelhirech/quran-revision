@@ -11,6 +11,15 @@ class VerseRangePicker extends StatefulWidget {
 
   const VerseRangePicker({super.key, required this.sourate, required this.current});
 
+  static Future<SourateSelection?> show(BuildContext context,
+          {required Sourate sourate, required SourateSelection current}) =>
+      showModalBottomSheet<SourateSelection>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => VerseRangePicker(sourate: sourate, current: current),
+      );
+
   @override
   State<VerseRangePicker> createState() => _VerseRangePickerState();
 }
