@@ -7,12 +7,13 @@ import 'series_marks.dart';
 enum ChoiceState { idle, correct, pickedWrong, dimmed }
 
 /// One proposed passage of a question. [note] is the line shown under a wrong
-/// pick.
+/// pick. [latin] is for a choice that is a meaning, not Arabic text.
 class PassageChoice extends StatelessWidget {
   final String text;
   final ChoiceState state;
   final String? note;
   final VoidCallback? onTap;
+  final bool latin;
 
   const PassageChoice({
     super.key,
@@ -20,6 +21,7 @@ class PassageChoice extends StatelessWidget {
     required this.state,
     this.note,
     this.onTap,
+    this.latin = false,
   });
 
   @override
@@ -50,8 +52,10 @@ class PassageChoice extends StatelessWidget {
               customBorder: themeShape,
               onTap: onTap,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                // Latin lines are half as tall as Arabic ones: more padding
+                // keeps a one-line meaning as easy to hit.
+                padding: EdgeInsets.symmetric(
+                    horizontal: 14, vertical: latin ? 16 : 8),
                 child: Row(
                   children: [
                     if (marked) ...[
@@ -59,7 +63,12 @@ class PassageChoice extends StatelessWidget {
                           held: [state == ChoiceState.correct], total: 1),
                       const SizedBox(width: 10),
                     ],
-                    Expanded(child: ArabicVerseText(text: text, fontSize: 20)),
+                    Expanded(
+                      child: latin
+                          ? Text(text,
+                              style: const TextStyle(fontSize: 15, height: 1.4))
+                          : ArabicVerseText(text: text, fontSize: 20),
+                    ),
                   ],
                 ),
               ),

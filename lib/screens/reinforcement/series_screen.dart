@@ -15,10 +15,16 @@ import '../../widgets/verse_row.dart';
 import 'widgets/passage_choice.dart';
 import 'widgets/series_marks.dart';
 
+part 'series_word_question.dart';
+
+// Read by the text shown and by the rank of a word highlighted in it: the two
+// must not drift apart.
+bool _leads(Passage passage) => !passage.startsVerse;
+
 // "…" marks a passage cut inside its verse. A choice never takes the leading
 // one: next to choices that start a verse, it would single out the answer.
 String _shown(List<Passage> run, {bool lead = true}) {
-  final before = lead && !run.first.startsVerse ? '… ' : '';
+  final before = lead && _leads(run.first) ? '… ' : '';
   final after = run.last.endsVerse ? '' : ' …';
   return '$before${run.map((passage) => passage.text).join(' ')}$after';
 }
@@ -37,7 +43,8 @@ class SeriesScreen extends StatefulWidget {
 
 class _SeriesScreenState extends State<SeriesScreen> {
   int _index = 0;
-  Passage? _picked;
+  // Rank of the tapped choice among those of the current question.
+  int? _picked;
   final List<bool> _held = [];
 
   int get _total => widget.questions.length;
@@ -52,9 +59,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
           fontWeight: FontWeight.w600,
           letterSpacing: 2.5));
 
-  void _pick(SeriesQuestion question, Passage choice) => setState(() {
+  void _pick(SeriesQuestion question, int choice) => setState(() {
         _picked = choice;
-        _held.add(choice.id == question.answer.id);
+        _held.add(choice == question.answerIndex);
       });
 
   void _next() => setState(() {
@@ -62,11 +69,11 @@ class _SeriesScreenState extends State<SeriesScreen> {
         _picked = null;
       });
 
-  ChoiceState _stateOf(SeriesQuestion question, Passage choice) {
+  ChoiceState _stateOf(SeriesQuestion question, int choice) {
     final picked = _picked;
     if (picked == null) return ChoiceState.idle;
-    if (choice.id == question.answer.id) return ChoiceState.correct;
-    if (choice.id == picked.id) return ChoiceState.pickedWrong;
+    if (choice == question.answerIndex) return ChoiceState.correct;
+    if (choice == picked) return ChoiceState.pickedWrong;
     return ChoiceState.dimmed;
   }
 
@@ -87,7 +94,12 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: finished
                       ? _summary(palette)
-                      : _question(palette, widget.questions[_index]),
+                      : switch (widget.questions[_index]) {
+                          PassageQuestion question =>
+                            _passageQuestion(palette, question),
+                          WordQuestion question =>
+                            _wordQuestion(palette, question),
+                        },
                 ),
               ),
             ),
@@ -134,7 +146,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
         ],
       );
 
-  Widget _question(AppPalette palette, SeriesQuestion question) {
+  Widget _passageQuestion(AppPalette palette, PassageQuestion question) {
     final prompt = question.prompt;
     final surah = _sourate(prompt.surahId);
     return Column(
@@ -143,39 +155,57 @@ class _SeriesScreenState extends State<SeriesScreen> {
         Text(SReinforcement.sourateVerset(surah.nameFr, prompt.ayahId),
             style: TextStyle(fontSize: 13, color: palette.textMuted)),
         const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            child: ArabicVerseText(text: _shown([prompt])),
-          ),
-        ),
+        _promptCard(ArabicVerseText(text: _shown([prompt]))),
         const SizedBox(height: 18),
         Text(SReinforcement.quelleSuite,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         const SizedBox(height: 10),
-        for (final choice in question.choices) _choice(question, choice),
+        for (final (index, choice) in question.choices.indexed)
+          _choice(
+            question,
+            index,
+            text: _shown([choice], lead: false),
+            wrongNote: SReinforcement.passageDans(
+                _sourate(choice.surahId).nameFr, choice.ayahId),
+          ),
         if (_picked != null) _followUp(palette, question, surah),
       ],
     );
   }
 
-  Widget _choice(SeriesQuestion question, Passage choice) {
-    final state = _stateOf(question, choice);
+  Widget _choice(SeriesQuestion question, int index,
+      {required String text, required String wrongNote, bool latin = false}) {
+    final state = _stateOf(question, index);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: PassageChoice(
-        text: _shown([choice], lead: false),
+        text: text,
+        latin: latin,
         state: state,
-        note: state == ChoiceState.pickedWrong
-            ? SReinforcement.passageDans(
-                _sourate(choice.surahId).nameFr, choice.ayahId)
-            : null,
-        onTap: _picked == null ? () => _pick(question, choice) : null,
+        note: state == ChoiceState.pickedWrong ? wrongNote : null,
+        onTap: _picked == null ? () => _pick(question, index) : null,
       ),
     );
   }
 
-  Widget _followUp(AppPalette palette, SeriesQuestion question, Sourate surah) {
+  Widget _promptCard(Widget verse) => Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: verse,
+        ),
+      );
+
+  Widget _seeText(Sourate surah, int from, int to) => Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton.icon(
+          icon: const Icon(Icons.menu_book_outlined, size: 18),
+          label: Text(S.voirLeTexte),
+          onPressed: () => VerseBottomSheet.show(context, surah, from, to),
+        ),
+      );
+
+  Widget _followUp(
+      AppPalette palette, PassageQuestion question, Sourate surah) {
     final prompt = question.prompt;
     final answer = question.answer;
     return Card(
@@ -197,15 +227,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
               VerseRow(
                   number: answer.ayahId, text: _shown([answer]), fontSize: 20),
             ],
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                icon: const Icon(Icons.menu_book_outlined, size: 18),
-                label: Text(S.voirLeTexte),
-                onPressed: () => VerseBottomSheet.show(
-                    context, surah, prompt.ayahId, answer.ayahId),
-              ),
-            ),
+            _seeText(surah, prompt.ayahId, answer.ayahId),
           ],
         ),
       ),

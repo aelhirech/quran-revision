@@ -118,6 +118,33 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     `InkWell.customBorder`.
   - Une carte dont la bordure change d'état part de `cardShape(palette)` (`app_theme.dart`) et
     de `copyWith(side: …)`, sans réécrire le rayon.
+- **Questions de mots (US-22 Sprint C, 2026-10-13)** :
+  - `assets/quran/wbw/fr.coranmot.tsv` est l'export de la table `allwords` de CoranMot (Dr Usama
+    Nonnenmacher), embarqué **sans aucune modification**. Trois conditions d'usage : projet
+    islamique, aucune modification, source citée. Les sens ne sont donc jamais retouchés, triés
+    ni filtrés, même longs ou crus, et la ligne `SReinforcement.sourceMots` reste sous chaque
+    réponse. Mise à jour par nouvel export, jamais par retouche.
+  - Un sens est rattaché à un mot par son rang dans le verset, rien d'autre. Un verset qui n'a
+    pas un sens par mot n'est jamais interrogé : sept versets aujourd'hui (2:181, 8:6, 13:37,
+    15:7, 27:20, 36:22, 37:130), liste verrouillée par `word_gloss_service_test.dart`. Changer
+    la source du texte arabe peut changer cette liste.
+  - Les sens suivent la numérotation Hafs et n'existent qu'en français : le sélecteur de mode
+    n'apparaît que si `WordGlossService.availableFor(S.locale, riwaya)`. Ne jamais appeler
+    `WordGlossService.glosses` avec un verset Warsh.
+  - L'écran de série repère le choix appuyé par son rang parmi les choix, et la bonne réponse par
+    `SeriesQuestion.answerIndex` : un seul état pour les deux types de questions. Un mot se
+    reconnaît par `WordChoice.id` (sourate, verset, rang du mot dans le verset), comme un passage
+    par `Passage.id`.
+  - L'onglet garde les mots posés (`_lastWords`) à part des passages posés (`_lastPrompts`) : le
+    troisième champ n'y désigne pas la même chose. Une série d'un seul type ne touche pas la
+    mémoire de l'autre.
+  - Le mot en or est désigné par son rang parmi les mots du texte **affiché** : l'écran ajoute 1
+    quand le passage est précédé de « … ». Le « … » (`_shown`) et ce décalage lisent le même
+    prédicat, `_leads(passage)` : changer l'un sans l'autre dorerait le mot voisin, et aucun test
+    ne le dirait (écran vérifié sous Windows seulement).
+  - Le tirage partagé (`ReinforcementEngine._draw`) reçoit des candidats **déjà restreints** à la
+    sourate demandée : c'est chaque appelant qui restreint, pour ne pas analyser toute la
+    sélection quand la série porte sur une sourate.
 
 **Cadrage produit encore valide**
 - « Prières où il est imam » = prières où c'est lui qui récite (seul ou en dirigeant) — un simple élargissement de libellé, pas un filtre d'exclusion ni une pondération de répartition.
@@ -142,110 +169,6 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 ## Backlog technique
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
-
-### [P2] US-22 Sprint C — Questions de mots et trois modes (français, Hafs)
-**Les Sprints A et B d'US-20 sont livrés** : ce sprint ajoute les questions de mots et le choix
-entre trois modes dans l'onglet Renforcement. Rien n'est persisté : le compte « N mots connus »
-(US-22 crit. 4) se livre avec US-21. Mesures du scoping dans `docs/USER_STORIES.md`, US-22.
-- **Asset `assets/quran/wbw/fr.coranmot.tsv`** (nouveau, ~1,7 Mo, UTF-8, fins de ligne LF,
-  déclaré dans `pubspec.yaml`) : export de la table `allwords` du fichier `words.db` de
-  `github.com/DrUsamaN/CoranMot` (branche `main`), une ligne par mot,
-  `sura<TAB>ayah<TAB>word<TAB>fr`, triée par ces trois clés, 77 429 lignes. Les sens sont
-  recopiés **sans aucune modification** (quatre gardent une espace de début ou de fin). Export :
-  `select sura, ayah, word, fr from allwords order by sura, ayah, word`, lu par le module
-  `sqlite3` de Python (`py -3` sur cette machine) et écrit ligne par ligne. Le script d'export
-  n'entre pas dans le dépôt : la source n'a qu'un commit.
-- **`lib/services/word_gloss_service.dart`** (nouveau, statique, ~40 lignes) :
-  `static bool availableFor(String locale, Riwaya riwaya)` (vrai pour `'fr'` et `Riwaya.hafs`
-  seulement) ; `static Future<void> load()` (lit l'asset une seule fois, `LineSplitter`, quatre
-  champs séparés par une tabulation, rangés par `(sura, ayah)`) ;
-  `static List<String>? glosses(int surahId, int ayahId)` (`null` si l'asset n'est pas chargé).
-- **`lib/core/reinforcement_engine.dart`** : `SeriesQuestion` devient
-  `sealed class SeriesQuestion`. La classe du Sprint A est renommée
-  `PassageQuestion extends SeriesQuestion` (renommage mécanique dans le moteur, son test, l'onglet
-  et l'écran de série). Le tirage de son étape 3 (part du plan du jour, `avoid`, `surahId`) est
-  extrait en fonction privée, pour servir aussi aux mots. Une ligne `part`.
-- **`lib/core/reinforcement_words.dart`** (nouveau, `part of 'reinforcement_engine.dart'`,
-  ~130 lignes) :
-  - `class WordChoice` : `surahId`, `ayahId`, `arabic` (le token d'origine), `gloss`.
-  - `class WordQuestion extends SeriesQuestion` : `passage` (le passage qui contient le mot),
-    `wordIndex` (rang du token dans `passage.words`), `answer`, `choices` (2 à 4 `WordChoice`,
-    mélangés), `arabicToMeaning`.
-  - `static List<WordQuestion> buildWordQuestions({carried, textOf, required List<String>?
-    Function(int surahId, int ayahId) glossesOf, random, today, Set<(int, int, int)> avoid,
-    surahId, int count = 10})` :
-    1. **Mot posable** : dans un verset porté dont le nombre de mots égale le nombre de sens ; le
-       token normalisé a au moins 3 lettres ; le sens, une fois retirés ses segments entre
-       parenthèses ou crochets, garde au moins un mot de 3 lettres.
-    2. **Tirage** : la règle des passages (au plus la moitié du plan du jour, `avoid` sur
-       `(surahId, ayahId, rang du mot dans le verset)`, `surahId`). Un même mot arabe normalisé
-       n'est posé qu'une fois par série.
-    3. **Mauvais choix**, 3 au plus : d'autres mots posables portés, de la même sourate d'abord,
-       d'ailleurs ensuite. Sont écartés : le même mot arabe normalisé que le mot posé ; un sens
-       qui partage un mot de 4 lettres ou plus avec le bon sens (en minuscules, hors parenthèses
-       et crochets) ; un sens déjà présent parmi les choix.
-    4. `arabicToMeaning` est tiré au sort pour chaque question.
-    5. Une question sans aucun mauvais choix est écartée.
-  - `static List<SeriesQuestion> buildMixedSeries({… les mêmes paramètres, avec deux ensembles
-    avoid distincts …})` : 5 `PassageQuestion` et 5 `WordQuestion`, mélangées. Si un type en
-    fournit moins, l'autre complète jusqu'à 10.
-- **`lib/screens/reinforcement/reinforcement_tab.dart`** : `enum SeriesMode { mix, passages,
-  words }`, état local, `mix` par défaut, jamais persisté. Un `SegmentedButton<SeriesMode>` dans
-  la carte « Série du jour », affiché seulement si `WordGlossService.availableFor(S.locale,
-  state.riwaya)` ; sinon le mode est `passages` et l'onglet reste celui du Sprint B. `_start` :
-  hors mode `passages`, `await WordGlossService.load()` puis `if (!mounted) return;`. Selon le
-  mode : `buildSeries`, `buildWordQuestions` ou `buildMixedSeries`, avec
-  `glossesOf: WordGlossService.glosses`. Les mots posés sont gardés dans un second ensemble
-  `_lastWords`, séparé de `_lastPrompts` : les deux rangs ne désignent pas la même chose.
-  « Choisir une sourate » suit le mode en cours.
-- **`lib/screens/reinforcement/series_screen.dart`** : `switch` exhaustif sur `PassageQuestion` et
-  `WordQuestion`.
-  - **Arabe vers sens** : `SReinforcement.sourateVerset`, le passage dans une `Card` avec le mot
-    en `palette.gold`, `SReinforcement.queVeutDire`, puis les sens en choix, tels quels.
-  - **Sens vers arabe** : le sens en Lora 20 px, `SReinforcement.quelMot`, puis les mots arabes
-    en choix. Le passage n'apparaît qu'après la réponse.
-  - **Après un appui** : les mêmes états que pour un passage. Sous un mauvais choix, la ligne
-    `'${choice.arabic} : ${choice.gloss}'`. Dessous, une `Card` : le passage avec le mot en or,
-    le bon sens, la ligne `SReinforcement.sourceMots`, et le bouton `S.voirLeTexte` qui ouvre
-    `VerseBottomSheet.show(context, sourate, ayahId, ayahId)`.
-- **`lib/screens/reinforcement/widgets/passage_choice.dart`** : paramètre `bool latin = false`
-  (texte en Lora 15 px au lieu d'`ArabicVerseText`).
-- **`lib/widgets/arabic_verse_text.dart`** (33 lignes) : paramètres optionnels
-  `int? highlightWord` (rang d'un mot dans `text` découpé sur les espaces) et
-  `Color? highlightColor`. Renseignés, le texte est rendu par `Text.rich` en trois `TextSpan` du
-  même style. Absents, le rendu est celui d'aujourd'hui. L'écran de série décale le rang d'un
-  cran quand le passage est précédé de « … ».
-- **`lib/core/strings_reinforcement.dart`** : `modeMelange` (« Mélange » / « Mix »),
-  `modeVersets` (« Versets » / « Verses »), `modeTraduction` (« Traduction » / « Meaning »),
-  `queVeutDire` (« Que veut dire le mot en or ? » / « What does the golden word mean? »),
-  `quelMot` (« Quel mot porte ce sens ? » / « Which word carries this meaning? »), `sourceMots`
-  (« Sens : Dr Usama Nonnenmacher, CoranMot » / « Meanings: Dr Usama Nonnenmacher, CoranMot »).
-- **Réutilisé tel quel** : `ReinforcementEngine.passagesOf` et sa normalisation,
-  `SeriesMarks`, `SouratePickerSheet`, `VerseBottomSheet.show`, `AppState.reinforcementInputs`.
-- **Tests** :
-  - `test/services/word_gloss_service_test.dart` (vrai asset, `HafsService` chargé) : 77 429
-    sens ; chaque verset Hafs en a ; leur nombre égale le nombre de mots du verset partout sauf
-    dans exactement sept versets, 2:181, 8:6, 13:37, 15:7, 27:20, 36:22 et 37:130 ;
-    `glosses(112, 1)` vaut `['Dis :', '« Il (est)', 'Allâh,', 'Un.']`.
-  - `test/core/reinforcement_words_test.dart` (`Random` à graine fixe, sourates 78 à 114) : le mot
-    posé a au moins 3 lettres ; 2 à 4 choix ; le bon sens une seule fois ; aucun choix ne porte
-    le même mot arabe normalisé ; aucun ne partage un mot de 4 lettres ou plus avec le bon sens.
-    Sourate 37 seule : aucun mot posé dans 37:130. Sur 20 graines, les deux sens de question
-    apparaissent. `buildMixedSeries` : 5 `PassageQuestion` et 5 `WordQuestion` ; avec un
-    `glossesOf` qui renvoie toujours `null`, 10 `PassageQuestion`.
-  - Sous Windows, en clair et en sombre : le sélecteur à trois segments à 320×568 ; le mot en or
-    lisible dans un passage ; un sens long (« Celui qui subsiste par lui-même et fait subsister
-    tout. ») sur plusieurs lignes dans un choix ; en Warsh puis en anglais, aucun sélecteur.
-- **Exclus** : le compte des mots connus et toute mémoire des réponses (US-21), la mémorisation
-  du mode, l'anglais, Warsh, toute retouche ou tri du texte des sens, grammaire, racines,
-  translittération, le mot à mot dans la vue Coran.
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §5 (questions de mots, mot posable, mauvais choix),
-  §6 (`WordGlossService`), §8.7 (modes, vue d'une question de mot), §10 (source CoranMot ; ses
-  trois conditions : projet islamique, aucune modification, source citée ; fichier hors licence
-  MIT du dépôt ; requête d'export), §11, §14 ; `test/CLAUDE.md` (deux lignes). Dans ce fichier,
-  ajouter aux « Décisions actives » : les sens CoranMot ne sont jamais modifiés ni triés, et
-  sept versets ne sont jamais interrogés. US-22 reste « en sprint » jusqu'au compte des mots
-  connus.
 
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
@@ -288,12 +211,27 @@ pas).
 - **Risque** : `ShellScreen.initState` lance `ensureDayPlan()`, qui lit SQLite. Sous l'horloge
   simulée de `flutter test`, cette lecture ne se termine pas : le test ne doit pas en dépendre.
 
+### [P3] Questions de mots : le signe « ۞ » suit le premier mot de 199 versets
+Relevé au Sprint C d'US-22 (2026-10-13). En Hafs, « ۞ » est collé au mot suivant par une espace
+insécable : quand ce mot est posé ou proposé, le signe vient avec lui. Il est alors doré dans le
+passage, affiché dans le choix arabe et dans la ligne sous un mauvais choix. Aucune réponse n'est
+faussée. Mesuré sur 5 200 questions : 0,2 % des questions sur le juz 30, 0,9 % sur 113 sourates.
+Différé : rare, et sans effet sur la réponse.
+- **`lib/core/reinforcement_words.dart`**, `_askableWords` : `WordChoice.arabic` reçoit le token
+  sans ce qui précède l'espace insécable (`token.substring(token.lastIndexOf('\u00A0') + 1)`).
+- **`lib/widgets/arabic_verse_text.dart`** : dans le mot mis en couleur, ce qui précède l'espace
+  insécable, espace comprise, passe dans le premier `TextSpan`, non coloré.
+- **Tests** : dans `test/core/reinforcement_words_test.dart`, l'invariant
+  `passage.words[wordIndex] == answer.arabic` devient « se termine par `answer.arabic` », et un
+  test sur la sourate 100 seule (20 graines) vérifie qu'aucun choix ne contient U+06DE. Sous
+  Windows : une question sur le premier mot de 100:9, le signe reste de la couleur du texte.
+
 ## Idées produit (non scopées)
 
 Vision/features pas encore prêtes à l'implémentation — pas de priorité technique tant qu'elles n'ont pas été cadrées (`quran-blueprint` → user story dans `docs/USER_STORIES.md`, puis `quran-scoping` → item ci-dessus). Ne pas lancer à la volée.
 
 - **SRS réel par verset** (score de difficulté depuis l'historique `ayah_facts`, aujourd'hui écrasé par `lastRevisionDatesPerVerse` qui ne garde que `MAX(date)`) — dépendait de `needsWork`, **retiré du code au sprint US-3** (2026-09-21) ; à rescoper sur un autre signal (ex. fréquence des décochages verset par verset) avant toute implémentation.
-- **Coran en SQLite** (texte + word-by-word + tajweed) — débloquerait "tajweed coloré" ci-dessous, JOIN naturel avec `ayah_facts`. Garde-fou : ne pas migrer parce que "c'est plus propre", seulement si cette feature est réellement engagée. Les questions de mots (US-22, au Backlog) s'en passent : leurs données sont un asset texte.
+- **Coran en SQLite** (texte + word-by-word + tajweed) — débloquerait "tajweed coloré" ci-dessous, JOIN naturel avec `ayah_facts`. Garde-fou : ne pas migrer parce que "c'est plus propre", seulement si cette feature est réellement engagée. Les questions de mots (US-22) s'en passent : leurs données sont un asset texte.
 - **Affichage tajweed coloré** — bloqué faute de données tajwid (QUL), voir Coran SQLite. Passera par `AppPalette`/tokens sémantiques, jamais de couleur en dur.
 - **Timeline d'activité (heatmap) dans Profil/Récap** — chaque fait `ayah_facts` est déjà daté, gratuit en donnée.
 - **Mode "versets à retravailler" en jeu à part** — mécanique de jeu à définir avant tout code.
@@ -318,7 +256,11 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   pour choisir : garder le hasard, prendre toujours le plus proche (mais alors le même piège
   revient à chaque fois), ou déplacer un seuil. Déjà mesuré au Sprint B (5 900 questions) : le
   « … » final d'un choix ne désigne pas la bonne réponse (le choix « à part » est le bon dans 12
-  à 20 % des cas, contre 25 % au hasard).
+  à 20 % des cas, contre 25 % au hasard). Pour les questions de mots (Sprint C d'US-22, 5 200
+  questions) : aucun mauvais choix ne se lit comme le bon sens, à la casse et à la ponctuation
+  près. Mais 8 à 10 % des bons sens n'ont aucun mot de 4 lettres (« qui », « sur ») : la règle
+  qui écarte un sens voisin ne les protège pas, et deux synonymes sans mot commun passent
+  toujours. À juger aussi sur de vraies séries.
 - **Sourate entièrement apprise alors qu'une plage en est déjà sélectionnée** (relevé en
   `/code-review` du Sprint A d'US-20, 2026-10-13) : `handOffLearnedSurahs` ne bascule pas une
   sourate qui a déjà une sélection, même partielle. Les versets appris hors de cette plage
@@ -338,7 +280,12 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   nt ») : dès ×1,15 à 320 px, et à ×1,3 à 360 et 390 px (`NavigationBar` plafonne lui-même à
   ×1,3). « Plan du jour » fait de même à 320 px. Rien ne déborde. Avec trois onglets, aucun
   libellé ne se coupait. Il reste à choisir : plafonner l'agrandissement du texte dans la barre,
-  resserrer l'espacement des lettres, raccourcir le libellé, ou l'accepter.
+  resserrer l'espacement des lettres, raccourcir le libellé, ou l'accepter. Même question pour le
+  sélecteur de mode de l'onglet (Sprint C d'US-22, mesuré sous Windows à 320 px) : à la taille
+  par défaut, « Traduction » tient au plus juste (73,1 px sur 73,3). Avec un texte agrandi, chaque
+  libellé rétrécit pour tenir sur une ligne, mais chacun pour soi : dès ×1,15, « Traduction »
+  garde sa taille pendant que « Mélange » et « Versets » grandissent. Rien ne se coupe ni ne
+  déborde.
 - **Renforcement : le message « sélection trop petite » ne dit pas toujours vrai** (relevé au
   Sprint B d'US-20, 2026-10-13, déduit du code, non reproduit) : une sourate prise par « Choisir
   une sourate » peut n'offrir aucune question, quand un seul passage en est porté (premier verset
@@ -346,7 +293,26 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   sélection est trop petite… Ajoute une sourate dans les Réglages », alors que la sélection
   entière suffirait. Le message reste aussi affiché après un ajout de sourates, jusqu'au
   lancement suivant. Il reste à choisir : ne lister que les sourates qui offrent une question,
-  écrire un second message, ou les deux.
+  écrire un second message, ou les deux. Le mode « Traduction » (Sprint C d'US-22) a le même
+  défaut : une sourate dont un seul mot est posable n'offre aucune question.
+- **Renforcement : composer une série fige l'interface près d'une seconde sur une très grande
+  sélection** (relevé au Sprint C d'US-22, 2026-10-13, mesuré dans l'app en debug sous Windows) :
+  avec 113 sourates portées, 395 à 460 ms en mode « Versets » (inchangé), 365 à 420 ms en mode
+  « Traduction », 710 à 810 ms en mode « Mélange », qui est le mode par défaut. La première série
+  de mots lit en plus le fichier des sens, environ 100 ms. Sous `flutter test` : 120 ms en
+  « Mélange » avec les cinq derniers juz, 22 ms avec le juz 30. Une série sur une seule sourate
+  ne lit plus que ses mots (0 à 50 ms), mais ses passages lisent encore toute la sélection pour
+  leurs mauvais choix : 310 à 400 ms en « Mélange ». Non mesuré sur téléphone. Il reste à mesurer
+  sur un iPhone, puis à choisir : garder en mémoire les passages et les mots portés entre deux
+  séries, retenir la forme normalisée de chaque mot distinct, normaliser le texte sans expression
+  régulière, ou composer la série hors du fil de l'interface.
+- **Questions de mots : trois points d'affichage** (relevés au Sprint C d'US-22, 2026-10-13) :
+  dans le sens « sens vers arabe », la sourate et le verset ne sont affichés nulle part, même
+  après la réponse (seul « Voir le texte » les donne). Le mot posé n'est signalé que par sa
+  couleur or, ce qu'un lecteur d'écran ne dit pas. Sous un mauvais choix, le mot arabe de la
+  ligne « mot : sens » est écrit dans la police du système et non en Amiri : lisible sous
+  Windows, non vérifié sur iPhone. Il reste à choisir où afficher la référence et comment
+  désigner le mot autrement que par la couleur, et à regarder cette ligne sur un iPhone.
 
 ---
 

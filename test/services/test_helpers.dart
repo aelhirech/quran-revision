@@ -47,3 +47,19 @@ Future<void> clearFactsBetweenTests() async {
   final db = await databaseFactory.openDatabase(path);
   await db.delete('ayah_facts');
 }
+
+// Written apart from the engine's private normalization, on purpose: the
+// tests state what a word is, they do not borrow the implementation.
+final _quranMarks = RegExp(
+    '[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640\u200F\u00A0]');
+
+/// A token of Quranic text without its vowels and signs; empty when the token
+/// is a sign alone.
+String bareWord(String token) =>
+    token.replaceAll(_quranMarks, '').replaceAll('\u0671', '\u0627');
+
+/// Every verse of the surahs [from] to [to], as a selection the user carries.
+Map<int, Set<int>> wholeSurahs(int from, int to, Map<int, int> verseCounts) => {
+      for (var id = from; id <= to; id++)
+        id: {for (var v = 1; v <= verseCounts[id]!; v++) v},
+    };

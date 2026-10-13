@@ -4,8 +4,9 @@ import 'dart:math';
 import '../models/learning_progress.dart';
 import '../models/sourate_selection.dart';
 
+part 'reinforcement_words.dart';
+
 const _seriesLength = 10;
-const _todayShare = 5;
 const _maxPassageWords = 12;
 const _similarity = 0.5;
 const _neighbourReach = 3;
@@ -48,16 +49,26 @@ class Passage {
   late final Set<String> _wordSet = _normalized.toSet();
 }
 
-class SeriesQuestion {
+sealed class SeriesQuestion {
+  const SeriesQuestion();
+
+  /// Rank of the right choice among the proposed ones.
+  int get answerIndex;
+}
+
+class PassageQuestion extends SeriesQuestion {
   final Passage prompt;
   final Passage answer;
   final List<Passage> choices;
 
-  const SeriesQuestion({
+  const PassageQuestion({
     required this.prompt,
     required this.answer,
     required this.choices,
   });
+
+  @override
+  int get answerIndex => choices.indexWhere((choice) => choice.id == answer.id);
 }
 
 typedef _Link = ({Passage prompt, Passage answer, List<Passage> neighbours});
@@ -119,13 +130,14 @@ class ReinforcementEngine {
     return carried;
   }
 
-  static List<SeriesQuestion> buildSeries({
+  static List<PassageQuestion> buildSeries({
     required Map<int, Set<int>> carried,
     required String Function(int surahId, int ayahId) textOf,
     required Random random,
     Set<(int, int)> today = const {},
     Set<(int, int, int)> avoid = const {},
     int? surahId,
+    int count = _seriesLength,
   }) {
     // Sorted so that a given seed always yields the same series.
     final chains = <int, List<Passage>>{
@@ -136,38 +148,67 @@ class ReinforcementEngine {
         ],
     };
     final all = [for (final chain in chains.values) ...chain];
-    final links = [
-      for (final chain in chains.values)
-        if (surahId == null || chain.firstOrNull?.surahId == surahId)
-          ..._askableLinks(chain),
-    ]..shuffle(random);
+    return _draw(
+      candidates: [
+        for (final chain in chains.values)
+          if (surahId == null || chain.firstOrNull?.surahId == surahId)
+            ..._askableLinks(chain),
+      ],
+      idOf: (link) => link.prompt.id,
+      build: (link) => _question(link, all, random),
+      random: random,
+      today: today,
+      avoid: avoid,
+      surahId: surahId,
+      count: count,
+    );
+  }
 
-    bool isToday(_Link l) =>
-        surahId == null &&
-        today.contains((l.prompt.surahId, l.prompt.ayahId));
-    bool isAvoided(_Link l) => avoid.contains(l.prompt.id);
+  /// The draw shared by passage and word questions.
+  static List<Q> _draw<C, Q extends Object>({
+    required Iterable<C> candidates,
+    required (int, int, int) Function(C) idOf,
+    required Q? Function(C) build,
+    required Random random,
+    required Set<(int, int)> today,
+    required Set<(int, int, int)> avoid,
+    required int? surahId,
+    required int count,
+  }) {
+    final shuffled = candidates.toList()..shuffle(random);
 
-    final series = <SeriesQuestion>[];
-    int fill(Queue<_Link> queue, int target) {
-      final before = series.length;
-      while (series.length < target && queue.isNotEmpty) {
-        final question = _question(queue.removeFirst(), all, random);
-        if (question != null) series.add(question);
+    // A series on one surah ignores today's plan.
+    bool isToday(C candidate) {
+      final (surah, ayah, _) = idOf(candidate);
+      return surahId == null && today.contains((surah, ayah));
+    }
+
+    final drawn = <Q>[];
+    int fill(Queue<C> queue, int target) {
+      final before = drawn.length;
+      while (drawn.length < target && queue.isNotEmpty) {
+        final question = build(queue.removeFirst());
+        if (question != null) drawn.add(question);
       }
-      return series.length - before;
+      return drawn.length - before;
     }
 
     var fromToday = 0;
+    // Avoided questions come second: they only fill what the rest left open.
     for (final avoided in [false, true]) {
-      final pool = links.where((l) => isAvoided(l) == avoided);
+      final pool = shuffled.where(
+          (candidate) => avoid.contains(idOf(candidate)) == avoided);
       final ofToday = Queue.of(pool.where(isToday));
-      final others = Queue.of(pool.where((l) => !isToday(l)));
-      fromToday += fill(
-          ofToday, min(_seriesLength, series.length + _todayShare - fromToday));
-      fill(others, _seriesLength);
-      fromToday += fill(ofToday, _seriesLength);
+      final others =
+          Queue.of(pool.where((candidate) => !isToday(candidate)));
+      // Today's plan gets half the series at most while other material is
+      // left, so that it does not crowd out the rest of what is carried.
+      fromToday +=
+          fill(ofToday, min(count, drawn.length + count ~/ 2 - fromToday));
+      fill(others, count);
+      fromToday += fill(ofToday, count);
     }
-    return series..shuffle(random);
+    return drawn..shuffle(random);
   }
 
   static List<_Link> _askableLinks(List<Passage> chain) {
@@ -194,7 +235,8 @@ class ReinforcementEngine {
     return common / max(a._wordSet.length, b._wordSet.length) >= _similarity;
   }
 
-  static SeriesQuestion? _question(_Link link, List<Passage> all, Random random) {
+  static PassageQuestion? _question(
+      _Link link, List<Passage> all, Random random) {
     final answer = link.answer;
     final wrong = <Passage>[];
     // The prompt's key too: the same text carried in another surah must not
@@ -224,7 +266,7 @@ class ReinforcementEngine {
     while (pick(all)) {}
 
     if (wrong.isEmpty) return null;
-    return SeriesQuestion(
+    return PassageQuestion(
       prompt: link.prompt,
       answer: answer,
       choices: [answer, ...wrong]..shuffle(random),

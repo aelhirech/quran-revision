@@ -120,8 +120,11 @@ un palier ; ce que devient le palier d'une sourate retirée de la sélection pui
 plage change.
 
 ### US-22 — Comprendre les mots que je récite (questions de mots, trois modes)
-**État** : scopée — blueprint et scoping du 2026-10-13. Un sprint au Backlog (Sprint C, après les
-deux d'US-20). Le crit. 4 attend US-21. Reprend l'Idée produit « Jeu mot arabe → traduction »,
+**État** : en sprint — Sprint C livré le 2026-10-13 (branche
+`feature/phase-25-sprint18-questions-de-mots`) : crit. 1, 2, 3, 5 et 6. Reste le crit. 4 (compte
+des mots connus), qui se livre avec US-21. Non vérifié sur appareil réel : le temps de composition
+d'une série, et la ligne « mot : sens » sous un mauvais choix (arabe en police du système).
+Blueprint et scoping du 2026-10-13. Reprend l'Idée produit « Jeu mot arabe → traduction »,
 retirée de `docs/CHANGELOG.md` à ce scoping. Prolonge US-19 (lire le sens), pas la révision.
 
 **Statement** : En tant qu'utilisateur francophone qui récite sans comprendre chaque mot, je veux
@@ -208,7 +211,9 @@ avec le palier qui peut se perdre.
     interrogés.
   - 82 % des mots sont posables (mot arabe d'au moins 3 lettres, sens qui ne se réduit pas à une
     particule) : 63 921 sur tout le Coran, 1 948 sur le juz 30 pour 1 216 formes différentes,
-    9 sur Al-Ikhlas.
+    9 sur Al-Ikhlas. La règle telle qu'elle est codée au Sprint C en trouve 63 949 sur tout le
+    Coran (28 de plus, écart non expliqué) ; les trois autres mesures sont retrouvées à
+    l'identique.
   - Aucun sens ne contient de tabulation ni de saut de ligne : un export tabulé est sûr.
 - **Risques / dépendances** :
   - **Ordre imposé : après les Sprints A et B d'US-20.** Ce sprint renomme une classe du moteur
@@ -231,7 +236,18 @@ avec le palier qui peut se perdre.
   (mot posé d'au moins 3 lettres, un seul bon sens, aucun mauvais choix voisin du bon, versets
   non alignés jamais posés, mélange à 5 et 5, repli sur les passages sans données). Sélecteur de
   mode, mot en or, sens longs : vérification visuelle sous Windows.
-- **Item Backlog** : `[P2] US-22 Sprint C — Questions de mots et trois modes (français, Hafs)`.
+- **Item Backlog** : `[P2] US-22 Sprint C — Questions de mots et trois modes (français, Hafs)`,
+  livré le 2026-10-13 et retiré du Backlog.
+
+**Livraison du Sprint C** (2026-10-13) — ce que le code a précisé :
+- Les mots arabes proposés dans une question sont tous différents entre eux, pas seulement
+  différents du mot posé : sinon le même mot pouvait apparaître deux fois en « sens vers arabe ».
+- En « Mélange », la part du plan du jour est de 4 questions sur 10 au plus (2 passages et
+  2 mots) : « au plus la moitié » s'applique à chaque moitié de cinq.
+- Les espaces insécables de la source sont gardées (`Dis :` s'écrit avec une insécable).
+- Restent **à confirmer** par l'utilisateur, livrés tels que le scoping les posait : les libellés
+  « Mélange », « Versets », « Traduction », le mode « Mélange » présélectionné, et le report du
+  crit. 4 à US-21.
 
 **Ajustement au scoping** (2026-10-13) — crit. 1, 2, 4 et 5 précisés :
 - **Crit. 1** : les trois modes (demande de l'utilisateur). « Mélange » pose cinq questions de

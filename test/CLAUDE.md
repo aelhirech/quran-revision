@@ -20,8 +20,10 @@ ne pas en déduire une couverture UI.
 | `test/state/app_state_checkin_test.dart` | Check-in : construction de la journée, répartition en rakaas, cas de regroupement par page partagée. |
 | `test/state/app_state_learning_test.dart` | Apprentissage : progression verset par verset, hand-off sourate mémorisée → révision, retrait du dernier bloc au check-out avant le hand-off (US-12), filtre `checked_out = 0` de `learnPlanFor` face aux lignes héritées de l'ancien écran de pratique. |
 | `test/state/app_state_day_close_test.dart` | Clôture (US-13/US-14) : `SealOutcome` (sourate mémorisée annoncée une seule fois, tour bouclé + mémorisation réunis dans un seul résultat), `dayRecap` (revu, appris, reliquat, rien d'un autre jour, lisible après scellement). |
-| `test/core/reinforcement_engine_test.dart` | Séries de l'onglet Renforcement (US-20), sur les vrais textes Hafs et Warsh avec `Random` à graine fixe : découpe en passages sans perte et seulement aux signes de pause, passages répétés jamais posés, plage partielle jamais dépassée, passage similaire proposé, cinq questions du plan du jour, questions non reposées d'une série à l'autre, sélection trop petite, `carriedVerses`. |
+| `test/core/reinforcement_engine_test.dart` | Séries de l'onglet Renforcement (US-20), sur les vrais textes Hafs et Warsh avec `Random` à graine fixe : découpe en passages sans perte et seulement aux signes de pause, passages répétés jamais posés, plage partielle jamais dépassée, passage similaire proposé, cinq questions du plan du jour, questions non reposées d'une série à l'autre, sélection trop petite, série sur une sourate qui ignore le plan du jour, `carriedVerses`. |
 | `test/state/app_state_reinforcement_test.dart` | `reinforcementInputs` : versets du plan du jour dans `today`, verset proposé à l'apprentissage mais pas encore appris absent de `carried` et de `today`. |
+| `test/core/reinforcement_words_test.dart` | Questions de mots et série mêlée (US-22), sur le vrai texte Hafs et les vrais sens CoranMot avec `Random` à graine fixe : mot posé d'au moins 3 lettres, choix aux mots arabes et aux sens tous différents, aucun sens voisin du bon, mot retrouvé à son rang dans le passage, verset sans un sens par mot jamais interrogé, mots non reposés, part du plan du jour, série sur une sourate, série mêlée à 5 et 5 et ses deux replis. Un test (« un même sens est proposé une seule fois ») passe des sens inventés par `glossesOf` : les données réelles ne produisent pas ce cas. |
+| `test/services/word_gloss_service_test.dart` | Vrai asset `fr.coranmot.tsv` (US-22) : 77 429 sens, un sens par mot dans chaque verset Hafs sauf exactement sept, deux versets connus recopiés sans retouche (espaces insécables écrites en échappement, ne pas les « corriger »), disponibilité en français et en Hafs seulement. |
 | `test/core/day_dates_test.dart` | `daysAgo` : jours entiers quelle que soit l'heure, pas de glissement au changement d'heure. |
 | `test/services/translation_service_test.dart` | Vrais fichiers Tanzil (US-19) : chaque verset Hafs a une traduction non vide en français et en anglais, deux textes connus (112:1) attrapent des fichiers inversés, une langue jamais chargée renvoie `null`. |
 | `test/widgets/verse_range_slider_test.dart` | `nudgeRange` seul (fonction pure, pas de pump de widget) : ±1 bornés à min/max, fin jamais avant le début (US-11). |
@@ -56,6 +58,11 @@ jusqu'ici. À la place :
 - `HafsService`/`PageMetadataService` sont chargés en vrai (`rootBundle`, vrais JSON
   d'`assets/quran/`) dans `setUpAll` plutôt que mockés — un id de sourate fictif dans un test
   n'aurait donc aucune page et produirait toujours 0 unité. Utiliser des ids réels (1..114).
+- `test_helpers.dart` porte `bareWord` (un token coranique sans voyelles ni signes) et `wholeSurahs`
+  (une sélection de sourates entières). `bareWord` réécrit la règle du moteur au lieu de
+  l'emprunter, exprès : un test doit dire la règle, pas la recopier.
+- `WordGlossService.load()` se précharge en `setUpAll`, comme les traductions : c'est un asset de
+  1,7 Mo.
 
 ## Conventions à suivre
 - Miroir de la structure `lib/` : `test/core/revision_engine_test.dart` pour
