@@ -39,6 +39,9 @@ class Passage {
 
   String get text => words.join(' ');
 
+  /// What identifies a passage, across two builds of the same text.
+  (int, int, int) get id => (surahId, ayahId, index);
+
   late final List<String> _normalized =
       words.map(_normalize).where((w) => w.isNotEmpty).toList();
   late final String _key = _normalized.join(' ');
@@ -142,8 +145,7 @@ class ReinforcementEngine {
     bool isToday(_Link l) =>
         surahId == null &&
         today.contains((l.prompt.surahId, l.prompt.ayahId));
-    bool isAvoided(_Link l) => avoid
-        .contains((l.prompt.surahId, l.prompt.ayahId, l.prompt.index));
+    bool isAvoided(_Link l) => avoid.contains(l.prompt.id);
 
     final series = <SeriesQuestion>[];
     int fill(Queue<_Link> queue, int target) {

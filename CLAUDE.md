@@ -123,7 +123,7 @@ présente jamais comme remplaçant un cheikh. Elle tient le carnet, pas la chair
 | Moment | Ce qui s'y passe | Regard |
 |---|---|---|
 | **Début** — check-in | Prendre en considération l'objectif du jour et s'y engager | **Derrière** : l'acquis, la régularité déjà constituée |
-| **Milieu** — les prières | Réviser, apprendre. L'app est quasi absente : sa seule présence est l'accès au texte depuis chaque ligne du plan | — |
+| **Milieu** — les prières | Réviser, apprendre. L'app est quasi absente : elle n'offre que l'accès au texte depuis chaque ligne du plan et, à un moment choisi, l'onglet Renforcement pour s'éprouver sur ce qu'on porte | — |
 | **Fin** — check-out | Confirmer ce qui a tenu ; ce qui n'a pas tenu revient demain | **Devant** : durée du tour, échéance d'apprentissage |
 
 Règle de placement des chiffres : **derrière au check-in, devant au check-out.** Le check-in doit

@@ -101,6 +101,23 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     `StepTransition`. Une nouvelle étape dans l'un de ces deux écrans les réutilise.
   - `PrimaryCtaButton` réduit un libellé trop long au lieu de le couper, et n'a plus d'ombre
     quand il est désactivé.
+- **Onglet Renforcement (US-20, 2026-10-13)** :
+  - L'onglet et l'écran de série ne créditent rien et n'écrivent rien : ni `ayah_facts`, ni
+    préférence, ni champ d'`AppState`. Reconnaître un passage n'est pas le réciter. Ce qu'une
+    série retient (les passages posés, pour ne pas les reposer) vit dans le `State` de l'onglet,
+    le temps de la session.
+  - Un verset ne se coupe qu'aux signes de pause du mushaf (`ReinforcementEngine.passagesOf`).
+    L'écran n'ajoute que des « … » : devant le passage posé s'il ne commence pas son verset,
+    derrière tout passage qui ne le termine pas. Jamais devant un choix.
+  - Les onglets se désignent par constantes (`_recapTab`, `_settingsTab` dans `ShellScreen`),
+    jamais par un indice écrit en dur : insérer un onglet décale ceux qui le suivent.
+  - Un passage se reconnaît par `Passage.id` (sourate, verset, rang), jamais par `identical` ni
+    par un triplet réécrit à la main : le moteur, l'onglet et l'écran doivent parler du même.
+  - Une carte de choix n'est pas découpée (`clipBehavior`) : les signes coraniques hauts
+    dépassent leur ligne et seraient rognés. L'onde de l'appui prend sa forme par
+    `InkWell.customBorder`.
+  - Une carte dont la bordure change d'état part de `cardShape(palette)` (`app_theme.dart`) et
+    de `copyWith(side: …)`, sans réécrire le rayon.
 
 **Cadrage produit encore valide**
 - « Prières où il est imam » = prières où c'est lui qui récite (seul ou en dirigeant) — un simple élargissement de libellé, pas un filtre d'exclusion ni une pondération de répartition.
@@ -125,121 +142,6 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 ## Backlog technique
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
-
-### [P2] US-20 Sprint B — Onglet Renforcement et écran de série
-**Le Sprint A est livré** : ce sprint branche `ReinforcementEngine.buildSeries` et
-`AppState.reinforcementInputs()` sur un quatrième onglet. Rien n'est persisté. Maquettes :
-https://claude.ai/artifact/8Sym4Aq9X1M4s6gzrJi46k (direction 3).
-- **`lib/screens/shell_screen.dart`** (141 lignes) : quatrième onglet en **2e position** (Plan du
-  jour, Renforcement, Récap, Réglages), `ReinforcementTab` à l'index 1 de l'`IndexedStack`.
-  Libellé `SReinforcement.onglet`. Icône : `Transform.rotate(angle: pi / 4, child:
-  Icon(Icons.crop_square, size: 20))`, et `Icons.square` pour l'état sélectionné (le losange des
-  marques de score). **Piège** : `didChangeDependencies` ouvre le Récap puis les Réglages après
-  la première clôture par `_index = 1` et `_index = 2`. Ils deviennent 2 et 3, portés par deux
-  constantes privées `_recapTab` et `_settingsTab`.
-- **`lib/screens/reinforcement/reinforcement_tab.dart`** (nouveau, ~120 lignes,
-  `StatefulWidget`) : `Scaffold`, `CustomScrollView` et `SliverAppBar.large(title:
-  SReinforcement.onglet)`, comme le Récap. Une `Card` « Série du jour » (titre, ligne
-  `SReinforcement.serieDuJourDesc`, `PrimaryCtaButton(SReinforcement.commencer)`), puis
-  `OutlinedActionButton(icon: Icons.menu_book_outlined, label: SReinforcement.choisirSourate)`.
-  Même spinner que le Récap quand `config == null`.
-  - `_start({Sourate? sourate})` : `await state.reinforcementInputs()`, `if (!mounted) return;`,
-    puis `ReinforcementEngine.buildSeries(carried: …, today: …, textOf: (s, a) =>
-    VerseService.getVerse(s, a, riwaya: state.riwaya), random: Random(), avoid: _lastPrompts,
-    surahId: sourate?.id)`. Liste vide : `_tooSmall = true`, et la carte affiche
-    `SReinforcement.selectionTropPetite` sous le bouton. Sinon `_tooSmall = false`,
-    `_lastPrompts` (`Set<(int, int, int)>`) est remplacé par les passages posés de cette série,
-    et `SeriesScreen` est poussé comme le check-in (`Navigator.of(context, rootNavigator:
-    true)`, `MaterialPageRoute(fullscreenDialog: true)`).
-  - « Choisir une sourate » : `await state.reinforcementInputs()`, puis
-    `showModalBottomSheet<Sourate>` avec `SouratePickerSheet(sourates: <celles de
-    state.sourates dont l'id est une clé de carried>, title: SReinforcement.choisirSourate)`,
-    puis `_start(sourate: picked)`.
-- **`lib/screens/reinforcement/series_screen.dart`** (nouveau, ~220 lignes, `StatefulWidget`) :
-  reçoit `List<SeriesQuestion> questions` et `String title` (`SReinforcement.serieDuJour` ou
-  `SReinforcement.serieSur(nom)`). État local : `_index`, `_picked` (`Passage?`), `_held`
-  (`List<bool>`).
-  - **En-tête** : bouton fermer, `title` en capitales (le `TextStyle` de l'eyebrow de
-    `CycleProgressCard`, en `palette.textMuted`), `SReinforcement.progression(n, total)`,
-    `SeriesMarks`.
-  - **Question**, dans `StepTransition(step: _index)` et un `SingleChildScrollView` :
-    `SReinforcement.sourateVerset(nom, verset)`, le passage posé dans une `Card`
-    (`ArabicVerseText`), `SReinforcement.quelleSuite`, puis une `PassageChoice` par choix.
-  - **Points de suspension** : le passage posé est précédé de « … » s'il ne commence pas son
-    verset. Tout passage, posé ou proposé, est suivi de « … » s'il ne termine pas son verset. Un
-    choix n'est jamais précédé de « … ».
-  - **Après un appui**, les choix se figent. Le bon choix prend une bordure `palette.gold` et un
-    losange plein. Le choix appuyé, s'il est mauvais, prend une bordure `palette.textMuted`, un
-    losange vide et la ligne `SReinforcement.passageDans(sourate, verset)`. Les autres passent à
-    50 % d'opacité. Aucun usage de `palette.danger`. Dessous, une `Card`
-    `SReinforcement.laSuite` : un seul `VerseRow` si les deux passages sont du même verset
-    (passage posé puis suite), deux sinon ; puis `TextButton.icon(Icons.menu_book_outlined,
-    SReinforcement.ouvrirTexte)` qui appelle `VerseBottomSheet.show(context, sourate,
-    prompt.ayahId, answer.ayahId)`.
-  - **Pied** : `PrimaryCtaButton(SCheckIn.suivant)`, inactif tant qu'aucun choix n'est appuyé.
-  - **Fin de série** : `SReinforcement.progression(tenues, total)` en grand, `SeriesMarks`
-    complète, `SReinforcement.finSerieNote`, `PrimaryCtaButton(SReinforcement.fermer)` qui fait
-    `Navigator.pop`. Fermer en cours de série fait aussi `Navigator.pop`, sans confirmation.
-- **`lib/screens/reinforcement/widgets/series_marks.dart`** (nouveau, ~45 lignes) :
-  `SeriesMarks({required List<bool> held, required int total, int? current})`. Un carré de 8 px
-  tourné de 45° par question : plein `palette.gold` si elle a tenu, bordure `palette.gold` si
-  elle est ratée, bordure `palette.cardBorder` si elle est à venir. La question en cours est
-  entourée en `palette.textPrimary`.
-- **`lib/screens/reinforcement/widgets/passage_choice.dart`** (nouveau, ~60 lignes) : une `Card`
-  avec l'`InkWell` **dedans** (décision active « Cartes »), `ArabicVerseText(fontSize: 20)`,
-  `enum ChoiceState { idle, correct, pickedWrong, dimmed }` et `String? note`.
-- **`lib/core/strings_reinforcement.dart`** (nouveau, `part of 'strings.dart'`, classe
-  `SReinforcement`, français / anglais) :
-  - `onglet` : « Renforcement » / « Strengthen »
-  - `serieDuJour` : « Série du jour » / « Today's series »
-  - `serieDuJourDesc` : « Des questions sur ce que tu portes. L'app choisit, tu réponds. » /
-    « Questions on what you carry. The app picks, you answer. »
-  - `commencer` : « Commencer » / « Start »
-  - `choisirSourate` : « Choisir une sourate » / « Pick a surah »
-  - `serieSur(nom)` : « Série sur $nom » / « Series on $nom »
-  - `sourateVerset(nom, n)` : « $nom · verset $n » / « $nom · verse $n »
-  - `quelleSuite` : « Quelle est la suite ? » / « What comes next? »
-  - `progression(n, total)` : « $n sur $total » / « $n of $total »
-  - `passageDans(sourate, n)` : « Ce passage est dans $sourate, verset $n. » / « This passage is
-    in $sourate, verse $n. »
-  - `laSuite` : « La suite, dans l'ordre » / « What follows, in order »
-  - `ouvrirTexte` : « Ouvrir le texte » / « Open the text »
-  - `finSerieNote` : « Ton tour de révision ne change pas : seule ta récitation le fait
-    avancer. » / « Your revision round does not change: only your recitation moves it forward. »
-  - `fermer` : « Fermer » / « Close »
-  - `selectionTropPetite` : « Ta sélection est trop petite pour composer une série. Ajoute une
-    sourate dans les Réglages. » / « Your selection is too small to build a series. Add a surah in
-    Settings. »
-- **`lib/core/strings.dart`** (308 lignes) : une ligne `part 'strings_reinforcement.dart';`.
-- **Réutilisé tel quel** : `SouratePickerSheet`, `ArabicVerseText`, `VerseRow`,
-  `VerseBottomSheet.show`, `PrimaryCtaButton`, `OutlinedActionButton`, `StepTransition`,
-  `SCheckIn.suivant`, le `cardTheme`. `OrnamentalDivider` n'est pas modifié.
-- **Tests** : aucun test automatisé (apparence, `test/CLAUDE.md`). Sous Windows, en clair et en
-  sombre, en français et en anglais :
-  - La barre à quatre onglets à 390×844, 360×640 et 320×568 : aucun libellé ne déborde. À 320,
-    un libellé coupé par des points de suspension est toléré et ouvre un item P3 ; un débordement
-    ne l'est pas.
-  - Après une première clôture sur un profil neuf, le Récap puis les Réglages s'ouvrent toujours.
-  - Une série sur les sourates 78 à 114 (passages courts), une sur Al-Baqara (passages longs,
-    « … »), à 320×568 avec texte ×1,5 : tout défile, le bouton du pied reste atteignable.
-  - Le bon choix et le mauvais choix se distinguent en sombre sans aucun rouge.
-  - Une sélection réduite à Al-Kawthar 1 à 2 affiche le message « trop petite ».
-  - Une série se lance en Warsh.
-  - Le temps de `buildSeries` sur une sélection de 113 sourates, mesuré en debug et noté dans la
-    doc. Au-delà de 500 ms, un item P2 est ouvert (garder les passages en mémoire entre deux
-    séries) : pas d'optimisation dans ce sprint.
-- **Exclus** : toute persistance (score, série faite aujourd'hui), les paliers et le retour des
-  versets ratés (US-21), les questions de mots (US-22), une étape d'accompagnement guidé, un
-  ajout à l'onboarding, le retour tactile, une explication de ce qui distingue deux passages
-  proches, la reprise d'une série quittée, toute notification.
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §8 « Structure générale » (quatre onglets, indices
-  par constantes), nouvelle §8.7 (onglet et écran de série), §10 (`SReinforcement`), §14 (« 3
-  onglets » devient 4, deux lignes ajoutées) ; `CLAUDE.md`, ligne « Milieu » de la forme de la
-  journée (l'onglet Renforcement, à un moment choisi, s'ajoute à l'accès au texte) ;
-  `docs/USER_STORIES.md`, Résumé business (« Il y 3 pages »). Dans ce fichier, ajouter aux
-  « Décisions actives » : l'onglet Renforcement ne crédite rien et n'écrit rien ; un verset ne
-  se coupe qu'aux signes de pause ; les onglets se désignent par constantes, pas par indices en
-  dur. Passer US-20 à « terminée » puis l'archiver.
 
 ### [P2] US-22 Sprint C — Questions de mots et trois modes (français, Hafs)
 **Les Sprints A et B d'US-20 sont livrés** : ce sprint ajoute les questions de mots et le choix
@@ -304,7 +206,7 @@ entre trois modes dans l'onglet Renforcement. Rien n'est persisté : le compte �
     en choix. Le passage n'apparaît qu'après la réponse.
   - **Après un appui** : les mêmes états que pour un passage. Sous un mauvais choix, la ligne
     `'${choice.arabic} : ${choice.gloss}'`. Dessous, une `Card` : le passage avec le mot en or,
-    le bon sens, la ligne `SReinforcement.sourceMots`, et le bouton `ouvrirTexte` qui ouvre
+    le bon sens, la ligne `SReinforcement.sourceMots`, et le bouton `S.voirLeTexte` qui ouvre
     `VerseBottomSheet.show(context, sourate, ayahId, ayahId)`.
 - **`lib/screens/reinforcement/widgets/passage_choice.dart`** : paramètre `bool latin = false`
   (texte en Lora 15 px au lieu d'`ArabicVerseText`).
@@ -353,6 +255,39 @@ futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
 
+### [P3] Deux accès aux sourates écrits plusieurs fois côté écrans
+Relevé en `/simplify` du Sprint B d'US-20 (2026-10-13). Aucun bug : du code recopié. Différé
+parce que le correctif touche le check-in, le check-out et `AppState`, hors du périmètre d'un
+sprint d'écran.
+- **Ouvrir la liste des sourates** : le même bloc `showModalBottomSheet<Sourate>(context,
+  isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) =>
+  SouratePickerSheet(…))` existe quatre fois (`check_in_screen.dart` deux fois,
+  `check_out_sections.dart`, `reinforcement_tab.dart`). Ajouter à `SouratePickerSheet` une
+  méthode `static Future<Sourate?> show(BuildContext context, {required List<Sourate> sourates,
+  String? title})`, sur le modèle de `VerseBottomSheet.show`, et y faire passer les quatre
+  appelants.
+- **Retrouver une sourate par son id** : `AppState._sourateById` est privé, donc
+  `series_screen.dart` (`_sourate`) et `return_proof_step.dart` refont chacun leur recherche.
+  Le rendre public sous le nom `sourateById` (définition dans `app_state.dart`, trois appels dans
+  `app_state_dayplan.dart` et `app_state_learning.dart`) et l'appeler depuis ces deux fichiers.
+- **Tests** : `flutter test` avant et après, aucun comportement ne change. Sous Windows : ajouter
+  une sourate au check-in, déclarer une sourate en plus au check-out, lancer une série sur une
+  sourate.
+
+### [P3] Test de l'ouverture du Récap puis des Réglages après la première clôture
+Relevé au Sprint B d'US-20 (2026-10-13). `ShellScreen` ouvre le Récap puis les Réglages par
+`_recapTab` et `_settingsTab` (2 et 3). Aucun test ne le verrouille : insérer ou déplacer un
+onglet sans corriger ces deux constantes ouvrirait le mauvais onglet, en silence. Vérifié à la
+main à ce sprint. Différé : aucun changement d'onglet n'est prévu (US-21 et US-22 n'en ajoutent
+pas).
+- **`test/screens/shell_screen_test.dart`** (nouveau, test widget, exception « piège d'état » de
+  `test/CLAUDE.md`) : `ShellScreen` monté avec le vrai thème sous un `AppState` sans aucune étape
+  guidée faite. Après `markGuideDone('checkout_done')`, `NavigationBar.selectedIndex` vaut 2.
+  Après `markGuideDone('recap_seen')`, il vaut 3. Après un appui sur un autre onglet puis
+  `markGuideDone('settings_seen')`, l'onglet choisi reste.
+- **Risque** : `ShellScreen.initState` lance `ensureDayPlan()`, qui lit SQLite. Sous l'horloge
+  simulée de `flutter test`, cette lecture ne se termine pas : le test ne doit pas en dépendre.
+
 ## Idées produit (non scopées)
 
 Vision/features pas encore prêtes à l'implémentation — pas de priorité technique tant qu'elles n'ont pas été cadrées (`quran-blueprint` → user story dans `docs/USER_STORIES.md`, puis `quran-scoping` → item ci-dessus). Ne pas lancer à la volée.
@@ -381,7 +316,9 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   pas le plus proche, et les deux seuils (12 mots par passage, moitié des mots en commun) viennent
   des mesures du scoping, pas d'un usage. Il reste à jouer de vraies séries (après le Sprint B)
   pour choisir : garder le hasard, prendre toujours le plus proche (mais alors le même piège
-  revient à chaque fois), ou déplacer un seuil.
+  revient à chaque fois), ou déplacer un seuil. Déjà mesuré au Sprint B (5 900 questions) : le
+  « … » final d'un choix ne désigne pas la bonne réponse (le choix « à part » est le bon dans 12
+  à 20 % des cas, contre 25 % au hasard).
 - **Sourate entièrement apprise alors qu'une plage en est déjà sélectionnée** (relevé en
   `/code-review` du Sprint A d'US-20, 2026-10-13) : `handOffLearnedSurahs` ne bascule pas une
   sourate qui a déjà une sélection, même partielle. Les versets appris hors de cette plage
@@ -392,7 +329,24 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   titres en capitales ont chacun leur taille et leur espacement (`check_in_screen.dart`,
   `check_out_sections.dart`, `day_closed_summary.dart`, `prayer_selector.dart`,
   `streak_card.dart`, `verse_chips_scaffold.dart`, `check_hero.dart`, `cycle_progress_card.dart`).
+  `series_screen.dart` (Sprint B d'US-20) reprend tel quel celui de `cycle_progress_card.dart`.
   Il reste à choisir le style commun avant d'écrire un widget ou un style de thème partagé.
+- **Barre à quatre onglets : « Renforcement » se coupe en deux lignes quand le texte est agrandi**
+  (relevé au Sprint B d'US-20, 2026-10-13, mesuré sous Windows) : à la taille de texte par défaut,
+  les quatre libellés tiennent sur une ligne à 390, 360 et 320 px (« Renforcement » occupe 79,4 px
+  sur 80 à 320 px). Avec un texte système agrandi, le mot passe sur deux lignes (« Renforceme /
+  nt ») : dès ×1,15 à 320 px, et à ×1,3 à 360 et 390 px (`NavigationBar` plafonne lui-même à
+  ×1,3). « Plan du jour » fait de même à 320 px. Rien ne déborde. Avec trois onglets, aucun
+  libellé ne se coupait. Il reste à choisir : plafonner l'agrandissement du texte dans la barre,
+  resserrer l'espacement des lettres, raccourcir le libellé, ou l'accepter.
+- **Renforcement : le message « sélection trop petite » ne dit pas toujours vrai** (relevé au
+  Sprint B d'US-20, 2026-10-13, déduit du code, non reproduit) : une sourate prise par « Choisir
+  une sourate » peut n'offrir aucune question, quand un seul passage en est porté (premier verset
+  appris d'une sourate en cours, plage d'un seul verset court). L'onglet affiche alors « Ta
+  sélection est trop petite… Ajoute une sourate dans les Réglages », alors que la sélection
+  entière suffirait. Le message reste aussi affiché après un ajout de sourates, jusqu'au
+  lancement suivant. Il reste à choisir : ne lister que les sourates qui offrent une question,
+  écrire un second message, ou les deux.
 
 ---
 

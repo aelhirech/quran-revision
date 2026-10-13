@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,11 @@ import '../state/app_state.dart';
 import '../widgets/day_plan_tab.dart';
 import 'recap_screen.dart';
 import 'profile_screen.dart';
+import 'reinforcement/reinforcement_tab.dart';
+
+// Named, not numbered: an index shifts whenever a tab is inserted before it.
+const _recapTab = 2;
+const _settingsTab = 3;
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -57,9 +63,9 @@ class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
     final checkoutDone = state.guideDone('checkout_done');
     final recapSeen = state.guideDone('recap_seen');
     if (checkoutDone && !_lastCheckoutDone && !recapSeen) {
-      _index = 1;
+      _index = _recapTab;
     } else if (checkoutDone && recapSeen && !_lastRecapSeen) {
-      _index = 2;
+      _index = _settingsTab;
     }
     _lastCheckoutDone = checkoutDone;
     _lastRecapSeen = recapSeen;
@@ -88,6 +94,9 @@ class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
 
   void _onDestinationSelected(int i) => setState(() => _index = i);
 
+  Widget _diamond(IconData icon) =>
+      Transform.rotate(angle: math.pi / 4, child: Icon(icon, size: 20));
+
   List<NavigationDestination> _destinations(BuildContext context) {
     context.watch<AppState>(); // rebuild on locale change
     return [
@@ -95,6 +104,11 @@ class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
         icon: const Icon(Icons.mosque_outlined),
         selectedIcon: const Icon(Icons.mosque),
         label: S.planDuJour,
+      ),
+      NavigationDestination(
+        icon: _diamond(Icons.crop_square),
+        selectedIcon: _diamond(Icons.square),
+        label: SReinforcement.onglet,
       ),
       NavigationDestination(
         icon: const Icon(Icons.bar_chart_outlined),
@@ -117,6 +131,7 @@ class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
         index: _index,
         children: const [
           DayPlanTab(),
+          ReinforcementTab(),
           RecapScreen(),
           ProfileScreen(),
         ],

@@ -2,6 +2,7 @@ part 'strings_onboarding.dart';
 part 'strings_guide.dart';
 part 'strings_check_in.dart';
 part 'strings_check_out.dart';
+part 'strings_reinforcement.dart';
 
 /// Centralise toutes les chaînes affichées dans l'app.
 /// Changer [locale] en 'en' pour passer en anglais.
