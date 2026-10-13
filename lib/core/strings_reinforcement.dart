@@ -26,6 +26,18 @@ class SReinforcement {
       'Ton tour de révision ne change pas : seule ta récitation le fait avancer.',
       'Your revision round does not change: only your recitation moves it forward.');
   static String get fermer => S._t('Fermer', 'Close');
+  static String get modeMelange => S._t('Mélange', 'Mix');
+  static String get modeVersets => S._t('Versets', 'Verses');
+  static String get modeTraduction => S._t('Traduction', 'Meaning');
+  static String get queVeutDire => S._t(
+      'Que veut dire le mot en or ?', 'What does the golden word mean?');
+  static String get quelMot =>
+      S._t('Quel mot porte ce sens ?', 'Which word carries this meaning?');
+  static String motSens(String mot, String sens) =>
+      S._t('$mot : $sens', '$mot: $sens');
+  static String get sourceMots => S._t(
+      'Sens : Dr Usama Nonnenmacher, CoranMot',
+      'Meanings: Dr Usama Nonnenmacher, CoranMot');
   static String get selectionTropPetite => S._t(
       'Ta sélection est trop petite pour composer une série. Ajoute une sourate dans les Réglages.',
       'Your selection is too small to build a series. Add a surah in Settings.');

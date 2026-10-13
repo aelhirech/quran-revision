@@ -185,6 +185,9 @@ C'est l'objet de configuration central, il mérite d'être détaillé séparéme
 Compose les séries de l'onglet Renforcement : dix questions « quelle est la suite ? ». Dart pur,
 aucune lecture ni écriture : le texte arrive par le paramètre `textOf`, le hasard par `random`
 (graine fixe en test). L'onglet et l'écran qui les affichent sont décrits en §8.7.
+Depuis US-22, une série peut aussi poser des questions de mots : elles vivent dans un fichier
+`part of` de ce moteur, décrit en §5.7. Une question est une `SeriesQuestion`, classe scellée :
+`PassageQuestion` ici (`prompt`, `answer`, `choices`), `WordQuestion` en §5.7.
 
 - **Passage** (`passagesOf`) : l'unité d'une question. Un verset de 12 mots au plus est un seul
   passage. Un verset plus long est coupé après chaque token portant un signe de pause (U+06D6,
@@ -208,6 +211,9 @@ aucune lecture ni écriture : le texte arrive par le paramètre `textOf`, le has
   d'ailleurs ; si un groupe manque, l'autre complète. Les passages posés à la série précédente
   (`avoid`) ne reviennent que lorsque tout le reste est épuisé, plan du jour compris. Avec
   `surahId`, seules les questions de cette sourate sont posées et `today` est ignoré.
+  Ce tirage vit dans `_draw`, fonction privée partagée avec les questions de mots : elle reçoit
+  les candidats déjà restreints à la sourate demandée, et `count` (10 par défaut) dit combien en
+  tirer, ce dont la série mêlée a besoin.
 - **Mauvais choix**, 3 au plus, tous de clé différente, entre eux comme du passage posé et de sa
   suite : un passage similaire à la bonne suite
   (au moins la moitié des mots en commun, rapportés au plus grand des deux), un voisin (à 3 rangs
@@ -223,6 +229,59 @@ aucune lecture ni écriture : le texte arrive par le paramètre `textOf`, le has
   437 ms, soit environ 500 ms entre l'appui sur « Commencer » et l'écran de série, pendant
   lesquels l'interface est figée. Non mesuré sur téléphone. Si ce temps dépasse 500 ms, la
   réponse prévue est de garder les passages en mémoire entre deux séries.
+  Depuis US-22, le mode « Mélange », qui est le mode par défaut, y ajoute le coût des mots
+  (§5.7).
+
+### 5.7 Questions de mots (`lib/core/reinforcement_words.dart`, US-22 Sprint C, 2026-10-13)
+
+Fichier `part of` du moteur des séries : même bibliothèque, donc mêmes constantes, même
+normalisation et même tirage (`ReinforcementEngine._draw`). Dart pur : les sens arrivent par le
+paramètre `glossesOf`, comme le texte par `textOf`. Français et Hafs seulement (§6,
+`WordGlossService`). Ses deux fonctions publiques sont portées par la classe `ReinforcementWords`.
+
+- **`WordQuestion`** : `answer` (le mot posé), `choices` (2 à 4 `WordChoice`, mélangés),
+  `arabicToMeaning` (tiré au sort : le mot arabe est montré et son sens demandé, ou l'inverse),
+  `passage` et `wordIndex` (le passage de §5.6 qui contient le mot, et le rang du mot parmi les
+  tokens de `passage.words`, pour le montrer dans son contexte).
+- **`answerIndex`** : `PassageQuestion` et `WordQuestion` exposent le rang du bon choix parmi les
+  choix. L'écran de série n'a ainsi qu'un seul état pour les deux types (§8.7).
+- **`WordChoice`** : un mot d'un verset porté et son sens (`surahId`, `ayahId`, `rank`, `arabic`,
+  `gloss`). `rank` est le rang du mot parmi les mots du verset. `id` (sourate, verset, rang) joue
+  le rôle de `Passage.id` : c'est la clé d'`avoid`. `arabic` est le token d'origine, signes
+  compris. Le constructeur est privé : le moteur lui passe la forme normalisée qu'il vient de
+  calculer (la recalculer coûtait un quart du temps d'une série de mots, mesuré).
+- **Appariement d'un mot et de son sens** : par le rang seul. Le i-ième mot du verset (token qui
+  garde une lettre, §5.6) reçoit le i-ième sens. Un verset dont le nombre de mots diffère du
+  nombre de sens n'est jamais interrogé : sept versets en Hafs (§11).
+- **Mot posable** : le mot normalisé a au moins 3 lettres, et son sens, une fois retirés les
+  segments entre parenthèses ou crochets (ce que le traducteur ajoute à l'arabe), garde au moins
+  un mot de 3 lettres. Mesuré : 63 949 mots sur tout le Coran, 1 948 sur le juz 30, 9 sur
+  Al-Ikhlas.
+- **Tirage** (`buildWordQuestions`) : celui des passages. La moitié au plus vient du plan du jour,
+  les mots posés à la série précédente (`avoid`) ne reviennent qu'en dernier, et avec `surahId`
+  seuls les mots de cette sourate sont posés, sans égard au plan du jour. Un même mot arabe
+  normalisé n'est posé qu'une fois par série.
+- **Mauvais choix**, 3 au plus : d'autres mots posables portés, de la même sourate d'abord,
+  d'ailleurs seulement si elle n'en offre pas assez. Sont écartés : un mot arabe normalisé déjà
+  parmi les choix, un sens déjà parmi les choix, et un sens qui partage un mot de 4 lettres ou
+  plus avec le bon sens (en minuscules, hors parenthèses et crochets). Sans cette dernière règle,
+  « un livre » à côté de « Le Livre » ferait une seconde bonne réponse. Une question sans aucun
+  mauvais choix est écartée.
+- **Série mêlée** (`buildMixedSeries`) : 5 mots et 5 passages, mélangés, avec deux ensembles
+  `avoid` distincts. Les mots sont tirés d'abord et les passages complètent jusqu'à 10. Si ce
+  sont les passages qui manquent, les mots sont tirés une seconde fois avec un compte plus grand :
+  cela n'arrive que sur une sélection petite, où ce second tirage ne coûte rien. La part du plan
+  du jour s'applique à chaque tirage : 4 questions sur 10 au plus quand la série est à 5 et 5.
+- **Analyse à la demande** : les mots d'une sourate ne sont analysés qu'à la première question
+  qui les lit. Une série sur toute la sélection les lit toutes. Une série sur une sourate ne lit
+  que la sienne, sauf si elle manque de mauvais choix.
+- **Seuils** : 3 lettres pour le mot, 3 pour le sens, 4 pour écarter un sens voisin. Constantes
+  privées du fichier, posées au scoping sur mesure, à ajuster sur retour d'usage.
+- **Coût** (sous `flutter test`, Windows, 113 sourates portées) : environ 370 ms pour une série
+  de mots, 720 ms pour une série mêlée. Pour une série sur une seule sourate : 0 à 50 ms pour les
+  mots, 310 à 400 ms pour la série mêlée (les passages lisent encore toute la sélection pour
+  leurs mauvais choix). Avec le juz 30 seul : 22 ms pour une série mêlée. Non mesuré sur
+  téléphone : voir `docs/CHANGELOG.md`, Idées produit.
 
 ---
 
@@ -246,6 +305,7 @@ Tous stateless, méthodes `static`, aucun `notifyListeners`. C'est la seule couc
 | `AudioDownloadService` (US-10 Sprint A, 2026-09-29) | `dart:io` `HttpClient` + `path_provider` + `connectivity_plus` | Écoute hors connexion. Seconde exception au « tout statique » (`AudioDownloadService.instance`) : il porte le téléchargement en cours, exposé en `ValueNotifier<SurahDownload?> current` pour que toute `VerseBottomSheet` ouverte affiche la progression — jamais `notifyListeners` côté `AppState`, rien dans `ayah_facts` (US-10 crit. 6). **Le disque est la seule source de vérité** : racine `getApplicationCacheDirectory()/quran_audio/`, disposition `{reciter.id}/{SSS}/{VVV}.mp3` (`audioSurahRelativeDir`/`audioTrackFileName` dans `reciters.dart`) ; chaque verset est écrit en `.part` puis renommé, donc un `.mp3` présent est toujours complet — pas de flag ni de table qui pourrait diverger. Cache et non Application Support : ~1 Go/récitateur ne doit pas partir dans la sauvegarde iCloud ; un fichier purgé par l'OS repasse simplement en streaming. `playableSources(reciter, surah, start, end)` : une `Uri` par verset (`file://` si présent, URL KSU sinon — une plage à moitié stockée joue mixte), ou `null` si hors ligne avec au moins un verset manquant (US-10 crit. 4 : jamais de boucle partielle ou muette). `isSurahComplete` : chaque verset attendu présent (une seule lecture du dossier, pas un stat par verset). **File d'intentions (US-10 Sprint B, 2026-10-05)** : `queueSurah`/`queueReciter` ajoutent une demande (`'reciterId:surahId'` ou `'reciterId'`) à `ValueNotifier<List<String>> pending`, persistée par `AudioPrefs`, et renvoient si la règle réseau laisse partir tout de suite. `resumePending()` (lancement dans `main.dart`, retour d'arrière-plan dans `ShellScreen`, chaque nouvelle demande) fait tourner **une seule** boucle ; un appel pendant qu'elle tourne programme un passage de plus. Une demande sort de la file quand tout est sur disque ; une sourate en échec réseau est sautée et gardée ; pas de Wi-Fi ou disque plein (toute `FileSystemException`) arrêtent la file et sont exposés en `ValueNotifier<DownloadFailure?> blockedBy`. Deux cas sont traités comme un échec réseau de la sourate (sautée, demande gardée) : une réponse `200` dont le type de contenu n'est pas `audio/*` (portail captif qui renvoie une page HTML, refusée dans `_downloadTrack` avant toute écriture) et un nombre de versets illisible parce que le texte de la riwaya n'a pas chargé au démarrage (Warsh). `_downloadSurah` (privé, ex-`downloadSurah`) est **séquentiel** (source KSU non documentée, pas de rafale parallèle), saute les `.mp3` déjà là (= reprise) et revérifie la règle réseau **avant chaque verset** : Wi-Fi/Ethernet, sinon données mobiles seulement si `AudioPrefs.loadAllowMobileDownload()` (faux par défaut). `reciterDiskUsage` additionne les fichiers du dossier du récitateur (`.part` compris). `deleteReciter` retire ses demandes, arrête la boucle au verset suivant **et attend le verset en cours** (effacer sous lui ferait échouer son renommage, lu comme disque plein), arrête la lecture si elle joue ce récitateur, efface le dossier puis relance la file. Connectivité inconnue (échec du plugin) = « en ligne mais pas en Wi-Fi » : la lecture tente le streaming comme avant US-10, le téléchargement attend. « Hors ligne » = aucune interface réseau, pas « internet injoignable » (un Wi-Fi à portail captif tombe sur l'erreur de lecture US-9). Réseau non testable sur cette machine ; `playableSources`/`isSurahComplete`/`reciterDiskUsage` et la file (blocage réseau, dédoublonnage, suppression) testés sur un dossier temporaire (`AudioDownloadService.withRoot`). |
 | `AudioPrefs` (US-10 Sprint B, 2026-10-05) | SharedPreferences | Préférences audio, sorties de `StorageService` (déjà au plafond de taille) : `saveReciter`/`chosenReciter(riwaya)` (récitateur scopé par riwaya, défaut de la riwaya sinon — clé `audio_reciter_<riwaya>` inchangée), `loadPendingDownloads`/`savePendingDownloads` (file d'intentions, globale), `loadAllowMobileDownload`/`saveAllowMobileDownload` (global, `false` par défaut). Jamais `ayah_facts` ni `UserConfig`. |
 | `TranslationService` (US-19, 2026-10-13) | assets `assets/quran/translations/fr.hamidullah.txt` / `en.sahih.txt` | Traduction d'un verset, en Hafs seulement. `load(locale)` lit le fichier de la langue une seule fois (`'fr'` → Hamidullah, `'en'` → Saheeh International), ignore toute ligne qui ne commence pas par un chiffre (bloc de commentaires `#` en fin de fichier) et range chaque texte sous `(sourate, verset)`. `verse(locale, surahId, ayahId)` renvoie `null` si la langue n'est pas chargée. Prend la langue en paramètre, n'importe pas `core/strings.dart`. Ne passe pas par `QuranTextAsset` (JSON avec comptage, autre format). Seul appelant : `VerseBottomSheet` (§8.6). |
+| `WordGlossService` (US-22 Sprint C, 2026-10-13) | asset `assets/quran/wbw/fr.coranmot.tsv` | Sens mot à mot en français, en Hafs seulement (source et conditions d'usage : §10). `availableFor(locale, riwaya)` : vrai pour `'fr'` et `Riwaya.hafs`, c'est ce qui affiche ou non le sélecteur de mode (§8.7). `load()` lit le fichier une seule fois (une ligne par mot : sourate, verset, rang, sens, séparés par des tabulations) et range les sens par `(sourate, verset)`, dans l'ordre du fichier, sans toucher au texte : espaces insécables et espaces de bord sont gardées. `glosses(surahId, ayahId)` renvoie `null` tant que rien n'est chargé, et le moteur compose alors une série de passages seuls. Environ 100 ms au premier chargement, puis les sens restent en mémoire. Seul appelant : `ReinforcementTab`, qui passe `glosses` au moteur (§5.7). |
 
 **`AyahFactsService.isDaySealed(date, riwaya)` (Phase 9 Sprint 2)** — prédicat **monotone** : « il existe une ligne scellée ce jour-là », pas « toutes le sont ». Une journée peut redevenir mixte après son scellement (une ligne fraîche `checked_out = 0`), et un `MIN(checked_out)` répondrait alors « pas scellée », désarmant le garde-fou anti-double-comptage de `AppState.checkOut` exactement quand il sert. À ne pas confondre avec `pendingDate`, qui pose la question inverse (« reste-t-il quelque chose à clôturer ? ») et doit, elle, rester sensible à ces lignes fraîches.
 
@@ -660,7 +720,7 @@ le chargement réussit mais que la lecture échoue ensuite. Pas de croix de ferm
 d'US-1) : l'étape reste pour qui n'utilise pas l'audio, elle défile avec le texte. **Non vérifié
 sur appareil réel** (l'étape ne s'affiche pas sous Windows ni en test).
 
-### 8.7 Onglet Renforcement et écran de série (`screens/reinforcement/`, US-20 Sprint B, 2026-10-13)
+### 8.7 Onglet Renforcement et écran de série (`screens/reinforcement/`, US-20 Sprint B et US-22 Sprint C, 2026-10-13)
 
 Dossier dédié, parce que le flux a plusieurs étapes : `reinforcement_tab.dart` (l'onglet au
 repos), `series_screen.dart` (questions, retour après la réponse, score),
@@ -682,6 +742,18 @@ repos), `series_screen.dart` (questions, retour après la réponse, score),
   l'interface environ 400 ms (§5.6) : sans ce garde, un double appui empilait deux séries
   (reproduit sous Windows). Le garde ne grise pas le bouton : la lecture des entrées revient en
   moins d'une image, l'état grisé ne serait pas peint avant le blocage.
+- **Modes (US-22)** : `enum SeriesMode { mix, passages, words }`, état local `_mode`, `mix` par
+  défaut, jamais persisté. Un `SegmentedButton` « Mélange / Versets / Traduction » dans la carte
+  « Série du jour », affiché seulement si `WordGlossService.availableFor(S.locale, riwaya)`
+  (`_withWords`). Sinon le mode est `passages` et l'onglet est celui d'US-20 : c'est le cas en
+  Warsh et en anglais. Hors mode `passages`, `_start` attend `WordGlossService.load()` puis
+  appelle `buildWordQuestions` ou `buildMixedSeries` (§5.7). « Choisir une sourate » suit le
+  mode en cours.
+- `_lastWords` garde les `WordChoice.id` posés, à part de `_lastPrompts` : le troisième champ n'y
+  désigne pas la même chose. Une série d'un seul type laisse la mémoire de l'autre telle quelle.
+- Le sélecteur à 320 px : chaque segment n'a que 85 px. La marge des segments est réduite à 6 px
+  et chaque libellé est dans un `FittedBox` : il rétrécit au lieu de se couper au milieu d'un
+  mot (« Traducti / on » avec les réglages par défaut).
 
 **`SeriesScreen`** reçoit `questions` et `title`. État local : `_index`, `_picked`, `_held`.
 - En-tête : fermer, titre et « n sur total » en capitales (`_eyebrow`), puis `SeriesMarks`.
@@ -697,17 +769,39 @@ repos), `series_screen.dart` (questions, retour après la réponse, score),
   deux sinon, puis `S.voirLeTexte` qui ouvre `VerseBottomSheet`.
 - Pied : `StepFooter`, avec « Suivant » (inactif tant que rien n'est choisi), puis « Fermer »
   sur l'écran de score. Quitter, à tout moment, ne fait que `Navigator.pop`.
-- Les choix se comparent par `Passage.id`, jamais par `identical`.
+- L'état local `_picked` est le rang du choix appuyé parmi les choix de la question, et le bon
+  choix est `question.answerIndex` (§5.7) : un seul état pour les deux types de questions. Le
+  moteur compare les choix par `Passage.id` ou `WordChoice.id`, jamais par `identical`.
+- `build` aiguille par un `switch` exhaustif sur `PassageQuestion` et `WordQuestion` : un
+  troisième type de question ne compilerait pas sans sa vue.
+
+**Question de mot (US-22)**, dans `series_word_question.dart`, fichier `part of` de l'écran (une
+extension sur son `State`, pour garder `series_screen.dart` sous le plafond de taille) :
+- **Arabe vers sens** : sourate et verset, le passage dans une `Card` avec le mot posé en
+  `palette.gold`, « Que veut dire le mot en or ? », puis les sens en choix, tels quels.
+- **Sens vers arabe** : le sens en 20 px, « Quel mot porte ce sens ? », puis les mots arabes en
+  choix. Le passage n'apparaît qu'après la réponse.
+- Après un appui : les mêmes états que pour un passage. Sous un mauvais choix, la ligne
+  `SReinforcement.motSens` (« mot : sens »). Dessous, une `Card` : le passage avec le mot en or,
+  le bon sens, la ligne de source `SReinforcement.sourceMots` (condition d'usage, §10) et
+  `S.voirLeTexte`.
+- Le mot en or est désigné à `ArabicVerseText` par son rang parmi les mots du texte **affiché**.
+  Quand le passage est précédé de « … », ce rang est `wordIndex + 1`. Le « … » et ce décalage
+  lisent le même prédicat, `_leads(passage)` : ne pas réécrire la condition à la main.
+- `ArabicVerseText` (`lib/widgets/`) : avec `highlightWord` et `highlightColor`, le texte est
+  rendu en trois `TextSpan` du même style. Sans eux, le rendu est celui d'avant.
 
 **`SeriesMarks`** : un losange par question. Plein or : tenue. Bordure or : ratée. Bordure
 `cardBorder` : à venir. Cerclé : en cours. `PassageChoice` le réutilise avec `total: 1` pour sa
 propre marque.
 
-**`PassageChoice`** : une `Card` avec l'`InkWell` dedans. Pas de `clipBehavior` : les signes
+**`PassageChoice`** : avec `latin: true`, le choix est un sens en texte latin de 15 px au lieu
+d'un texte arabe, avec une marge verticale doublée pour rester aussi facile à toucher. Une `Card`
+avec l'`InkWell` dedans. Pas de `clipBehavior` : les signes
 coraniques hauts dépassent leur ligne et seraient rognés (vu en Warsh). L'onde de l'appui prend
 la forme de la carte par `customBorder`. La bordure d'état part de `cardShape(palette)` (§9).
 
-**Limites connues** (`docs/CHANGELOG.md`, Idées produit) : dans la barre, « Renforcement » se
+**Limites connues** (`docs/CHANGELOG.md`, Idées produit) : une série mêlée sur une très grande sélection fige l'interface près d'une seconde ; les libellés du sélecteur rétrécissent chacun pour soi quand le texte système est agrandi ; en « sens vers arabe », la sourate et le verset ne sont affichés nulle part ; dans la barre, « Renforcement » se
 coupe en deux lignes dès que le texte système est agrandi ; le message « sélection trop petite »
 s'affiche aussi quand c'est la sourate choisie qui n'offre aucune question. Aucun test
 automatisé sur ces écrans : ils sont vérifiés sous Windows.
@@ -731,6 +825,7 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 - **Toutes les chaînes UI** passent par la classe statique `S` (`lib/core/strings.dart`, ~240 lignes) et ses classes sœurs `SOnboarding`/`SGuide`/`SCheckIn`/`SCheckOut`/`SReinforcement` (`strings_onboarding.dart`, `strings_guide.dart`, `strings_check_in.dart`, `strings_check_out.dart`, `strings_reinforcement.dart`, en `part of 'strings.dart'` : même bibliothèque, donc `S._t` privé partagé et aucun import supplémentaire) — getters `S.xxx` retournant FR ou EN selon `S.locale` (`'fr'` par défaut), plus quelques fonctions paramétrées (`S.streakJours(n)`, `S.versetN(n, total)`, etc.). `S.locale` est synchronisé avec `AppState.locale` à l'initialisation (`main.dart`) et à chaque `AppState.setLocale()`.
 - **Texte arabe du Coran** : jamais d'appel direct à `HafsService`/`WarshService` depuis un écran/widget — toujours via `VerseService` (`lib/services/verse_service.dart`), qui arbitre Hafs vs Warsh selon la `Riwaya` passée en paramètre. **Depuis le Sprint 8, Hafs (6236 versets) et Warsh (6214 versets) ont chacun leur propre numérotation native — ce n'est plus une hypothèse "texte différent, numérotation identique"** (fausse, voir §6). Source : QUL (Tarteel AI), Hafs explicitement crédité King Fahd Complex, Warsh moins explicitement sourcé (voir Backlog).
 - **Traductions** (US-19) : éditions distribuées par Tanzil (`tanzil.net/trans/fr.hamidullah`, `tanzil.net/trans/en.sahih`), embarquées sans aucune modification dans `assets/quran/translations/` (une ligne `sourate|verset|texte` par verset, 6236 lignes, puis un bloc de commentaires). Condition d'usage : **non commercial**. Ces deux fichiers ne relèvent pas de la licence MIT du dépôt. Mise à jour par nouveau téléchargement. Elles suivent la numérotation Hafs et ne s'affichent jamais en Warsh.
+- **Sens mot à mot** (US-22) : `assets/quran/wbw/fr.coranmot.tsv` est l'export de la table `allwords` du fichier `words.db` de CoranMot (Dr Usama Nonnenmacher, `github.com/DrUsamaN/CoranMot`, branche `main`, un seul commit, lu le 2026-10-13). Requête d'export : `select sura, ayah, word, fr from allwords order by sura, ayah, word`, une ligne par mot, quatre champs séparés par une tabulation, UTF-8, fins de ligne LF, 77 429 lignes, 1 741 007 octets. Les sens sont recopiés **sans aucune modification**. Le README de la source pose trois conditions : projet islamique, aucune modification, source citée (la ligne « Sens : Dr Usama Nonnenmacher, CoranMot » sous chaque réponse, §8.7). Ce fichier ne relève pas de la licence MIT du dépôt. Mise à jour par nouvel export, jamais par retouche ; le script d'export n'est pas dans le dépôt. Les sens suivent la numérotation Hafs : aucune question de mot en Warsh. Pas de source anglaise retenue (le Quranic Arabic Corpus est sous GPL).
 - **Données statiques** : `lib/core/quran_data.dart` contient id/noms (FR/AR) des 113 sourates (hors Al-Fatiha) — les comptes de versets/mots ne sont plus stockés ici depuis le Sprint 8 (riwaya-dépendants, injectés via `buildSourates()` depuis `HafsService`/`WarshService`, voir §6). Le regroupement par Hizb vient de `HizbMetadataService` (donnée QUL officielle), plus de l'ancienne estimation locale. `lib/core/hadith_data.dart` contient les hadiths motivants (rotation quotidienne déterministe via `hadithDuJour(date)`) et le hadith d'intention affiché sur la preview.
 - **Signes de pause** (US-20) : la découpe en passages de `ReinforcementEngine` (§5.6) repose sur les signes de pause tels que les encode le texte QUL embarqué. En Hafs : U+06D6, U+06D7, U+06D8, U+06DA. En Warsh : U+06D6 seul (9 948 occurrences). Changer la source du texte changerait la découpe : `reinforcement_engine_test.dart` (test 2, Al-Baqara 255 en six passages) le signalerait.
 - **Prières** : les noms affichés passent par l'extension `PrayerL10n.displayName` (`lib/core/prayer_l10n.dart`), séparée du modèle `Prayer` pour ne pas polluer `models/` d'une dépendance à `S`.
@@ -747,8 +842,12 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 - **`test/services/ayah_facts_service_test.dart`** (Phase 6 Sprint 2 ; `setNeedsWork`/`lastRevisionFlags` retirés US-3, 2026-09-21) — suite sur `AyahFactsService`, avec `sqflite_common_ffi`. Couvre le rituel check-in/check-out : `pendingDate` (gating, y compris l'exclusion du jour même — bug trouvé en revue de code), idempotence de `proposeUnits`, `setReach`/`isRangeReached`, `setReachForVerses` à la granularité verset (US-3), `returningVerses` (verset revenu d'un check-out scellé, US-3 crit. 4), `removeFromDayPlan`, `sealDay`, groupement de `dayFacts`, démarrage d'apprentissage (`startLearning`). Fixtures partagées (`testSourate`/`testUnit`/`initFfiTestDb`) factorisées dans `test/services/test_helpers.dart` (Phase 8 Sprint 1, `/simplify` + `/code-review`), réutilisées par les deux fichiers de migration ci-dessous et par `test/state/app_state_checkin_test.dart` (`testSourate` avec `verses`/`words` réduits, pour ne pas déclencher le découpage `RevisionEngine`).
 - **`test/services/ayah_facts_migration_test.dart` / `ayah_facts_migration_v4_test.dart`** (Phase 8 Sprint 1) — couvrent `AyahFactsService._open()`/`onUpgrade` directement (angle jusqu'ici non testé, voir §14 "priorités" : Sprint 8/Phase 6 le signalait déjà pour la logique riwaya). Chaque scénario dans son propre fichier : `AyahFactsService._db` est un singleton process-wide, `flutter test` isole chaque fichier dans son propre process, seule façon fiable de contrôler l'état de la base AVANT le premier `_open()`. Verrouille le bug de migration chaînée `oldVersion < 4`/`oldVersion < 5` documenté ci-dessus (§6).
 - **`test/state/app_state_checkin_test.dart`** (Phase 6 Sprint 2, 3 tests initiaux ; **8 tests après Phase 9 Sprint 2**, dont « clôturer deux fois la même journée ne fait avancer le cycle qu'une fois ») — première suite sur `AppState` (nécessite `TestWidgetsFlutterBinding.ensureInitialized()` + `HafsService.initialize()`/`PageMetadataService.initialize()` réels via `rootBundle`, `AppState` construit `_sourates` dès son constructeur). Couvre le gating du moteur quotidien de bout en bout, `checkOut` (avancée du cycle par **groupe** depuis Sprint 3, unité retirée au check-in ignorée plutôt que bloquante, groupe entièrement retiré ignoré) et le regroupement par page partagée (`cyclePosition` avance par groupe complété, pas par unité — sourates réelles 106/107/108, page 602, l'exemple même du cadrage). Les sourates de test sont choisies avec de vrais ids (`PageMetadataService` charge la vraie pagination, pas de mock) délibérément isolées les unes des autres — sauf pour le test de regroupement, qui choisit délibérément des voisines.
-- **`test/core/reinforcement_engine_test.dart`** (US-20 Sprint A, 14 tests, vrais textes Hafs et Warsh, `Random` à graine fixe) : découpe sans perte sur tous les versets des deux riwayas, questions répétées écartées, plage partielle jamais dépassée, passage similaire proposé, part du plan du jour, questions non reposées, sélection trop petite, `carriedVerses`. Sa normalisation du texte est réécrite dans le test, pas empruntée au moteur.
+- **`test/core/reinforcement_engine_test.dart`** (US-20 Sprint A, 15 tests, vrais textes Hafs et Warsh, `Random` à graine fixe) : découpe sans perte sur tous les versets des deux riwayas, questions répétées écartées, plage partielle jamais dépassée, passage similaire proposé, part du plan du jour, questions non reposées, sélection trop petite, `carriedVerses`. Sa normalisation du texte est réécrite dans le test, pas empruntée au moteur.
 - **`test/state/app_state_reinforcement_test.dart`** (3 tests) : `reinforcementInputs` sans configuration, avec un plan du jour, et avec un verset proposé à l'apprentissage mais pas encore appris.
+- **`test/core/reinforcement_words_test.dart`** (US-22 Sprint C, 14 tests, vrai texte Hafs et vrais sens, `Random` à graine fixe) : mot posé d'au moins 3 lettres, 2 à 4 choix, mots arabes et sens tous différents, aucun sens voisin du bon, mot retrouvé à sa place dans le passage, verset sans un sens par mot jamais interrogé (37:130), les deux sens de question, mots non reposés d'une série à l'autre, part du plan du jour, série sur une sourate (mauvais choix de la sourate d'abord, d'ailleurs ensuite, plan du jour ignoré), série mêlée à 5 et 5 et ses deux replis. Ses règles sur les sens sont réécrites dans le test, pas empruntées au moteur.
+- **`test/services/word_gloss_service_test.dart`** (US-22 Sprint C, 4 tests, vrai asset) : rien avant le chargement puis 77 429 sens ; chaque verset Hafs a autant de sens que de mots, sauf exactement sept (2:181, 8:6, 13:37, 15:7, 27:20, 36:22, 37:130) ; les sens de 112:1 et de 17:79 sont ceux de la source, espaces insécables et espace finale comprises ; disponible en français et en Hafs seulement. Si la source du texte arabe change, la liste des sept versets peut changer : ce test le dira.
+- **Règle verrouillée au passage** (`reinforcement_engine_test.dart`, test 10 bis) : une série sur une sourate ignore le plan du jour. Elle datait d'US-20 et aucun test ne la tenait.
+- **`test/services/test_helpers.dart`** porte aussi `bareWord` (un token sans voyelles ni signes) et `wholeSurahs` (toutes les sourates d'un intervalle), partagés par ces trois fichiers au lieu d'y être recopiés.
 - **Piège de test découvert au Sprint 2** : `databaseFactoryFfi.getDatabasesPath()` résout un chemin par défaut **partagé** entre fichiers de test — `flutter test` lance les fichiers dans des process séparés mais qui peuvent écrire dans le même `history.db` s'ils tournent en parallèle. Les suites SQLite pointent chacune vers un répertoire temporaire dédié (`initFfiTestDb` dans `setUpAll`) plutôt que de compter sur des dates de test disjointes pour s'isoler — à reproduire pour toute nouvelle suite touchant `AyahFactsService`/`AppState`.
 - **Second piège, même famille (Phase 9 Sprint 2)** : `initFfiTestDb` isole les *fichiers* entre eux, pas les *tests* d'un même fichier — ils partagent une seule `history.db` pour tout le process, et plusieurs réutilisent les mêmes dates relatives (J-1, J-3…). Un test héritait donc du `checked_out` posé par le précédent sur la même date, ce qu'a révélé le passage d'`isDaySealed` à un prédicat monotone. `clearFactsBetweenTests()` (`test_helpers.dart`) vide `ayah_facts` en `setUp` — **sans fermer la connexion** : `openDatabase` renvoie l'instance déjà en cache pour ce chemin, la même que celle mémorisée par `AyahFactsService._db`, et la fermer laisserait le service sur un handle clos.
 
@@ -801,6 +900,7 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 | Comprendre le calcul de fraîcheur (SRS léger) | `lib/core/freshness_engine.dart` |
 | Comprendre le calcul de streak | `lib/core/streak_engine.dart` |
 | Comprendre/modifier la composition d'une série de l'onglet Renforcement (passages, questions, mauvais choix) | `lib/core/reinforcement_engine.dart`, `lib/state/app_state_reinforcement.dart` (`reinforcementInputs`) |
+| Comprendre/modifier les questions de mots et la série mêlée | `lib/core/reinforcement_words.dart` (`part of` du moteur), `lib/services/word_gloss_service.dart`, `assets/quran/wbw/fr.coranmot.tsv` |
 | Ajouter/modifier une chaîne affichée à l'utilisateur | `lib/core/strings.dart` |
 | Modifier les couleurs/thème (Mus'haf/Tahajjud) | `lib/core/app_colors.dart`, `lib/core/app_theme.dart` |
 | Changer les métadonnées d'une sourate (nb de mots, etc.) | `lib/core/quran_data.dart` |
@@ -827,8 +927,8 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 | Modifier l'édition de la configuration (sourates, rythme, reset) | `lib/screens/profile_screen.dart` |
 | Modifier le dashboard de statistiques | `lib/screens/recap_screen.dart` |
 | Modifier la navigation globale (4 onglets) | `lib/screens/shell_screen.dart` |
-| Modifier l'onglet Renforcement (série du jour, choix d'une sourate) | `lib/screens/reinforcement/reinforcement_tab.dart` |
-| Modifier l'écran de série (question, retour après la réponse, score) | `lib/screens/reinforcement/series_screen.dart`, `widgets/passage_choice.dart`, `widgets/series_marks.dart` |
+| Modifier l'onglet Renforcement (série du jour, sélecteur de mode, choix d'une sourate) | `lib/screens/reinforcement/reinforcement_tab.dart` |
+| Modifier l'écran de série (question, retour après la réponse, score) | `lib/screens/reinforcement/series_screen.dart`, `series_word_question.dart` (vue d'une question de mot), `widgets/passage_choice.dart`, `widgets/series_marks.dart` |
 | Modifier la carte de progression du cycle (Accueil + Récap) | `lib/widgets/cycle_progress_card.dart` |
 | Modifier le moment de jalon (sourate mémorisée, tour complet) | `lib/widgets/milestone_moment.dart` + `SealOutcome` (`lib/models/day_close.dart`) |
 | Modifier le bilan/regard devant de l'accueil clôturé, ou la transition de clôture | `lib/widgets/day_closed_summary.dart`, `AppState.dayRecap` ; transition : `DayPlanTab._openCheckOut` + `HomeScreen._closingLine` |
@@ -837,7 +937,7 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 | Modifier les tests de fraîcheur / streak | `test/core/freshness_engine_test.dart`, `test/core/streak_engine_test.dart` |
 | Modifier les tests du rituel check-in/check-out | `test/services/ayah_facts_service_test.dart`, `test/state/app_state_checkin_test.dart` |
 | Modifier les tests de l'apprentissage quotidien (Phase 9) | `test/state/app_state_learning_test.dart` |
-| Modifier les tests des séries de l'onglet Renforcement | `test/core/reinforcement_engine_test.dart`, `test/state/app_state_reinforcement_test.dart` |
+| Modifier les tests des séries de l'onglet Renforcement | `test/core/reinforcement_engine_test.dart`, `test/core/reinforcement_words_test.dart`, `test/services/word_gloss_service_test.dart`, `test/state/app_state_reinforcement_test.dart` |
 | Builder/distribuer l'app iOS | Xcode (`ios/Runner.xcworkspace`) — Archive → Distribute App, manuel |
 
 ---

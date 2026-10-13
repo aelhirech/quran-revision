@@ -12,6 +12,11 @@ class ArabicVerseText extends StatelessWidget {
   final Color? color;
   final TextAlign textAlign;
 
+  /// Rank, among the space-separated words of [text], of a word to paint in
+  /// [highlightColor].
+  final int? highlightWord;
+  final Color? highlightColor;
+
   const ArabicVerseText({
     super.key,
     required this.text,
@@ -19,15 +24,37 @@ class ArabicVerseText extends StatelessWidget {
     this.height = 2.0,
     this.color,
     this.textAlign = TextAlign.right,
+    this.highlightWord,
+    this.highlightColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
+    final style =
+        GoogleFonts.amiri(fontSize: fontSize, height: height, color: color);
+    final highlightWord = this.highlightWord;
+    if (highlightWord == null) {
+      return Text(
+        text,
+        textAlign: textAlign,
+        textDirection: TextDirection.rtl,
+        style: style,
+      );
+    }
+    final words = text.split(' ');
+    final before = words.take(highlightWord).join(' ');
+    final after = words.skip(highlightWord + 1).join(' ');
+    return Text.rich(
+      TextSpan(children: [
+        if (highlightWord > 0) TextSpan(text: '$before '),
+        TextSpan(
+            text: words[highlightWord],
+            style: TextStyle(color: highlightColor)),
+        if (highlightWord < words.length - 1) TextSpan(text: ' $after'),
+      ]),
       textAlign: textAlign,
       textDirection: TextDirection.rtl,
-      style: GoogleFonts.amiri(fontSize: fontSize, height: height, color: color),
+      style: style,
     );
   }
 }

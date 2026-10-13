@@ -9,28 +9,17 @@ import 'package:quran_revision/services/warsh_service.dart';
 
 import '../services/test_helpers.dart';
 
-// Written independently from the engine's private normalization, on purpose:
-// the tests state the rule, they do not borrow its implementation.
-final _marks =
-    RegExp('[ؐ-ًؚ-ٰٟۖ-ۭـ‏ ]');
 final _pause = RegExp('[ۖۗۘۚ]');
 
-String _key(Iterable<String> tokens) => tokens
-    .map((t) => t.replaceAll(_marks, '').replaceAll('ٱ', 'ا'))
-    .where((w) => w.isNotEmpty)
-    .join(' ');
+String _key(Iterable<String> tokens) =>
+    tokens.map(bareWord).where((w) => w.isNotEmpty).join(' ');
 
 int _words(Passage p) => _key(p.words).split(' ').length;
 
 (int, int, int) _id(Passage p) => (p.surahId, p.ayahId, p.index);
 
-Map<int, Set<int>> _whole(int from, int to, Map<int, int> verseCounts) => {
-      for (var id = from; id <= to; id++)
-        id: {for (var v = 1; v <= verseCounts[id]!; v++) v},
-    };
-
 /// The invariants of any series (Backlog test 3).
-void _expectValid(List<SeriesQuestion> series, Map<int, Set<int>> carried) {
+void _expectValid(List<PassageQuestion> series, Map<int, Set<int>> carried) {
   expect(series.length, lessThanOrEqualTo(10));
   for (final q in series) {
     final p = q.prompt;
@@ -60,7 +49,7 @@ void main() {
     await WarshService.initialize();
   });
 
-  List<SeriesQuestion> hafsSeries(
+  List<PassageQuestion> hafsSeries(
     Map<int, Set<int>> carried,
     int seed, {
     Set<(int, int)> today = const {},
@@ -114,7 +103,7 @@ void main() {
 
   group('buildSeries', () {
     test('3. invariants sur les sourates 78 à 114, 20 graines', () {
-      final carried = _whole(78, 114, HafsService.verseCounts);
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
       for (var seed = 0; seed < 20; seed++) {
         final series = hafsSeries(carried, seed);
         expect(series, hasLength(10));
@@ -124,14 +113,14 @@ void main() {
 
     test('4. un passage répété dans la sourate n\'est ni posé ni attendu', () {
       for (var seed = 0; seed < 20; seed++) {
-        final kafirun = hafsSeries(_whole(109, 109, HafsService.verseCounts), seed);
+        final kafirun = hafsSeries(wholeSurahs(109, 109, HafsService.verseCounts), seed);
         expect(kafirun, hasLength(1));
         expect(_id(kafirun.single.prompt), (109, 1, 0));
         expect(_id(kafirun.single.answer), (109, 2, 0));
 
         final refrain = _key(HafsService.getVerse(55, 13).split(' '));
         for (final q
-            in hafsSeries(_whole(55, 55, HafsService.verseCounts), seed)) {
+            in hafsSeries(wholeSurahs(55, 55, HafsService.verseCounts), seed)) {
           expect(_key(q.prompt.words), isNot(refrain));
           expect(_key(q.answer.words), isNot(refrain));
         }
@@ -153,7 +142,7 @@ void main() {
     });
 
     test('6. le passage similaire à la bonne suite est proposé', () {
-      final carried = _whole(93, 95, HafsService.verseCounts);
+      final carried = wholeSurahs(93, 95, HafsService.verseCounts);
       for (var seed = 0; seed < 20; seed++) {
         final question = hafsSeries(carried, seed, surahId: 94)
             .singleWhere((q) => q.prompt.ayahId == 4);
@@ -163,7 +152,7 @@ void main() {
     });
 
     test('7. cinq questions viennent du plan du jour', () {
-      final carried = _whole(78, 114, HafsService.verseCounts);
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
       final today = {for (final v in carried[78]!) (78, v)};
       for (var seed = 0; seed < 20; seed++) {
         final series = hafsSeries(carried, seed, today: today);
@@ -173,13 +162,13 @@ void main() {
     });
 
     test('7 bis. sans autre matière, le plan du jour complète la série', () {
-      final carried = _whole(78, 78, HafsService.verseCounts);
+      final carried = wholeSurahs(78, 78, HafsService.verseCounts);
       final today = {for (final v in carried[78]!) (78, v)};
       expect(hafsSeries(carried, 1, today: today), hasLength(10));
     });
 
     test('8. les passages posés à la série précédente ne reviennent pas', () {
-      final carried = _whole(78, 114, HafsService.verseCounts);
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
       for (var seed = 0; seed < 20; seed++) {
         final first = hafsSeries(carried, seed).map((q) => _id(q.prompt)).toSet();
         final second = hafsSeries(carried, seed, avoid: first);
@@ -190,7 +179,7 @@ void main() {
     });
 
     test('8 bis. sur une petite sélection, les mêmes questions reviennent', () {
-      final carried = _whole(94, 94, HafsService.verseCounts);
+      final carried = wholeSurahs(94, 94, HafsService.verseCounts);
       final first = hafsSeries(carried, 1).map((q) => _id(q.prompt)).toSet();
       expect(hafsSeries(carried, 2, avoid: first), hasLength(first.length));
     });
@@ -216,7 +205,7 @@ void main() {
 
     test('10. série sur une sourate : questions dedans, choix aussi d\'ailleurs',
         () {
-      final carried = _whole(78, 114, HafsService.verseCounts);
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
       for (var seed = 0; seed < 20; seed++) {
         final today = {for (final v in carried[78]!) (78, v)};
         final series = hafsSeries(carried, seed, surahId: 93, today: today);
@@ -228,8 +217,25 @@ void main() {
       }
     });
 
+    test('10 bis. série sur une sourate : le plan du jour ne pèse pas', () {
+      final carried = wholeSurahs(78, 78, HafsService.verseCounts);
+      // All but verse 1 is in today's plan: were the plan counted, the half
+      // kept for the rest would bring verse 1 into every series.
+      final today = {
+        for (final v in carried[78]!)
+          if (v != 1) (78, v),
+      };
+      final fromVerseOne = [
+        for (var seed = 0; seed < 20; seed++)
+          if (hafsSeries(carried, seed, surahId: 78, today: today)
+              .any((q) => q.prompt.ayahId == 1))
+            seed,
+      ];
+      expect(fromVerseOne.length, lessThan(20));
+    });
+
     test('12. les invariants tiennent sur une sélection Warsh', () {
-      final carried = _whole(78, 114, WarshService.verseCounts);
+      final carried = wholeSurahs(78, 114, WarshService.verseCounts);
       for (var seed = 0; seed < 20; seed++) {
         final series = ReinforcementEngine.buildSeries(
           carried: carried,
