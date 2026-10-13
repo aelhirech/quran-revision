@@ -439,16 +439,6 @@ entre trois modes dans l'onglet Renforcement. Rien n'est persisté : le compte �
   sept versets ne sont jamais interrogés. US-22 reste « en sprint » jusqu'au compte des mots
   connus.
 
-### [P3] Page Intro de l'onboarding : débordement sur petit écran avec texte agrandi
-Relevé au sprint US-17 (2026-10-12) en vérifiant sous Windows : à 320×568 avec texte ×1,5,
-`_IntroPage` (`lib/screens/onboarding/steps/intro_page.dart`) déborde de 279 px en bas et son
-bouton sort de l'écran. Elle est bâtie sur une `Column` avec des `Spacer`. Correctif : envelopper
-cette `Column` dans `LayoutBuilder` → `SingleChildScrollView` → `ConstrainedBox(minHeight:
-constraints.maxHeight)` → `IntrinsicHeight`, ce qui garde les `Spacer` (donc le centrage actuel)
-quand la place suffit et fait défiler la page sinon. Textes, styles et animations inchangés.
-Vérification sous Windows : à 320×568 texte ×1,5, plus de débordement et bouton atteignable en
-défilant ; à 390×844, rendu identique à aujourd'hui. P3 : aucun effet à taille de texte normale.
-
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
 qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) — et depuis US-10 Sprint B
