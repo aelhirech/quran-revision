@@ -76,8 +76,9 @@ et apporte la mémoire des réponses.
   mettent en avant ; le chrono est reproché.
 
 ### US-20 — M'éprouver sur la suite d'un verset (onglet Renforcement)
-**État** : scopée — blueprint et scoping du 2026-10-13. Première des trois stories du cadre
-ci-dessus, livrable seule. Deux sprints au Backlog : A (moteur, rien d'affiché), B (onglet).
+**État** : en sprint — blueprint et scoping du 2026-10-13. Première des trois stories du cadre
+ci-dessus, livrable seule. Deux sprints : A (moteur, rien d'affiché, implémenté le 2026-10-13), B
+(onglet, au Backlog).
 
 **Statement** : En tant qu'utilisateur qui porte des sourates, je veux qu'on me montre un verset
 et retrouver celui qui le suit parmi plusieurs, afin de vérifier que ma mémoire tient hors du fil

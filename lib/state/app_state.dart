@@ -3,6 +3,7 @@ import '../core/day_dates.dart';
 import '../core/freshness_engine.dart';
 import '../core/quran_data.dart';
 import '../core/rakaa_distributor.dart';
+import '../core/reinforcement_engine.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/ayah_fact.dart';
@@ -25,6 +26,7 @@ import '../services/warsh_service.dart';
 part 'app_state_dayplan.dart';
 part 'app_state_checkout.dart';
 part 'app_state_learning.dart';
+part 'app_state_reinforcement.dart';
 
 class AppState extends ChangeNotifier {
   UserConfig? _config;

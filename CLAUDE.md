@@ -54,10 +54,13 @@ implémente, on ne redécide pas).
   de Backlog, c'est une Idée produit (ou un scoping incomplet à finir avant d'écrire quoi que ce
   soit).
 
-### « Début de sprint » (+ description de ce qu'on fait)
-1. Lire `docs/DOCUMENTATION_TECHNIQUE.md` + `docs/CHANGELOG.md` 
-2. Créer la branche `feature/phase-X-sprintN` **depuis le `main` local** (voir § « Git : `main` local par défaut » ci-dessous).
-3. Implémenter.
+### « Début de sprint » (+ item du Backlog visé) — skill `quran-sprint`
+Toute l'implémentation passe par le skill `quran-sprint` : l'invoquer dès que l'utilisateur dit
+« Début de sprint », sans dérouler les étapes de mémoire. Il lit le contexte, contrôle que l'item
+est bien au Backlog et entièrement tranché, crée la branche `feature/phase-X-sprintN` depuis le
+`main` local (voir § « Git : `main` local par défaut » ci-dessous), implémente, vérifie, analyse
+ce que le code ne gère pas pour décider s'il faut ouvrir un item, puis s'arrête **avant le
+commit** et attend « Fin de sprint ». Détail complet : `SKILL.md` du plugin `quran-sprint`.
 
 ### Git : `main` local par défaut
 - **Toujours partir du `main` local** (celui de cet ordi) pour créer une branche, comparer un diff ou merger — pas de `git fetch`/`git pull`, pas de `origin/main`, sauf si l'utilisateur précise explicitement `origin/main` (distant). Le `main` local peut contenir des merges pas encore pushés : partir d'`origin/main` les ferait disparaître silencieusement de la branche.
