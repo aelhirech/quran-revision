@@ -17,27 +17,19 @@ import 'verse_row.dart';
 /// mécanisme pour "afficher le Coran entre ayah_start et ayah_end", plutôt
 /// que la logique quasi identique dupliquée dans 3 écrans (feuille de
 /// versets d'une rakaa, écran de lecture d'une sourate, bloc de mémorisation).
-class VerseBottomSheet extends StatelessWidget {
+class VerseBottomSheet extends StatefulWidget {
   final Sourate sourate;
   final int ayahStart;
   final int ayahEnd;
-
-  /// Verse right before [ayahStart], shown dimmed above it as a recall aid
-  /// when learning a range that doesn't start at verse 1 — memorizing a verse
-  /// together with the one before it is more effective than in isolation.
-  /// Never affects audio/playback range, only the read list.
-  final int? contextAyah;
 
   const VerseBottomSheet({
     super.key,
     required this.sourate,
     required this.ayahStart,
     required this.ayahEnd,
-    this.contextAyah,
   });
 
-  static void show(BuildContext context, Sourate sourate, int ayahStart, int ayahEnd,
-      {int? contextAyah}) {
+  static void show(BuildContext context, Sourate sourate, int ayahStart, int ayahEnd) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -46,9 +38,24 @@ class VerseBottomSheet extends StatelessWidget {
         sourate: sourate,
         ayahStart: ayahStart,
         ayahEnd: ayahEnd,
-        contextAyah: contextAyah,
       ),
     );
+  }
+
+  @override
+  State<VerseBottomSheet> createState() => _VerseBottomSheetState();
+}
+
+class _VerseBottomSheetState extends State<VerseBottomSheet> {
+  // Owned here, not by the audio bar: the slider and the verse list must read
+  // the same portion. Never persisted: each opening restarts from the full
+  // range (US-11 crit. 5, US-18 crit. 4).
+  late RangeValues _portion;
+
+  @override
+  void initState() {
+    super.initState();
+    _portion = RangeValues(widget.ayahStart.toDouble(), widget.ayahEnd.toDouble());
   }
 
   @override
@@ -56,14 +63,8 @@ class VerseBottomSheet extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final state = context.watch<AppState>();
     final riwaya = state.riwaya;
-    final ayahNumbers = [
-      ?contextAyah,
-      for (var v = ayahStart; v <= ayahEnd; v++) v,
-    ];
-    final verses = [
-      for (final ayahId in ayahNumbers)
-        VerseService.getVerse(sourate.id, ayahId, riwaya: riwaya),
-    ];
+    final shownStart = _portion.start.round();
+    final shownEnd = _portion.end.round();
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -83,11 +84,16 @@ class VerseBottomSheet extends StatelessWidget {
                 slivers: [
                   // Header and audio bar scroll with the text but must stay
                   // SliverToBoxAdapters: a lazy list would dispose the bar once
-                  // off-screen and lose its US-11 portion while the loop plays.
+                  // off-screen and lose its reciter/loading state while the loop plays.
                   SliverToBoxAdapter(child: _header(cs)),
                   SliverToBoxAdapter(
                     child: VerseAudioBar(
-                        sourate: sourate, ayahStart: ayahStart, ayahEnd: ayahEnd),
+                      sourate: widget.sourate,
+                      ayahStart: widget.ayahStart,
+                      ayahEnd: widget.ayahEnd,
+                      portion: _portion,
+                      onPortionChanged: (v) => setState(() => _portion = v),
+                    ),
                   ),
                   // Must stay AFTER the bar: placed before, its removal would
                   // shift the bar's slot and recreate its state mid-playback.
@@ -103,14 +109,13 @@ class VerseBottomSheet extends StatelessWidget {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                     sliver: SliverList.separated(
-                      itemCount: verses.length,
+                      itemCount: shownEnd - shownStart + 1,
                       separatorBuilder: (context, index) => const Divider(height: 24),
                       itemBuilder: (_, i) {
-                        final ayahId = ayahNumbers[i];
+                        final ayahId = shownStart + i;
                         return VerseRow(
                           number: ayahId,
-                          text: verses[i],
-                          isContext: contextAyah != null && ayahId == contextAyah,
+                          text: VerseService.getVerse(widget.sourate.id, ayahId, riwaya: riwaya),
                         );
                       },
                     ),
@@ -130,13 +135,13 @@ class VerseBottomSheet extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            sourate.nameAr,
+            widget.sourate.nameAr,
             style: GoogleFonts.scheherazadeNew(fontSize: 28, height: 1.8),
             textDirection: TextDirection.rtl,
           ),
           const SizedBox(height: 4),
           Text(
-            '${sourate.nameFr}  ·  ${S.blocRange(ayahStart, ayahEnd)}',
+            '${widget.sourate.nameFr}  ·  ${S.blocRange(widget.ayahStart, widget.ayahEnd)}',
             style: TextStyle(
               fontSize: 12,
               color: cs.onSurfaceVariant,
@@ -144,7 +149,7 @@ class VerseBottomSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          if (ayahStart == 1 && SurahMetadataService.bismillahPre(sourate.id))
+          if (widget.ayahStart == 1 && SurahMetadataService.bismillahPre(widget.sourate.id))
             const BismillahLine(),
           Divider(color: cs.outlineVariant),
         ],

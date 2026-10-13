@@ -20,11 +20,17 @@ class VerseAudioBar extends StatefulWidget {
   final int ayahStart;
   final int ayahEnd;
 
+  /// Owned by the parent so the verse list shows the same portion (US-18).
+  final RangeValues portion;
+  final ValueChanged<RangeValues> onPortionChanged;
+
   const VerseAudioBar({
     super.key,
     required this.sourate,
     required this.ayahStart,
     required this.ayahEnd,
+    required this.portion,
+    required this.onPortionChanged,
   });
 
   @override
@@ -35,13 +41,6 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
   Reciter? _reciter;
   bool _starting = false;
   Riwaya? _riwayaForReciter;
-
-  // Never persisted: each opening restarts from the displayed range (US-11 crit. 5).
-  late RangeValues _portion =
-      RangeValues(widget.ayahStart.toDouble(), widget.ayahEnd.toDouble());
-
-  int get _audioStart => _portion.start.round();
-  int get _audioEnd => _portion.end.round();
 
   /// The player's loop when it belongs to this view — same reciter and surah,
   /// range within the displayed one. Covers a sub-portion started before the
@@ -57,8 +56,11 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
     return isOwn ? loop : null;
   }
 
-  bool _playsPortion(AudioLoop loop) =>
-      loop.start == _audioStart && loop.end == _audioEnd;
+  // The portion is always passed in, never re-read from widget.portion at
+  // gesture time: a ±1 fires onChanged then onChangeEnd before any rebuild,
+  // so widget.portion would still hold the previous portion there.
+  bool _playsPortion(AudioLoop loop, RangeValues portion) =>
+      loop.start == portion.start.round() && loop.end == portion.end.round();
 
   Future<void> _ensureReciterLoaded(Riwaya riwaya) async {
     if (_riwayaForReciter == riwaya) return;
@@ -97,20 +99,20 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
     final own = _ownLoop;
     // Paused on another portion: the next tap starts the new one. Playing on
     // another portion (reopened view): the pause icon is shown, so pause.
-    if (own != null && (handler.playing || _playsPortion(own))) {
+    if (own != null && (handler.playing || _playsPortion(own, widget.portion))) {
       await (handler.playing ? handler.pause() : handler.play());
       return;
     }
-    await _startLoop(reciter);
+    await _startLoop(reciter, widget.portion);
   }
 
-  Future<void> _startLoop(Reciter reciter) async {
+  Future<void> _startLoop(Reciter reciter, RangeValues portion) async {
     setState(() => _starting = true);
     final appState = context.read<AppState>();
     // Snapshot: the slider may move while sources load; this start must
     // describe the portion it actually plays.
-    final start = _audioStart;
-    final end = _audioEnd;
+    final start = portion.start.round();
+    final end = portion.end.round();
     var started = false;
     try {
       final sources = await AudioDownloadService.instance
@@ -122,7 +124,7 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
         // The previous loop keeps playing: show the portion it plays.
         final own = _ownLoop;
         if (own != null) {
-          setState(() => _portion =
+          widget.onPortionChanged(
               RangeValues(own.start.toDouble(), own.end.toDouble()));
         }
         return;
@@ -150,20 +152,26 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
         // The portion may have moved again while this start was in flight.
         // Never after a failure: retrying the same unplayable request would
         // loop forever (e.g. offline with a reciter that isn't downloaded).
-        if (started) _followPortionIfPlaying();
+        // After the frame, not now: a ±1 tapped during this start may not
+        // have rebuilt the parent yet, so widget.portion could be stale.
+        if (started) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _followPortionIfPlaying(widget.portion);
+          });
+        }
       }
     }
   }
 
-  /// Restarts the loop on the current portion when this bar's loop is the one
-  /// playing — playLoop replaces the playlist, so there is no in-place edit.
-  void _followPortionIfPlaying() {
+  /// Restarts the loop on [portion] when this bar's loop is the one playing —
+  /// playLoop replaces the playlist, so there is no in-place edit.
+  void _followPortionIfPlaying(RangeValues portion) {
     final reciter = _reciter;
     final own = _ownLoop;
     if (reciter == null || own == null || _starting) return;
     if (!QuranAudioHandler.instance.playing) return;
-    if (_playsPortion(own)) return;
-    _startLoop(reciter);
+    if (_playsPortion(own, portion)) return;
+    _startLoop(reciter, portion);
   }
 
   @override
@@ -237,9 +245,9 @@ class _VerseAudioBarState extends State<VerseAudioBar> {
             VerseRangeSlider(
               min: widget.ayahStart,
               max: widget.ayahEnd,
-              values: _portion,
-              onChanged: (v) => setState(() => _portion = v),
-              onChangeEnd: (_) => _followPortionIfPlaying(),
+              values: widget.portion,
+              onChanged: widget.onPortionChanged,
+              onChangeEnd: _followPortionIfPlaying,
             ),
         ],
       ),

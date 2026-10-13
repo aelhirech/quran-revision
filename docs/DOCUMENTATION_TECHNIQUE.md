@@ -501,8 +501,8 @@ audio défilent avec les versets, dans un `CustomScrollView` branché sur le `sc
 `DraggableScrollableSheet` : `SliverToBoxAdapter(en-tête)`, `SliverToBoxAdapter(VerseAudioBar)`,
 puis `SliverList.separated` des `VerseRow`. **En-tête et barre ne doivent jamais devenir des items
 d'une liste paresseuse** (`ListView.builder`/`SliverList`) : un item sorti de l'écran y est
-détruit, `_VerseAudioBarState` serait recréé au retour en haut et la portion US-11 repartirait sur
-la plage entière pendant que la boucle joue toujours l'ancienne. Verrouillé par
+détruit, `_VerseAudioBarState` serait recréé au retour en haut (récitateur rechargé, démarrage en
+cours oublié) pendant que la boucle joue. Verrouillé par
 `test/widgets/verse_bottom_sheet_test.dart`. L'audio continue quand la barre sort de l'écran ;
 pour l'arrêter depuis la vue, on remonte en haut (ou contrôles système US-9) — pas de barre
 flottante, choix produit d'US-16.
@@ -558,9 +558,9 @@ un 4e état « en attente » (icône horloge ; un tap affiche la raison, `queued
 **Barre audio extraite + portion (US-11, 2026-09-29)** : tout ce qui précède (`_reciter`,
 `_starting`, `_toggleLoop`, `_mediaId`, `AudioDownloadButton`) vit désormais dans
 `widgets/verse_audio_bar.dart` (`VerseAudioBar(sourate, ayahStart, ayahEnd)`) ; `VerseBottomSheet`
-redevient `StatelessWidget` et ne fait que l'embarquer. La barre ajoute une **portion** : état
-local `_portion`, initialisé à la plage affichée à chaque ouverture, jamais persisté ni écrit dans
-`ayah_facts`. `_mediaId`, `playableSources` et le titre `MediaItem` utilisent la portion, pas la
+redevient `StatelessWidget` et ne fait que l'embarquer (jusqu'à US-18, voir plus bas). La barre
+ajoute une **portion** : initialisée à la plage affichée à chaque ouverture, jamais persistée ni
+écrite dans `ayah_facts` (état de la barre à l'origine, de la feuille depuis US-18). `_mediaId`, `playableSources` et le titre `MediaItem` utilisent la portion, pas la
 plage affichée. Le réglage passe par `widgets/verse_range_slider.dart` (`VerseRangeSlider` :
 `RangeSlider` + ±1 par borne, logique pure dans `nudgeRange`), extrait de `VerseRangePicker` qui
 le consomme aussi — le ±1 profite donc au check-in, au check-out et à l'onboarding. Masqué si la
@@ -575,12 +575,29 @@ affichée (crit. 5) : en pause, un appui lance donc la plage affichée, pas la s
 connexion (`playableSources == null`) : snackbar, l'ancienne boucle continue et le curseur revient
 sur sa portion. **Non vérifié sur appareil réel** (audio indisponible sur Windows/web).
 
+**Le texte suit la portion (US-18, 2026-10-13)** : la portion a quitté `_VerseAudioBarState` pour
+le `State` de `VerseBottomSheet`, redevenu `StatefulWidget` (`RangeValues _portion`, initialisée à
+la plage affichée dans `initState`, jamais persistée). Le curseur et la liste lisent ainsi le même
+état : `SliverList.separated` ne construit que les versets de la portion, et le texte de chaque
+verset est lu dans `itemBuilder` (`VerseService.getVerse`), plus précalculé pour toute la plage.
+`VerseAudioBar` reçoit `portion` et `onPortionChanged`. Le texte suit **en direct** (`onChanged`),
+le son ne bascule toujours qu'au relâché ou au ±1 (`onChangeEnd`). L'en-tête (nom, plage,
+bismillah) reste celui de la plage d'origine. Le verset de contexte de l'apprentissage
+(`contextAyah`, `VerseRow.isContext`) est supprimé. **Piège de la portion périmée** : dans la
+barre, `widget.portion` ne change qu'au rebuild suivant, or un ±1 appelle `onChanged` puis
+`onChangeEnd` dans le même geste. `_startLoop`, `_playsPortion` et `_followPortionIfPlaying`
+reçoivent donc la portion **en argument** ; le rattrapage de fin de démarrage, lui, relit
+`widget.portion` après la frame (`addPostFrameCallback`, correctif de `/code-review`). Hors
+connexion, le retour du curseur sur la boucle en cours passe par `onPortionChanged` : le texte
+revient avec lui. Limite connue : resserrer fortement après avoir défilé fait sauter la barre
+(Idée produit de `docs/CHANGELOG.md`). Tests : `test/widgets/verse_bottom_sheet_test.dart`.
+**Chemin audio non vérifié sur appareil réel.**
+
 **Étape guidée de l'écoute (US-17, 2026-10-12)** : tant que l'écoute n'a jamais été lancée
 (`!guideDone('audio_loop_started')`) et que l'audio est disponible (`QuranAudioHandler.available`),
 `VerseBottomSheet` affiche un `GuideStep` « Écoute, puis répète » dans un `SliverToBoxAdapter`
 placé **juste après** celui de la `VerseAudioBar`. **Jamais avant** : sa disparition décalerait la
-barre d'un rang, Flutter recréerait `_VerseAudioBarState` pendant que la boucle joue et la portion
-US-11 serait perdue. L'id est marqué dans `VerseAudioBar._startLoop`, juste après le retour de
+barre d'un rang et Flutter recréerait `_VerseAudioBarState` pendant que la boucle joue. L'id est marqué dans `VerseAudioBar._startLoop`, juste après le retour de
 `playLoop` (`AppState` lu avant le premier `await`), ni au tap ni sur l'échec hors connexion.
 Limite connue : `playLoop` n'attend pas la lecture effective, l'étape peut donc être marquée si
 le chargement réussit mais que la lecture échoue ensuite. Pas de croix de fermeture (règle
