@@ -8,7 +8,6 @@ import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/revision_unit.dart';
 import '../models/sourate.dart';
-import '../models/sourate_selection.dart';
 import '../state/app_state.dart';
 import '../widgets/check_hero.dart';
 import '../widgets/guide_step.dart';
@@ -264,10 +263,16 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                                           _toggleVerse(it.unit.sourate.id, v),
                                     ),
                                   const SizedBox(height: 14),
-                                  OutlinedActionButton(
-                                      icon: Icons.add,
-                                      label: SCheckOut.checkOutReviseEnPlus,
-                                      onTap: _addRevisedSourate),
+                                  if (state
+                                      .addableSelections({
+                                        for (final it in items)
+                                          it.unit.sourate.id
+                                      })
+                                      .isNotEmpty)
+                                    OutlinedActionButton(
+                                        icon: Icons.add,
+                                        label: SCheckOut.checkOutReviseEnPlus,
+                                        onTap: _addRevisedSourate),
                                   ..._learnSection(palette),
                                 ],
                               ),

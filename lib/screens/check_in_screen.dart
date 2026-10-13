@@ -141,10 +141,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
   /// "revise a surah in addition", US-3 crit. 1) instead of imposing the
   /// whole surah. Closing the range picker without confirming cancels the
   /// addition.
-  Future<void> _addSourate(Sourate s) async {
+  Future<void> _addSourate(SourateSelection sel) async {
     if (!mounted) return;
-    final range = await VerseRangePicker.show(context,
-        sourate: s, current: SourateSelection.whole(s));
+    final s = sel.sourate;
+    final range = await VerseRangePicker.show(context, sourate: s, current: sel);
     if (range == null || !mounted) return;
     await context.read<AppState>().addToDayPlan(RevisionUnit(
         sourate: s,
@@ -157,10 +157,13 @@ class _CheckInScreenState extends State<CheckInScreen> {
   Future<void> _openAddSheet() async {
     final state = context.read<AppState>();
     final present = _units!.map((u) => u.sourate.id).toSet();
-    final candidates = state.sourates.where((s) => !present.contains(s.id)).toList();
+    final candidates = state.addableSelections(present);
     final picked = await SouratePickerSheet.show(context,
-        sourates: candidates, title: SCheckIn.checkInAjouterSourate);
-    if (picked != null) await _addSourate(picked);
+        sourates: [for (final sel in candidates) sel.sourate],
+        title: SCheckIn.checkInAjouterSourate);
+    if (picked != null) {
+      await _addSourate(candidates.firstWhere((sel) => sel.sourate.id == picked.id));
+    }
   }
 
   Future<void> _openDetail(RevisionUnit unit) async {

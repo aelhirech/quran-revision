@@ -213,13 +213,24 @@ extension AppStateDayPlan on AppState {
     if (notify) _notify();
   }
 
+  /// The user's selections that can still be added to a day plan, in mushaf
+  /// order: every surah of the revision selection except those in [present].
+  /// A catch-up reads today's selection, not the one of that past day.
+  List<SourateSelection> addableSelections(Set<int> present) {
+    final addable = (_config?.selections ?? const <SourateSelection>[])
+        .where((sel) => !present.contains(sel.sourate.id))
+        .toList();
+    addable.sort((a, b) => a.sourate.id.compareTo(b.sourate.id));
+    return addable;
+  }
+
   /// Adds a surah/portion to the day plan from check-in.
   /// [date] defaults to today (check-in). Check-out passes it explicitly to
   /// declare a surah **revised in addition** that day: same write, the unit
   /// simply joins a past day's plan, where check-out's "done by default"
-  /// will confirm it at sealing. Like any out-of-selection addition, it
-  /// feeds history and freshness but doesn't advance `cyclePosition` beyond
-  /// what the engine had proposed (see [checkOut]).
+  /// will confirm it at sealing. The surah always belongs to the selection,
+  /// so declaring it can advance `cyclePosition` beyond what the engine had
+  /// proposed ("do more", see [checkOut]).
   Future<void> addToDayPlan(RevisionUnit unit, {String? date}) async {
     await AyahFactsRitual.proposeUnits(date ?? todayStr, _riwaya, [unit]);
     _notify();

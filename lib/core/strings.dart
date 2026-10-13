@@ -115,8 +115,9 @@ class S {
   static String pagesRakaas(int p, int r) =>
       '$p ${_pages(p)} · $r $rakaasLabel';
 
-  static String souratesCount(int n, int v) =>
-      locale == 'fr' ? '$n sourates sélectionnées · $v versets' : '$n surahs selected · $v verses';
+  static String souratesCount(int n, int v) => locale == 'fr'
+      ? '$n sourate${n > 1 ? 's' : ''} sélectionnée${n > 1 ? 's' : ''} · ${versetsCount(v)}'
+      : '$n ${n == 1 ? 'surah' : 'surahs'} selected · ${versetsCount(v)}';
 
   static String joursDuration(int n) =>
       locale == 'fr' ? '$n jours' : '$n days';

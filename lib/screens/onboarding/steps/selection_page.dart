@@ -9,6 +9,7 @@ class _SelectionPage extends StatelessWidget {
   final double? lastQuickFraction;
   final void Function(double fraction) onQuickSelect;
   final void Function(Sourate) onToggleSourate;
+  final void Function(List<Sourate>) onToggleGroup;
   final Future<void> Function(Sourate) onLongPress;
   final ValueChanged<bool> onGroupByHizbChanged;
   final ValueChanged<String> onSearchChanged;
@@ -23,6 +24,7 @@ class _SelectionPage extends StatelessWidget {
     required this.lastQuickFraction,
     required this.onQuickSelect,
     required this.onToggleSourate,
+    required this.onToggleGroup,
     required this.onLongPress,
     required this.onGroupByHizbChanged,
     required this.onSearchChanged,
@@ -118,6 +120,7 @@ class _SelectionPage extends StatelessWidget {
               items: listItems,
               selections: selections,
               onToggle: onToggleSourate,
+              onToggleGroup: onToggleGroup,
               onLongPress: onLongPress,
             ).animate().fadeIn(duration: 300.ms),
           ),
