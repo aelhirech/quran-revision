@@ -9,6 +9,8 @@ import 'package:quran_revision/models/riwaya.dart';
 import 'package:quran_revision/models/sourate_selection.dart';
 import 'package:quran_revision/models/user_config.dart';
 import 'package:quran_revision/services/hafs_service.dart';
+import 'package:quran_revision/services/translation_service.dart';
+import 'package:quran_revision/services/warsh_service.dart';
 import 'package:quran_revision/state/app_state.dart';
 import 'package:quran_revision/widgets/verse_audio_bar.dart';
 import 'package:quran_revision/widgets/verse_bottom_sheet.dart';
@@ -23,13 +25,17 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
     await initFfiTestDb('qr_test_verse_bottom_sheet_');
     await HafsService.initialize();
+    await WarshService.initialize();
+    // Preloaded here: a large asset read inside testWidgets never completes
+    // under the fake clock.
+    await TranslationService.load('fr');
   });
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   // Al-Baqara 1..50. Pumping it again replaces the sheet with a fresh one,
   // like closing then reopening it.
-  Future<void> pumpSheet(WidgetTester tester) async {
+  Future<void> pumpSheet(WidgetTester tester, {Riwaya riwaya = Riwaya.hafs}) async {
     final baqara = testSourate(2, verses: 286);
     final state = AppState(
       UserConfig(
@@ -37,9 +43,9 @@ void main() {
         pagesPerDay: 1,
         startDate: DateTime.now(),
         shuffleEnabled: false,
-        riwaya: Riwaya.hafs,
+        riwaya: riwaya,
       ),
-      riwaya: Riwaya.hafs,
+      riwaya: riwaya,
     );
     await tester.pumpWidget(ChangeNotifierProvider.value(
       value: state,
@@ -131,5 +137,54 @@ void main() {
 
     await pumpSheet(tester);
     expect(firstVerse(tester), 1);
+  });
+
+  // US-19. The toggle rebuilds the header that sits before the audio bar: the
+  // bar must keep its state (it would lose a playing loop otherwise).
+  testWidgets("la traduction s'affiche sous les versets sans recréer la barre audio",
+      (tester) async {
+    await pumpSheet(tester);
+    final barState = tester.state(find.byType(VerseAudioBar));
+    // Verse 1: the list is lazy, later rows may not be built.
+    final verse1 = TranslationService.verse('fr', 2, 1)!;
+    expect(find.text(verse1), findsNothing);
+
+    await tester.tap(find.byTooltip(S.afficherTraduction));
+    await tester.pump();
+    expect(find.text(verse1), findsOneWidget);
+    expect(find.text(S.traductionSource), findsOneWidget);
+    expect(tester.state(find.byType(VerseAudioBar)), same(barState));
+
+    // A verse hidden by the portion must not leave its translation behind.
+    await tester.tap(find.byTooltip(S.debutPlusUn));
+    await tester.pump();
+    await tester.tap(find.byTooltip(S.debutPlusUn));
+    await tester.pump();
+    expect(find.text(verse1), findsNothing);
+    expect(find.text(TranslationService.verse('fr', 2, 3)!), findsOneWidget);
+
+    await tester.tap(find.byTooltip(S.masquerTraduction));
+    await tester.pump();
+    expect(find.text(TranslationService.verse('fr', 2, 3)!), findsNothing);
+    expect(find.text(S.traductionSource), findsNothing);
+    expect(tester.widget<VerseRow>(find.byType(VerseRow).first).translation, isNull);
+  });
+
+  testWidgets("une feuille rouverte repart de l'arabe seul", (tester) async {
+    await pumpSheet(tester);
+    await tester.tap(find.byTooltip(S.afficherTraduction));
+    await tester.pump();
+    expect(find.text(S.traductionSource), findsOneWidget);
+
+    await pumpSheet(tester);
+    expect(find.text(S.traductionSource), findsNothing);
+    expect(find.byTooltip(S.afficherTraduction), findsOneWidget);
+  });
+
+  // Translations follow the Hafs verse numbering.
+  testWidgets('en Warsh, aucun bouton de traduction', (tester) async {
+    await pumpSheet(tester, riwaya: Riwaya.warsh);
+    expect(find.byType(VerseRow), findsWidgets);
+    expect(find.byTooltip(S.afficherTraduction), findsNothing);
   });
 }

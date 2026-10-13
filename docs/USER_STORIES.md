@@ -23,129 +23,6 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-### US-19 — Lire le sens de ce que je récite (extension de la vue Coran)
-**État** : scopée — blueprint et scoping du 2026-10-13. Rattachée à la vue Coran, comme US-16 et
-US-18.
-
-**Statement** : En tant qu'utilisateur francophone ou anglophone qui révise ou apprend un passage,
-je veux pouvoir afficher sous chaque verset sa traduction dans ma langue, afin de comprendre ce
-que je récite sans quitter l'app.
-
-**Moment de l'histoire** : le milieu de journée et l'écoute avant la prière, là où l'app n'est
-présente que par l'accès au texte. Ce qu'elle y apporte : comprendre un verset aide à le retenir.
-L'app **cite** une traduction reconnue, elle n'explique pas le texte (elle tient le carnet, pas la
-chaire).
-
-**Diagnostic (état actuel)** : la vue Coran n'affiche que l'arabe, et aucune traduction n'existe
-ailleurs dans l'app. Un utilisateur qui ne comprend pas l'arabe et veut connaître le sens du verset
-qu'il répète doit ouvrir une autre app, puis retrouver le verset.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given la vue Coran ouverte en riwaya Hafs depuis n'importe quelle surface, Then seul l'arabe est
-   affiché, exactement comme aujourd'hui, et un bouton permet d'afficher la traduction.
-2. Given un appui sur ce bouton, Then chaque verset affiché porte sa traduction sous son texte
-   arabe, dans la langue de l'app : Muhammad Hamidullah en français, Saheeh International en
-   anglais. Un second appui la retire. L'arabe reste le texte principal, la traduction se lit comme
-   secondaire.
-3. Given la traduction affichée et une portion resserrée (US-18), Then seuls les versets de la
-   portion portent leur traduction : un verset masqué ne laisse pas la sienne à l'écran.
-4. Given la vue refermée puis rouverte, Then elle repart de l'arabe seul, comme le curseur de
-   portion (US-11 crit. 5).
-5. Given la riwaya Warsh, Then le bouton n'apparaît pas. Aucune traduction n'est jamais affichée en
-   face d'un verset qu'elle ne traduit pas.
-6. Given la traduction affichée, Then le nom du traducteur est indiqué, et elle s'affiche aussi
-   sans connexion.
-
-**Prérequis à lever au scoping** : les droits de réutilisation des deux traductions. Tanzil les
-limite à l'usage non commercial ; QUL (déjà la source du texte arabe de l'app) les distribue
-verset par verset sans mention de licence. Si les droits ne permettent pas de les embarquer, la
-source se redécide avec l'utilisateur : jamais de traduction de remplacement choisie en silence.
-_Levé au scoping du 2026-10-13 : source Tanzil, voir « Ajustement au scoping » ci-dessous._
-
-**Exclusions explicites** :
-- **Pas de mot à mot, ni de couleurs par mot** (choix utilisateur du 2026-10-13). Le mot à mot
-  français du Dr Usama Nonnenmacher (`github.com/DrUsamaN/CoranMot`, repris par l'app de Greentech
-  Apps Foundation) a été examiné pour cette story et écarté : ce sont des gloses par mot et non
-  une phrase par verset, en français seulement, d'un rendu interprétatif, sans relecture savante
-  revendiquée. Il reste la source candidate de l'Idée produit « jeu mot arabe → traduction »
-  (`docs/CHANGELOG.md`). Conditions de l'auteur : projet islamique, aucune modification, source
-  citée, pas de publicité.
-- **Pas de traduction en Warsh** (choix utilisateur du 2026-10-13) : les traductions suivent le
-  découpage en versets de Hafs, différent de celui de Warsh. À rouvrir en story séparée si le
-  besoin se confirme.
-- **Pas de mémorisation de l'affichage** (choix utilisateur du 2026-10-13, contre l'option « elle
-  reste affichée ») : la traduction demande un appui à chaque ouverture.
-- Pas de choix de traduction ni de langue de traduction : une seule traduction par langue, qui suit
-  la langue de l'app. Un réglage de plus redonnerait une décision à l'utilisateur.
-- Pas de notes de bas de page, pas de tafsir, pas de translittération.
-- Le nom de la sourate et le bismillah d'en-tête ne sont pas traduits.
-- Pas de traduction hors de la vue Coran : ni plan du jour, ni check-in, ni check-out, ni Récap,
-  ni notifications.
-- Pas de recherche dans la traduction, pas de copie ni de partage.
-- Afficher la traduction ne change rien à l'écoute ni à la progression : ni cycle, ni streak, ni
-  ce que le check-out crédite (US-9 crit. 4).
-
-**Scoping technique** (2026-10-13) :
-- **Fichiers UI** : `lib/widgets/verse_bottom_sheet.dart` (154 lignes, `StatefulWidget` une fois
-  US-18 livrée) ; `lib/widgets/verse_row.dart` (40 lignes) ; `lib/core/strings.dart` (308 lignes,
-  trois libellés ajoutés : proche du plafond, reste sous 350). Les quatre appelants de
-  `VerseBottomSheet.show` ne bougent pas.
-- **Nouveaux fichiers** : `lib/services/translation_service.dart` (~30 lignes) ; deux assets,
-  `assets/quran/translations/fr.hamidullah.txt` et `en.sahih.txt` (fichiers Tanzil embarqués sans
-  modification, ~0,9 Mo chacun), déclarés dans `pubspec.yaml`.
-- **Variables / champs** : `bool _showTranslation` dans le `State` de `VerseBottomSheet` ; un
-  paramètre `String? translation` sur `VerseRow`. Aucune clé `SharedPreferences`, rien dans
-  `AppState` ni `UserConfig`.
-- **`ayah_facts`** : aucune lecture ni écriture.
-- **Décision data model** : l'affichage est un état UI éphémère, local à la feuille. Le `State`
-  est recréé à chaque ouverture, donc le crit. 4 est tenu par construction. Le texte des
-  traductions est une donnée externe figée, comme le texte arabe : un asset, pas une table.
-- **Réutilisation** : `VerseBottomSheet` et `VerseRow` sont étendus, aucune nouvelle boucle
-  d'affichage. La liste filtrée par portion d'US-18 donne le crit. 3 sans code : un verset masqué
-  n'est pas construit. `QuranTextAsset` n'est pas réutilisé : il lit du JSON et compte versets et
-  mots, alors que le fichier Tanzil (`sourate|verset|texte`) est embarqué tel quel, ce qui évite
-  un script de conversion et un fichier dérivé à resynchroniser.
-- **Risques / dépendances** :
-  - **Ordre imposé : US-18 d'abord.** Les deux stories touchent `verse_bottom_sheet.dart` et
-    `verse_row.dart`. US-19 s'appuie sur le `State` qu'US-18 introduit, et son crit. 3 n'a de sens
-    qu'avec le masquage.
-  - **Condition Tanzil : usage non commercial** (choix utilisateur du 2026-10-13). L'app gratuite
-    et sans publicité la respecte. Une version payante ou de la publicité demandera l'accord des
-    éditeurs ou un changement de source, avant publication.
-  - **Dépôt public sous MIT** : les deux fichiers de traduction n'en relèvent pas. À écrire dans
-    `docs/DOCUMENTATION_TECHNIQUE.md` §10.
-  - **Piège des slivers** (US-16, US-17) : le bouton et la ligne de source vivent dans l'en-tête
-    existant. Aucun sliver n'est ajouté avant la barre audio, sinon son état est recréé pendant
-    l'écoute.
-  - **Gros asset dans un test widget** : chargé à l'intérieur de `testWidgets`, il risque de ne
-    jamais se terminer sous l'horloge simulée. Le test le précharge dans `setUpAll`, comme
-    `HafsService`.
-  - Les fichiers Tanzil ont des fins de ligne CRLF et un bloc de commentaires `#` en fin de
-    fichier : le découpage passe par `LineSplitter` et ignore toute ligne qui ne commence pas par
-    un chiffre.
-  - Alignement vérifié le 2026-10-13 : les 6236 clés `sourate:verset` des deux fichiers sont
-    identiques à celles de `assets/quran/hafs.json`.
-  - Aucun autre item du Backlog ne touche ces fichiers.
-- **Tests** : `test/services/translation_service_test.dart` (vrais assets) : chaque verset Hafs a
-  une traduction non vide dans les deux langues, plus deux textes connus pour attraper un fichier
-  inversé. `test/widgets/verse_bottom_sheet_test.dart` (test widget admis : piège d'état et règle
-  de riwaya) : afficher la traduction ne recrée pas la barre audio, un second appui la retire, un
-  verset masqué par la portion n'en laisse pas, le bouton est absent en Warsh. Lisibilité, place du
-  bouton et ligne de source : vérification visuelle sous Windows.
-- **Item Backlog** : `[P2] US-19 — Traduction sous les versets dans la vue Coran (Hafs)`.
-
-**Ajustement au scoping** (2026-10-13) — crit. 2 et 6 précisés, sens inchangé :
-- **Source** : les éditions distribuées par Tanzil (`fr.hamidullah`, `en.sahih`), choisies par
-  l'utilisateur le 2026-10-13 contre QuranEnc (où Hamidullah n'est plus au catalogue et où les
-  notes de bas de page ne peuvent pas être retirées du texte). Le texte Tanzil n'a pas de notes :
-  l'exclusion « pas de notes de bas de page » tient sans rien retirer.
-- **Crit. 2** : le bouton est dans l'en-tête, qui défile avec le texte (US-16). Pour retirer la
-  traduction après avoir défilé, on remonte en haut, comme pour arrêter l'écoute.
-- **Crit. 6** : le nom du traducteur et la source (`tanzil.net`) s'affichent dans l'en-tête tant
-  que la traduction est affichée.
-Validé par l'utilisateur : la source, oui. La place du bouton et de la ligne de source : non, à
-confirmer.
-
 ### Cadre commun à US-20, US-21 et US-22 (blueprint Renforcement du 2026-10-13)
 
 Ces trois stories sortent d'un même besoin : « une page de jeux avec deux QCM (le sens d'un mot, la
@@ -527,6 +404,140 @@ avec le palier qui peut se perdre.
 ## Archivées
 
 Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
+### US-19 — Lire le sens de ce que je récite (extension de la vue Coran)
+**État** : terminée — blueprint, scoping et livraison du 2026-10-13
+(`feature/phase-24-sprint14-traduction-vue-coran`). Vérifiée par tests (service sur les 6236
+versets Hafs dans les deux langues, test widget) et sous Windows dans l'app réelle (clair, sombre,
+FR, EN, 390×844, 320×568 avec texte ×1,5, Al-Baqara 282 en français à 390×844).
+**Non vérifiée sur appareil réel**, ni pendant une écoute en cours (audio indisponible sous
+Windows et en test : seul l'état de la barre est verrouillé par le test widget). La traduction
+longue de 2:282 n'a pas été vue à 320×568 avec texte ×1,5. Rattachée à la vue Coran, comme US-16
+et US-18.
+
+**Statement** : En tant qu'utilisateur francophone ou anglophone qui révise ou apprend un passage,
+je veux pouvoir afficher sous chaque verset sa traduction dans ma langue, afin de comprendre ce
+que je récite sans quitter l'app.
+
+**Moment de l'histoire** : le milieu de journée et l'écoute avant la prière, là où l'app n'est
+présente que par l'accès au texte. Ce qu'elle y apporte : comprendre un verset aide à le retenir.
+L'app **cite** une traduction reconnue, elle n'explique pas le texte (elle tient le carnet, pas la
+chaire).
+
+**Diagnostic (état actuel)** : la vue Coran n'affiche que l'arabe, et aucune traduction n'existe
+ailleurs dans l'app. Un utilisateur qui ne comprend pas l'arabe et veut connaître le sens du verset
+qu'il répète doit ouvrir une autre app, puis retrouver le verset.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given la vue Coran ouverte en riwaya Hafs depuis n'importe quelle surface, Then seul l'arabe est
+   affiché, exactement comme aujourd'hui, et un bouton permet d'afficher la traduction.
+2. Given un appui sur ce bouton, Then chaque verset affiché porte sa traduction sous son texte
+   arabe, dans la langue de l'app : Muhammad Hamidullah en français, Saheeh International en
+   anglais. Un second appui la retire. L'arabe reste le texte principal, la traduction se lit comme
+   secondaire.
+3. Given la traduction affichée et une portion resserrée (US-18), Then seuls les versets de la
+   portion portent leur traduction : un verset masqué ne laisse pas la sienne à l'écran.
+4. Given la vue refermée puis rouverte, Then elle repart de l'arabe seul, comme le curseur de
+   portion (US-11 crit. 5).
+5. Given la riwaya Warsh, Then le bouton n'apparaît pas. Aucune traduction n'est jamais affichée en
+   face d'un verset qu'elle ne traduit pas.
+6. Given la traduction affichée, Then le nom du traducteur est indiqué, et elle s'affiche aussi
+   sans connexion.
+
+**Prérequis à lever au scoping** : les droits de réutilisation des deux traductions. Tanzil les
+limite à l'usage non commercial ; QUL (déjà la source du texte arabe de l'app) les distribue
+verset par verset sans mention de licence. Si les droits ne permettent pas de les embarquer, la
+source se redécide avec l'utilisateur : jamais de traduction de remplacement choisie en silence.
+_Levé au scoping du 2026-10-13 : source Tanzil, voir « Ajustement au scoping » ci-dessous._
+
+**Exclusions explicites** :
+- **Pas de mot à mot, ni de couleurs par mot** (choix utilisateur du 2026-10-13). Le mot à mot
+  français du Dr Usama Nonnenmacher (`github.com/DrUsamaN/CoranMot`, repris par l'app de Greentech
+  Apps Foundation) a été examiné pour cette story et écarté : ce sont des gloses par mot et non
+  une phrase par verset, en français seulement, d'un rendu interprétatif, sans relecture savante
+  revendiquée. Il reste la source candidate de l'Idée produit « jeu mot arabe → traduction »
+  (`docs/CHANGELOG.md`). Conditions de l'auteur : projet islamique, aucune modification, source
+  citée, pas de publicité.
+- **Pas de traduction en Warsh** (choix utilisateur du 2026-10-13) : les traductions suivent le
+  découpage en versets de Hafs, différent de celui de Warsh. À rouvrir en story séparée si le
+  besoin se confirme.
+- **Pas de mémorisation de l'affichage** (choix utilisateur du 2026-10-13, contre l'option « elle
+  reste affichée ») : la traduction demande un appui à chaque ouverture.
+- Pas de choix de traduction ni de langue de traduction : une seule traduction par langue, qui suit
+  la langue de l'app. Un réglage de plus redonnerait une décision à l'utilisateur.
+- Pas de notes de bas de page, pas de tafsir, pas de translittération.
+- Le nom de la sourate et le bismillah d'en-tête ne sont pas traduits.
+- Pas de traduction hors de la vue Coran : ni plan du jour, ni check-in, ni check-out, ni Récap,
+  ni notifications.
+- Pas de recherche dans la traduction, pas de copie ni de partage.
+- Afficher la traduction ne change rien à l'écoute ni à la progression : ni cycle, ni streak, ni
+  ce que le check-out crédite (US-9 crit. 4).
+
+**Scoping technique** (2026-10-13) :
+- **Fichiers UI** : `lib/widgets/verse_bottom_sheet.dart` (154 lignes, `StatefulWidget` une fois
+  US-18 livrée) ; `lib/widgets/verse_row.dart` (40 lignes) ; `lib/core/strings.dart` (308 lignes,
+  trois libellés ajoutés : proche du plafond, reste sous 350). Les quatre appelants de
+  `VerseBottomSheet.show` ne bougent pas.
+- **Nouveaux fichiers** : `lib/services/translation_service.dart` (~30 lignes) ; deux assets,
+  `assets/quran/translations/fr.hamidullah.txt` et `en.sahih.txt` (fichiers Tanzil embarqués sans
+  modification, ~0,9 Mo chacun), déclarés dans `pubspec.yaml`.
+- **Variables / champs** : `bool _showTranslation` dans le `State` de `VerseBottomSheet` ; un
+  paramètre `String? translation` sur `VerseRow`. Aucune clé `SharedPreferences`, rien dans
+  `AppState` ni `UserConfig`.
+- **`ayah_facts`** : aucune lecture ni écriture.
+- **Décision data model** : l'affichage est un état UI éphémère, local à la feuille. Le `State`
+  est recréé à chaque ouverture, donc le crit. 4 est tenu par construction. Le texte des
+  traductions est une donnée externe figée, comme le texte arabe : un asset, pas une table.
+- **Réutilisation** : `VerseBottomSheet` et `VerseRow` sont étendus, aucune nouvelle boucle
+  d'affichage. La liste filtrée par portion d'US-18 donne le crit. 3 sans code : un verset masqué
+  n'est pas construit. `QuranTextAsset` n'est pas réutilisé : il lit du JSON et compte versets et
+  mots, alors que le fichier Tanzil (`sourate|verset|texte`) est embarqué tel quel, ce qui évite
+  un script de conversion et un fichier dérivé à resynchroniser.
+- **Risques / dépendances** :
+  - **Ordre imposé : US-18 d'abord.** Les deux stories touchent `verse_bottom_sheet.dart` et
+    `verse_row.dart`. US-19 s'appuie sur le `State` qu'US-18 introduit, et son crit. 3 n'a de sens
+    qu'avec le masquage.
+  - **Condition Tanzil : usage non commercial** (choix utilisateur du 2026-10-13). L'app gratuite
+    et sans publicité la respecte. Une version payante ou de la publicité demandera l'accord des
+    éditeurs ou un changement de source, avant publication.
+  - **Dépôt public sous MIT** : les deux fichiers de traduction n'en relèvent pas. À écrire dans
+    `docs/DOCUMENTATION_TECHNIQUE.md` §10.
+  - **Piège des slivers** (US-16, US-17) : le bouton et la ligne de source vivent dans l'en-tête
+    existant. Aucun sliver n'est ajouté avant la barre audio, sinon son état est recréé pendant
+    l'écoute.
+  - **Gros asset dans un test widget** : chargé à l'intérieur de `testWidgets`, il risque de ne
+    jamais se terminer sous l'horloge simulée. Le test le précharge dans `setUpAll`, comme
+    `HafsService`.
+  - Les fichiers Tanzil ont des fins de ligne CRLF et un bloc de commentaires `#` en fin de
+    fichier : le découpage passe par `LineSplitter` et ignore toute ligne qui ne commence pas par
+    un chiffre.
+  - Alignement vérifié le 2026-10-13 : les 6236 clés `sourate:verset` des deux fichiers sont
+    identiques à celles de `assets/quran/hafs.json`.
+  - Aucun autre item du Backlog ne touche ces fichiers.
+- **Tests** : `test/services/translation_service_test.dart` (vrais assets) : chaque verset Hafs a
+  une traduction non vide dans les deux langues, plus deux textes connus pour attraper un fichier
+  inversé. `test/widgets/verse_bottom_sheet_test.dart` (test widget admis : piège d'état et règle
+  de riwaya) : afficher la traduction ne recrée pas la barre audio, un second appui la retire, un
+  verset masqué par la portion n'en laisse pas, le bouton est absent en Warsh. Lisibilité, place du
+  bouton et ligne de source : vérification visuelle sous Windows.
+- **Item Backlog** : `[P2] US-19 — Traduction sous les versets dans la vue Coran (Hafs)`.
+
+**Ajustement au scoping** (2026-10-13) — crit. 2 et 6 précisés, sens inchangé :
+- **Source** : les éditions distribuées par Tanzil (`fr.hamidullah`, `en.sahih`), choisies par
+  l'utilisateur le 2026-10-13 contre QuranEnc (où Hamidullah n'est plus au catalogue et où les
+  notes de bas de page ne peuvent pas être retirées du texte). Le texte Tanzil n'a pas de notes :
+  l'exclusion « pas de notes de bas de page » tient sans rien retirer.
+- **Crit. 2** : le bouton est dans l'en-tête, qui défile avec le texte (US-16). Pour retirer la
+  traduction après avoir défilé, on remonte en haut, comme pour arrêter l'écoute.
+- **Crit. 6** : le nom du traducteur et la source (`tanzil.net`) s'affichent dans l'en-tête tant
+  que la traduction est affichée.
+Validé par l'utilisateur : la source, oui. La place du bouton et de la ligne de source : non, à
+confirmer.
+
+**Écarts à la livraison** : les fichiers servis par Tanzil ont des fins de ligne LF, pas CRLF
+(sans effet, `LineSplitter` lit les deux). Le test widget lit la traduction du verset 1 puis du
+verset 3 : la liste est paresseuse, le verset 2 n'est pas toujours construit.
+**Item Backlog** : livré, retiré de `docs/CHANGELOG.md`.
 
 ### US-18 — Le texte suit la portion réglée (extension d'US-11)
 **État** : terminée — blueprint, scoping et livraison du 2026-10-13

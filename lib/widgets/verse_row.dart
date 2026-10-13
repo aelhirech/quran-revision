@@ -12,22 +12,45 @@ class VerseRow extends StatelessWidget {
   final int number;
   final String text;
   final double fontSize;
+  final String? translation;
 
   const VerseRow({
     super.key,
     required this.number,
     required this.text,
     this.fontSize = 22,
+    this.translation,
   });
 
   @override
   Widget build(BuildContext context) {
+    final translation = this.translation;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         IndexBadge(text: '$number', size: 26),
         const SizedBox(width: 10),
-        Expanded(child: ArabicVerseText(text: text, fontSize: fontSize)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ArabicVerseText(text: text, fontSize: fontSize),
+              if (translation != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    translation,
+                    textAlign: TextAlign.left,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }

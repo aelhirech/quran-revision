@@ -257,6 +257,13 @@ class S {
       "Impossible de lire cette plage avec ce récitateur — vérifie ta connexion internet.",
       "Couldn't play this range with this reciter — check your internet connection.");
 
+  // Traduction dans la vue Coran (US-19)
+  static String get afficherTraduction => _t('Afficher la traduction', 'Show translation');
+  static String get masquerTraduction => _t('Masquer la traduction', 'Hide translation');
+  static String get traductionSource => _t(
+      'Traduction : Muhammad Hamidullah · tanzil.net',
+      'Translation: Saheeh International · tanzil.net');
+
   // Écoute hors connexion (US-10)
   static String get telechargerSourate =>
       _t('Télécharger la sourate pour écouter hors connexion', 'Download the surah to listen offline');

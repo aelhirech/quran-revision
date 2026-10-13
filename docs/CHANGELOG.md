@@ -40,6 +40,16 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     seulement, jamais à chaque pixel (`playLoop` remplace toute la playlist). Le texte, lui, suit
     en direct.
   - L'en-tête garde la plage d'origine. Aucun verset de contexte n'est affiché (retiré par US-18).
+- **Traduction dans la vue Coran (US-19, 2026-10-13)** :
+  - Les deux fichiers de `assets/quran/translations/` sont les éditions Tanzil (`fr.hamidullah`,
+    `en.sahih`), embarquées **sans aucune modification**. Tanzil les limite à l'**usage non
+    commercial** : à réexaminer avant toute version payante ou toute publicité. Mise à jour par
+    nouveau téléchargement, jamais par retouche.
+  - Les traductions suivent la numérotation Hafs. Le bouton n'existe qu'en Hafs
+    (`VerseBottomSheet`) : ne jamais appeler `TranslationService.verse` avec un verset Warsh.
+  - L'affichage (`_showTranslation`) vit dans le `State` de la feuille, jamais persisté. Le
+    bouton et la ligne de source restent **dans l'en-tête** : un sliver ajouté avant la barre
+    audio recréerait son état pendant l'écoute.
 - **`QuranAudioHandler.playLoop` n'attend jamais `_player.play()` (2026-09-29)** : dans
   `just_audio`, ce `Future` ne se termine qu'à la pause/l'arrêt. L'attendre gardait `_starting`
   vrai pendant toute l'écoute (bouton bloqué sur le spinner, et `_followPortionIfPlaying` jamais
@@ -115,70 +125,6 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 ## Backlog technique
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
-
-### [P2] US-19 — Traduction sous les versets dans la vue Coran (Hafs)
-**Prérequis : US-18 livrée.** Ce sprint réutilise le `State` de `VerseBottomSheet` et sa liste
-filtrée par portion, et touche les mêmes fichiers. Un bouton de l'en-tête affiche sous chaque
-verset sa traduction dans la langue de l'app, en Hafs seulement. Voir
-`docs/DOCUMENTATION_TECHNIQUE.md` §8.6.
-- **Assets** (`assets/quran/translations/fr.hamidullah.txt`, `en.sahih.txt`) : téléchargés depuis
-  `https://tanzil.net/trans/fr.hamidullah` et `https://tanzil.net/trans/en.sahih`, embarqués
-  **sans aucune modification** (bloc de commentaires final compris), déclarés dans la section
-  `assets:` de `pubspec.yaml`. Format : une ligne `sourate|verset|texte` par verset, 6236 lignes,
-  fins de ligne CRLF.
-- **`lib/services/translation_service.dart`** (nouveau, statique, sans état autre qu'un cache) :
-  `static Future<void> load(String locale)` lit le fichier de la langue (`'fr'` → Hamidullah,
-  `'en'` → Saheeh International) une seule fois, le découpe avec `LineSplitter`, ignore toute
-  ligne qui ne commence pas par un chiffre et range chaque texte sous la clé `(sourate, verset)`.
-  `static String? verse(String locale, int surahId, int ayahId)` renvoie le texte, ou `null` si
-  la langue n'est pas chargée. Le service prend la langue en paramètre et n'importe pas
-  `core/strings.dart`.
-- **`lib/widgets/verse_row.dart`** : paramètre optionnel `String? translation`. Non nul, il
-  s'affiche sous le texte arabe, aligné à gauche, 8 px plus bas, en 14 px, interligne 1,5, couleur
-  `Theme.of(context).colorScheme.onSurfaceVariant`. Nul, le rendu est celui d'aujourd'hui.
-- **`lib/widgets/verse_bottom_sheet.dart`** : le `State` porte `bool _showTranslation = false`.
-  `_toggleTranslation()` : si la traduction est masquée, `await TranslationService.load(S.locale)`
-  puis `if (!mounted) return;`, puis `setState` qui inverse le booléen. `itemBuilder` passe à
-  `VerseRow` `translation: _showTranslation ? TranslationService.verse(S.locale, sourate.id,
-  ayahId) : null`. Dans l'en-tête : un `IconButton` (`Icons.translate`, `isSelected:
-  _showTranslation`, infobulle `S.masquerTraduction` ou `S.afficherTraduction`) posé en haut à
-  droite par un `Stack`, pour que le titre reste centré, et construit seulement si
-  `riwaya == Riwaya.hafs`. Sous la ligne « nom · plage », `Text(S.traductionSource)` en 11 px,
-  même couleur, affiché seulement quand `_showTranslation` est vrai. **Aucun sliver ajouté** :
-  l'ordre reste en-tête, `VerseAudioBar`, `GuideStep` conditionnel, liste.
-- **`lib/core/strings.dart`** : `afficherTraduction` (« Afficher la traduction » / « Show
-  translation »), `masquerTraduction` (« Masquer la traduction » / « Hide translation »),
-  `traductionSource` (« Traduction : Muhammad Hamidullah · tanzil.net » / « Translation: Saheeh
-  International · tanzil.net »).
-- **Réutilisé tel quel** : `VerseService.getVerse`, la liste filtrée par `_portion` (un verset
-  masqué n'est pas construit, sa traduction non plus), `S.locale`, le thème pour la couleur et la
-  police. Ne pas passer par `QuranTextAsset` (JSON avec comptage, autre format).
-- **Tests** :
-  - `test/services/translation_service_test.dart` : après `HafsService.initialize()` et `load`
-    des deux langues, pour chaque sourate de 1 à 114 et chaque verset de 1 à
-    `HafsService.verseCounts[id]`, `verse` est non nul et non vide en `'fr'` et en `'en'` ;
-    `verse('fr', 112, 1)` contient « Il est Allah, Unique » et `verse('en', 112, 1)` contient
-    « He is Allah ».
-  - `test/widgets/verse_bottom_sheet_test.dart`, traduction `'fr'` et `WarshService` préchargés
-    dans `setUpAll` : (1) un appui sur `S.afficherTraduction` fait apparaître le texte français
-    du verset 2 d'Al-Baqara et laisse la même instance d'état de `VerseAudioBar` ; (2) après deux
-    `S.debutPlusUn`, ce texte n'est plus trouvé ; (3) un appui sur `S.masquerTraduction` retire
-    toute traduction ; (4) avec un `AppState` en Warsh, `find.byTooltip(S.afficherTraduction)` ne
-    trouve rien.
-  - Sous Windows, en clair et en sombre, en français et en anglais, à 390×844 puis à 320×568 avec
-    texte ×1,5 : le bouton ne chevauche pas le nom de la sourate, la traduction se lit comme
-    secondaire, la ligne de source apparaît et disparaît avec elle, un long verset (Al-Baqara 282)
-    reste lisible.
-- **Exclus** : traduction en Warsh, mémorisation de l'affichage, choix de la traduction ou de sa
-  langue, notes de bas de page, tafsir, translittération, mot à mot, traduction du nom de la
-  sourate et du bismillah d'en-tête, traduction hors de la vue Coran, toute écriture dans
-  `ayah_facts` ou `SharedPreferences`.
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §6 (ligne `TranslationService`), §8.6 (bouton,
-  état local, Hafs seulement), §10 (source Tanzil, condition d'usage non commercial, fichiers non
-  couverts par la licence MIT du dépôt, mise à jour par nouveau téléchargement), §14 ;
-  `test/CLAUDE.md` (deux lignes). Dans ce fichier, ajouter aux « Décisions actives » : traductions
-  Tanzil embarquées sans modification, usage non commercial, à réexaminer avant toute version
-  payante ou publicité. Passer US-19 à « terminée » puis l'archiver.
 
 ### [P2] US-20 Sprint A — Moteur des séries de l'onglet Renforcement
 Premier des deux sprints d'US-20. Il livre le moteur pur et ses tests, sans rien d'affiché : le
@@ -528,6 +474,12 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   et la barre descend de 140 px sous le doigt. Le glissé d'une poignée n'est pas gêné, un ±1
   répété peut tomber à côté du bouton. Il reste à choisir le comportement voulu (défilement figé
   pendant le réglage, retour en haut, autre) avant tout correctif.
+- **Vue Coran à 320×568 avec texte ×1,5 : deux débordements** (relevés au sprint US-19,
+  2026-10-13, sous Windows, présents avec ou sans traduction) : la ligne « − v.282 + … − v.283 + »
+  de `VerseRangeSlider` (`verse_range_slider.dart`, l. 71) déborde de 38 px à droite avec des
+  numéros à trois chiffres (14 px avec deux), et `IndexBadge` coupe un numéro à trois chiffres
+  (« 282 » affiché « 28 »). Il reste à choisir le correctif (réduire, passer à la ligne, plafonner
+  l'agrandissement du texte) avant d'en faire un item de Backlog.
 - **Un seul style de titre en capitales (« eyebrow »)** (relevé au Sprint B d'US-15) : huit
   titres en capitales ont chacun leur taille et leur espacement (`check_in_screen.dart`,
   `check_out_sections.dart`, `day_closed_summary.dart`, `prayer_selector.dart`,
