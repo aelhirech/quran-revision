@@ -184,13 +184,14 @@ C'est l'objet de configuration central, il mérite d'être détaillé séparéme
 
 Compose les séries de l'onglet Renforcement : dix questions « quelle est la suite ? ». Dart pur,
 aucune lecture ni écriture : le texte arrive par le paramètre `textOf`, le hasard par `random`
-(graine fixe en test). Rien n'est encore affiché : l'onglet arrive au Sprint B.
+(graine fixe en test). L'onglet et l'écran qui les affichent sont décrits en §8.7.
 
 - **Passage** (`passagesOf`) : l'unité d'une question. Un verset de 12 mots au plus est un seul
   passage. Un verset plus long est coupé après chaque token portant un signe de pause (U+06D6,
   U+06D7, U+06D8, U+06DA), puis les morceaux voisins sont regroupés tant que le passage ne dépasse
   pas 12 mots. Aucune coupe ailleurs : un morceau sans signe de pause reste entier, même long.
-  Recoller les passages par une espace redonne le verset exact.
+  Recoller les passages par une espace redonne le verset exact. Un passage s'identifie par
+  `Passage.id` (sourate, verset, rang) : c'est la clé d'`avoid`, et celle que l'écran compare.
 - **Mot et clé** : un token est normalisé en retirant voyelles, signes coraniques, tatweel et
   l'espace insécable, et en ramenant U+0671 à U+0627. Un mot est un token qui garde une lettre.
   La clé d'un passage est la suite de ses mots normalisés : deux passages de même clé sont le
@@ -218,7 +219,10 @@ aucune lecture ni écriture : le texte arrive par le paramètre `textOf`, le has
   choix. Constantes privées du fichier, pas d'`AppRules` : un seul lecteur. Les deux seuils de
   qualité (12 mots, 0,5) sont posés sur mesure, à ajuster sur retour d'usage.
 - **Coût** : une série recalcule tous les passages portés, sans cache. Mesuré sous `flutter test`
-  sur 113 sourates : 350 à 450 ms. La mesure dans l'app est prévue au Sprint B.
+  sur 113 sourates : 350 à 450 ms. Dans l'app (debug, Windows, 113 sourates, 2026-10-13) : 405 à
+  437 ms, soit environ 500 ms entre l'appui sur « Commencer » et l'écran de série, pendant
+  lesquels l'interface est figée. Non mesuré sur téléphone. Si ce temps dépasse 500 ms, la
+  réponse prévue est de garder les passages en mémoire entre deux séries.
 
 ---
 
@@ -375,7 +379,7 @@ Même modèle que la révision : la portion à apprendre est un ensemble de lign
 
 `main.dart` choisit entre `OnboardingScreen` (si `AppState.config == null`) et `ShellScreen` (sinon), sous un `MaterialApp` avec `ThemeMode.system` (suit le thème clair/sombre de l'OS — direction artistique Mus'haf/Tahajjud, voir §10).
 
-`ShellScreen` est un `IndexedStack` à **3 onglets** (Phase 9), tous montés en permanence (l'état de chaque onglet survit à la navigation) : `0 = DayPlanTab` (« Plan du jour »), `1 = RecapScreen` (« Récap »), `2 = ProfileScreen` (« Réglages »). `_ShellScreenState` implémente `WidgetsBindingObserver` depuis US-3 (crit. 5, 2026-09-21) : `didChangeAppLifecycleState` rejoue `AppState.ensureDayPlan()` à chaque retour de l'app en `resumed` — nécessaire parce que `ShellScreen` reste monté tant que l'OS ne tue pas l'app, donc `initState()` ne rejoue jamais tout seul si l'utilisateur revient le lendemain sans relancer l'app à froid ; sans ce hook, `pendingDate` restait figé sur son état de la veille et le rattrapage de `DayPlanTab` (§8.1) ne se déclenchait jamais avant un redémarrage. L'onglet « Apprendre » (`LearnScreen`) a été **supprimé** : démarrer une sourate se fait désormais au check-in, et le suivi verset par verset vit dans Récap (§8.3). Le tour guidé interactif (spotlight, `TourKeys`) décrit ici jusqu'au 2026-09-20 **n'existe plus** : il a été retiré en Phase 11 Sprint 1 et il n'en reste aucun code. Seul survit `AppState.hasSeenTour`, devenu un simple proxy « l'onboarding a déjà été terminé une fois » que `main.dart` lit pour sauter Intro/Méthode/Riwaya lors d'un changement de riwaya.
+`ShellScreen` est un `IndexedStack` à **4 onglets** (3 depuis la Phase 9, 4 depuis US-20 Sprint B, 2026-10-13), tous montés en permanence (l'état de chaque onglet survit à la navigation) : `0 = DayPlanTab` (« Plan du jour »), `1 = ReinforcementTab` (« Renforcement », §8.7), `2 = RecapScreen` (« Récap »), `3 = ProfileScreen` (« Réglages »). Après la première clôture, `didChangeDependencies` ouvre le Récap puis les Réglages par les constantes privées `_recapTab` et `_settingsTab`, jamais par un indice écrit en dur : un onglet inséré avant eux les décale. `_ShellScreenState` implémente `WidgetsBindingObserver` depuis US-3 (crit. 5, 2026-09-21) : `didChangeAppLifecycleState` rejoue `AppState.ensureDayPlan()` à chaque retour de l'app en `resumed` — nécessaire parce que `ShellScreen` reste monté tant que l'OS ne tue pas l'app, donc `initState()` ne rejoue jamais tout seul si l'utilisateur revient le lendemain sans relancer l'app à froid ; sans ce hook, `pendingDate` restait figé sur son état de la veille et le rattrapage de `DayPlanTab` (§8.1) ne se déclenchait jamais avant un redémarrage. L'onglet « Apprendre » (`LearnScreen`) a été **supprimé** : démarrer une sourate se fait désormais au check-in, et le suivi verset par verset vit dans Récap (§8.3). Le tour guidé interactif (spotlight, `TourKeys`) décrit ici jusqu'au 2026-09-20 **n'existe plus** : il a été retiré en Phase 11 Sprint 1 et il n'en reste aucun code. Seul survit `AppState.hasSeenTour`, devenu un simple proxy « l'onboarding a déjà été terminé une fois » que `main.dart` lit pour sauter Intro/Méthode/Riwaya lors d'un changement de riwaya.
 
 ### 8.1 Flux « Réviser » — Home / Shell / Plan / Check-in / Check-out
 
@@ -656,6 +660,58 @@ le chargement réussit mais que la lecture échoue ensuite. Pas de croix de ferm
 d'US-1) : l'étape reste pour qui n'utilise pas l'audio, elle défile avec le texte. **Non vérifié
 sur appareil réel** (l'étape ne s'affiche pas sous Windows ni en test).
 
+### 8.7 Onglet Renforcement et écran de série (`screens/reinforcement/`, US-20 Sprint B, 2026-10-13)
+
+Dossier dédié, parce que le flux a plusieurs étapes : `reinforcement_tab.dart` (l'onglet au
+repos), `series_screen.dart` (questions, retour après la réponse, score),
+`widgets/series_marks.dart` et `widgets/passage_choice.dart`. Rien n'est persisté et rien n'est
+écrit dans `ayah_facts` : ces écrans lisent `AppState.reinforcementInputs()` (§7) et appellent
+`ReinforcementEngine.buildSeries` (§5.6).
+
+**`ReinforcementTab`** : une carte « Série du jour » et un bouton « Choisir une sourate ».
+- `_start({sourate})` lit les entrées, compose la série (`random: Random()`,
+  `avoid: _lastPrompts`, `surahId`), puis pousse `SeriesScreen` comme le check-in
+  (`rootNavigator`, `fullscreenDialog`). Une série vide affiche
+  `SReinforcement.selectionTropPetite` sous le bouton (`_tooSmall`) : une sélection trop petite
+  se constate au lancement, pas à l'affichage de l'onglet.
+- `_lastPrompts` garde les `Passage.id` posés à la dernière série, dans le `State` de l'onglet.
+  L'onglet reste monté (`IndexedStack`), donc cette mémoire dure la session et pas plus.
+- « Choisir une sourate » ouvre `SouratePickerSheet` sur les seules sourates portées (les clés
+  de `carried`).
+- `_once` ignore un second appui tant qu'une série se compose ou est ouverte. Composer bloque
+  l'interface environ 400 ms (§5.6) : sans ce garde, un double appui empilait deux séries
+  (reproduit sous Windows). Le garde ne grise pas le bouton : la lecture des entrées revient en
+  moins d'une image, l'état grisé ne serait pas peint avant le blocage.
+
+**`SeriesScreen`** reçoit `questions` et `title`. État local : `_index`, `_picked`, `_held`.
+- En-tête : fermer, titre et « n sur total » en capitales (`_eyebrow`), puis `SeriesMarks`.
+- Question, dans `StepTransition` : sourate et verset du passage posé, le passage dans une
+  `Card`, puis une `PassageChoice` par choix. `_shown` pose les « … » : devant le passage posé
+  s'il ne commence pas son verset, derrière tout passage qui ne le termine pas, jamais devant un
+  choix. Ce « … » final ne désigne pas la bonne réponse (mesuré le 2026-10-13 sur 5 900
+  questions : le choix « à part » est le bon dans 12 à 20 % des cas, contre 25 % au hasard).
+- Après un appui, les choix se figent (`ChoiceState`). Le bon choix prend une bordure or et un
+  losange plein. Le mauvais choix appuyé prend une bordure `textMuted`, un losange vide et la
+  ligne « Ce passage est dans … ». Les autres passent à 50 %. Aucun `palette.danger`. Dessous,
+  la carte « La suite, dans l'ordre » : un `VerseRow` si les deux passages sont du même verset,
+  deux sinon, puis `S.voirLeTexte` qui ouvre `VerseBottomSheet`.
+- Pied : `StepFooter`, avec « Suivant » (inactif tant que rien n'est choisi), puis « Fermer »
+  sur l'écran de score. Quitter, à tout moment, ne fait que `Navigator.pop`.
+- Les choix se comparent par `Passage.id`, jamais par `identical`.
+
+**`SeriesMarks`** : un losange par question. Plein or : tenue. Bordure or : ratée. Bordure
+`cardBorder` : à venir. Cerclé : en cours. `PassageChoice` le réutilise avec `total: 1` pour sa
+propre marque.
+
+**`PassageChoice`** : une `Card` avec l'`InkWell` dedans. Pas de `clipBehavior` : les signes
+coraniques hauts dépassent leur ligne et seraient rognés (vu en Warsh). L'onde de l'appui prend
+la forme de la carte par `customBorder`. La bordure d'état part de `cardShape(palette)` (§9).
+
+**Limites connues** (`docs/CHANGELOG.md`, Idées produit) : dans la barre, « Renforcement » se
+coupe en deux lignes dès que le texte système est agrandi ; le message « sélection trop petite »
+s'affiche aussi quand c'est la sourate choisie qui n'offre aucune question. Aucun test
+automatisé sur ces écrans : ils sont vérifiés sous Windows.
+
 ---
 
 ## 9. Direction artistique & theming
@@ -664,6 +720,7 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 
 - `AppPalette` (`lib/core/app_colors.dart`) : `ThemeExtension` définissant les tokens sémantiques (`cream`, `primary`, `gold`, `textPrimary`, `textMuted`, `danger`, `ctaShadow`, `isDark`, etc.), avec deux instances constantes `AppPalette.light`/`AppPalette.dark`. Accès via l'extension `context.palette`.
 - `buildAppTheme(Brightness)` (`lib/core/app_theme.dart`) construit le `ThemeData` complet (police Lora via `google_fonts`, `CardTheme`, `NavigationBarTheme`, `FilledButtonTheme`, `SwitchTheme`, `ChipTheme`) à partir de la palette choisie.
+- `cardShape(palette)` (même fichier, 2026-10-13) est la forme de toutes les `Card`. Le `cardTheme` l'utilise, et une carte dont la bordure change d'état en dérive par `copyWith(side: …)` au lieu de réécrire le rayon (`PassageChoice`, §8.7).
 - **Règle absolue (CLAUDE.md)** : toute couleur dans un widget doit passer par `context.palette.*`, jamais de `Color(0x...)` en dur. Des dérogations existent déjà dans le code (voir §8.5 point 3) — ne pas en ajouter de nouvelles, et corriger celles rencontrées si l'écran concerné est de toute façon retouché.
 - Police arabe des versets : `GoogleFonts.scheherazadeNew`, distincte de la police latine Lora utilisée pour le reste de l'UI.
 
@@ -671,7 +728,7 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 
 ## 10. Localisation & contenu
 
-- **Toutes les chaînes UI** passent par la classe statique `S` (`lib/core/strings.dart`, ~240 lignes) et ses classes sœurs `SOnboarding`/`SGuide`/`SCheckIn`/`SCheckOut` (`strings_onboarding.dart`, `strings_guide.dart`, `strings_check_in.dart`, `strings_check_out.dart`, en `part of 'strings.dart'` : même bibliothèque, donc `S._t` privé partagé et aucun import supplémentaire) — getters `S.xxx` retournant FR ou EN selon `S.locale` (`'fr'` par défaut), plus quelques fonctions paramétrées (`S.streakJours(n)`, `S.versetN(n, total)`, etc.). `S.locale` est synchronisé avec `AppState.locale` à l'initialisation (`main.dart`) et à chaque `AppState.setLocale()`.
+- **Toutes les chaînes UI** passent par la classe statique `S` (`lib/core/strings.dart`, ~240 lignes) et ses classes sœurs `SOnboarding`/`SGuide`/`SCheckIn`/`SCheckOut`/`SReinforcement` (`strings_onboarding.dart`, `strings_guide.dart`, `strings_check_in.dart`, `strings_check_out.dart`, `strings_reinforcement.dart`, en `part of 'strings.dart'` : même bibliothèque, donc `S._t` privé partagé et aucun import supplémentaire) — getters `S.xxx` retournant FR ou EN selon `S.locale` (`'fr'` par défaut), plus quelques fonctions paramétrées (`S.streakJours(n)`, `S.versetN(n, total)`, etc.). `S.locale` est synchronisé avec `AppState.locale` à l'initialisation (`main.dart`) et à chaque `AppState.setLocale()`.
 - **Texte arabe du Coran** : jamais d'appel direct à `HafsService`/`WarshService` depuis un écran/widget — toujours via `VerseService` (`lib/services/verse_service.dart`), qui arbitre Hafs vs Warsh selon la `Riwaya` passée en paramètre. **Depuis le Sprint 8, Hafs (6236 versets) et Warsh (6214 versets) ont chacun leur propre numérotation native — ce n'est plus une hypothèse "texte différent, numérotation identique"** (fausse, voir §6). Source : QUL (Tarteel AI), Hafs explicitement crédité King Fahd Complex, Warsh moins explicitement sourcé (voir Backlog).
 - **Traductions** (US-19) : éditions distribuées par Tanzil (`tanzil.net/trans/fr.hamidullah`, `tanzil.net/trans/en.sahih`), embarquées sans aucune modification dans `assets/quran/translations/` (une ligne `sourate|verset|texte` par verset, 6236 lignes, puis un bloc de commentaires). Condition d'usage : **non commercial**. Ces deux fichiers ne relèvent pas de la licence MIT du dépôt. Mise à jour par nouveau téléchargement. Elles suivent la numérotation Hafs et ne s'affichent jamais en Warsh.
 - **Données statiques** : `lib/core/quran_data.dart` contient id/noms (FR/AR) des 113 sourates (hors Al-Fatiha) — les comptes de versets/mots ne sont plus stockés ici depuis le Sprint 8 (riwaya-dépendants, injectés via `buildSourates()` depuis `HafsService`/`WarshService`, voir §6). Le regroupement par Hizb vient de `HizbMetadataService` (donnée QUL officielle), plus de l'ancienne estimation locale. `lib/core/hadith_data.dart` contient les hadiths motivants (rotation quotidienne déterministe via `hadithDuJour(date)`) et le hadith d'intention affiché sur la preview.
@@ -769,7 +826,9 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 | Modifier la liste d'apprentissage (section Récap) / le hand-off vers la révision | `lib/screens/recap_screen.dart`, `lib/state/app_state_learning.dart` (`handOffLearnedSurahs`) |
 | Modifier l'édition de la configuration (sourates, rythme, reset) | `lib/screens/profile_screen.dart` |
 | Modifier le dashboard de statistiques | `lib/screens/recap_screen.dart` |
-| Modifier la navigation globale (3 onglets) | `lib/screens/shell_screen.dart` |
+| Modifier la navigation globale (4 onglets) | `lib/screens/shell_screen.dart` |
+| Modifier l'onglet Renforcement (série du jour, choix d'une sourate) | `lib/screens/reinforcement/reinforcement_tab.dart` |
+| Modifier l'écran de série (question, retour après la réponse, score) | `lib/screens/reinforcement/series_screen.dart`, `widgets/passage_choice.dart`, `widgets/series_marks.dart` |
 | Modifier la carte de progression du cycle (Accueil + Récap) | `lib/widgets/cycle_progress_card.dart` |
 | Modifier le moment de jalon (sourate mémorisée, tour complet) | `lib/widgets/milestone_moment.dart` + `SealOutcome` (`lib/models/day_close.dart`) |
 | Modifier le bilan/regard devant de l'accueil clôturé, ou la transition de clôture | `lib/widgets/day_closed_summary.dart`, `AppState.dayRecap` ; transition : `DayPlanTab._openCheckOut` + `HomeScreen._closingLine` |

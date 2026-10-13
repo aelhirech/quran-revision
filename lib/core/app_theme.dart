@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
+/// Shape of every `Card`. Public so that a card with a state border derives
+/// it (`copyWith(side: …)`) instead of restating the radius.
+RoundedRectangleBorder cardShape(AppPalette palette) => RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: BorderSide(color: palette.cardBorder),
+    );
+
 ThemeData buildAppTheme(Brightness brightness) {
   final isDark = brightness == Brightness.dark;
   final palette = isDark ? AppPalette.dark : AppPalette.light;
@@ -46,10 +53,7 @@ ThemeData buildAppTheme(Brightness brightness) {
       // Material's default 4px margin shifted them out of alignment.
       margin: EdgeInsets.zero,
       color: palette.surfaceCard,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: palette.cardBorder),
-      ),
+      shape: cardShape(palette),
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
     ),
