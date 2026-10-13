@@ -134,9 +134,6 @@ class PrayerPlanCard extends StatelessWidget {
                     r.unit!.sourate,
                     r.unit!.verseStart,
                     r.unit!.verseEnd,
-                    contextAyah: r.isLearning && r.unit!.verseStart > 1
-                        ? r.unit!.verseStart - 1
-                        : null,
                   );
                 },
               ),

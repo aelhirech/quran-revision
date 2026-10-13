@@ -23,11 +23,607 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-Aucune story active : le prochain « Début de blueprint » remplit cette liste.
+### US-19 — Lire le sens de ce que je récite (extension de la vue Coran)
+**État** : scopée — blueprint et scoping du 2026-10-13. Rattachée à la vue Coran, comme US-16 et
+US-18.
+
+**Statement** : En tant qu'utilisateur francophone ou anglophone qui révise ou apprend un passage,
+je veux pouvoir afficher sous chaque verset sa traduction dans ma langue, afin de comprendre ce
+que je récite sans quitter l'app.
+
+**Moment de l'histoire** : le milieu de journée et l'écoute avant la prière, là où l'app n'est
+présente que par l'accès au texte. Ce qu'elle y apporte : comprendre un verset aide à le retenir.
+L'app **cite** une traduction reconnue, elle n'explique pas le texte (elle tient le carnet, pas la
+chaire).
+
+**Diagnostic (état actuel)** : la vue Coran n'affiche que l'arabe, et aucune traduction n'existe
+ailleurs dans l'app. Un utilisateur qui ne comprend pas l'arabe et veut connaître le sens du verset
+qu'il répète doit ouvrir une autre app, puis retrouver le verset.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given la vue Coran ouverte en riwaya Hafs depuis n'importe quelle surface, Then seul l'arabe est
+   affiché, exactement comme aujourd'hui, et un bouton permet d'afficher la traduction.
+2. Given un appui sur ce bouton, Then chaque verset affiché porte sa traduction sous son texte
+   arabe, dans la langue de l'app : Muhammad Hamidullah en français, Saheeh International en
+   anglais. Un second appui la retire. L'arabe reste le texte principal, la traduction se lit comme
+   secondaire.
+3. Given la traduction affichée et une portion resserrée (US-18), Then seuls les versets de la
+   portion portent leur traduction : un verset masqué ne laisse pas la sienne à l'écran.
+4. Given la vue refermée puis rouverte, Then elle repart de l'arabe seul, comme le curseur de
+   portion (US-11 crit. 5).
+5. Given la riwaya Warsh, Then le bouton n'apparaît pas. Aucune traduction n'est jamais affichée en
+   face d'un verset qu'elle ne traduit pas.
+6. Given la traduction affichée, Then le nom du traducteur est indiqué, et elle s'affiche aussi
+   sans connexion.
+
+**Prérequis à lever au scoping** : les droits de réutilisation des deux traductions. Tanzil les
+limite à l'usage non commercial ; QUL (déjà la source du texte arabe de l'app) les distribue
+verset par verset sans mention de licence. Si les droits ne permettent pas de les embarquer, la
+source se redécide avec l'utilisateur : jamais de traduction de remplacement choisie en silence.
+_Levé au scoping du 2026-10-13 : source Tanzil, voir « Ajustement au scoping » ci-dessous._
+
+**Exclusions explicites** :
+- **Pas de mot à mot, ni de couleurs par mot** (choix utilisateur du 2026-10-13). Le mot à mot
+  français du Dr Usama Nonnenmacher (`github.com/DrUsamaN/CoranMot`, repris par l'app de Greentech
+  Apps Foundation) a été examiné pour cette story et écarté : ce sont des gloses par mot et non
+  une phrase par verset, en français seulement, d'un rendu interprétatif, sans relecture savante
+  revendiquée. Il reste la source candidate de l'Idée produit « jeu mot arabe → traduction »
+  (`docs/CHANGELOG.md`). Conditions de l'auteur : projet islamique, aucune modification, source
+  citée, pas de publicité.
+- **Pas de traduction en Warsh** (choix utilisateur du 2026-10-13) : les traductions suivent le
+  découpage en versets de Hafs, différent de celui de Warsh. À rouvrir en story séparée si le
+  besoin se confirme.
+- **Pas de mémorisation de l'affichage** (choix utilisateur du 2026-10-13, contre l'option « elle
+  reste affichée ») : la traduction demande un appui à chaque ouverture.
+- Pas de choix de traduction ni de langue de traduction : une seule traduction par langue, qui suit
+  la langue de l'app. Un réglage de plus redonnerait une décision à l'utilisateur.
+- Pas de notes de bas de page, pas de tafsir, pas de translittération.
+- Le nom de la sourate et le bismillah d'en-tête ne sont pas traduits.
+- Pas de traduction hors de la vue Coran : ni plan du jour, ni check-in, ni check-out, ni Récap,
+  ni notifications.
+- Pas de recherche dans la traduction, pas de copie ni de partage.
+- Afficher la traduction ne change rien à l'écoute ni à la progression : ni cycle, ni streak, ni
+  ce que le check-out crédite (US-9 crit. 4).
+
+**Scoping technique** (2026-10-13) :
+- **Fichiers UI** : `lib/widgets/verse_bottom_sheet.dart` (154 lignes, `StatefulWidget` une fois
+  US-18 livrée) ; `lib/widgets/verse_row.dart` (40 lignes) ; `lib/core/strings.dart` (308 lignes,
+  trois libellés ajoutés : proche du plafond, reste sous 350). Les quatre appelants de
+  `VerseBottomSheet.show` ne bougent pas.
+- **Nouveaux fichiers** : `lib/services/translation_service.dart` (~30 lignes) ; deux assets,
+  `assets/quran/translations/fr.hamidullah.txt` et `en.sahih.txt` (fichiers Tanzil embarqués sans
+  modification, ~0,9 Mo chacun), déclarés dans `pubspec.yaml`.
+- **Variables / champs** : `bool _showTranslation` dans le `State` de `VerseBottomSheet` ; un
+  paramètre `String? translation` sur `VerseRow`. Aucune clé `SharedPreferences`, rien dans
+  `AppState` ni `UserConfig`.
+- **`ayah_facts`** : aucune lecture ni écriture.
+- **Décision data model** : l'affichage est un état UI éphémère, local à la feuille. Le `State`
+  est recréé à chaque ouverture, donc le crit. 4 est tenu par construction. Le texte des
+  traductions est une donnée externe figée, comme le texte arabe : un asset, pas une table.
+- **Réutilisation** : `VerseBottomSheet` et `VerseRow` sont étendus, aucune nouvelle boucle
+  d'affichage. La liste filtrée par portion d'US-18 donne le crit. 3 sans code : un verset masqué
+  n'est pas construit. `QuranTextAsset` n'est pas réutilisé : il lit du JSON et compte versets et
+  mots, alors que le fichier Tanzil (`sourate|verset|texte`) est embarqué tel quel, ce qui évite
+  un script de conversion et un fichier dérivé à resynchroniser.
+- **Risques / dépendances** :
+  - **Ordre imposé : US-18 d'abord.** Les deux stories touchent `verse_bottom_sheet.dart` et
+    `verse_row.dart`. US-19 s'appuie sur le `State` qu'US-18 introduit, et son crit. 3 n'a de sens
+    qu'avec le masquage.
+  - **Condition Tanzil : usage non commercial** (choix utilisateur du 2026-10-13). L'app gratuite
+    et sans publicité la respecte. Une version payante ou de la publicité demandera l'accord des
+    éditeurs ou un changement de source, avant publication.
+  - **Dépôt public sous MIT** : les deux fichiers de traduction n'en relèvent pas. À écrire dans
+    `docs/DOCUMENTATION_TECHNIQUE.md` §10.
+  - **Piège des slivers** (US-16, US-17) : le bouton et la ligne de source vivent dans l'en-tête
+    existant. Aucun sliver n'est ajouté avant la barre audio, sinon son état est recréé pendant
+    l'écoute.
+  - **Gros asset dans un test widget** : chargé à l'intérieur de `testWidgets`, il risque de ne
+    jamais se terminer sous l'horloge simulée. Le test le précharge dans `setUpAll`, comme
+    `HafsService`.
+  - Les fichiers Tanzil ont des fins de ligne CRLF et un bloc de commentaires `#` en fin de
+    fichier : le découpage passe par `LineSplitter` et ignore toute ligne qui ne commence pas par
+    un chiffre.
+  - Alignement vérifié le 2026-10-13 : les 6236 clés `sourate:verset` des deux fichiers sont
+    identiques à celles de `assets/quran/hafs.json`.
+  - Aucun autre item du Backlog ne touche ces fichiers.
+- **Tests** : `test/services/translation_service_test.dart` (vrais assets) : chaque verset Hafs a
+  une traduction non vide dans les deux langues, plus deux textes connus pour attraper un fichier
+  inversé. `test/widgets/verse_bottom_sheet_test.dart` (test widget admis : piège d'état et règle
+  de riwaya) : afficher la traduction ne recrée pas la barre audio, un second appui la retire, un
+  verset masqué par la portion n'en laisse pas, le bouton est absent en Warsh. Lisibilité, place du
+  bouton et ligne de source : vérification visuelle sous Windows.
+- **Item Backlog** : `[P2] US-19 — Traduction sous les versets dans la vue Coran (Hafs)`.
+
+**Ajustement au scoping** (2026-10-13) — crit. 2 et 6 précisés, sens inchangé :
+- **Source** : les éditions distribuées par Tanzil (`fr.hamidullah`, `en.sahih`), choisies par
+  l'utilisateur le 2026-10-13 contre QuranEnc (où Hamidullah n'est plus au catalogue et où les
+  notes de bas de page ne peuvent pas être retirées du texte). Le texte Tanzil n'a pas de notes :
+  l'exclusion « pas de notes de bas de page » tient sans rien retirer.
+- **Crit. 2** : le bouton est dans l'en-tête, qui défile avec le texte (US-16). Pour retirer la
+  traduction après avoir défilé, on remonte en haut, comme pour arrêter l'écoute.
+- **Crit. 6** : le nom du traducteur et la source (`tanzil.net`) s'affichent dans l'en-tête tant
+  que la traduction est affichée.
+Validé par l'utilisateur : la source, oui. La place du bouton et de la ligne de source : non, à
+confirmer.
+
+### Cadre commun à US-20, US-21 et US-22 (blueprint Renforcement du 2026-10-13)
+
+Ces trois stories sortent d'un même besoin : « une page de jeux avec deux QCM (le sens d'un mot, la
+suite d'un verset), pour la révision et le renforcement ». Elles sont découpées **par valeur**, pas
+par jeu : s'éprouver (US-20), voir ce qui tient (US-21), comprendre ce qu'on récite (US-22). US-20
+se livre seule, US-22 la suit (droits de la source vérifiés le 2026-10-13), US-21 vient ensuite
+et apporte la mémoire des réponses.
+
+- **Moment de l'histoire** : le milieu de journée, à un moment choisi, comme l'écoute (US-9) :
+  avant de réciter, ou dans un temps mort. Ce que la section y prouve : ce que je porte tient
+  quand on me le demande **dans le désordre**, hors du fil de la récitation. La question « quel
+  verset vient ensuite » reprend la forme habituelle d'un contrôle de mémorisation (on donne un
+  verset, l'élève poursuit).
+- **Registre : sobre** (choix utilisateur du 2026-10-13, contre un parcours à points et contre un
+  simple tableau d'états). Le cadre du 2026-09-30 tient ici aussi. Sont exclus des trois stories :
+  points d'expérience, niveau global, trophées et badges, classement, chrono, vies, monnaie, série
+  de jours propre au jeu, son, partage.
+- **Le score est un fait** : les questions qui ont tenu, sur le total de la série. Il s'affiche
+  avec le losange doré de l'ornement déjà présent sous les titres (plein si la question a tenu,
+  vide sinon) et ne s'additionne pas d'un jour à l'autre.
+- **Quatrième onglet, nommé « Renforcement »** (choix utilisateur du 2026-10-13, contre une carte
+  dans le Plan du jour). Le mot « jeu » n'apparaît pas dans l'app. Pour tenir la thèse, l'onglet
+  s'ouvre toujours sur une série déjà composée, jamais sur un menu.
+- **L'app propose, l'utilisateur peut choisir** (choix utilisateur du 2026-10-13) : la série du
+  jour d'abord ; un second geste permet de jouer sur une sourate précise de sa sélection. Le
+  niveau ne se choisit pas. _Modifié le 2026-10-13 (demande de l'utilisateur, après le scoping
+  d'US-20)_ : le type de question se choisit par **trois modes**, « Mélange », « Versets » et
+  « Traduction ». « Mélange » est présélectionné, donc lancer une série ne demande toujours
+  qu'un geste. Les modes n'apparaissent que là où les questions de mots existent (français,
+  Hafs).
+- **Rien ne change dans la progression** (choix utilisateur du 2026-10-13) : ni tour de révision,
+  ni série de jours, ni fraîcheur, ni ce que le check-out crédite. Reconnaître un verset n'est pas
+  le réciter. Même règle que l'écoute (US-9 crit. 4).
+- **Le texte coranique n'est jamais modifié** : tout choix affiché est un vrai verset ou un vrai
+  mot, tel qu'il figure dans la riwaya active. Aucun piège fabriqué, recomposé ou altéré.
+  _Ajusté au scoping d'US-20 (2026-10-13, sur proposition de l'utilisateur)_ : un verset long
+  peut être montré par **passages** qui se suivent, coupés seulement aux signes de pause du
+  mushaf. Un passage est toujours une suite de mots du verset, dans l'ordre.
+- **Chaque question se termine sur la bonne réponse affichée.** Un QCM sans retour peut installer
+  la confusion qu'il veut soigner : lire une mauvaise suite juste après un verset laisse une trace
+  (Roediger et Marsh, 2005), que le retour immédiat répare (Butler et Roediger, 2008).
+- **L'app n'est pas un enseignant** : elle ne corrige pas la récitation. Pour les mots, elle cite
+  une source, elle n'explique pas.
+- **Conséquence à traiter au sprint d'US-20** : la direction narrative de `CLAUDE.md` décrit une
+  app « quasi absente » en milieu de journée, et le Résumé business ci-dessus annonce trois pages.
+  Les deux deviennent faux à la livraison.
+- **Benchmark du 2026-10-13** (neuf produits lus sur leur fiche, aucun installé ; quatre études) :
+  https://claude.ai/artifact/8Sym4Aq9X1M4s6gzrJi46k (page privée). À retenir : les apps de
+  mémorisation lues reprennent toutes points, séries à paliers ou classements ; aucune ne compose
+  la partie à la place de l'utilisateur ; les versets similaires sont la difficulté qu'elles
+  mettent en avant ; le chrono est reproché.
+
+### US-20 — M'éprouver sur la suite d'un verset (onglet Renforcement)
+**État** : scopée — blueprint et scoping du 2026-10-13. Première des trois stories du cadre
+ci-dessus, livrable seule. Deux sprints au Backlog : A (moteur, rien d'affiché), B (onglet).
+
+**Statement** : En tant qu'utilisateur qui porte des sourates, je veux qu'on me montre un verset
+et retrouver celui qui le suit parmi plusieurs, afin de vérifier que ma mémoire tient hors du fil
+de la récitation et de repérer les versets que je confonds.
+
+**Diagnostic (état actuel)** :
+- L'app sait qu'un verset a été récité (check-out), pas s'il tient. Entre deux passages du tour,
+  rien ne permet de s'éprouver.
+- En milieu de journée, l'app n'offre que le texte et l'écoute : deux usages passifs.
+- Les versets qui se ressemblent (Ash-Sharh 5 et 6 ne diffèrent que d'une lettre) ne sont
+  travaillés nulle part.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given l'onglet Renforcement, Then il présente une série déjà composée par l'app : une dizaine
+   de questions, finie, sans chrono, lancée en un geste. Elle porte sur ce que l'utilisateur
+   porte, en priorité sur les passages de son plan du jour quand il existe. D'une série à l'autre,
+   les versets interrogés changent.
+2. Given une question, Then un verset est affiché avec sa sourate et son numéro, et quatre versets
+   au plus sont proposés, dont un seul le suit. Les mauvais choix viennent de ce que l'utilisateur
+   porte : autres sourates, même sourate, versets voisins et versets similaires. Il n'y a jamais
+   deux bonnes réponses, y compris quand le verset affiché se répète à l'identique ailleurs
+   (refrain d'Ar-Rahman, Al-Kafirun 3 et 5).
+3. Given une réponse, bonne ou non, Then la question se termine sur la bonne suite affichée en
+   entier, avec un accès à la vue Coran. Une mauvaise réponse n'est pas sanctionnée par un
+   « faux » : l'écran dit où se trouve le verset choisi.
+4. Given la fin de la série, Then un score factuel s'affiche dans le registre du cadre commun, et
+   rien n'a changé dans la progression.
+5. Given l'onglet, When l'utilisateur veut s'éprouver sur une sourate précise, Then un second
+   geste lui permet d'en choisir une dans sa sélection et de lancer une série sur elle.
+6. Given une sélection trop petite pour composer une question, Then l'onglet le dit clairement,
+   au lieu d'une série vide ou de versets pris hors sélection. Given deux riwayas, Then chaque
+   série suit le texte et la numérotation de la riwaya active.
+
+**Exclusions explicites** :
+- **Aucun verset hors de ce que l'utilisateur porte**, ni en question ni en choix (choix
+  utilisateur du 2026-10-13, contre des versets similaires cherchés dans tout le Coran). « Ce
+  qu'il porte » : sa sélection de révision, dans les plages choisies, et les versets déjà appris
+  d'une sourate en cours d'apprentissage. Un verset pas encore appris n'est jamais montré.
+- Pas de question dont la bonne réponse sortirait de la plage choisie : le dernier verset d'une
+  plage n'est pas posé.
+- Pas de question sur le verset précédent, pas de versets à remettre en ordre, pas de sourate à
+  nommer : un seul type de question.
+- Pas de question par l'écoute.
+- Pas de rappel ni de notification pour jouer.
+- Pas de reprise d'une série quittée en cours : elle repart du début, sans rien pénaliser.
+- Rien n'est retenu d'une série à l'autre (versets ratés, difficulté) : c'est US-21.
+- Pas de questions de mots : c'est US-22.
+
+**Prérequis à lever au scoping** : ce qu'est un « verset similaire ». Soit la ressemblance se
+calcule depuis le texte embarqué (mêmes premiers mots, mots en commun), soit elle vient d'une
+liste établie, avec des droits à vérifier comme pour US-19. Jamais de liste choisie en silence.
+_Levé au scoping du 2026-10-13 : calcul sur le texte, voir « Ajustement au scoping »._
+
+**Défauts posés sans demander, à confirmer** : la priorité au plan du jour (crit. 1), la série
+quittée qui repart du début, les versets déjà appris d'une sourate en cours comptés dans « ce
+qu'il porte ». _Tenus pour validés : l'utilisateur a lancé le scoping sans les corriger
+(2026-10-13)._
+
+**Scoping technique** (2026-10-13) :
+- **Fichiers UI** : nouveaux, dans `lib/screens/reinforcement/` (flux à plusieurs étapes, donc
+  dossier dédié) : `reinforcement_tab.dart` (~120 lignes, l'onglet au repos), `series_screen.dart`
+  (~220 lignes : questions, retour, fin de série), `widgets/series_marks.dart` (~45 lignes, la
+  rangée de losanges), `widgets/passage_choice.dart` (~60 lignes, une carte de choix). Modifiés :
+  `lib/screens/shell_screen.dart` (141 lignes, quatrième onglet) ; `lib/core/strings.dart`
+  (308 lignes, proche du plafond : une ligne `part` seulement).
+- **Nouveaux fichiers hors UI** : `lib/core/reinforcement_engine.dart` (~200 lignes, Dart pur) ;
+  `lib/state/app_state_reinforcement.dart` (~30 lignes, `part of`) ;
+  `lib/core/strings_reinforcement.dart` (~45 lignes, `part of`).
+- **Variables / champs** : aucun champ de modèle, aucune clé `SharedPreferences`, aucun champ dans
+  `AppState`. Une méthode de lecture, `AppState.reinforcementInputs()`. L'état d'une série
+  (question en cours, réponses) vit dans le `State` de l'écran de série. Les questions de la
+  dernière série, gardées pour ne pas les reposer, vivent dans le `State` de l'onglet, le temps
+  de la session. `app_state.dart` (334 lignes, au plafond) ne reçoit qu'une ligne `part` et un
+  import.
+- **`ayah_facts`** : aucune écriture, aucune requête nouvelle. Deux lectures existantes :
+  `AyahFactsRitual.dayFacts` (via `AppState.dayUnits`, le plan du jour) et
+  `AyahFactsLearning.loadMainLearningProgress` (via `AppState.learningProgressList`, les versets
+  déjà appris).
+- **Décision data model** : état UI éphémère, rien n'est persisté. La question « variable ou
+  table » se posera à US-21, quand il faudra retenir ce qui a tenu.
+- **Réutilisation** : `SouratePickerSheet` (choisir une sourate, crit. 5) ; `ArabicVerseText` et
+  `VerseRow` (texte arabe, bonne suite) ; `VerseBottomSheet.show` (ouvrir le texte) ;
+  `PrimaryCtaButton`, `OutlinedActionButton`, `StepTransition`, la `Card` du thème,
+  `SCheckIn.suivant`. Le losange est celui d'`OrnamentalDivider`, redessiné en trois lignes sans
+  toucher à ce widget. Aucune normalisation du texte arabe n'existait dans le code : elle est
+  nouvelle.
+- **Mesures sur le texte embarqué** (2026-10-13, Hafs / Warsh) :
+  - 39 % des versets dépassent 12 mots, le plus long en fait 128. Coupés aux signes de pause,
+    les 6 229 versets hors Al-Fatiha donnent 8 847 passages (8 990 en Warsh), de 8 mots en
+    médiane. La découpe est sans perte : recoller les passages redonne le verset.
+  - 2 % des passages dépassent 20 mots (49 au plus) : ce sont des morceaux sans signe de pause,
+    laissés entiers.
+  - 349 questions sur 8 734 sont écartées parce que le passage posé ou sa suite se répète à
+    l'identique dans la sourate (355 sur 8 877 en Warsh).
+  - 36 % des passages ont un passage similaire (au moins la moitié des mots en commun). Le calcul
+    retrouve Ash-Sharh 5 et 6, et Al-Baqara 35 avec Al-A'raf 19.
+- **Risques / dépendances** :
+  - **Coût de composition non mesuré en Dart.** Normaliser tout le Coran prend 360 ms dans le
+    script de mesure (Python). Une série recalcule tout à chaque lancement, sans cache. À mesurer
+    sous Windows sur une sélection entière.
+  - **Indices d'onglets en dur** : `ShellScreen.didChangeDependencies` ouvre le Récap puis les
+    Réglages après la première clôture, par leurs indices 1 et 2. Avec l'onglet inséré en 2e
+    position, ils deviennent 2 et 3.
+  - **Quatre libellés dans la barre** : à 320 px de large, chaque onglet n'a que 80 px.
+    « Renforcement » et « Plan du jour » font 12 caractères. À vérifier sous Windows.
+  - **Les signes de pause dépendent de l'encodage du texte** (QUL). En Hafs : U+06D6, U+06D7,
+    U+06D8, U+06DA. En Warsh : U+06D6 seul (9 948 occurrences, le signe de pause de ce mushaf).
+    Un changement de source du texte changerait la découpe.
+  - **La qualité des mauvais choix repose sur deux seuils** (12 mots, moitié des mots en commun),
+    posés sur mesure et non sur usage. À ajuster sur retour.
+  - Un rattrapage de clôture peut s'ouvrir par-dessus une série en cours, si l'app est reprise le
+    lendemain. La série reste dessous, sans perte.
+  - US-18 et US-19 (au Backlog) touchent `verse_bottom_sheet.dart` et `strings.dart`. Ici,
+    `VerseBottomSheet.show` est appelé sans `contextAyah` et `strings.dart` ne reçoit qu'une ligne
+    `part` : ordre libre entre les trois.
+- **Tests** : `test/core/reinforcement_engine_test.dart` (Dart pur, vrais textes Hafs et Warsh) :
+  découpe sans perte, questions répétées écartées, plage partielle jamais dépassée, verset
+  similaire proposé, part du plan du jour, questions non reposées, sélection trop petite.
+  `test/state/app_state_reinforcement_test.dart` : un verset proposé à l'apprentissage mais pas
+  encore appris n'est jamais porté. L'onglet et l'écran de série : vérification visuelle sous
+  Windows, aucun test widget (apparence).
+- **Item Backlog** : `[P2] US-20 Sprint A — Moteur des séries de l'onglet Renforcement`, puis
+  `[P2] US-20 Sprint B — Onglet Renforcement et écran de série`.
+
+**Ajustement au scoping** (2026-10-13) — crit. 1, 2, 3 et 6 précisés, sens inchangé :
+- **Crit. 2, l'unité devient le passage** (proposition de l'utilisateur : « la suite du verset ou
+  le verset suivant, fonctionnellement c'est pareil »). Un verset de 12 mots au plus est un
+  passage. Un verset plus long est coupé aux signes de pause du mushaf, et la suite demandée peut
+  être la suite du même verset. Un passage qui ne termine pas son verset est suivi de « … ». Le
+  passage posé est précédé de « … » s'il ne commence pas son verset ; un choix ne l'est jamais,
+  cela désignerait la bonne réponse. Validé par l'utilisateur : le passage, oui. Les points de
+  suspension : non, à confirmer.
+- **Crit. 2, versets répétés** : une question n'est pas posée quand le passage affiché ou sa
+  suite se répète à l'identique dans la même sourate (refrain d'Ar-Rahman, Al-Kafirun 3 et 5).
+  Un passage identique dans une autre sourate reste posé : le nom de la sourate est affiché.
+- **Crit. 2, « versets similaires »** : calculés depuis le texte (choix utilisateur du
+  2026-10-13, contre une liste établie). Deux passages sont similaires s'ils partagent au moins
+  la moitié de leurs mots, voyelles et signes ignorés.
+- **Crit. 1, priorité au plan du jour** : cinq questions au plus viennent du plan du jour, les
+  autres du reste de ce que l'utilisateur porte. Sans plan du jour, toutes viennent du reste.
+  Validé par l'utilisateur : non, à confirmer.
+- **Crit. 1, « les versets interrogés changent »** : les questions de la série précédente ne sont
+  pas reposées tant que la sélection en offre d'autres. Cette mémoire dure le temps de la session
+  et n'est pas enregistrée. Sur une sélection de quelques versets, les mêmes questions reviennent.
+- **Crit. 3** : sous un mauvais choix, l'écran indique la sourate et le verset de ce passage. Il
+  n'explique pas ce qui le distingue de la bonne suite.
+- **Crit. 6** : une sélection trop petite se constate au lancement d'une série, pas à
+  l'affichage de l'onglet.
+- **Onglet** : en 2e position (Plan du jour, Renforcement, Récap, Réglages), libellé anglais
+  « Strengthen » (choix utilisateur du 2026-10-13). Son icône est le losange des marques de
+  score : non validé, à confirmer.
+
+### US-21 — Voir ce qui tient et ce qui m'échappe (paliers et retours)
+**État** : à scoper — blueprint du 2026-10-13. S'appuie sur US-20. Reprend l'Idée produit « Mode
+"versets à retravailler" en jeu à part » de `docs/CHANGELOG.md`, à retirer de ce fichier au
+scoping.
+
+**Statement** : En tant qu'utilisateur qui s'éprouve régulièrement, je veux que l'app retienne ce
+qui a tenu et ce qui m'a échappé, me le repose et me montre où j'en suis sourate par sourate, afin
+que chaque série porte sur ce qui en a besoin et que je voie ma mémoire se raffermir.
+
+**Diagnostic (état après US-20)** : une série ne laisse aucune trace. Un verset raté n'est pas
+reposé, la difficulté ne bouge pas, et rien ne dit quelle sourate est sûre.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given un verset raté dans une série, Then il revient dans une série suivante, jusqu'à ce qu'il
+   tienne. La fin de série dit combien reviendront, sans reproche.
+2. Given une sourate de la sélection, Then elle porte un palier de 1 à 3, qui dit parmi quels
+   mauvais choix l'utilisateur la tient : 1, des versets d'autres sourates ; 2, des versets de la
+   même sourate ; 3, ses versets voisins et similaires. Le palier règle la difficulté des
+   questions de cette sourate : l'utilisateur ne la choisit jamais.
+3. Given une sourate réussie de façon répétée à son palier, Then elle monte d'un palier. Given une
+   sourate ratée de façon répétée, Then elle redescend d'un palier (choix utilisateur du
+   2026-10-13). Dans les deux sens, l'annonce est sobre et sans reproche.
+4. Given l'onglet Renforcement, Then l'utilisateur voit le palier de chacune de ses sourates, et
+   c'est depuis cette vue qu'il en choisit une (US-20 crit. 5). Une sourate jamais éprouvée se
+   distingue d'une sourate au palier 1.
+5. Given des paliers et des retours, Then rien ne change dans le tour, la série de jours ni la
+   fraîcheur. Given deux riwayas, Then paliers et retours sont propres à chacune.
+
+**Exclusions explicites** :
+- **Le palier peut se perdre** (choix utilisateur du 2026-10-13, contre « il reste acquis »). Pris
+  en sachant que l'app reprend alors quelque chose à l'utilisateur : d'où l'exigence d'une annonce
+  sans reproche (crit. 3).
+- Le palier n'est pas une fraîcheur. La fraîcheur dit depuis quand un passage a été récité, le
+  palier dit s'il tient à l'épreuve. Le palier ne s'affiche que dans l'onglet Renforcement : ni au
+  Récap, ni sur le plan du jour, ni au check-in.
+- Pas de niveau global, pas de palier au-delà de 3, pas d'historique ni de courbe des scores.
+- Pas de moment de jalon (US-13) pour un palier atteint, pas d'écran de collection.
+- Un verset raté ne retourne pas dans le plan de révision : le plan ne lit rien de l'onglet.
+  L'Idée produit « SRS réel par verset » reste ouverte, à part.
+
+**Points à lever au scoping** : le nombre de réussites et d'erreurs qui fait monter ou descendre
+un palier ; ce que devient le palier d'une sourate retirée de la sélection puis remise, ou dont la
+plage change.
+
+### US-22 — Comprendre les mots que je récite (questions de mots, trois modes)
+**État** : scopée — blueprint et scoping du 2026-10-13. Un sprint au Backlog (Sprint C, après les
+deux d'US-20). Le crit. 4 attend US-21. Reprend l'Idée produit « Jeu mot arabe → traduction »,
+retirée de `docs/CHANGELOG.md` à ce scoping. Prolonge US-19 (lire le sens), pas la révision.
+
+**Statement** : En tant qu'utilisateur francophone qui récite sans comprendre chaque mot, je veux
+que la série me demande aussi le sens de mots tirés des versets que je porte, afin de comprendre
+ce que je récite, ce qui m'aide à le retenir.
+
+**Diagnostic (état après US-19 et US-20)** : la traduction se lit verset par verset, sur demande,
+et rien ne vérifie qu'un mot est compris. La série n'interroge que l'ordre des versets.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given une série, du jour ou sur une sourate, Then des questions de mots s'y mêlent aux
+   questions de versets (choix utilisateur du 2026-10-13). Dans un sens : un mot montré dans le
+   verset où il est récité, quatre sens au plus, un seul juste. Dans l'autre : un sens, quatre
+   mots arabes au plus.
+   _Modifié le 2026-10-13 (demande de l'utilisateur)_ : trois modes au choix. « Mélange » mêle
+   les deux types de questions, « Versets » ne pose que la suite d'un passage, « Traduction » ne
+   pose que des mots.
+2. Given une question de mot, Then le mot et les mauvais choix viennent des sourates que
+   l'utilisateur porte. Un mauvais choix n'est jamais un autre sens acceptable du même mot.
+3. Given une réponse, bonne ou non, Then le bon sens est affiché avec le verset, et la source du
+   mot à mot est citée.
+4. Given l'onglet Renforcement, Then une mesure dit combien de mots de ses sourates l'utilisateur
+   reconnaît (« N mots connus sur M »). Un mot raté sort du compte jusqu'à ce qu'il soit retrouvé.
+5. Given la riwaya Warsh, ou une langue de l'app sans source mot à mot, Then la série ne contient
+   que des questions de versets, sans message d'erreur ni question manquante.
+6. Given une série mêlée, Then le score compte les deux types de questions ensemble. Le palier
+   d'une sourate (US-21) ne dépend que des questions de versets.
+
+**Prérequis** (écrits au blueprint, revus au scoping du 2026-10-13) :
+- **Droits de la source française : levé.** Le README de CoranMot (Dr Usama Nonnenmacher,
+  `github.com/DrUsamaN/CoranMot`), lu le 2026-10-13, dit : « Cette traduction peut être utilisée
+  dans tout projet Islamique, mais veuillez ne pas la modifier. Rappelez-vous s'il-vous-plaît de
+  mentionner la source de la traduction. » Trois conditions, donc : projet islamique, aucune
+  modification, source citée. Le blueprint ajoutait « pas de publicité » et « lui écrire avant
+  tout usage », repris d'une note de `docs/CHANGELOG.md` : ni l'un ni l'autre ne figure dans le
+  README. Écrire à l'auteur reste une courtoisie, pas une condition.
+- **Le poids de cette source dans un QCM : assumé par l'utilisateur** (demande du 2026-10-13
+  d'intégrer le jeu). Elle a été jugée « d'un rendu interprétatif, sans relecture savante
+  revendiquée » et écartée de l'affichage pour US-19. Ici, elle sert à dire qu'un sens n'est pas
+  le bon. Exemples relevés au scoping, affichés tels quels puisque la source interdit de la
+  modifier : كُرۡسِيُّهُ rendu par « Son tabouret pour Pieds » (2:255), وَكَوَاعِبَ par « et des
+  femmes aux seins volumineux » (78:33).
+- **Pas de source anglaise.** Le Quranic Arabic Corpus est annoncé sous licence GPL, le dépôt est
+  public sous MIT. En anglais, la série reste sans questions de mots (crit. 5).
+
+**Exclusions explicites** :
+- **Pas de cours de mots fréquents du Coran** (choix utilisateur du 2026-10-13) : les mots viennent
+  de ce que l'utilisateur récite, pas d'un programme général.
+- La série de mots séparée, exclue au blueprint, est rétablie le 2026-10-13 par le mode
+  « Traduction » (crit. 1).
+- Aucune retouche ni filtrage du texte des sens : la source demande à ne pas être modifiée.
+- Pas de grammaire, de racines ni de morphologie, pas de translittération.
+- Pas de mot à mot affiché dans la vue Coran : l'exclusion d'US-19 tient.
+- Pas de questions de mots en Warsh.
+
+**Défaut posé sans demander, à confirmer** : un mot raté sort du compte (crit. 4), par cohérence
+avec le palier qui peut se perdre.
+
+**Scoping technique** (2026-10-13) :
+- **Fichiers UI** : `lib/screens/reinforcement/reinforcement_tab.dart` (sélecteur de mode) et
+  `series_screen.dart` (vue d'une question de mot), tous deux créés au Sprint B d'US-20 ;
+  `widgets/passage_choice.dart` (un paramètre pour un choix en texte latin) ;
+  `lib/widgets/arabic_verse_text.dart` (33 lignes, un mot mis en or) ;
+  `lib/core/strings_reinforcement.dart` (six libellés).
+- **Nouveaux fichiers** : `assets/quran/wbw/fr.coranmot.tsv` (~1,7 Mo, déclaré dans
+  `pubspec.yaml`) ; `lib/services/word_gloss_service.dart` (~40 lignes) ;
+  `lib/core/reinforcement_words.dart` (~130 lignes, `part of` du moteur d'US-20).
+- **Variables / champs** : le mode choisi et les mots posés à la série précédente vivent dans le
+  `State` de l'onglet. Aucune clé `SharedPreferences`, rien dans `AppState`.
+- **`ayah_facts`** : aucune lecture ni écriture de plus que celles d'US-20.
+- **Décision data model** : les sens sont une donnée externe figée, comme le texte arabe et les
+  traductions d'US-19 : un asset, pas une table. Le mode est un état UI éphémère. Le crit. 4
+  (compte des mots connus) demande de retenir des réponses : il se tranche avec US-21, qui pose
+  la même question pour les paliers.
+- **Réutilisation** : `ReinforcementEngine` d'US-20 (découpe en passages pour montrer le mot dans
+  son contexte, normalisation, règle de tirage) ; `SeriesScreen`, `SeriesMarks`,
+  `PassageChoice` ; `ArabicVerseText` étendu plutôt que doublé. `TranslationService` (US-19)
+  n'est pas réutilisé : il range un texte par verset, ici il en faut un par mot.
+- **Mesures sur les données** (2026-10-13) :
+  - La source fournit une table à clés (`sura`, `ayah`, `word`, `fr`) de 77 429 lignes. Le texte
+    Hafs de l'app compte 77 430 mots.
+  - Le nombre de mots par verset est identique dans 6 229 versets sur 6 236. Les 7 autres
+    diffèrent d'un mot (2:181, 8:6, 13:37, 15:7, 27:20, 36:22, 37:130) : ils ne sont jamais
+    interrogés.
+  - 82 % des mots sont posables (mot arabe d'au moins 3 lettres, sens qui ne se réduit pas à une
+    particule) : 63 921 sur tout le Coran, 1 948 sur le juz 30 pour 1 216 formes différentes,
+    9 sur Al-Ikhlas.
+  - Aucun sens ne contient de tabulation ni de saut de ligne : un export tabulé est sûr.
+- **Risques / dépendances** :
+  - **Ordre imposé : après les Sprints A et B d'US-20.** Ce sprint renomme une classe du moteur
+    et étend l'onglet et l'écran de série qu'ils créent.
+  - **Contenu des sens.** Certains sont longs, doctrinalement marqués ou crus (voir
+    « Prérequis »). Ils s'affichent tels quels. Aucun tri n'est prévu.
+  - **Deux mots différents peuvent avoir des sens voisins.** Un mauvais choix est écarté s'il
+    partage un mot de 4 lettres ou plus avec le bon sens. Cela retire « un livre » face à « Le
+    Livre », pas deux synonymes sans mot commun.
+  - **Sept versets sans alignement** : la règle « même nombre de mots » les écarte. Si le texte
+    arabe de l'app change de source, ce nombre peut changer : le test le verrouille.
+  - **Asset de 1,7 Mo chargé à la première série de mots**, puis gardé en mémoire. Dans un test
+    widget, il se précharge en `setUpAll` (même piège que les traductions d'US-19).
+  - **Dépôt public sous MIT** : le fichier des sens n'en relève pas. À écrire dans
+    `docs/DOCUMENTATION_TECHNIQUE.md` §10.
+  - US-19 (au Backlog) ajoute aussi un asset et un service de texte : fichiers distincts, ordre
+    libre.
+- **Tests** : `test/services/word_gloss_service_test.dart` (vrai asset : nombre de lignes,
+  alignement, les sept versets, un verset connu) ; `test/core/reinforcement_words_test.dart`
+  (mot posé d'au moins 3 lettres, un seul bon sens, aucun mauvais choix voisin du bon, versets
+  non alignés jamais posés, mélange à 5 et 5, repli sur les passages sans données). Sélecteur de
+  mode, mot en or, sens longs : vérification visuelle sous Windows.
+- **Item Backlog** : `[P2] US-22 Sprint C — Questions de mots et trois modes (français, Hafs)`.
+
+**Ajustement au scoping** (2026-10-13) — crit. 1, 2, 4 et 5 précisés :
+- **Crit. 1** : les trois modes (demande de l'utilisateur). « Mélange » pose cinq questions de
+  passages et cinq de mots. Les libellés « Mélange », « Versets », « Traduction » et le mode
+  présélectionné : non validés, à confirmer.
+- **Crit. 2** : un mot n'est posé que s'il a au moins 3 lettres et un sens qui ne se réduit pas à
+  une particule. Un mauvais choix ne porte jamais le même mot arabe, ni un sens qui partage un
+  mot de 4 lettres ou plus avec le bon.
+- **Crit. 4, reporté** : le compte « N mots connus sur M » se livre avec US-21, parce qu'il
+  demande de retenir des réponses. Le Sprint C ne retient rien. Validé par l'utilisateur : non,
+  à confirmer.
+- **Crit. 5** : en Warsh ou en anglais, le sélecteur de mode n'apparaît pas et l'onglet reste
+  celui d'US-20.
 
 ## Archivées
 
 Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
+### US-18 — Le texte suit la portion réglée (extension d'US-11)
+**État** : terminée — blueprint, scoping et livraison du 2026-10-13
+(`feature/phase-24-sprint13-texte-suit-portion`). Texte qui suit la portion vérifié par test widget
+et sous Windows dans l'app réelle (clair, sombre, plage entière, portion resserrée).
+**Non vérifiée sur appareil réel** : la relance de la boucle au relâché et au ±1, et le retour du
+curseur et du texte hors connexion (audio indisponible sous Windows et en test). Limite relevée :
+resserrer fortement après avoir défilé fait descendre la barre sous le doigt (140 px mesurés),
+notée en Idée produit de `docs/CHANGELOG.md`. Rattachée à l'epic audio d'US-9 (archivée, pas
+ressortie), comme US-10, US-11 et US-16.
+
+**Statement** : En tant qu'utilisateur qui resserre la boucle sur quelques versets pour les
+répéter, je veux que le texte affiché se resserre sur ces mêmes versets, afin de lire ce que
+j'écoute sans faire défiler la plage pour le retrouver.
+
+**Diagnostic (état actuel)** :
+- Le curseur à deux poignées de la vue Coran ne règle que le son. Le texte affiche toujours toute
+  la plage : pour boucler les versets 12 à 15 d'une plage de 20, il faut faire défiler pour les
+  retrouver, et rien à l'écran ne dit où la boucle commence et finit.
+- À l'apprentissage, un verset grisé (celui qui précède la plage) s'affiche en tête du texte. Il
+  n'est ni joué ni réglable : c'est un second mécanisme d'affichage à côté du curseur.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given la vue Coran ouverte depuis n'importe quelle surface, Then sans toucher au curseur, le
+   texte affiche toute la plage, exactement comme aujourd'hui (zéro geste ajouté).
+2. Given une portion resserrée, Then seuls les versets de cette portion sont affichés : les autres
+   sont masqués, pas grisés. Élargir la portion les fait réapparaître.
+3. Given un glissé d'une poignée ou un ±1, Then le texte suit **en direct**, pendant le geste. Le
+   son, lui, ne bascule toujours qu'au relâché (US-11 crit. 4, inchangé).
+4. Given la vue refermée puis rouverte, Then le texte repart de la plage entière, comme le curseur
+   (US-11 crit. 5) : aucun verset ne reste masqué d'une ouverture à l'autre, y compris quand une
+   boucle sur une sous-portion joue encore.
+5. Given un appareil où l'écoute n'est pas disponible, Then le curseur règle quand même le texte.
+6. Given la rakaa d'apprentissage, Then plus aucun verset de contexte grisé n'est affiché, sur
+   aucune surface.
+
+**Exclusions explicites** :
+- **Le verset de contexte à l'apprentissage est supprimé, sans remplacement** (choix utilisateur du
+  2026-10-13, pris en sachant que le curseur est borné à la plage et ne permet pas de revoir le
+  verset précédent). Annule la décision du 2026-09-26 (`docs/CHANGELOG.md`, « Décisions actives »,
+  « Verset de contexte à l'apprentissage ») : à retirer de ce fichier au sprint, avec le code.
+- Pas d'élargissement du curseur au-delà de la plage affichée (US-11, exclusion maintenue).
+- Pas de versets grisés ni de défilement automatique vers la portion : écartés au profit du
+  masquage (choix utilisateur du 2026-10-13).
+- L'en-tête ne change pas : nom de la sourate, plage du plan et bismillah restent ceux de la plage
+  d'origine, même quand la portion est resserrée.
+- Une plage d'un seul verset n'a pas de curseur : rien ne change pour elle.
+- Pas de mémorisation de la portion, pas de sélection par toucher dans le texte (US-11).
+- Masquer des versets ne change rien à la progression : ni cycle, ni streak, ni ce que le
+  check-out crédite (US-9 crit. 4).
+
+**Scoping technique** (2026-10-13) :
+- **Fichiers UI** : `lib/widgets/verse_bottom_sheet.dart` (154 lignes, redevient
+  `StatefulWidget`) ; `lib/widgets/verse_audio_bar.dart` (248 lignes) ;
+  `lib/widgets/verse_row.dart` (40 lignes) ; `lib/widgets/prayer_plan_card.dart` (un argument
+  retiré, l. 137) ; `lib/core/strings.dart` (une constante retirée). Les trois autres appelants de
+  `VerseBottomSheet.show` (Récap, hors prières, carte d'apprentissage) ne bougent pas.
+- **Variables / champs** : la portion (`RangeValues _portion`) quitte `_VerseAudioBarState` et
+  monte dans le `State` de `VerseBottomSheet`, pour que le curseur et la liste lisent le même
+  état. `VerseAudioBar` la reçoit par deux paramètres, `portion` et `onPortionChanged`. Supprimés :
+  `VerseBottomSheet.contextAyah`, `VerseRow.isContext`, `S.versetPrecedentContexte` (déjà sans
+  appelant). Aucune clé `SharedPreferences`, aucun champ de modèle, rien dans `AppState`.
+- **`ayah_facts`** : aucune lecture ni écriture.
+- **Décision data model** : état UI éphémère, local à la feuille. Rien à persister (crit. 4).
+- **Réutilisation** : `VerseRangeSlider`/`nudgeRange`, `VerseRow` et `VerseService.getVerse` tels
+  quels. Remonter l'état d'un cran est préféré à un `ValueNotifier` partagé : celui-ci demanderait
+  aussi un `State` pour le créer et le libérer, plus deux `ValueListenableBuilder`.
+- **Risques / dépendances** :
+  - **Piège principal : portion périmée au relâché.** Aujourd'hui `onChanged` écrit `_portion`
+    dans la barre, donc `onChangeEnd` lit la bonne valeur. Une fois la portion chez le parent,
+    `widget.portion` ne change dans la barre qu'au rebuild suivant. Or le ±1 appelle `onChanged`
+    puis `onChangeEnd` dans le même geste : une relecture de `widget.portion` verrait l'ancienne
+    portion, et la boucle ne suivrait pas (ou relancerait l'ancienne plage). `_startLoop`,
+    `_playsPortion` et `_followPortionIfPlaying` reçoivent donc la portion **en argument**.
+    **Non testable automatiquement** : l'audio est indisponible en test et sous Windows.
+  - **Faux orphelins, à garder** : `RevisionEngine.contextVerseFor`,
+    `AppState.returningVersesContext`, `PlanScreen._returning`, `ReturnProofStep`. C'est le
+    circuit du « verset revenu » (US-3 crit. 4), sans lien avec `contextAyah`.
+  - **Ordre des slivers inchangé** (en-tête, barre, étape guidée, liste) : sinon l'état de la
+    barre est recréé pendant l'écoute (pièges d'US-16 et US-17).
+  - **Saut de défilement possible** : si l'utilisateur a déjà fait défiler et resserre la portion
+    au point que le contenu devient plus court que la position courante, Flutter recale le
+    défilement et la barre bouge sous le doigt. Cas rare (barre encore visible après défilement),
+    sans correctif prévu, à regarder sous Windows.
+  - **Performance du suivi en direct** : `RangeSlider` n'émet `onChanged` qu'à chaque verset
+    franchi, pas à chaque pixel. Le texte est lu dans `itemBuilder` (lignes visibles seulement) au
+    lieu d'être précalculé pour toute la plage. Coût réel sur Al-Baqara non mesuré.
+  - Aucun item du Backlog ne touche ces fichiers.
+- **Tests** : `test/widgets/verse_bottom_sheet_test.dart` (test widget admis : piège d'état) :
+  resserrer masque, élargir réaffiche, suivi pendant le glissé, en-tête inchangé, réouverture sur
+  la plage entière. Relance de la boucle et retour hors connexion : appareil réel uniquement.
+- **Item Backlog** : livré, retiré de `docs/CHANGELOG.md`.
+
+**Ajustement au scoping** (2026-10-13) — crit. 3 précisé, sens inchangé : hors connexion, quand
+une nouvelle portion n'est pas jouable, le curseur revient déjà tout seul sur la portion de la
+boucle en cours (US-11). Le texte suit ce retour, comme il suit un glissé : il n'affiche jamais
+autre chose que ce que montre le curseur. Validé par l'utilisateur : non, à confirmer.
 
 ### US-17 — L'onboarding montre une journée d'usage, boutons à l'appui (extension d'US-1)
 **État** : terminée — blueprint, scoping et livraison du 2026-10-12
@@ -825,9 +1421,10 @@ pendant un temps où je ne suis de toute façon pas activement en train de révi
 ### US-1 — Premier contact : comprendre la méthode, puis la vivre en réel
 **État** : terminée — sprint C livré le 2026-09-21 (message « verset revenu » au Plan du jour via
 `AppState.returningVersesContext` + étape guidée `return_proof_seen` dans `PlanScreen`). Le verset
-de contexte a été livré côté apprentissage le 2026-09-26 (`VerseBottomSheet.contextAyah`) ; son
-extension à la révision est une **Idée produit** de `docs/CHANGELOG.md` (à repasser par
-`quran-blueprint`), pas un item de Backlog. Priorité d'origine : P1.
+de contexte a été livré côté apprentissage le 2026-09-26 (`VerseBottomSheet.contextAyah`), puis
+**retiré par US-18 le 2026-10-13** ; son extension à la révision est une **Idée produit** de
+`docs/CHANGELOG.md` (à repasser par `quran-blueprint`), pas un item de Backlog. Priorité
+d'origine : P1.
 
 **Historique** : livrée en deux temps le 2026-09-13 (Phase 11 Sprint 1 : démo sur An-Nas/Al-Falaq/
 Al-Ikhlas + aperçu réel + retrait de l'ancien tour guidé ; Sprint 2 : bannières contextuelles sur
