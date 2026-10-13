@@ -20,13 +20,8 @@ extension _CheckOutSections on _CheckOutScreenState {
     final present = _items!.map((it) => it.unit.sourate.id).toSet();
     final candidates =
         state.sourates.where((s) => !present.contains(s.id)).toList();
-    final picked = await showModalBottomSheet<Sourate>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SouratePickerSheet(
-          sourates: candidates, title: SCheckOut.checkOutSourateEnPlusTitre),
-    );
+    final picked = await SouratePickerSheet.show(context,
+        sourates: candidates, title: SCheckOut.checkOutSourateEnPlusTitre);
     if (picked == null || !mounted) return;
     final range = await showModalBottomSheet<SourateSelection>(
       context: context,

@@ -49,8 +49,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
 
   int get _total => widget.questions.length;
 
-  Sourate _sourate(int id) =>
-      context.read<AppState>().sourates.firstWhere((surah) => surah.id == id);
+  Sourate _sourate(int id) => context.read<AppState>().sourateById(id)!;
 
   Widget _eyebrow(String text, AppPalette palette) => Text(text.toUpperCase(),
       style: GoogleFonts.lora(

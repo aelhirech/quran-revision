@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../core/strings.dart';
-import '../models/sourate.dart';
+import '../state/app_state.dart';
 import 'guide_step.dart';
 
 /// Return-proof banner (US-1 sprint C) — names one concrete returning verse
@@ -9,13 +10,11 @@ import 'guide_step.dart';
 /// count instead of listed, to keep the banner a sentence, not a list.
 class ReturnProofStep extends StatelessWidget {
   final Map<(int, int), int?> returning;
-  final List<Sourate> sourates;
   final VoidCallback onDone;
 
   const ReturnProofStep({
     super.key,
     required this.returning,
-    required this.sourates,
     required this.onDone,
   });
 
@@ -23,7 +22,7 @@ class ReturnProofStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final (surahId, verseNumber) = returning.keys.first;
     final surahName =
-        sourates.where((s) => s.id == surahId).firstOrNull?.nameFr ?? '';
+        context.watch<AppState>().sourateById(surahId)?.nameFr ?? '';
     return GuideStep(
       icon: Icons.replay_outlined,
       title: SGuide.guideReturnProofTitle,

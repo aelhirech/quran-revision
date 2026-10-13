@@ -273,7 +273,6 @@ class _PlanScreenState extends State<PlanScreen> {
             SliverToBoxAdapter(
               child: ReturnProofStep(
                 returning: _returning!,
-                sourates: state.sourates,
                 onDone: () => state.markGuideDone('return_proof_seen'),
               ),
             ),

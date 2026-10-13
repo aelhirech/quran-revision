@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/reinforcement_engine.dart';
 
 /// Texte arabe d'un ou plusieurs versets, en Amiri RTL — factorisé car le
 /// même bloc (police, sens, alignement) revient identique dans la feuille de
@@ -42,14 +43,16 @@ class ArabicVerseText extends StatelessWidget {
       );
     }
     final words = text.split(' ');
-    final before = words.take(highlightWord).join(' ');
+    final token = words[highlightWord];
+    final word = withoutHizbSign(token);
+    // The sign glued to the word keeps the colour of the text.
+    final sign = token.substring(0, token.length - word.length);
+    final before = [...words.take(highlightWord), sign].join(' ');
     final after = words.skip(highlightWord + 1).join(' ');
     return Text.rich(
       TextSpan(children: [
-        if (highlightWord > 0) TextSpan(text: '$before '),
-        TextSpan(
-            text: words[highlightWord],
-            style: TextStyle(color: highlightColor)),
+        if (before.isNotEmpty) TextSpan(text: before),
+        TextSpan(text: word, style: TextStyle(color: highlightColor)),
         if (highlightWord < words.length - 1) TextSpan(text: ' $after'),
       ]),
       textAlign: textAlign,

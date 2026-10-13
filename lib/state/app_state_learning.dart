@@ -111,7 +111,7 @@ extension AppStateLearning on AppState {
   Future<({Sourate sourate, List<int> ayahIds, Set<int> reachedVerses})?>
       learningPlanFor(String date) async {
     final plan = await AyahFactsLearning.learnPlanFor(date, _riwaya);
-    final sourate = plan == null ? null : _sourateById(plan.surahId);
+    final sourate = plan == null ? null : sourateById(plan.surahId);
     if (plan == null || sourate == null || plan.ayahIds.isEmpty) return null;
     return (
       sourate: sourate,

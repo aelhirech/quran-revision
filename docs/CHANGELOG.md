@@ -101,6 +101,9 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     `StepTransition`. Une nouvelle étape dans l'un de ces deux écrans les réutilise.
   - `PrimaryCtaButton` réduit un libellé trop long au lieu de le couper, et n'a plus d'ombre
     quand il est désactivé.
+- **Accès aux sourates (2026-10-13)** : la liste des sourates s'ouvre par
+  `SouratePickerSheet.show`, et une sourate se retrouve par son id avec `AppState.sourateById`.
+  Ne réécrire ni le `showModalBottomSheet` ni la recherche dans un écran.
 - **Onglet Renforcement (US-20, 2026-10-13)** :
   - L'onglet et l'écran de série ne créditent rien et n'écrivent rien : ni `ayah_facts`, ni
     préférence, ni champ d'`AppState`. Reconnaître un passage n'est pas le réciter. Ce qu'une
@@ -110,7 +113,9 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     L'écran n'ajoute que des « … » : devant le passage posé s'il ne commence pas son verset,
     derrière tout passage qui ne le termine pas. Jamais devant un choix.
   - Les onglets se désignent par constantes (`_recapTab`, `_settingsTab` dans `ShellScreen`),
-    jamais par un indice écrit en dur : insérer un onglet décale ceux qui le suivent.
+    jamais par un indice écrit en dur : insérer un onglet décale ceux qui le suivent. Verrouillé
+    par `test/screens/shell_screen_test.dart`, qui lit le libellé de l'onglet sélectionné et non
+    son indice : après l'insertion d'un onglet, un indice non corrigé garderait la même valeur.
   - Un passage se reconnaît par `Passage.id` (sourate, verset, rang), jamais par `identical` ni
     par un triplet réécrit à la main : le moteur, l'onglet et l'écran doivent parler du même.
   - Une carte de choix n'est pas découpée (`clipBehavior`) : les signes coraniques hauts
@@ -142,6 +147,10 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     quand le passage est précédé de « … ». Le « … » (`_shown`) et ce décalage lisent le même
     prédicat, `_leads(passage)` : changer l'un sans l'autre dorerait le mot voisin, et aucun test
     ne le dirait (écran vérifié sous Windows seulement).
+  - Le signe « ۞ » que le texte Hafs colle au premier mot de 199 versets n'appartient pas à ce
+    mot : `withoutHizbSign` (`core/reinforcement_engine.dart`) le retire, et c'est la seule règle,
+    lue par le moteur (`WordChoice.arabic`) et par `ArabicVerseText` (le mot en or). Ne pas la
+    réécrire ailleurs : le mot proposé et le mot doré ne diraient plus la même chose.
   - Le tirage partagé (`ReinforcementEngine._draw`) reçoit des candidats **déjà restreints** à la
     sourate demandée : c'est chaque appelant qui restreint, pour ne pas analyser toute la
     sélection quand la série porte sur une sourate.
@@ -178,53 +187,19 @@ futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
 
-### [P3] Deux accès aux sourates écrits plusieurs fois côté écrans
-Relevé en `/simplify` du Sprint B d'US-20 (2026-10-13). Aucun bug : du code recopié. Différé
-parce que le correctif touche le check-in, le check-out et `AppState`, hors du périmètre d'un
-sprint d'écran.
-- **Ouvrir la liste des sourates** : le même bloc `showModalBottomSheet<Sourate>(context,
-  isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) =>
-  SouratePickerSheet(…))` existe quatre fois (`check_in_screen.dart` deux fois,
-  `check_out_sections.dart`, `reinforcement_tab.dart`). Ajouter à `SouratePickerSheet` une
-  méthode `static Future<Sourate?> show(BuildContext context, {required List<Sourate> sourates,
-  String? title})`, sur le modèle de `VerseBottomSheet.show`, et y faire passer les quatre
-  appelants.
-- **Retrouver une sourate par son id** : `AppState._sourateById` est privé, donc
-  `series_screen.dart` (`_sourate`) et `return_proof_step.dart` refont chacun leur recherche.
-  Le rendre public sous le nom `sourateById` (définition dans `app_state.dart`, trois appels dans
-  `app_state_dayplan.dart` et `app_state_learning.dart`) et l'appeler depuis ces deux fichiers.
-- **Tests** : `flutter test` avant et après, aucun comportement ne change. Sous Windows : ajouter
-  une sourate au check-in, déclarer une sourate en plus au check-out, lancer une série sur une
-  sourate.
-
-### [P3] Test de l'ouverture du Récap puis des Réglages après la première clôture
-Relevé au Sprint B d'US-20 (2026-10-13). `ShellScreen` ouvre le Récap puis les Réglages par
-`_recapTab` et `_settingsTab` (2 et 3). Aucun test ne le verrouille : insérer ou déplacer un
-onglet sans corriger ces deux constantes ouvrirait le mauvais onglet, en silence. Vérifié à la
-main à ce sprint. Différé : aucun changement d'onglet n'est prévu (US-21 et US-22 n'en ajoutent
-pas).
-- **`test/screens/shell_screen_test.dart`** (nouveau, test widget, exception « piège d'état » de
-  `test/CLAUDE.md`) : `ShellScreen` monté avec le vrai thème sous un `AppState` sans aucune étape
-  guidée faite. Après `markGuideDone('checkout_done')`, `NavigationBar.selectedIndex` vaut 2.
-  Après `markGuideDone('recap_seen')`, il vaut 3. Après un appui sur un autre onglet puis
-  `markGuideDone('settings_seen')`, l'onglet choisi reste.
-- **Risque** : `ShellScreen.initState` lance `ensureDayPlan()`, qui lit SQLite. Sous l'horloge
-  simulée de `flutter test`, cette lecture ne se termine pas : le test ne doit pas en dépendre.
-
-### [P3] Questions de mots : le signe « ۞ » suit le premier mot de 199 versets
-Relevé au Sprint C d'US-22 (2026-10-13). En Hafs, « ۞ » est collé au mot suivant par une espace
-insécable : quand ce mot est posé ou proposé, le signe vient avec lui. Il est alors doré dans le
-passage, affiché dans le choix arabe et dans la ligne sous un mauvais choix. Aucune réponse n'est
-faussée. Mesuré sur 5 200 questions : 0,2 % des questions sur le juz 30, 0,9 % sur 113 sourates.
-Différé : rare, et sans effet sur la réponse.
-- **`lib/core/reinforcement_words.dart`**, `_askableWords` : `WordChoice.arabic` reçoit le token
-  sans ce qui précède l'espace insécable (`token.substring(token.lastIndexOf('\u00A0') + 1)`).
-- **`lib/widgets/arabic_verse_text.dart`** : dans le mot mis en couleur, ce qui précède l'espace
-  insécable, espace comprise, passe dans le premier `TextSpan`, non coloré.
-- **Tests** : dans `test/core/reinforcement_words_test.dart`, l'invariant
-  `passage.words[wordIndex] == answer.arabic` devient « se termine par `answer.arabic` », et un
-  test sur la sourate 100 seule (20 graines) vérifie qu'aucun choix ne contient U+06DE. Sous
-  Windows : une question sur le premier mot de 100:9, le signe reste de la couleur du texte.
+### [P3] Ouvrir le sélecteur de plage de versets : le même bloc écrit trois fois
+Relevé au sprint 19 (2026-10-13), en traitant le même défaut pour `SouratePickerSheet`. Aucun
+bug : du code recopié. Différé parce qu'il sort de l'item du sprint et touche l'onboarding.
+- Le bloc `showModalBottomSheet<SourateSelection>(context: context, isScrollControlled: true,
+  backgroundColor: Colors.transparent, builder: (_) => VerseRangePicker(…))` existe trois fois :
+  `check_in_screen.dart` (`_addSourate`), `check_out_sections.dart` (`_addRevisedSourate`) et
+  `onboarding/onboarding_screen.dart`. Ajouter à `VerseRangePicker` une méthode
+  `static Future<SourateSelection?> show(BuildContext context, {required Sourate sourate,
+  required SourateSelection current})`, sur le modèle de `SouratePickerSheet.show`, et y faire
+  passer les trois appelants.
+- **Tests** : `flutter test` avant et après, aucun comportement ne change. Sous Windows : choisir
+  une plage à l'onboarding, au check-in (« Ajouter une sourate ») et au check-out (« J'ai révisé
+  une sourate en plus »).
 
 ## Idées produit (non scopées)
 

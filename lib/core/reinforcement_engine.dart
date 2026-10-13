@@ -20,6 +20,12 @@ final _pauseSign = RegExp('[ۖۗۘۚ]');
 String _normalize(String token) =>
     token.replaceAll(_marks, '').replaceAll('ٱ', 'ا');
 
+const _hizbSign = '\u06DE\u00A0';
+
+/// [token] without the hizb sign that Hafs glues to a verse's first word.
+String withoutHizbSign(String token) =>
+    token.startsWith(_hizbSign) ? token.substring(_hizbSign.length) : token;
+
 /// A whole verse, or a piece of it cut at the mushaf's pause signs.
 class Passage {
   final int surahId;
