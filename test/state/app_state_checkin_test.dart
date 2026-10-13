@@ -275,7 +275,7 @@ void main() {
       'jusqu\'à l\'exception, dayUnits() reconstruit fidèlement depuis '
       'ayah_facts (plusieurs unités le même jour)', () async {
     // Sourates 77/78 (2 pages chacune, pages distinctes — jamais regroupées) :
-    // AppState.dayUnits() résout chaque surah_id via _sourateById() sur la
+    // AppState.dayUnits() résout chaque surah_id via sourateById() sur la
     // vraie liste des 114 sourates (HafsService), d'où le besoin d'ids réels.
     final config = UserConfig(
       selections: [

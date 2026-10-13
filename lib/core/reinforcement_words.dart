@@ -159,7 +159,7 @@ class ReinforcementWords {
     final words = [
       for (final token in verse.split(' '))
         if (_normalize(token) case final bare when bare.isNotEmpty)
-          (token, bare),
+          (withoutHizbSign(token), bare),
     ];
     // Meanings are matched to words by rank alone: a verse that does not have
     // one meaning per word would pair each word with its neighbour's.

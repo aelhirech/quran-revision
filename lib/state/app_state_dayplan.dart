@@ -11,7 +11,7 @@ part of 'app_state.dart';
 
 extension AppStateDayPlan on AppState {
   RevisionUnit? _unitFor(DayFactGroup g) {
-    final s = _sourateById(g.surahId);
+    final s = sourateById(g.surahId);
     if (s == null) return null;
     return RevisionUnit(
       sourate: s,
@@ -241,7 +241,7 @@ extension AppStateDayPlan on AppState {
   /// Extends a day plan surah's range by one verse (the "+" chip on the
   /// check-in detail screen).
   Future<void> extendDayPlanVerse(int surahId, int newVerse) async {
-    final s = _sourateById(surahId);
+    final s = sourateById(surahId);
     if (s == null) return;
     await AyahFactsRitual.proposeUnits(todayStr, _riwaya,
         [RevisionUnit(sourate: s, verseStart: newVerse, verseEnd: newVerse, isWhole: false)]);

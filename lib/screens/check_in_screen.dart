@@ -163,13 +163,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
     final state = context.read<AppState>();
     final present = _units!.map((u) => u.sourate.id).toSet();
     final candidates = state.sourates.where((s) => !present.contains(s.id)).toList();
-    final picked = await showModalBottomSheet<Sourate>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SouratePickerSheet(
-          sourates: candidates, title: SCheckIn.checkInAjouterSourate),
-    );
+    final picked = await SouratePickerSheet.show(context,
+        sourates: candidates, title: SCheckIn.checkInAjouterSourate);
     if (picked != null) await _addSourate(picked);
   }
 
@@ -194,13 +189,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
         state.config?.selections.map((s) => s.sourate.id).toSet() ?? const {};
     final available =
         state.sourates.where((s) => !revised.contains(s.id)).toList();
-    final picked = await showModalBottomSheet<Sourate>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SouratePickerSheet(
-          sourates: available, title: SCheckIn.checkInChoisirSourate),
-    );
+    final picked = await SouratePickerSheet.show(context,
+        sourates: available, title: SCheckIn.checkInChoisirSourate);
     if (picked == null || !mounted) return;
     await _setLearning(picked,
         state.config?.versesToLearnPerDay ?? defaultVersesToLearnPerDay);

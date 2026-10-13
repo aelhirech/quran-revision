@@ -11,6 +11,7 @@ import '../services/test_helpers.dart';
 // the rule, they do not borrow its implementation.
 final _bracketed = RegExp(r'\([^)]*\)|\[[^\]]*\]');
 final _longWord = RegExp(r'\p{L}{4,}', unicode: true);
+const _hizbSign = '\u06DE\u00A0';
 
 Set<String> _longWords(String gloss) => {
       for (final match in _longWord.allMatches(gloss.replaceAll(_bracketed, ' ')))
@@ -43,7 +44,10 @@ void _expectValid(List<WordQuestion> questions, Map<int, Set<int>> carried) {
     }
     expect((question.passage.surahId, question.passage.ayahId),
         (answer.surahId, answer.ayahId));
-    expect(question.passage.words[question.wordIndex], answer.arabic, reason: where);
+    // The passage keeps the hizb sign that Hafs glues to a verse's first word.
+    expect(question.passage.words[question.wordIndex],
+        anyOf(answer.arabic, '$_hizbSign${answer.arabic}'),
+        reason: where);
   }
   expect(questions.map((question) => bareWord(question.answer.arabic)).toSet(),
       hasLength(questions.length),
@@ -225,6 +229,25 @@ void main() {
       final question = series.singleWhere((question) => question.answer.gloss == 'premier');
       expect(question.choices.map((choice) => choice.gloss).toSet(), {'premier', 'double'});
       expect(question.choices, hasLength(2));
+    });
+
+    test('9 bis. le signe en tête de 100:9 ne vient pas avec le mot qui le suit',
+        () {
+      final surah = _whole(100, 100);
+      final seen = <(int, int, int)>{};
+      for (var seed = 0; seed < 20; seed++) {
+        final series = words(surah, seed);
+        _expectValid(series, surah);
+        for (final question in series) {
+          for (final choice in question.choices) {
+            seen.add(choice.id);
+            expect(choice.arabic, isNot(contains('\u06DE')),
+                reason: '${choice.id}');
+          }
+        }
+      }
+      // Without the word that follows the sign, nothing above was tested.
+      expect(seen, contains((100, 9, 0)));
     });
   });
 

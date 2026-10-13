@@ -14,6 +14,15 @@ class SouratePickerSheet extends StatefulWidget {
   const SouratePickerSheet(
       {super.key, required this.sourates, this.title});
 
+  static Future<Sourate?> show(BuildContext context,
+          {required List<Sourate> sourates, String? title}) =>
+      showModalBottomSheet<Sourate>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => SouratePickerSheet(sourates: sourates, title: title),
+      );
+
   @override
   State<SouratePickerSheet> createState() => _SouratePickerSheetState();
 }

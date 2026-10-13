@@ -100,7 +100,7 @@ class AppState extends ChangeNotifier {
   /// spread over two greps instead of one.
   void _notify() => notifyListeners();
 
-  Sourate? _sourateById(int id) {
+  Sourate? sourateById(int id) {
     for (final s in _sourates) {
       if (s.id == id) return s;
     }

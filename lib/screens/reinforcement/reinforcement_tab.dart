@@ -119,16 +119,12 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
     final state = context.read<AppState>();
     final inputs = await state.reinforcementInputs();
     if (!mounted) return;
-    final picked = await showModalBottomSheet<Sourate>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SouratePickerSheet(
-        sourates: state.sourates
-            .where((sourate) => inputs.carried.containsKey(sourate.id))
-            .toList(),
-        title: SReinforcement.choisirSourate,
-      ),
+    final picked = await SouratePickerSheet.show(
+      context,
+      sourates: state.sourates
+          .where((sourate) => inputs.carried.containsKey(sourate.id))
+          .toList(),
+      title: SReinforcement.choisirSourate,
     );
     if (picked == null || !mounted) return;
     await _start(sourate: picked);
