@@ -12,6 +12,7 @@ import 'package:quran_revision/services/page_metadata_service.dart';
 import 'package:quran_revision/state/app_state.dart';
 
 import '../services/test_helpers.dart';
+import 'day_helpers.dart';
 
 /// Day close (US-13/US-14): what sealing a day unlocks (`SealOutcome`) and
 /// the day recap rebuilt from `ayah_facts` (`dayRecap`).
@@ -84,7 +85,7 @@ void main() {
       ),
       riwaya: Riwaya.hafs,
     );
-    await state.ensureDayPlan();
+    await validateCheckIn(state);
     await AyahFactsRitual.setReach(today, Riwaya.hafs, 108, 1, 3, true);
     await state.setLearningForToday(byId(state, 103), 3);
     await state.markLearnVerses(today, 103, [1, 2, 3], true);

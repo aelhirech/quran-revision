@@ -411,6 +411,7 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
 | Changement de sélection | Le cycle est reconstruit ; la progression repart de 0 (`saveConfig` le fait déjà). |
 | Changement de riwaya | Cycle et curseur sont scopés par riwaya, indépendants. |
 | Journée sautée | Le curseur n'avance pas ; rien n'est perdu, le contenu revient le lendemain. |
+| Bouton « Illuminer ma journée avec le Coran » jamais pressé (ou check-in quitté sans valider) | Aucune ligne n'est écrite dans `ayah_facts` pour ce jour (US-27) : pas de jour en attente, pas de rattrapage le lendemain. Le plan du jour n'est écrit que par `AppState.commitCheckIn`. |
 
 ## Vérifier l'harmonie avant de clore une tâche
 - Le code correspond-il à ce que `docs/DOCUMENTATION_TECHNIQUE.md`/`docs/CHANGELOG.md` prétendent ? Ces fichiers sont maintenus à la main et peuvent dériver du dépôt réel (exemple vécu le 2026-08-20 : une section documentait des fonctionnalités et un test de régression qui n'étaient pas encore commités). Corriger l'un ou l'autre plutôt que de laisser la doc mentir.

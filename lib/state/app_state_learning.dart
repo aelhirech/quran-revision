@@ -28,21 +28,34 @@ extension AppStateLearning on AppState {
     return latest;
   }
 
-  /// Next [count] not-yet-acquired verses of [sourate], proposed for today
-  /// (`LearningProgress.nextBlock`).
-  /// [progress] avoids a reload when the caller already loaded this surah's
-  /// progress.
-  Future<void> _proposeLearning(Sourate sourate, int count,
-      {LearningProgress? progress}) async {
-    final resolved = progress ??
-        LearningProgress(
-          sourate: sourate,
-          learnedVerses: await AyahFactsLearning.learnedVersesForSourate(
-              riwaya: _riwaya, surahId: sourate.id),
-          startDate: DateTime.now(),
-        );
-    await AyahFactsLearning.proposeLearnVerses(
-        todayStr, _riwaya, sourate.id, resolved.nextBlock(count));
+  Future<LearningProgress> _learningProgressOf(Sourate sourate) async =>
+      LearningProgress(
+        sourate: sourate,
+        learnedVerses: await AyahFactsLearning.learnedVersesForSourate(
+            riwaya: _riwaya, surahId: sourate.id),
+        startDate: DateTime.now(),
+      );
+
+  /// [count] also becomes the new default proposed on following days
+  /// (`UserConfig.versesToLearnPerDay`). Returns whether it changed.
+  Future<bool> _saveVersesToLearn(int count) async {
+    if (_config == null || count == _config!.versesToLearnPerDay) return false;
+    _config = _config!.copyWith(versesToLearnPerDay: count);
+    await StorageService.saveConfig(_config!, _riwaya);
+    return true;
+  }
+
+  /// Check-in: the learning part of the draft for [sourate] and [count] —
+  /// the next [count] not-yet-acquired verses (`LearningProgress.nextBlock`),
+  /// nothing written to `ayah_facts` until [commitCheckIn]. `null` for no
+  /// surah, or one with nothing left to learn.
+  Future<LearningDraft?> learningDraftFor(
+      Sourate? sourate, int count) async {
+    if (await _saveVersesToLearn(count)) _notify();
+    if (sourate == null) return null;
+    final progress = await _learningProgressOf(sourate);
+    final ayahIds = progress.nextBlock(count);
+    return ayahIds.isEmpty ? null : (progress: progress, ayahIds: ayahIds);
   }
 
   /// Portion to learn today (day plan's last rakaa), or `null` if the user
@@ -55,30 +68,28 @@ extension AppStateLearning on AppState {
     final plan = await learningPlanFor(todayStr);
     if (plan == null) return null;
     // `learnPlanFor` sorts by `ayah_id`, so first/last are indeed min/max.
-    return RevisionUnit(
-      sourate: plan.sourate,
-      verseStart: plan.ayahIds.first,
-      verseEnd: plan.ayahIds.last,
-      isWhole: plan.ayahIds.first == 1 &&
-          plan.ayahIds.last == plan.sourate.verses,
-    );
+    return RevisionUnit.spanning(
+        plan.sourate, plan.ayahIds.first, plan.ayahIds.last);
   }
 
-  /// Check-in: which surah to learn today and how many verses. [sourate]
-  /// `null` = learn nothing today. [count] also becomes the new default
-  /// proposed on following days (`UserConfig.versesToLearnPerDay`).
-  Future<void> setLearningForToday(Sourate? sourate, int count) async {
+  /// Writes today's learning portion — called by [commitCheckIn]. [sourate]
+  /// `null` = learn nothing today. [ayahIds] is the portion the user saw in
+  /// the check-in; without it, the next [count] verses of [sourate].
+  Future<void> setLearningForToday(Sourate? sourate, int count,
+      {List<int>? ayahIds, bool notify = true}) async {
     if (_config == null) return;
-    if (count != _config!.versesToLearnPerDay) {
-      _config = _config!.copyWith(versesToLearnPerDay: count);
-      await StorageService.saveConfig(_config!, _riwaya);
-    }
+    await _saveVersesToLearn(count);
     // Only rows still at `reach=0` are cleared — a verse already acquired
     // today doesn't disappear just because the portion is adjusted.
     await AyahFactsRitual.clearDayProposal(todayStr, _riwaya,
         type: AyahFactType.learn);
-    if (sourate != null) await _proposeLearning(sourate, count);
-    _notify();
+    if (sourate != null) {
+      final block =
+          ayahIds ?? (await _learningProgressOf(sourate)).nextBlock(count);
+      await AyahFactsLearning.proposeLearnVerses(
+          todayStr, _riwaya, sourate.id, block);
+    }
+    if (notify) _notify();
   }
 
   /// Check-out: declare one verse **learned in addition** on day [date] —

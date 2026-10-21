@@ -12,22 +12,11 @@ class SCheckOut {
       S._t("Aujourd'hui", 'Today');
   static String get checkOutTitreEnAttente =>
       S._t('Un jour est resté en attente', 'A day is still pending');
-  static String get checkOutTitreAujourdhui => S._t('Et aujourd\'hui ?', 'What about today?');
   static String get checkOutHier => S._t('Hier', 'Yesterday');
   static String checkOutIlYaNJours(int n) =>
       S._t('Il y a $n jour${n > 1 ? 's' : ''}', '$n day${n > 1 ? 's' : ''} ago');
-  static String get checkOutPartieOptionnelle =>
-      S._t('Partie 2 · optionnelle', 'Part 2 · optional');
   static String get checkOutCloturerHier => S._t('Clôturer hier', 'Close out yesterday');
   static String get checkOutCloturerJour => S._t('Clôturer ce jour', 'Close out this day');
-  static String get checkOutAjouterAujourdhui =>
-      S._t('Ajouter aussi aujourd\'hui', 'Also add today');
-  static String get checkOutAjouterDesc => S._t(
-      'Optionnel — ces versets seront datés d\'aujourd\'hui.',
-      'Optional — these verses will be dated today.');
-  static String get checkOutValiderAujourdhui =>
-      S._t('Valider aussi aujourd\'hui', 'Confirm today too');
-  static String get checkOutTerminerSans => S._t('Terminer sans aujourd\'hui', 'Finish without today');
 
   // Check-out — « j'ai fait plus que prévu » (Phase 9)
   static String get checkOutReviseEnPlus =>

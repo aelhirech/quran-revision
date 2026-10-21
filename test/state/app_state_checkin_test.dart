@@ -10,9 +10,11 @@ import 'package:quran_revision/models/user_config.dart';
 import 'package:quran_revision/services/ayah_facts_service.dart';
 import 'package:quran_revision/services/hafs_service.dart';
 import 'package:quran_revision/services/page_metadata_service.dart';
+import 'package:quran_revision/models/check_in_draft.dart';
 import 'package:quran_revision/state/app_state.dart';
 
 import '../services/test_helpers.dart';
+import 'day_helpers.dart';
 
 // verses/words assez petits pour que RevisionEngine ne découpe pas la
 // sourate en plusieurs unités (seuil de découpe à 150 mots, voir
@@ -94,7 +96,7 @@ void main() {
   });
 
   test(
-      'checkOut scelle, avance le cycle une fois, puis ensureDayPlan peut proposer aujourd\'hui',
+      'checkOut scelle, avance le cycle une fois ; aujourd\'hui ne commence qu\'au check-in validé',
       () async {
     final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 2)));
     final today = dayKey(DateTime.now());
@@ -128,9 +130,13 @@ void main() {
     expect(state.pendingDate, isNull);
 
     await state.ensureDayPlan();
+    expect(await AyahFactsRitual.dayFacts(today, Riwaya.hafs), isEmpty,
+        reason: 'plus de jour en attente, mais rien n\'est proposé sans appui '
+            'sur « Illuminer ma journée »');
+    await validateCheckIn(state);
     final todayFacts = await AyahFactsRitual.dayFacts(today, Riwaya.hafs);
     expect(todayFacts, isNotEmpty,
-        reason: 'plus de jour en attente : le moteur peut proposer aujourd\'hui');
+        reason: 'le check-in validé écrit le plan du jour');
 
     await AyahFactsRitual.sealDay(today, Riwaya.hafs);
   });
@@ -167,11 +173,12 @@ void main() {
     );
     expect(units.units.map((u) => u.sourate.id).toSet(), {67, 69, 71},
         reason: 'les 3 sourates entières tiennent dans le budget de 8 pages');
-    await AyahFactsRitual.proposeUnits(yesterday, Riwaya.hafs, units.units);
-    // 67 et 71 faites ; 69 retirée au check-in (plus aucune ligne).
+    // 69 retirée au check-in : jamais écrite, donc aucune ligne.
+    await AyahFactsRitual.proposeUnits(yesterday, Riwaya.hafs,
+        units.units.where((u) => u.sourate.id != 69).toList());
+    // 67 et 71 faites.
     await AyahFactsRitual.setReach(yesterday, Riwaya.hafs, 67, 1, 10, true);
     await AyahFactsRitual.setReach(yesterday, Riwaya.hafs, 71, 1, 10, true);
-    await AyahFactsRitual.removeFromDayPlan(yesterday, Riwaya.hafs, 69);
 
     await state.ensureDayPlan();
     expect(state.pendingDate, yesterday);
@@ -414,13 +421,13 @@ void main() {
     expect(selection.cycleTotal, 2,
         reason: '2 groupes au total (page 602, puis 101 seule)');
 
-    await AyahFactsRitual.proposeUnits(day, Riwaya.hafs, selection.units);
+    await AyahFactsRitual.proposeUnits(day, Riwaya.hafs,
+        selection.units.where((u) => u.sourate.id != 108).toList());
     // 106 et 107 faites ; 108 retirée au check-in — ne doit pas empêcher le
     // groupe de compter comme complet (seule une unité PRÉSENTE mais non
     // faite bloquerait le groupe).
     await AyahFactsRitual.setReach(day, Riwaya.hafs, 106, 1, 10, true);
     await AyahFactsRitual.setReach(day, Riwaya.hafs, 107, 1, 10, true);
-    await AyahFactsRitual.removeFromDayPlan(day, Riwaya.hafs, 108);
 
     final wrapped = (await state.checkOut(day)).cycleWrapped;
     expect(state.cyclePosition, 1,
@@ -473,7 +480,7 @@ void main() {
   });
 
   test(
-      'retirer un fragment au check-in ne retire que celui-là : depuis que le '
+      'retirer un fragment du brouillon ne retire que celui-là : depuis que le '
       'cycle est une liste de pages, une même journée peut porter deux plages '
       'non adjacentes de la même sourate', () async {
     final s2 = testSourate(2, verses: 286, words: 6000);
@@ -485,18 +492,16 @@ void main() {
       riwaya: Riwaya.hafs,
     );
     final state = AppState(config, riwaya: Riwaya.hafs);
-    final today = dayKey(DateTime.now());
 
     // Deux plages disjointes de la même sourate proposées le même jour.
     final garde =
         RevisionUnit(sourate: s2, verseStart: 1, verseEnd: 5, isWhole: false);
     final retire = RevisionUnit(
         sourate: s2, verseStart: 200, verseEnd: 203, isWhole: false);
-    await AyahFactsRitual.proposeUnits(today, Riwaya.hafs, [garde, retire]);
+    await state.commitCheckIn(CheckInDraft(units: [garde, retire]));
     expect(await state.dayUnits(), hasLength(2));
 
-    await state.removeFromDayPlan(s2.id,
-        verseStart: retire.verseStart, verseEnd: retire.verseEnd);
+    await state.commitCheckIn(CheckInDraft(units: [garde]));
 
     final restant = await state.dayUnits();
     expect(restant, hasLength(1),
@@ -571,6 +576,68 @@ void main() {
     expect(apresScellement, isTrue,
         reason: 'une fois le jour en attente scellé, le mélange redevient modifiable');
     expect(state.config!.shuffleEnabled, isTrue);
+  });
+
+  test('ensureDayPlan n\'écrit rien : sans appui sur le bouton, pas de plan, '
+      'donc pas de rattrapage le lendemain', () async {
+    final state = AppState(_config(), riwaya: Riwaya.hafs);
+    await state.ensureDayPlan();
+    await state.ensureDayPlan();
+
+    expect(await AyahFactsRitual.dayFacts(dayKey(DateTime.now()), Riwaya.hafs),
+        isEmpty);
+    expect(await state.dayUnits(), isEmpty);
+    expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.hafs), isNull);
+    expect(state.pendingDate, isNull);
+  });
+
+  test('checkInStart propose sans écrire, commitCheckIn écrit ce qui est validé',
+      () async {
+    final state = AppState(_config(), riwaya: Riwaya.hafs);
+    final today = dayKey(DateTime.now());
+
+    final draft = await state.checkInStart();
+    expect(draft.units, isNotEmpty);
+    expect(draft.units, state.todayPreviewUnits);
+    expect(await AyahFactsRitual.dayFacts(today, Riwaya.hafs), isEmpty,
+        reason: 'ouvrir le check-in ne commence pas la journée');
+
+    final retire = draft.units.first;
+    await state.commitCheckIn(draft.without(retire));
+    final written = await state.dayUnits();
+    expect(written.map((u) => u.sourate.id).toSet(),
+        isNot(contains(retire.sourate.id)),
+        reason: 'ce qui a été retiré du brouillon n\'est jamais écrit');
+  });
+
+  test('un check-in rouvert repart des lignes du jour et garde un verset déjà '
+      'atteint même si le brouillon ne le contient plus', () async {
+    final state = AppState(_config(), riwaya: Riwaya.hafs);
+    final today = dayKey(DateTime.now());
+    final draft = await state.checkInStart();
+    await state.commitCheckIn(draft);
+    final first = draft.units.first;
+    await AyahFactsRitual.setReach(
+        today, Riwaya.hafs, first.sourate.id, first.verseStart, first.verseStart,
+        true);
+
+    final reopened = await state.checkInStart();
+    expect(reopened.units, draft.units,
+        reason: 'le jour a des lignes : le brouillon part d\'elles, pas du moteur');
+
+    await state.commitCheckIn(const CheckInDraft(units: []));
+    final facts = await AyahFactsRitual.dayFacts(today, Riwaya.hafs);
+    expect(facts.expand((g) => g.reachedVerses), isNotEmpty,
+        reason: 'une progression déjà faite ne s\'efface pas en ajustant le plan');
+  });
+
+  test('changer le rythme un jour non commencé n\'écrit aucune ligne', () async {
+    final state = AppState(_config(), riwaya: Riwaya.hafs);
+    await state.setPagesPerDay(2);
+
+    expect(state.config!.pagesPerDay, 2);
+    expect(await AyahFactsRitual.dayFacts(dayKey(DateTime.now()), Riwaya.hafs),
+        isEmpty);
   });
 
   test('addableSelections ne propose que la sélection, hors plan, dans l\'ordre du mushaf',

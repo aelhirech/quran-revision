@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/day_dates.dart';
 import '../core/strings.dart';
+import '../models/check_in_draft.dart';
 import '../models/learning_progress.dart';
 import '../models/prayer.dart';
 import '../models/revision_unit.dart';
@@ -34,15 +35,18 @@ part 'check_in_sections.dart';
 /// journée (Phase 9), poussé depuis l'onglet Plan du jour. Confirme, en
 /// 3 étapes (`_step`, cf. `StepDots` dans le hero), les décisions du jour :
 ///   1. Révision — rythme (pages/jour, ajuster régénère la proposition) et
-///      ce qu'il y a à réviser (lignes `ayah_facts` déjà écrites par le
-///      moteur quotidien, `reach=0`) : ajouter/retirer/étendre écrit
-///      directement dans la table, il n'y a pas d'objet "plan" à promouvoir ;
+///      ce qu'il y a à réviser : ajouter/retirer/étendre modifie un
+///      brouillon ([CheckInDraft]) ;
 ///   2. Apprentissage — sourate + nombre de versets, récité dans la dernière
 ///      rakaa du plan ;
 ///   3. Prières — celles où l'utilisateur récite (seul ou en imam).
 ///
-/// Se ferme en renvoyant la liste de prières choisies : c'est l'appelant
-/// (`DayPlanTab`) qui déclenche la répartition en rakaas.
+/// Validating writes the draft to `ayah_facts` (`AppState.commitCheckIn`),
+/// then pops with the chosen prayers: the caller (`DayPlanTab`) spreads the
+/// plan across rakaas. Leaving without validating writes nothing to
+/// `ayah_facts`, so the day isn't started. The two settings the screen edits
+/// (pages/day, verses to learn/day) are saved as soon as they are tapped,
+/// like in Settings.
 ///
 /// Écran à SECTIONS simultanées (rythme+révision, apprentissage, prières),
 /// pas un wizard séquentiel : le découpage en fichiers suit cette logique
@@ -59,9 +63,11 @@ class CheckInScreen extends StatefulWidget {
 class _CheckInScreenState extends State<CheckInScreen> {
   static const _stepCount = 3;
 
-  List<RevisionUnit>? _units;
-  LearningProgress? _learning;
-  RevisionUnit? _learningUnit;
+  CheckInDraft? _draft;
+  bool _saving = false;
+  List<RevisionUnit>? get _units => _draft?.units;
+  LearningProgress? get _learning => _draft?.learning?.progress;
+  RevisionUnit? get _learningUnit => _draft?.learningUnit;
   final Set<Prayer> _prayers = {};
   int _tahiyyatCount = 0;
   List<Prayer>? _lastPrayers;
@@ -99,24 +105,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
     if (mounted) setState(() => _streak = streak);
   }
 
-  /// Ce qui change au fil des ajustements de l'écran (unités du jour +
-  /// portion à apprendre). La dernière session de prières, elle, ne bouge
-  /// pas pendant le check-in : chargée une seule fois ([_loadLastPrayers]),
-  /// pas à chaque tap de pastille.
   Future<void> _load() async {
-    final state = context.read<AppState>();
-    final unitsF = state.dayUnits();
-    final learningF = state.learningInProgress();
-    final learningUnitF = state.todayLearningUnit();
-    final units = await unitsF;
-    final learning = await learningF;
-    final learningUnit = await learningUnitF;
+    final draft = await context.read<AppState>().checkInStart();
     if (!mounted) return;
-    setState(() {
-      _units = units;
-      _learning = learning;
-      _learningUnit = learningUnit;
-    });
+    setState(() => _draft = draft);
   }
 
   Future<void> _loadLastPrayers() async {
@@ -130,28 +122,23 @@ class _CheckInScreenState extends State<CheckInScreen> {
     });
   }
 
-  Future<void> _remove(RevisionUnit unit) async {
-    await context.read<AppState>().removeFromDayPlan(unit.sourate.id,
-        verseStart: unit.verseStart, verseEnd: unit.verseEnd);
-    await _load();
-  }
+  void _remove(RevisionUnit unit) =>
+      setState(() => _draft = _draft!.without(unit));
 
-  /// Adds a surah to the day plan, then lets the user pick the precise
-  /// **portion** to revise (`VerseRangePicker`, same pattern as check-out's
-  /// "revise a surah in addition", US-3 crit. 1) instead of imposing the
-  /// whole surah. Closing the range picker without confirming cancels the
-  /// addition.
+  /// Lets the user pick the precise **portion** of a surah to add to the draft
+  /// (`VerseRangePicker`, same pattern as check-out's "revise a surah in
+  /// addition", US-3 crit. 1) instead of imposing the whole surah. Closing the
+  /// range picker without confirming cancels the addition.
   Future<void> _addSourate(SourateSelection sel) async {
     if (!mounted) return;
     final s = sel.sourate;
     final range = await VerseRangePicker.show(context, sourate: s, current: sel);
     if (range == null || !mounted) return;
-    await context.read<AppState>().addToDayPlan(RevisionUnit(
+    setState(() => _draft = _draft!.adding(RevisionUnit(
         sourate: s,
         verseStart: range.verseStart,
         verseEnd: range.verseEnd,
-        isWhole: range.isWhole));
-    await _load();
+        isWhole: range.isWhole)));
   }
 
   Future<void> _openAddSheet() async {
@@ -168,14 +155,19 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
   Future<void> _openDetail(RevisionUnit unit) async {
     await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => CheckInDetailScreen(unit: unit),
+      builder: (_) => CheckInDetailScreen(
+        unit: unit,
+        onExtend: (from, to) =>
+            setState(() => _draft = _draft!.replacing(from, to)),
+      ),
     ));
-    await _load();
   }
 
   Future<void> _setPagesPerDay(int pages) async {
-    await context.read<AppState>().setPagesPerDay(pages);
-    await _load();
+    final state = context.read<AppState>();
+    await state.setPagesPerDay(pages, rewriteProposal: false);
+    if (!mounted) return;
+    setState(() => _draft = _draft!.withUnits(state.todayPreviewUnits));
   }
 
   /// Change la sourate en cours d'apprentissage (ou en démarre une). Les
@@ -195,8 +187,23 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   Future<void> _setLearning(Sourate? sourate, int count) async {
-    await context.read<AppState>().setLearningForToday(sourate, count);
-    await _load();
+    final learning =
+        await context.read<AppState>().learningDraftFor(sourate, count);
+    if (!mounted) return;
+    setState(() => _draft = _draft!.withLearning(learning));
+  }
+
+  Future<void> _validate() async {
+    HapticFeedback.mediumImpact();
+    final state = context.read<AppState>();
+    setState(() => _saving = true);
+    try {
+      await state.commitCheckIn(_draft!);
+      await state.markGuideDone('checkin_done');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+    if (mounted) Navigator.of(context).pop(_effectivePrayers);
   }
 
   @override
@@ -287,17 +294,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
           ? PrimaryCtaButton(
               label: SCheckIn.checkInLancerPlan,
               icon: Icons.check_rounded,
-              // Les ajustements (rythme, ajouts/retraits,
-              // apprentissage) sont déjà écrits en direct dans
-              // ayah_facts — "Valider" ne fait que rendre les
-              // prières à l'appelant, qui répartit en rakaas.
-              onPressed: ready
-                  ? () {
-                      HapticFeedback.mediumImpact();
-                      context.read<AppState>().markGuideDone('checkin_done');
-                      Navigator.of(context).pop(_effectivePrayers);
-                    }
-                  : null,
+              onPressed: ready && !_saving ? _validate : null,
             )
           : PrimaryCtaButton(
               label: SCheckIn.suivant,

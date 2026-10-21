@@ -150,8 +150,8 @@ extension AppStateCheckOut on AppState {
   /// buildCycle`, `CLAUDE.md` § "Règle du plan quotidien" part A; fixed
   /// 2026-09-08).
   ///
-  /// Within a group, a unit fully removed at check-in ([removeFromDayPlan])
-  /// no longer has any row in the database: it is ignored (neither counted
+  /// Within a group, a unit the user removed at check-in
+  /// has no row in the database: it is ignored (neither counted
   /// nor blocking) — only a unit that is *present* but not done blocks the
   /// group (and stops the count of subsequent groups), otherwise it would
   /// wrongly break the count of subsequent, genuinely completed groups (bug
