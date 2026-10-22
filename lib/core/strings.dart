@@ -204,7 +204,7 @@ class S {
   static String get semaineDerniereLabel => _t('7 derniers jours', 'Last 7 days');
 
   // Rare milestones (US-13) — never "finished"/"complete": revision has no
-  // end, only rounds (CLAUDE.md § Direction narrative).
+  // end, only rounds (docs/SPEC_PRODUIT.md § Direction narrative).
   static String get jalonTourTitre => _t('Un tour complet', 'A full round');
   static String get jalonTourCorps => _t(
     "Tout ce que tu portes a été revu, page après page. Un nouveau tour commence.",

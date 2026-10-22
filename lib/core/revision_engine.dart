@@ -6,7 +6,7 @@ import '../models/user_config.dart';
 
 /// One day of the cycle, before any rakaa layout.
 ///
-/// See `CLAUDE.md` section "Règle du plan quotidien" — that pseudo-code is the
+/// See `docs/SPEC_PRODUIT.md` section "Règle du plan quotidien" — that pseudo-code is the
 /// spec, this file implements it.
 class DaySelection {
   /// The pages proposed for today. One entry usually = one real mushaf page,
@@ -248,7 +248,7 @@ class RevisionEngine {
   /// `buildCycle`'s "private" fragments, or several entries can share one
   /// real page, see `_takeEntriesForPages`). A day may end up covering more
   /// or fewer real pages than the target: an entry is never split to hit it
-  /// exactly (decision 2026-09-26, `CLAUDE.md` § "Règle du plan quotidien",
+  /// exactly (decision 2026-09-26, `docs/SPEC_PRODUIT.md` § "Règle du plan quotidien",
   /// part D).
   ///
   /// Never returns more entries than the cycle holds, so no page is proposed
@@ -322,7 +322,7 @@ class RevisionEngine {
   /// after being explicitly left undone at check-out (US-3 crit. 4), never
   /// itself proposed or credited. `null` when [ayahId] is the very first
   /// verse of its selection: showing a verse outside the range the user
-  /// chose is never allowed (`CLAUDE.md` § "Règle du plan quotidien", E.3),
+  /// chose is never allowed (`docs/SPEC_PRODUIT.md` § "Règle du plan quotidien", E.3),
   /// so there is no valid predecessor to offer. Also `null` if [surahId]/
   /// [ayahId] is not part of any current selection at all (the user removed
   /// it since the verse was left undone).

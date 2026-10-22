@@ -9,7 +9,7 @@ ne pas en déduire une couverture UI.
 
 | Fichier | Ce qu'il couvre |
 |---|---|
-| `test/core/revision_engine_test.dart` | Le plus gros (1023 lignes) : construction du cycle, règles A-F du plan quotidien (`CLAUDE.md` § « Règle du plan quotidien »), regroupement par page partagée, mélange stable par sourate. Verrouille les invariants E1-E6 — les modifier, c'est changer la règle métier, pas corriger un test. |
+| `test/core/revision_engine_test.dart` | Le plus gros (1023 lignes) : construction du cycle, règles A-F du plan quotidien (`docs/SPEC_PRODUIT.md` § « Règle du plan quotidien »), regroupement par page partagée, mélange stable par sourate. Verrouille les invariants E1-E6 — les modifier, c'est changer la règle métier, pas corriger un test. |
 | `test/core/freshness_engine_test.dart` | Paliers de fraîcheur par verset (`neverRevised`/`sixMonths`/`oneYear`, seuil "récente" 30j). |
 | `test/core/streak_engine_test.dart` | Calcul du streak. |
 | `test/models/prayer_test.dart` | Modèle `Prayer` (rakaas, imamat). |

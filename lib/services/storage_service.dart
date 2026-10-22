@@ -295,7 +295,7 @@ class StorageService {
   }
 
   /// The cycle cursor changed unit on 2026-09-08: it used to index surah
-  /// groups, it now indexes mushaf pages (see `CLAUDE.md`, "Règle du plan
+  /// groups, it now indexes mushaf pages (see `docs/SPEC_PRODUIT.md`, "Règle du plan
   /// quotidien"). An old value would point at an unrelated page, so the cycle
   /// restarts once — deliberate product decision, not a conversion.
   ///
