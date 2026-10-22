@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import 'dome_progress_card.dart';
 
@@ -71,7 +71,8 @@ class CycleProgressCard extends StatelessWidget {
           // mid-sentence (PlanSummaryBar). Home said "Cycle en cours", Recap
           // "CYCLE ACTUEL" — same eyebrow, two cases.
           Text(label.toUpperCase(),
-              style: GoogleFonts.lora(
+              style: TextStyle(
+                  fontFamily: AppText.family,
                   color: onPrimary.withValues(alpha: 0.65),
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -80,7 +81,8 @@ class CycleProgressCard extends StatelessWidget {
           if (newRound)
             Text(S.nouveauTour,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.lora(
+                    style: TextStyle(
+                        fontFamily: AppText.family,
                         color: onPrimary,
                         fontSize: 30,
                         fontWeight: FontWeight.w600,
@@ -111,7 +113,8 @@ class CycleProgressCard extends StatelessWidget {
             onTap: () => _showPagesInfo(context),
             child: Text(
               pagesText,
-              style: GoogleFonts.lora(
+              style: TextStyle(
+                  fontFamily: AppText.family,
                   color: onPrimary.withValues(alpha: 0.75),
                   fontStyle: FontStyle.italic,
                   fontSize: 13),

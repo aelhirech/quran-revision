@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 
 /// Fully-rounded selectable pill chip: filled primary when selected,
 /// outline otherwise. Consolidates the repeated ad-hoc chip pattern used
@@ -46,7 +46,8 @@ class PillChip extends StatelessWidget {
             ],
             Text(
               label,
-              style: GoogleFonts.lora(
+              style: TextStyle(
+                fontFamily: AppText.family,
                 fontSize: 13,
                 color: selected ? palette.onPrimary : palette.textPrimary,
               ),

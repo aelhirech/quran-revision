@@ -3,24 +3,6 @@ import '../core/app_colors.dart';
 import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 
-/// Couleur associée à un niveau de fraîcheur — utilisée par [FreshnessBadge]
-/// et par tout affichage colorant du contenu (ex. chips "à surveiller") selon
-/// la fraîcheur plutôt que d'afficher le badge lui-même.
-Color freshnessColor(FreshnessLevel level, AppPalette palette) {
-  switch (level) {
-    case FreshnessLevel.recent:
-      return palette.primary;
-    case FreshnessLevel.partiallyRecent:
-    case FreshnessLevel.oneMonth:
-    case FreshnessLevel.threeMonths:
-      return palette.gold;
-    case FreshnessLevel.sixMonths:
-    case FreshnessLevel.oneYear:
-    case FreshnessLevel.neverRevised:
-      return palette.danger;
-  }
-}
-
 /// Label court (badge pilule).
 String freshnessLabel(FreshnessLevel level) {
   switch (level) {
@@ -65,7 +47,7 @@ String freshnessDiscreetLabel(FreshnessLevel level) {
 
 /// Sous-titre de rakaa (`PrayerPlanCard`) : tout sauf "récente" — ce badge
 /// signale "pas complètement à jour" en continu dans PlanScreen. Switch
-/// exhaustif (pas un `==`/`||`) comme [freshnessColor]/[freshnessLabel] —
+/// exhaustif (pas un `==`/`||`) comme [freshnessLabel] —
 /// ajouter un niveau à [FreshnessLevel] doit casser la compilation ici aussi,
 /// pas retomber silencieusement sur `true`/`false`.
 bool freshnessShowsBadge(FreshnessLevel level) {
@@ -82,8 +64,9 @@ bool freshnessShowsBadge(FreshnessLevel level) {
   }
 }
 
-/// Badge pilule affichant le niveau de fraîcheur d'une sourate/sélection
-/// (label + couleur).
+/// Badge pilule affichant le niveau de fraîcheur d'une sourate/sélection.
+/// Neutral on purpose: color carries meaning only for levels and forgetting
+/// risk (US-25).
 class FreshnessBadge extends StatelessWidget {
   final FreshnessLevel level;
 
@@ -91,14 +74,14 @@ class FreshnessBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = freshnessColor(level, context.palette);
+    final palette = context.palette;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        border: Border.all(color: color.withValues(alpha: 0.6)),
+        border: Border.all(color: palette.cardBorder),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(freshnessLabel(level), style: TextStyle(fontSize: 10, color: color)),
+      child: Text(freshnessLabel(level), style: TextStyle(fontSize: 10, color: palette.textMuted)),
     );
   }
 }

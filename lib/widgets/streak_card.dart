@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 
 class StreakCard extends StatelessWidget {
@@ -54,7 +54,8 @@ class StreakCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   streak > 0 ? S.streakJours(streak) : S.aucuneSession,
-                  style: GoogleFonts.lora(
+                  style: TextStyle(
+                      fontFamily: AppText.family,
                       color: palette.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.w600),

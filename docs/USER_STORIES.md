@@ -291,7 +291,10 @@ pas la révision.
 à la clôture du sprint, pour que tout nouveau texte les suive.
 
 ### US-25 — Une seule allure, tenue d'un écran à l'autre (extension d'US-15)
-**État** : scopée — blueprint du 2026-10-17, scoping du 2026-10-22. Prolonge US-15 (livrée, voir `docs/SPEC_PRODUIT.md` § Registre visuel) et revient
+**État** : en cours — Sprint A livré (police Outfit, `AppText`, tokens de couleur, contrastes,
+badge de fraîcheur neutre : fondu dans `docs/SPEC_PRODUIT.md` § Registre visuel) ; restent les
+Sprints B1 et B2 (les six styles dans les écrans, crit. 1 et 5). Blueprint du 2026-10-17, scoping
+du 2026-10-22. Prolonge US-15 (livrée, voir `docs/SPEC_PRODUIT.md` § Registre visuel) et revient
 sur son exclusion « pas de nouvelle couleur ni de nouvelle police ». Reprend l'Idée produit « Un
 seul style de titre en capitales » de `docs/CHANGELOG.md`, retirée au scoping.
 
@@ -335,6 +338,7 @@ pour les niveaux ni pour le risque d'oublier.
     Trois graisses seulement : 400, 600, 700.
   - Carreaux, clair puis sombre : pas jouée `#8E8571` / `#4A524D` ; niveau 1 `#3C8F62` / `#4FA873` ;
     niveau 2 `#24909B` / `#45B5C2` ; niveau 3 `#2F5FB3` / `#6C97F0` ; niveau 4 `#2E2A78` / `#7B6CF0`.
+    Gris sombre livré en `#626A65` au Sprint A : `#4A524D` n'atteignait que 2,3:1 sur le fond.
     Risque d'oublier : `#C2571F` / `#F0936B`. Le cœur doré réutilise `palette.gold`.
   - Contrastes corrigés : `textMuted` clair `#5A635D` (5,6:1, valeur des maquettes, au lieu de
     3,9) ; `danger` sombre `#F28B7D` (7,8:1, au lieu de 2,3) ; `goldDark` clair `#806226` (5,1:1,
@@ -362,7 +366,7 @@ pour les niveaux ni pour le risque d'oublier.
   3:1 ; clair et sombre ; la carte composée sur le fond par `Color.alphaBlend`) ; famille Outfit
   portée par `buildAppTheme`. À l'œil sous Windows : clair et sombre, 390, 360 et 320 px, texte
   ×1,5. Non vérifiable ici : le rendu sur iPhone.
-- **Item Backlog** : `[P2] US-25 Sprint A`, `[P2] US-25 Sprint B1`, `[P2] US-25 Sprint B2`.
+- **Item Backlog** : `[P2] US-25 Sprint B1`, `[P2] US-25 Sprint B2` (Sprint A livré).
 
 **Ajustement au scoping** (2026-10-22) :
 - Crit. 3 (forme du carreau) : passe à US-21, qui crée le seul écran qui affiche des carreaux.

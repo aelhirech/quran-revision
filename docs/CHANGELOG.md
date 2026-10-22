@@ -44,47 +44,8 @@ et l'apprentissage dans une seconde section « À apprendre ».
 - **Doc** : `docs/SPEC_PRODUIT.md` (partie D de la règle du plan : « aucune prière = tout hors prières, apprentissage
   en seconde section ») ; `docs/DOCUMENTATION_TECHNIQUE.md` §8.1 ; US-4 à recouper.
 
-### [P2] US-25 Sprint A — Police Outfit, six styles, tokens de couleur et contrastes
-Premier sprint d'US-25, sans dépendance. US-21 et US-23 consomment ses tokens et ses styles. Valeurs
-reprises des maquettes Zellige : voir le scoping d'US-25 dans `docs/USER_STORIES.md`.
-- **Fontes** : `assets/fonts/` reçoit Outfit en trois fichiers statiques (Regular 400, SemiBold 600,
-  Bold 700) et `OFL.txt`. `pubspec.yaml` les déclare dans une section `fonts:`, famille `Outfit`.
-  Aucune nouvelle dépendance, aucun téléchargement au lancement. Pas de fonte variable.
-- **`lib/core/app_theme.dart`** : le `textTheme` (l. 36-48, aujourd'hui `GoogleFonts.loraTextTheme`)
-  passe à Outfit. Correspondance : `headlineMedium` titre d'écran, `labelSmall` titre de section,
-  `titleMedium` titre de carte, `bodyLarge` et `bodyMedium` texte, `bodySmall` légende,
-  `displayMedium` grand chiffre. AppBar, NavigationBar, boutons et chips passent à
-  `fontFamily: 'Outfit'`. Nouvelle classe `AppText` dans ce fichier : six `static const TextStyle`
-  sans couleur (titre d'écran 28/600, interligne 40, lettres −0,4 ; titre de section 11/600,
-  lettres +2 ; titre de carte 17/600 ; texte 15/400 ; légende 13/400 ; grand chiffre 56/700). La
-  couleur s'ajoute par `copyWith(color: context.palette.…)`. Les littéraux `primaryContainer`,
-  `onSurfaceVariant`, `onError` et `errorContainer` (l. 22-32) deviennent des tokens d'`AppPalette`.
-- **Les 8 `GoogleFonts.lora(...)` hors thème** (`series_screen.dart:55`,
-  `cycle_progress_card.dart:74,83,114`, `learning_progress_card.dart:61`, `pill_chip.dart:49`,
-  `prayer_plan_card.dart:58`, `streak_card.dart:57`) : `TextStyle(fontFamily: 'Outfit', …)`, tailles
-  et couleurs inchangées (les tailles changent aux Sprints B1 et B2).
-- **`lib/core/app_colors.dart`** : `textMuted` clair `#5A635D` ; `danger` sombre `#F28B7D` ;
-  `goldDark` clair `#806226`. Nouveaux champs `levelTints` (5 couleurs) et `risk`, avec `copyWith`
-  et `lerp`. Clair : `#8E8571`, `#3C8F62`, `#24909B`, `#2F5FB3`, `#2E2A78`, risque `#C2571F`.
-  Sombre : `#4A524D`, `#4FA873`, `#45B5C2`, `#6C97F0`, `#7B6CF0`, risque `#F0936B`.
-- **`lib/widgets/freshness_badge.dart`** : le badge garde son texte, sans couleur de sens
-  (`textMuted`, bordure `cardBorder`), pour tous les niveaux de fraîcheur. Utilisé par
-  `prayer_plan_card.dart` et `sourates_recap_card.dart`.
-- **Tests** : nouveau `test/core/app_palette_contrast_test.dart` (ratio WCAG calculé : texte
-  `textPrimary`, `textMuted`, `primary`, `danger`, `goldDark` à 4,5:1 sur le fond et sur la carte
-  composée par `Color.alphaBlend` ; `risk` et les 5 `levelTints` à 3:1 sur le fond ; clair et
-  sombre). Test que `buildAppTheme(...)` porte la famille `Outfit` dans son `textTheme`. Vérifier
-  que `flutter test` charge les fontes déclarées (deux tests mettent `allowRuntimeFetching = false`).
-- **Vérification à l'œil sous Windows** : clair et sombre ; plan du jour, check-in, check-out,
-  Récap, onglet Quiz, réglages ; 390×844, 360×640 et 320×568, texte ×1,5. Remesurer la barre
-  d'onglets (Idée produit « Barre à quatre onglets »).
-- **Exclus** : les tailles dans les écrans (Sprints B1 et B2), les formes de carreau (US-21), le
-  texte arabe, les polices arabes embarquées (item à part).
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §9 (Outfit, `AppText`, nouveaux tokens) et §11 (test
-  de contraste).
-
 ### [P2] US-25 Sprint B1 — Les six styles sur le plan du jour, le check-in et le check-out
-Dépend du Sprint A.
+Le Sprint A est livré : `AppText` (`lib/core/app_theme.dart`) porte les six styles.
 - **Périmètre** : accueil et plan du jour (`plan_screen.dart`, `home_screen.dart`, cartes
   `cycle_progress_card`, `streak_card`, `learning_progress_card`, `prayer_plan_card`,
   `hadith_card`, `pill_chip`), check-in (`check_in_screen.dart`, `prayer_selector.dart`,
@@ -106,7 +67,7 @@ Dépend du Sprint A.
 - **Exclus** : mise en page, couleurs de niveau, le reflet `Colors.white` de `plan_screen.dart:346`.
 
 ### [P2] US-25 Sprint B2 — Les six styles sur les réglages, l'onboarding et la vue Coran
-Dépend du Sprint A. Indépendant de B1.
+Le Sprint A est livré. Indépendant de B1.
 - **Périmètre** : réglages (`profile_screen.dart`, 361 lignes : extraire avant si le remplacement
   ajoute des lignes), onboarding (`lib/screens/onboarding/`), vue Coran et feuille de versets (texte
   latin seulement : titres, traductions, boutons), séries (`series_screen.dart`, dont le titre en
@@ -122,8 +83,8 @@ Dépend du Sprint A. Indépendant de B1.
 ### [P2] Embarquer Amiri et Scheherazade dans l'app
 Relevé au scoping d'US-25 (2026-10-22). Les polices du texte coranique sont téléchargées par
 `google_fonts` au premier affichage : hors connexion au premier lancement, le Coran s'affiche dans la
-police du système. Tâche technique, hors blueprint. À faire après US-25 Sprint A (même dossier
-`assets/fonts/`).
+police du système. Tâche technique, hors blueprint. US-25 Sprint A a créé `assets/fonts/` (Outfit,
+déclaré dans `pubspec.yaml`).
 - **Fontes** : les fichiers Amiri et Scheherazade New utilisés par l'app (graisses à relever sur les
   12 appels existants) vont dans `assets/fonts/` avec leurs licences OFL. `google_fonts` les trouve
   dans les assets par leur nom de fichier : garder le nom exact attendu par le package
@@ -227,7 +188,9 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   Récap compte la sourate comme mémorisée. Il reste à choisir : élargir la sélection à la sourate
   entière au hand-off, ou la laisser telle que l'utilisateur l'a réglée.
 - **Barre à quatre onglets : « Renforcement » se coupe en deux lignes quand le texte est agrandi**
-  (à remesurer : US-24 renomme l'onglet « Quiz », US-25 Sprint A passe la barre en Outfit)
+  (remesuré en Outfit au sprint 24, US-25 Sprint A, 2026-10-22 : « Renforcement » occupe 76,5 px au
+  lieu de 79,4 à la taille par défaut, et passe toujours sur deux lignes à 320 px ×1,5, comme avant ;
+  à remesurer quand US-24 renommera l'onglet « Quiz »)
   (relevé au Sprint B d'US-20, 2026-10-13, mesuré sous Windows) : à la taille de texte par défaut,
   les quatre libellés tiennent sur une ligne à 390, 360 et 320 px (« Renforcement » occupe 79,4 px
   sur 80 à 320 px). Avec un texte système agrandi, le mot passe sur deux lignes (« Renforceme /
@@ -267,6 +230,21 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   ligne « mot : sens » est écrit dans la police du système et non en Amiri : lisible sous
   Windows, non vérifié sur iPhone. Il reste à choisir où afficher la référence et comment
   désigner le mot autrement que par la couleur, et à regarder cette ligne sur un iPhone.
+- **320×568 avec texte ×1,5 : débordements et mots coupés hors vue Coran** (relevés au sprint 24,
+  US-25 Sprint A, 2026-10-22, sous Windows ; tous présents avant le passage à Outfit, qui les
+  réduit) : au check-in, le bouton « Choisir une sourate à apprendre » déborde de 23 px (39 en
+  Lora) et la ligne « Mes prières du jour » + « Dernières prières » de 88 px (101 en Lora) ; la
+  carte de série du Récap coupe « Aucune session enregistrée » au milieu des mots ; aux Réglages,
+  le libellé « Rythme » s'écrit une lettre par ligne ; le titre « Révision en cours » est tronqué.
+  Seul changement dû à Outfit : la plage « (v.1–10) » d'une rakaa se coupe désormais après le
+  tiret. Il reste à choisir le correctif (plafonner l'agrandissement du texte, passer à la ligne,
+  raccourcir), comme pour les deux débordements de la vue Coran ci-dessus. Le Récap est reconstruit
+  par US-23 : à revérifier après.
+- **Italique synthétique en Outfit** (relevé au sprint 24, US-25 Sprint A, 2026-10-22) : Outfit
+  n'a pas de fichier italique, Flutter penche donc les lettres (hadith du jour, « 10 versets »,
+  plage « v.1–40 » du check-out, « jours de révision »). Lisible sous Windows, non vérifié sur
+  iPhone. Les six styles d'US-25 n'ont pas d'italique. Il reste à choisir aux Sprints B1/B2 :
+  retirer l'italique (le style de légende suffit) ou le garder penché.
 - **Sélecteur de plage : « Tout sélectionner » passe sur deux lignes** (relevé au sprint 20,
   2026-10-13, vu sous Windows à 390 px, taille de texte par défaut, en clair et en sombre) : dans
   `VerseRangePicker`, le bouton de gauche écrit « Tout / sélectionner » sur deux lignes, calé à
