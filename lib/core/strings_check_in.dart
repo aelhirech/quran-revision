@@ -34,10 +34,11 @@ class SCheckIn {
       S._t('$n verset${n > 1 ? 's' : ''}', '$n verse${n > 1 ? 's' : ''}');
   static String get checkInPrieres => S._t('Mes prières du jour', "Today's prayers");
   static String get checkInPrieresDesc => S._t(
-      "Celles où c'est toi qui récites — seul ou en imam.",
-      "The ones where you recite — alone or leading as imam.");
-  static String get checkInPrieresManquantes =>
-      S._t('Choisis au moins une prière', 'Pick at least one prayer');
+      "Celles où c'est toi qui récites — seul ou en imam. Facultatif.",
+      "The ones where you recite — alone or leading as imam. Optional.");
+  static String get checkInSansPriere => S._t(
+      'Sans prière, tout ton plan sera en dehors des prières',
+      'With no prayer, your whole plan goes outside prayers');
   static String get checkInLancerPlan => S._t('Voir mon plan du jour', 'See my daily plan');
   static String get checkInVersetsInclus =>
       S._t('Versets inclus aujourd\'hui', 'Verses included today');

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quran_revision/core/day_dates.dart';
 import 'package:quran_revision/core/revision_engine.dart';
+import 'package:quran_revision/models/prayer.dart';
 import 'package:quran_revision/models/revision_unit.dart';
 import 'package:quran_revision/models/riwaya.dart';
 import 'package:quran_revision/models/sourate.dart';
@@ -10,6 +11,7 @@ import 'package:quran_revision/models/user_config.dart';
 import 'package:quran_revision/services/ayah_facts_service.dart';
 import 'package:quran_revision/services/hafs_service.dart';
 import 'package:quran_revision/services/page_metadata_service.dart';
+import 'package:quran_revision/services/storage_service.dart';
 import 'package:quran_revision/models/check_in_draft.dart';
 import 'package:quran_revision/state/app_state.dart';
 
@@ -638,6 +640,35 @@ void main() {
     expect(state.config!.pagesPerDay, 2);
     expect(await AyahFactsRitual.dayFacts(dayKey(DateTime.now()), Riwaya.hafs),
         isEmpty);
+  });
+
+  test(
+      'check-in validé sans prière : manche construite hors des rakaas, '
+      'reprise après redémarrage, prières d\'hier gardées (US-27 crit. 6-7)',
+      () async {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    await StorageService.saveLastSessionPrayers(
+        yesterday, [Prayer.fajr], Riwaya.hafs);
+    final state = AppState(_config(), riwaya: Riwaya.hafs);
+    await validateCheckIn(state);
+    await state.setLearningForToday(
+        state.sourates.firstWhere((s) => s.id == 108), 2);
+
+    await state.buildTodaySession(const []);
+    final session = state.todaySession;
+    expect(session, isNotNull, reason: 'aucune prière ne bloque plus la manche');
+    expect(session!.plan, isEmpty);
+    expect(session.outsidePrayers, await state.dayUnits());
+    expect(session.outsideLearning?.sourate.id, 108);
+
+    final restarted = AppState(_config(), riwaya: Riwaya.hafs);
+    await restarted.ensureDayPlan();
+    expect(restarted.todaySession?.outsideLearning?.sourate.id, 108,
+        reason: '`active_prayers` vaut [] : la manche sans prière se reprend');
+
+    final last = await StorageService.loadLastSessionPrayers(Riwaya.hafs);
+    expect(last?.prayers, [Prayer.fajr],
+        reason: 'une manche sans prière n\'efface pas « reprendre hier »');
   });
 
   test('addableSelections ne propose que la sélection, hors plan, dans l\'ordre du mushaf',

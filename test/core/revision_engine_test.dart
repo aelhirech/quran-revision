@@ -557,6 +557,23 @@ void main() {
       expect(filled.length, 4);
       expect(filled.every((r) => !r.isLearning), isTrue);
     });
+
+    test('avec des prières, outsideLearning est nul (US-27 crit. 7)', () {
+      final layout = RakaaDistributor.distributeToRakaas(
+          units: revision, prayersAlone: prayers, learningUnit: learning);
+      expect(layout.outsideLearning, isNull);
+      expect(recited(layout.plan).last.unit, learning);
+    });
+
+    test(
+        'sans prière, toute la révision part hors prières et '
+        "l'apprentissage dans outsideLearning (US-27 crit. 7)", () {
+      final layout = RakaaDistributor.distributeToRakaas(
+          units: revision, prayersAlone: const [], learningUnit: learning);
+      expect(layout.plan, isEmpty);
+      expect(layout.outside, revision);
+      expect(layout.outsideLearning, learning);
+    });
   });
 
   group('RevisionEngine — cas limites', () {

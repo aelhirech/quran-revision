@@ -137,7 +137,8 @@ extension AppStateDayPlan on AppState {
       // check-in/PlanScreen start earlier the same day (prayers already
       // chosen).
       final activePrayers = await StorageService.loadActivePrayers(_riwaya);
-      if (activePrayers != null && activePrayers.isNotEmpty) {
+      // `[]` is a validated round without prayers (US-27 crit. 6), not absence.
+      if (activePrayers != null) {
         await buildTodaySession(activePrayers, notify: false);
       }
     }
@@ -264,7 +265,7 @@ extension AppStateDayPlan on AppState {
   /// app restart before the session ends.
   Future<void> buildTodaySession(List<Prayer> prayersAlone,
       {bool notify = true}) async {
-    if (_config == null || prayersAlone.isEmpty) return;
+    if (_config == null) return;
     // Two independent SQLite reads, started together rather than in series;
     // the cycle selection is a pure computation, done after so it doesn't
     // delay their start.
@@ -292,16 +293,19 @@ extension AppStateDayPlan on AppState {
       cyclePosition: pagesProgress.pos,
       cycleTotal: pagesProgress.total,
       outsidePrayers: layout.outside,
+      outsideLearning: layout.outsideLearning,
     );
     // `saveActivePrayers` = resume the in-progress session after a restart;
     // `saveLastSessionPrayers` = feeds "resume yesterday's prayers" at the
     // next check-in. Written here, when prayers are chosen, rather than at
     // session "completion" — since Phase 9 Sprint 2 there's no more session
     // completion, the day ends at check-out (see `PlanScreen.onCloturer`).
+    // An empty choice must not erase "yesterday's prayers" for the next day.
     await Future.wait([
       StorageService.saveActivePrayers(prayersAlone, _riwaya),
-      StorageService.saveLastSessionPrayers(
-          DateTime.now(), prayersAlone, _riwaya),
+      if (prayersAlone.isNotEmpty)
+        StorageService.saveLastSessionPrayers(
+            DateTime.now(), prayersAlone, _riwaya),
     ]);
     if (notify) _notify();
   }

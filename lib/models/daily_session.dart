@@ -49,6 +49,10 @@ class DailySession {
   /// check-out will still credit. Shown as its own block instead.
   final List<RevisionUnit> outsidePrayers;
 
+  /// Today's learning portion when no recited rakaa can host it (no prayer
+  /// chosen), shown in its own "À apprendre" block.
+  final RevisionUnit? outsideLearning;
+
   const DailySession({
     required this.date,
     required this.prayersAlone,
@@ -57,6 +61,7 @@ class DailySession {
     required this.cyclePosition,
     required this.cycleTotal,
     this.outsidePrayers = const [],
+    this.outsideLearning,
   });
 
   int get totalRakaas =>
