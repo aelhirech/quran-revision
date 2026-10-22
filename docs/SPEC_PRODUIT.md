@@ -534,6 +534,15 @@ une phrase qui l'explique au moment où elle compte.
 
 - Direction artistique **Mus'haf** (clair : papier crème, vert, or) et **Tahajjud** (sombre),
   registre **sobre et solennel** : lumière dorée, ornement qui se dessine, fondu lent.
+- **Une seule police latine, Outfit**, embarquée dans l'app (même rendu hors connexion au premier
+  lancement). Le texte coranique garde ses polices arabes.
+- **Une couleur, un sens.** Les badges de date de révision du plan du jour et du Récap sont
+  neutres (texte secondaire, sans couleur) quel que soit le niveau. Seuls les niveaux de jeu
+  (quatre teintes froides du vert au bleu nuit, un gris pour « pas encore jouée ») et le risque
+  d'oublier (orange, qui lui est réservé) porteront un sens par la couleur ; ces couleurs sont
+  définies une fois, en clair et en sombre, et ne sont pas encore affichées.
+- **Lisibilité** : en clair comme en sombre, le texte atteint un contraste de 4,5:1 sur le fond et
+  sur les cartes, les teintes de niveau et l'orange 3:1.
 - **Aucun emoji** comme illustration, y compris dans les titres de notification.
 - L'effet fort est réservé aux **moments rares** (jalons) ; la clôture quotidienne reste courte ;
   le reste est de la finition diffuse. Check-in et check-out partagent le même langage (en-tête,
@@ -541,3 +550,6 @@ une phrase qui l'explique au moment où elle compte.
 - Les trois couches se nomment **en clair** : aucun terme traditionnel arabe dans l'interface
   (sabaq, sabqi, manzil, wird), aucune personnification d'un enseignant. L'app ne corrige ni la
   récitation ni le tajwid.
+
+**Ne fait pas** : pas de sélecteur de thème (l'app suit le réglage de l'appareil), pas de couleurs
+de tajwid.

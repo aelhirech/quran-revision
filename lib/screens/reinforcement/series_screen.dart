@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_theme.dart';
 import '../../core/reinforcement_engine.dart';
 import '../../core/strings.dart';
 import '../../models/sourate.dart';
@@ -52,7 +52,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
   Sourate _sourate(int id) => context.read<AppState>().sourateById(id)!;
 
   Widget _eyebrow(String text, AppPalette palette) => Text(text.toUpperCase(),
-      style: GoogleFonts.lora(
+      style: TextStyle(
+          fontFamily: AppText.family,
           color: palette.textMuted,
           fontSize: 11,
           fontWeight: FontWeight.w600,

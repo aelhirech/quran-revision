@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import 'index_badge.dart';
@@ -58,7 +59,8 @@ class LearningProgressCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(s.nameFr,
-                              style: GoogleFonts.lora(
+                              style: TextStyle(
+                                  fontFamily: AppText.family,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 15,
                                   color: palette.textPrimary)),

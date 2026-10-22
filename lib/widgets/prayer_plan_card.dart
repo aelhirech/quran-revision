@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/freshness_engine.dart';
 import '../core/prayer_l10n.dart';
 import '../core/strings.dart';
@@ -55,7 +56,8 @@ class PrayerPlanCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(pp.prayer.displayName,
-                    style: GoogleFonts.lora(
+                    style: TextStyle(
+                        fontFamily: AppText.family,
                         fontWeight: FontWeight.w600,
                         color: palette.textPrimary,
                         fontSize: 15)),
