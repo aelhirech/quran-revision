@@ -80,7 +80,7 @@ est livrée (2026-10-13, voir « Archivées »), US-22 la suit (droits de la sou
 
 ### US-21 — Ma mosaïque : mes niveaux, mes questions ratées, ce que je risque d'oublier
 **État** : à scoper — blueprint du 2026-10-13, réécrit au blueprint Zellige du 2026-10-17 (voir le
-cadre commun plus bas). S'appuie sur US-20. Reprend les Idées produit « Mode "versets à
+cadre commun plus bas), validé par l'utilisateur le 2026-10-22. S'appuie sur US-20. Reprend les Idées produit « Mode "versets à
 retravailler" en jeu à part » et « Gamification narrative [H] » de `docs/CHANGELOG.md`, à retirer
 de ce fichier au scoping.
 
@@ -134,11 +134,11 @@ par ligne, au bas de l'écran.
 - Une question ratée ne change rien au plan de révision : le plan ne lit rien de l'onglet. Il tient
   compte de la dernière révision (US-26), jamais des questions.
 - Le compteur « N mots connus sur M » (US-22 crit. 4, reporté ici) est retiré : un indicateur de
-  plus irait contre le test des 3 secondes. Les mots ratés reviennent (crit. 4). _Proposition du
-  blueprint du 2026-10-17, à valider._
+  plus irait contre le test des 3 secondes. Les mots ratés reviennent (crit. 4). Validé par
+  l'utilisateur le 2026-10-22.
 - L'Idée produit « SRS réel par verset » reste ouverte, à part.
 
-**Défaut posé sans demander, à confirmer** : une sourate en cours d'apprentissage n'a pas de
+**Défaut validé par l'utilisateur le 2026-10-22** : une sourate en cours d'apprentissage n'a pas de
 carreau ; elle entre dans la mosaïque quand elle passe en révision.
 
 **Points à lever au scoping** : le nombre de réussites et d'erreurs qui fait monter ou descendre
@@ -146,152 +146,6 @@ un niveau ; le niveau 4, qui demande de séparer « versets voisins » et « ver
 ressemblent », regroupés jusqu'ici ; ce que devient le niveau d'une sourate retirée de la
 sélection puis remise, ou dont la plage change ; le carreau d'une plage partielle ; l'ordre des
 sourates à risque ; la place de la mosaïque à côté du bouton « Choisir une sourate ».
-
-### US-22 — Comprendre les mots que je récite (questions de mots, trois modes)
-**État** : en sprint — Sprint C livré le 2026-10-13 (branche
-`feature/phase-25-sprint18-questions-de-mots`) : crit. 1, 2, 3, 5 et 6. Reste le crit. 4 (compte
-des mots connus), qui se livre avec US-21. Non vérifié sur appareil réel : le temps de composition
-d'une série, et la ligne « mot : sens » sous un mauvais choix (arabe en police du système).
-Blueprint et scoping du 2026-10-13. Reprend l'Idée produit « Jeu mot arabe → traduction »,
-retirée de `docs/CHANGELOG.md` à ce scoping. Prolonge US-19 (lire le sens), pas la révision.
-
-**Statement** : En tant qu'utilisateur francophone qui récite sans comprendre chaque mot, je veux
-que la série me demande aussi le sens de mots tirés des versets que je porte, afin de comprendre
-ce que je récite, ce qui m'aide à le retenir.
-
-**Diagnostic (état après US-19 et US-20)** : la traduction se lit verset par verset, sur demande,
-et rien ne vérifie qu'un mot est compris. La série n'interroge que l'ordre des versets.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given une série, du jour ou sur une sourate, Then des questions de mots s'y mêlent aux
-   questions de versets (choix utilisateur du 2026-10-13). Dans un sens : un mot montré dans le
-   verset où il est récité, quatre sens au plus, un seul juste. Dans l'autre : un sens, quatre
-   mots arabes au plus.
-   _Modifié le 2026-10-13 (demande de l'utilisateur)_ : trois modes au choix. « Mélange » mêle
-   les deux types de questions, « Versets » ne pose que la suite d'un passage, « Traduction » ne
-   pose que des mots.
-2. Given une question de mot, Then le mot et les mauvais choix viennent des sourates que
-   l'utilisateur porte. Un mauvais choix n'est jamais un autre sens acceptable du même mot.
-3. Given une réponse, bonne ou non, Then le bon sens est affiché avec le verset, et la source du
-   mot à mot est citée.
-4. Given l'onglet Renforcement, Then une mesure dit combien de mots de ses sourates l'utilisateur
-   reconnaît (« N mots connus sur M »). Un mot raté sort du compte jusqu'à ce qu'il soit retrouvé.
-   _Retiré au blueprint Zellige du 2026-10-17 (proposition, à valider) : ce compteur irait contre
-   le test des 3 secondes d'US-21. Les mots ratés reviennent (US-21 crit. 4). Si le retrait est
-   validé, US-22 n'a plus de critère ouvert et peut être archivée._
-5. Given la riwaya Warsh, ou une langue de l'app sans source mot à mot, Then la série ne contient
-   que des questions de versets, sans message d'erreur ni question manquante.
-6. Given une série mêlée, Then le score compte les deux types de questions ensemble. Le palier
-   d'une sourate (US-21) ne dépend que des questions de versets.
-
-**Prérequis** (écrits au blueprint, revus au scoping du 2026-10-13) :
-- **Droits de la source française : levé.** Le README de CoranMot (Dr Usama Nonnenmacher,
-  `github.com/DrUsamaN/CoranMot`), lu le 2026-10-13, dit : « Cette traduction peut être utilisée
-  dans tout projet Islamique, mais veuillez ne pas la modifier. Rappelez-vous s'il-vous-plaît de
-  mentionner la source de la traduction. » Trois conditions, donc : projet islamique, aucune
-  modification, source citée. Le blueprint ajoutait « pas de publicité » et « lui écrire avant
-  tout usage », repris d'une note de `docs/CHANGELOG.md` : ni l'un ni l'autre ne figure dans le
-  README. Écrire à l'auteur reste une courtoisie, pas une condition.
-- **Le poids de cette source dans un QCM : assumé par l'utilisateur** (demande du 2026-10-13
-  d'intégrer le jeu). Elle a été jugée « d'un rendu interprétatif, sans relecture savante
-  revendiquée » et écartée de l'affichage pour US-19. Ici, elle sert à dire qu'un sens n'est pas
-  le bon. Exemples relevés au scoping, affichés tels quels puisque la source interdit de la
-  modifier : كُرۡسِيُّهُ rendu par « Son tabouret pour Pieds » (2:255), وَكَوَاعِبَ par « et des
-  femmes aux seins volumineux » (78:33).
-- **Pas de source anglaise.** Le Quranic Arabic Corpus est annoncé sous licence GPL, le dépôt est
-  public sous MIT. En anglais, la série reste sans questions de mots (crit. 5).
-
-**Exclusions explicites** :
-- **Pas de cours de mots fréquents du Coran** (choix utilisateur du 2026-10-13) : les mots viennent
-  de ce que l'utilisateur récite, pas d'un programme général.
-- La série de mots séparée, exclue au blueprint, est rétablie le 2026-10-13 par le mode
-  « Traduction » (crit. 1).
-- Aucune retouche ni filtrage du texte des sens : la source demande à ne pas être modifiée.
-- Pas de grammaire, de racines ni de morphologie, pas de translittération.
-- Pas de mot à mot affiché dans la vue Coran : l'exclusion d'US-19 tient.
-- Pas de questions de mots en Warsh.
-
-**Défaut posé sans demander, à confirmer** : un mot raté sort du compte (crit. 4), par cohérence
-avec le palier qui peut se perdre.
-
-**Scoping technique** (2026-10-13) :
-- **Fichiers UI** : `lib/screens/reinforcement/reinforcement_tab.dart` (sélecteur de mode) et
-  `series_screen.dart` (vue d'une question de mot), tous deux créés au Sprint B d'US-20 ;
-  `widgets/passage_choice.dart` (un paramètre pour un choix en texte latin) ;
-  `lib/widgets/arabic_verse_text.dart` (33 lignes, un mot mis en or) ;
-  `lib/core/strings_reinforcement.dart` (six libellés).
-- **Nouveaux fichiers** : `assets/quran/wbw/fr.coranmot.tsv` (~1,7 Mo, déclaré dans
-  `pubspec.yaml`) ; `lib/services/word_gloss_service.dart` (~40 lignes) ;
-  `lib/core/reinforcement_words.dart` (~130 lignes, `part of` du moteur d'US-20).
-- **Variables / champs** : le mode choisi et les mots posés à la série précédente vivent dans le
-  `State` de l'onglet. Aucune clé `SharedPreferences`, rien dans `AppState`.
-- **`ayah_facts`** : aucune lecture ni écriture de plus que celles d'US-20.
-- **Décision data model** : les sens sont une donnée externe figée, comme le texte arabe et les
-  traductions d'US-19 : un asset, pas une table. Le mode est un état UI éphémère. Le crit. 4
-  (compte des mots connus) demande de retenir des réponses : il se tranche avec US-21, qui pose
-  la même question pour les paliers.
-- **Réutilisation** : `ReinforcementEngine` d'US-20 (découpe en passages pour montrer le mot dans
-  son contexte, normalisation, règle de tirage) ; `SeriesScreen`, `SeriesMarks`,
-  `PassageChoice` ; `ArabicVerseText` étendu plutôt que doublé. `TranslationService` (US-19)
-  n'est pas réutilisé : il range un texte par verset, ici il en faut un par mot.
-- **Mesures sur les données** (2026-10-13) :
-  - La source fournit une table à clés (`sura`, `ayah`, `word`, `fr`) de 77 429 lignes. Le texte
-    Hafs de l'app compte 77 430 mots.
-  - Le nombre de mots par verset est identique dans 6 229 versets sur 6 236. Les 7 autres
-    diffèrent d'un mot (2:181, 8:6, 13:37, 15:7, 27:20, 36:22, 37:130) : ils ne sont jamais
-    interrogés.
-  - 82 % des mots sont posables (mot arabe d'au moins 3 lettres, sens qui ne se réduit pas à une
-    particule) : 63 921 sur tout le Coran, 1 948 sur le juz 30 pour 1 216 formes différentes,
-    9 sur Al-Ikhlas. La règle telle qu'elle est codée au Sprint C en trouve 63 949 sur tout le
-    Coran (28 de plus, écart non expliqué) ; les trois autres mesures sont retrouvées à
-    l'identique.
-  - Aucun sens ne contient de tabulation ni de saut de ligne : un export tabulé est sûr.
-- **Risques / dépendances** :
-  - **Ordre imposé : après les Sprints A et B d'US-20.** Ce sprint renomme une classe du moteur
-    et étend l'onglet et l'écran de série qu'ils créent.
-  - **Contenu des sens.** Certains sont longs, doctrinalement marqués ou crus (voir
-    « Prérequis »). Ils s'affichent tels quels. Aucun tri n'est prévu.
-  - **Deux mots différents peuvent avoir des sens voisins.** Un mauvais choix est écarté s'il
-    partage un mot de 4 lettres ou plus avec le bon sens. Cela retire « un livre » face à « Le
-    Livre », pas deux synonymes sans mot commun.
-  - **Sept versets sans alignement** : la règle « même nombre de mots » les écarte. Si le texte
-    arabe de l'app change de source, ce nombre peut changer : le test le verrouille.
-  - **Asset de 1,7 Mo chargé à la première série de mots**, puis gardé en mémoire. Dans un test
-    widget, il se précharge en `setUpAll` (même piège que les traductions d'US-19).
-  - **Dépôt public sous MIT** : le fichier des sens n'en relève pas. À écrire dans
-    `docs/DOCUMENTATION_TECHNIQUE.md` §10.
-  - US-19 (au Backlog) ajoute aussi un asset et un service de texte : fichiers distincts, ordre
-    libre.
-- **Tests** : `test/services/word_gloss_service_test.dart` (vrai asset : nombre de lignes,
-  alignement, les sept versets, un verset connu) ; `test/core/reinforcement_words_test.dart`
-  (mot posé d'au moins 3 lettres, un seul bon sens, aucun mauvais choix voisin du bon, versets
-  non alignés jamais posés, mélange à 5 et 5, repli sur les passages sans données). Sélecteur de
-  mode, mot en or, sens longs : vérification visuelle sous Windows.
-- **Item Backlog** : `[P2] US-22 Sprint C — Questions de mots et trois modes (français, Hafs)`,
-  livré le 2026-10-13 et retiré du Backlog.
-
-**Livraison du Sprint C** (2026-10-13) — ce que le code a précisé :
-- Les mots arabes proposés dans une question sont tous différents entre eux, pas seulement
-  différents du mot posé : sinon le même mot pouvait apparaître deux fois en « sens vers arabe ».
-- En « Mélange », la part du plan du jour est de 4 questions sur 10 au plus (2 passages et
-  2 mots) : « au plus la moitié » s'applique à chaque moitié de cinq.
-- Les espaces insécables de la source sont gardées (`Dis :` s'écrit avec une insécable).
-- Restent **à confirmer** par l'utilisateur, livrés tels que le scoping les posait : les libellés
-  « Mélange », « Versets », « Traduction », le mode « Mélange » présélectionné, et le report du
-  crit. 4 à US-21.
-
-**Ajustement au scoping** (2026-10-13) — crit. 1, 2, 4 et 5 précisés :
-- **Crit. 1** : les trois modes (demande de l'utilisateur). « Mélange » pose cinq questions de
-  passages et cinq de mots. Les libellés « Mélange », « Versets », « Traduction » et le mode
-  présélectionné : non validés, à confirmer.
-- **Crit. 2** : un mot n'est posé que s'il a au moins 3 lettres et un sens qui ne se réduit pas à
-  une particule. Un mauvais choix ne porte jamais le même mot arabe, ni un sens qui partage un
-  mot de 4 lettres ou plus avec le bon.
-- **Crit. 4, reporté** : le compte « N mots connus sur M » se livre avec US-21, parce qu'il
-  demande de retenir des réponses. Le Sprint C ne retient rien. Validé par l'utilisateur : non,
-  à confirmer.
-- **Crit. 5** : en Warsh ou en anglais, le sélecteur de mode n'apparaît pas et l'onglet reste
-  celui d'US-20.
 
 ### Cadre commun du blueprint Zellige (2026-10-17) : US-21, US-23, US-24, US-25 et US-26
 
@@ -365,7 +219,7 @@ bas.
   Renforcement (US-21 crit. 4).
 
 ### US-24 — L'app parle avec des mots de tous les jours
-**État** : à scoper — blueprint du 2026-10-17.
+**État** : à scoper — blueprint du 2026-10-17, validé par l'utilisateur le 2026-10-22.
 
 **Statement** : En tant qu'utilisateur de 13 à 45 ans, je veux que chaque écran, message et
 notification utilise des mots de tous les jours, un seul par idée, afin de tout comprendre du
@@ -389,7 +243,7 @@ direction narrative du `CLAUDE.md` dit soigner : introduire du vocabulaire incon
    plus long présenté comme une capacité.
 4. Given l'app en anglais, Then le même principe s'applique, en anglais de tous les jours.
 
-**Lexique** (proposé au blueprint du 2026-10-17, à valider) :
+**Lexique** (proposé au blueprint du 2026-10-17, validé par l'utilisateur le 2026-10-22) :
 
 | Idée | Aujourd'hui | Mot retenu |
 |---|---|---|
@@ -408,7 +262,13 @@ direction narrative du `CLAUDE.md` dit soigner : introduire du vocabulaire incon
 | Mots techniques | « onboarding », « configuration », « session », « sélection » | « premiers réglages », « réglages », « journée », « tes sourates » |
 | Les prières | « surérogatoires » | « sunna » |
 | Le livre | « mushaf » | « Coran » |
-| L'onglet des questions | « Renforcement » | à trancher : « Renforcement » (choix du 2026-10-13) ou « Quiz », plus court |
+| L'onglet des questions | « Renforcement » | « Quiz » (« Quiz » en anglais) |
+
+« Quiz » retenu le 2026-10-22 (choix laissé à Claude par l'utilisateur) : « Renforcement » est un mot
+abstrait, du registre que cette story retire ; « Quiz » est court, compris de 13 à 45 ans, identique
+en français et en anglais, et dit le registre de jeu ouvert par le cadre Zellige. « Questions » a
+été écarté : en nom d'onglet, il se lit comme une page d'aide. Pas de doublon avec « questions du
+jour » : le quiz est l'onglet, les questions sont ce qu'il pose.
 
 « Terminer ma journée » ne contredit pas la direction narrative : c'est la journée qui se termine,
 pas la révision.
@@ -604,6 +464,151 @@ dans les Réglages (`saveConfig` refuse tant qu'un jour est en attente).
 ## Archivées
 
 Chaque story ci-dessous est **livrée et vérifiée par les tests automatisés + `flutter analyze`**, pas par un passage sur appareil réel : aucun device mobile n'est disponible sur cette machine (voir `docs/DOCUMENTATION_TECHNIQUE.md` §12). Une story archivée peut donc encore révéler un écart à l'usage — dans ce cas, ouvrir un item dans le Backlog de `docs/CHANGELOG.md` plutôt que de la ressortir d'ici.
+
+### US-22 — Comprendre les mots que je récite (questions de mots, trois modes)
+**État** : terminée — Sprint C livré le 2026-10-13 (branche
+`feature/phase-25-sprint18-questions-de-mots`) : crit. 1, 2, 3, 5 et 6. Le crit. 4 (compte des
+mots connus) a été retiré le 2026-10-22 (validation du blueprint d'US-21), ce qui ferme la story. Non vérifié sur appareil réel : le temps de composition
+d'une série, et la ligne « mot : sens » sous un mauvais choix (arabe en police du système).
+Blueprint et scoping du 2026-10-13. Reprend l'Idée produit « Jeu mot arabe → traduction »,
+retirée de `docs/CHANGELOG.md` à ce scoping. Prolonge US-19 (lire le sens), pas la révision.
+
+**Statement** : En tant qu'utilisateur francophone qui récite sans comprendre chaque mot, je veux
+que la série me demande aussi le sens de mots tirés des versets que je porte, afin de comprendre
+ce que je récite, ce qui m'aide à le retenir.
+
+**Diagnostic (état après US-19 et US-20)** : la traduction se lit verset par verset, sur demande,
+et rien ne vérifie qu'un mot est compris. La série n'interroge que l'ordre des versets.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given une série, du jour ou sur une sourate, Then des questions de mots s'y mêlent aux
+   questions de versets (choix utilisateur du 2026-10-13). Dans un sens : un mot montré dans le
+   verset où il est récité, quatre sens au plus, un seul juste. Dans l'autre : un sens, quatre
+   mots arabes au plus.
+   _Modifié le 2026-10-13 (demande de l'utilisateur)_ : trois modes au choix. « Mélange » mêle
+   les deux types de questions, « Versets » ne pose que la suite d'un passage, « Traduction » ne
+   pose que des mots.
+2. Given une question de mot, Then le mot et les mauvais choix viennent des sourates que
+   l'utilisateur porte. Un mauvais choix n'est jamais un autre sens acceptable du même mot.
+3. Given une réponse, bonne ou non, Then le bon sens est affiché avec le verset, et la source du
+   mot à mot est citée.
+4. Given l'onglet Renforcement, Then une mesure dit combien de mots de ses sourates l'utilisateur
+   reconnaît (« N mots connus sur M »). Un mot raté sort du compte jusqu'à ce qu'il soit retrouvé.
+   _Retiré au blueprint Zellige du 2026-10-17, retrait validé par l'utilisateur le 2026-10-22 : ce
+   compteur irait contre le test des 3 secondes d'US-21. Les mots ratés reviennent (US-21 crit. 4)._
+5. Given la riwaya Warsh, ou une langue de l'app sans source mot à mot, Then la série ne contient
+   que des questions de versets, sans message d'erreur ni question manquante.
+6. Given une série mêlée, Then le score compte les deux types de questions ensemble. Le palier
+   d'une sourate (US-21) ne dépend que des questions de versets.
+
+**Prérequis** (écrits au blueprint, revus au scoping du 2026-10-13) :
+- **Droits de la source française : levé.** Le README de CoranMot (Dr Usama Nonnenmacher,
+  `github.com/DrUsamaN/CoranMot`), lu le 2026-10-13, dit : « Cette traduction peut être utilisée
+  dans tout projet Islamique, mais veuillez ne pas la modifier. Rappelez-vous s'il-vous-plaît de
+  mentionner la source de la traduction. » Trois conditions, donc : projet islamique, aucune
+  modification, source citée. Le blueprint ajoutait « pas de publicité » et « lui écrire avant
+  tout usage », repris d'une note de `docs/CHANGELOG.md` : ni l'un ni l'autre ne figure dans le
+  README. Écrire à l'auteur reste une courtoisie, pas une condition.
+- **Le poids de cette source dans un QCM : assumé par l'utilisateur** (demande du 2026-10-13
+  d'intégrer le jeu). Elle a été jugée « d'un rendu interprétatif, sans relecture savante
+  revendiquée » et écartée de l'affichage pour US-19. Ici, elle sert à dire qu'un sens n'est pas
+  le bon. Exemples relevés au scoping, affichés tels quels puisque la source interdit de la
+  modifier : كُرۡسِيُّهُ rendu par « Son tabouret pour Pieds » (2:255), وَكَوَاعِبَ par « et des
+  femmes aux seins volumineux » (78:33).
+- **Pas de source anglaise.** Le Quranic Arabic Corpus est annoncé sous licence GPL, le dépôt est
+  public sous MIT. En anglais, la série reste sans questions de mots (crit. 5).
+
+**Exclusions explicites** :
+- **Pas de cours de mots fréquents du Coran** (choix utilisateur du 2026-10-13) : les mots viennent
+  de ce que l'utilisateur récite, pas d'un programme général.
+- La série de mots séparée, exclue au blueprint, est rétablie le 2026-10-13 par le mode
+  « Traduction » (crit. 1).
+- Aucune retouche ni filtrage du texte des sens : la source demande à ne pas être modifiée.
+- Pas de grammaire, de racines ni de morphologie, pas de translittération.
+- Pas de mot à mot affiché dans la vue Coran : l'exclusion d'US-19 tient.
+- Pas de questions de mots en Warsh.
+
+**Défaut devenu sans objet** (2026-10-22) : « un mot raté sort du compte » tombait avec le crit. 4,
+retiré.
+
+**Scoping technique** (2026-10-13) :
+- **Fichiers UI** : `lib/screens/reinforcement/reinforcement_tab.dart` (sélecteur de mode) et
+  `series_screen.dart` (vue d'une question de mot), tous deux créés au Sprint B d'US-20 ;
+  `widgets/passage_choice.dart` (un paramètre pour un choix en texte latin) ;
+  `lib/widgets/arabic_verse_text.dart` (33 lignes, un mot mis en or) ;
+  `lib/core/strings_reinforcement.dart` (six libellés).
+- **Nouveaux fichiers** : `assets/quran/wbw/fr.coranmot.tsv` (~1,7 Mo, déclaré dans
+  `pubspec.yaml`) ; `lib/services/word_gloss_service.dart` (~40 lignes) ;
+  `lib/core/reinforcement_words.dart` (~130 lignes, `part of` du moteur d'US-20).
+- **Variables / champs** : le mode choisi et les mots posés à la série précédente vivent dans le
+  `State` de l'onglet. Aucune clé `SharedPreferences`, rien dans `AppState`.
+- **`ayah_facts`** : aucune lecture ni écriture de plus que celles d'US-20.
+- **Décision data model** : les sens sont une donnée externe figée, comme le texte arabe et les
+  traductions d'US-19 : un asset, pas une table. Le mode est un état UI éphémère. Le crit. 4
+  (compte des mots connus) demande de retenir des réponses : il se tranche avec US-21, qui pose
+  la même question pour les paliers.
+- **Réutilisation** : `ReinforcementEngine` d'US-20 (découpe en passages pour montrer le mot dans
+  son contexte, normalisation, règle de tirage) ; `SeriesScreen`, `SeriesMarks`,
+  `PassageChoice` ; `ArabicVerseText` étendu plutôt que doublé. `TranslationService` (US-19)
+  n'est pas réutilisé : il range un texte par verset, ici il en faut un par mot.
+- **Mesures sur les données** (2026-10-13) :
+  - La source fournit une table à clés (`sura`, `ayah`, `word`, `fr`) de 77 429 lignes. Le texte
+    Hafs de l'app compte 77 430 mots.
+  - Le nombre de mots par verset est identique dans 6 229 versets sur 6 236. Les 7 autres
+    diffèrent d'un mot (2:181, 8:6, 13:37, 15:7, 27:20, 36:22, 37:130) : ils ne sont jamais
+    interrogés.
+  - 82 % des mots sont posables (mot arabe d'au moins 3 lettres, sens qui ne se réduit pas à une
+    particule) : 63 921 sur tout le Coran, 1 948 sur le juz 30 pour 1 216 formes différentes,
+    9 sur Al-Ikhlas. La règle telle qu'elle est codée au Sprint C en trouve 63 949 sur tout le
+    Coran (28 de plus, écart non expliqué) ; les trois autres mesures sont retrouvées à
+    l'identique.
+  - Aucun sens ne contient de tabulation ni de saut de ligne : un export tabulé est sûr.
+- **Risques / dépendances** :
+  - **Ordre imposé : après les Sprints A et B d'US-20.** Ce sprint renomme une classe du moteur
+    et étend l'onglet et l'écran de série qu'ils créent.
+  - **Contenu des sens.** Certains sont longs, doctrinalement marqués ou crus (voir
+    « Prérequis »). Ils s'affichent tels quels. Aucun tri n'est prévu.
+  - **Deux mots différents peuvent avoir des sens voisins.** Un mauvais choix est écarté s'il
+    partage un mot de 4 lettres ou plus avec le bon sens. Cela retire « un livre » face à « Le
+    Livre », pas deux synonymes sans mot commun.
+  - **Sept versets sans alignement** : la règle « même nombre de mots » les écarte. Si le texte
+    arabe de l'app change de source, ce nombre peut changer : le test le verrouille.
+  - **Asset de 1,7 Mo chargé à la première série de mots**, puis gardé en mémoire. Dans un test
+    widget, il se précharge en `setUpAll` (même piège que les traductions d'US-19).
+  - **Dépôt public sous MIT** : le fichier des sens n'en relève pas. À écrire dans
+    `docs/DOCUMENTATION_TECHNIQUE.md` §10.
+  - US-19 (au Backlog) ajoute aussi un asset et un service de texte : fichiers distincts, ordre
+    libre.
+- **Tests** : `test/services/word_gloss_service_test.dart` (vrai asset : nombre de lignes,
+  alignement, les sept versets, un verset connu) ; `test/core/reinforcement_words_test.dart`
+  (mot posé d'au moins 3 lettres, un seul bon sens, aucun mauvais choix voisin du bon, versets
+  non alignés jamais posés, mélange à 5 et 5, repli sur les passages sans données). Sélecteur de
+  mode, mot en or, sens longs : vérification visuelle sous Windows.
+- **Item Backlog** : `[P2] US-22 Sprint C — Questions de mots et trois modes (français, Hafs)`,
+  livré le 2026-10-13 et retiré du Backlog.
+
+**Livraison du Sprint C** (2026-10-13) — ce que le code a précisé :
+- Les mots arabes proposés dans une question sont tous différents entre eux, pas seulement
+  différents du mot posé : sinon le même mot pouvait apparaître deux fois en « sens vers arabe ».
+- En « Mélange », la part du plan du jour est de 4 questions sur 10 au plus (2 passages et
+  2 mots) : « au plus la moitié » s'applique à chaque moitié de cinq.
+- Les espaces insécables de la source sont gardées (`Dis :` s'écrit avec une insécable).
+- Restent **à confirmer** par l'utilisateur, livrés tels que le scoping les posait : les libellés
+  « Mélange », « Versets », « Traduction », le mode « Mélange » présélectionné, et le report du
+  crit. 4 à US-21.
+
+**Ajustement au scoping** (2026-10-13) — crit. 1, 2, 4 et 5 précisés :
+- **Crit. 1** : les trois modes (demande de l'utilisateur). « Mélange » pose cinq questions de
+  passages et cinq de mots. Les libellés « Mélange », « Versets », « Traduction » et le mode
+  présélectionné : non validés, à confirmer.
+- **Crit. 2** : un mot n'est posé que s'il a au moins 3 lettres et un sens qui ne se réduit pas à
+  une particule. Un mauvais choix ne porte jamais le même mot arabe, ni un sens qui partage un
+  mot de 4 lettres ou plus avec le bon.
+- **Crit. 4, reporté** : le compte « N mots connus sur M » se livre avec US-21, parce qu'il
+  demande de retenir des réponses. Le Sprint C ne retient rien. Finalement retiré le 2026-10-22
+  (voir crit. 4).
+- **Crit. 5** : en Warsh ou en anglais, le sélecteur de mode n'apparaît pas et l'onglet reste
+  celui d'US-20.
 
 ### US-20 — M'éprouver sur la suite d'un verset (onglet Renforcement)
 **État** : terminée — blueprint, scoping et livraison du 2026-10-13. Première des trois stories
