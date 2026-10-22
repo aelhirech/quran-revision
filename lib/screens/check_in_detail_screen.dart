@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
-import '../state/app_state.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_chips_scaffold.dart';
 
@@ -11,7 +9,10 @@ import '../widgets/verse_chips_scaffold.dart';
 /// [CheckInScreen] — liste ses versets et permet de l'étendre d'un verset.
 class CheckInDetailScreen extends StatefulWidget {
   final RevisionUnit unit;
-  const CheckInDetailScreen({super.key, required this.unit});
+  // The check-in's draft owns the plan: the detail only reports the new range.
+  final void Function(RevisionUnit from, RevisionUnit to) onExtend;
+  const CheckInDetailScreen(
+      {super.key, required this.unit, required this.onExtend});
 
   @override
   State<CheckInDetailScreen> createState() => _CheckInDetailScreenState();
@@ -19,7 +20,6 @@ class CheckInDetailScreen extends StatefulWidget {
 
 class _CheckInDetailScreenState extends State<CheckInDetailScreen> {
   late RevisionUnit _unit;
-  bool _extending = false;
 
   @override
   void initState() {
@@ -27,21 +27,13 @@ class _CheckInDetailScreenState extends State<CheckInDetailScreen> {
     _unit = widget.unit;
   }
 
-  Future<void> _extend() async {
-    if (_extending) return; // évite un double-tap qui étendrait de 2 versets
+  void _extend() {
     final next = _unit.verseEnd + 1;
     if (next > _unit.sourate.verses) return;
-    setState(() => _extending = true);
-    await context.read<AppState>().extendDayPlanVerse(_unit.sourate.id, next);
-    if (!mounted) return;
-    setState(() {
-      _extending = false;
-      _unit = RevisionUnit(
-          sourate: _unit.sourate,
-          verseStart: _unit.verseStart,
-          verseEnd: next,
-          isWhole: false);
-    });
+    final extended =
+        RevisionUnit.spanning(_unit.sourate, _unit.verseStart, next);
+    widget.onExtend(_unit, extended);
+    setState(() => _unit = extended);
   }
 
   @override

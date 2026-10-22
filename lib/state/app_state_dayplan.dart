@@ -3,22 +3,17 @@ part of 'app_state.dart';
 // ─── Check-in/check-out ritual (Phase 6 Sprint 2) — building/editing the day
 // plan ──────────────────────────────────────────────────────────────────
 //
-// The daily engine is the only source of the day plan: it writes proposed
-// units directly into `ayah_facts` (see cadrage, "Moteur quotidien — source
-// unique de vérité"). Check-in edits these rows, PlanScreen displays/spreads
-// them across rakaas. Sealing (`checkOut`) and `reach` tracking live in
-// `app_state_checkout.dart`.
+// The day plan lives in `ayah_facts` (see cadrage, "Moteur quotidien — source
+// unique de vérité"), but only once the check-in is validated
+// (`commitCheckIn`): until then the user hasn't started the day and nothing
+// is written. PlanScreen displays/spreads the rows across rakaas. Sealing
+// (`checkOut`) and `reach` tracking live in `app_state_checkout.dart`.
 
 extension AppStateDayPlan on AppState {
   RevisionUnit? _unitFor(DayFactGroup g) {
     final s = sourateById(g.surahId);
     if (s == null) return null;
-    return RevisionUnit(
-      sourate: s,
-      verseStart: g.verseStart,
-      verseEnd: g.verseEnd,
-      isWhole: g.verseStart == 1 && g.verseEnd == s.verses,
-    );
+    return RevisionUnit.spanning(s, g.verseStart, g.verseEnd);
   }
 
   /// Day plan units (pass `date`, defaults to `todayStr`) as validated at
@@ -109,26 +104,24 @@ extension AppStateDayPlan on AppState {
       : selection.cycleDays(_config?.pagesPerDay ?? 0,
           PageMetadataService.pageMetadataFor(_riwaya));
 
-  /// Preview (no write) of what the daily engine would propose if it ran
-  /// now — used by the multi-day check-out ("also add today") to show a
-  /// preview before sealing. Exposed here so screens never import
+  /// Preview (no write) of what the daily engine proposes for today — the
+  /// check-in's starting point. Exposed here so screens never import
   /// `RevisionEngine` directly.
   List<RevisionUnit> get todayPreviewUnits => daySelection.units;
 
   /// Daily engine entry point — call on app open/resume (see ShellScreen).
   /// Gated on a pending day STRICTLY before today (see
-  /// `AyahFactsRitual.pendingDate`): until it's sealed, no new plan is
-  /// generated — otherwise `cyclePosition` wouldn't have advanced for that
-  /// day yet, and the new plan would propose the same verses a second time.
+  /// `AyahFactsRitual.pendingDate`): until it's sealed, the day can't start —
+  /// otherwise `cyclePosition` wouldn't have advanced for that day yet, and
+  /// the new plan would propose the same verses a second time.
   ///
-  /// Since Phase 9, also proposes today's verses to **learn** (surah already
-  /// in progress, `config.versesToLearnPerDay` verses) — check-in confirms
-  /// or adjusts both proposals, it doesn't create them.
+  /// **Writes no plan**: today's rows only appear when the check-in is
+  /// validated ([commitCheckIn]). A day whose button was never pressed leaves
+  /// no row, hence no catch-up check-out the next day.
   Future<void> ensureDayPlan({bool notify = true}) async {
     if (_config == null) return;
     final today = todayStr;
-    // Two independent reads, started together (like the block below) — this
-    // is the app-open path.
+    // Two independent reads, started together — this is the app-open path.
     final pendingF = AyahFactsRitual.pendingDate(riwaya: _riwaya);
     final sealedF = AyahFactsRitual.isDaySealed(today, _riwaya);
     final sealedDateF = StorageService.loadSealedDate(_riwaya);
@@ -140,34 +133,10 @@ extension AppStateDayPlan on AppState {
     // stored date as a fallback — see `StorageService.saveSealedDate`.
     _closedDate = sealed || sealedDate == today ? today : null;
     if (_pendingDate == null) {
-      // Independent reads started together rather than in series — this is
-      // the app-open path (ShellScreen.initState).
-      final existingF = AyahFactsRitual.dayFacts(today, _riwaya);
-      final learnPlanF = AyahFactsLearning.learnPlanFor(today, _riwaya);
-      final activePrayersF = StorageService.loadActivePrayers(_riwaya);
-      // The day plan is only generated once a day — the learning proposal
-      // is gated on that same moment, not merely on "no learn row today":
-      // otherwise "I'm not learning anything today" (check-in) would be
-      // silently undone on the next app open, re-proposing the same portion.
-      // Known edge case: with no surah under revision, `proposeUnits` writes
-      // nothing, so the day still looks new and the refusal gets re-proposed
-      // on every open — harmless, no data consequence.
-      if ((await existingF).isEmpty) {
-        await AyahFactsRitual.proposeUnits(
-            today, _riwaya, _selection.units);
-        if (await learnPlanF == null) {
-          final inProgress = await learningInProgress();
-          if (inProgress != null) {
-            await _proposeLearning(
-                inProgress.sourate, _config!.versesToLearnPerDay,
-                progress: inProgress);
-          }
-        }
-      }
       // Resumes the in-progress session if the app restarted after a
       // check-in/PlanScreen start earlier the same day (prayers already
       // chosen).
-      final activePrayers = await activePrayersF;
+      final activePrayers = await StorageService.loadActivePrayers(_riwaya);
       if (activePrayers != null && activePrayers.isNotEmpty) {
         await buildTodaySession(activePrayers, notify: false);
       }
@@ -175,9 +144,60 @@ extension AppStateDayPlan on AppState {
     if (notify) _notify();
   }
 
+  /// Starting point of the check-in: today's rows when the day was already
+  /// started (re-opened after "redo plan"), otherwise what the engine proposes
+  /// — revision and the next block of the surah being learned — computed in
+  /// memory, nothing written. Learning's default is only proposed for a day
+  /// with no row at all, so "I'm not learning anything today" survives a
+  /// re-opening.
+  Future<CheckInDraft> checkInStart() async {
+    final unitsF = dayUnits();
+    final planF = learningPlanFor(todayStr);
+    final units = await unitsF;
+    final plan = await planF;
+    if (units.isNotEmpty || plan != null) {
+      return CheckInDraft(
+        units: units,
+        learning: plan == null
+            ? null
+            : (
+                progress: await _learningProgressOf(plan.sourate),
+                ayahIds: plan.ayahIds
+              ),
+      );
+    }
+    final inProgress = await learningInProgress();
+    final block =
+        inProgress?.nextBlock(_config?.versesToLearnPerDay ?? 0) ?? const <int>[];
+    return CheckInDraft(
+      units: todayPreviewUnits,
+      learning: inProgress == null || block.isEmpty
+          ? null
+          : (progress: inProgress, ayahIds: block),
+    );
+  }
+
+  /// Validating the check-in: the only moment today's plan is written to
+  /// `ayah_facts`. Proposed rows (`reach = 0`) are cleared then the draft is
+  /// proposed: what the user removed stays gone, while a row already at
+  /// `reach = 1` is never touched (`proposeUnits` ignores conflicts).
+  Future<void> commitCheckIn(CheckInDraft draft) async {
+    if (_config == null) return;
+    await AyahFactsRitual.clearDayProposal(todayStr, _riwaya);
+    await AyahFactsRitual.proposeUnits(todayStr, _riwaya, draft.units);
+    final learning = draft.learning;
+    await setLearningForToday(
+        learning?.progress.sourate, _config!.versesToLearnPerDay,
+        ayahIds: learning?.ayahIds, notify: false);
+    _notify();
+  }
+
   /// Check-in (and the "Rythme" row in Settings): adjusts the pages/day
-  /// budget and regenerates today's revision proposal accordingly (rows
-  /// already at `reach=1` are kept, see `AyahFactsRitual.clearDayProposal`).
+  /// budget and, when today's plan already exists, regenerates its revision
+  /// proposal accordingly (rows already at `reach=1` are kept, see
+  /// `AyahFactsRitual.clearDayProposal`). A day not started has no rows to
+  /// regenerate, and the check-in passes [rewriteProposal] `false` because it
+  /// rebuilds its in-memory draft itself.
   ///
   /// **Unless the day is already sealed**: since "Close my day" (Phase 9
   /// Sprint 2), today can be sealed while it's still today. Writing a fresh
@@ -185,12 +205,15 @@ extension AppStateDayPlan on AppState {
   /// day — it would go back to "pending" tomorrow, and its second check-out
   /// would advance the cycle a second time over content already credited.
   /// The new rhythm is persisted regardless: it applies to tomorrow's plan.
-  Future<void> setPagesPerDay(int pagesPerDay) async {
+  Future<void> setPagesPerDay(int pagesPerDay,
+      {bool rewriteProposal = true}) async {
     if (_config == null || _config!.pagesPerDay == pagesPerDay) return;
     _config = _config!.copyWith(pagesPerDay: pagesPerDay);
     await StorageService.saveConfig(_config!, _riwaya);
-    if (!todayClosed) {
-      final today = todayStr;
+    final today = todayStr;
+    if (rewriteProposal &&
+        !todayClosed &&
+        (await AyahFactsRitual.dayFacts(today, _riwaya)).isNotEmpty) {
       await AyahFactsRitual.clearDayProposal(today, _riwaya);
       await AyahFactsRitual.proposeUnits(
           today, _riwaya, _selection.units);
@@ -224,38 +247,14 @@ extension AppStateDayPlan on AppState {
     return addable;
   }
 
-  /// Adds a surah/portion to the day plan from check-in.
-  /// [date] defaults to today (check-in). Check-out passes it explicitly to
+  /// Adds a surah/portion to the plan of [date]. Check-out uses it to
   /// declare a surah **revised in addition** that day: same write, the unit
   /// simply joins a past day's plan, where check-out's "done by default"
   /// will confirm it at sealing. The surah always belongs to the selection,
   /// so declaring it can advance `cyclePosition` beyond what the engine had
   /// proposed ("do more", see [checkOut]).
-  Future<void> addToDayPlan(RevisionUnit unit, {String? date}) async {
-    await AyahFactsRitual.proposeUnits(date ?? todayStr, _riwaya, [unit]);
-    _notify();
-  }
-
-  /// Removes a surah/portion from the day plan from check-in.
-  ///
-  /// The range is not optional in practice: since the cycle became a page
-  /// list, one day can hold two non-adjacent fragments of the same surah, and
-  /// removing by surah alone would delete the other one too — with no way to
-  /// get it back (re-adding writes the WHOLE surah).
-  Future<void> removeFromDayPlan(int surahId,
-      {int? verseStart, int? verseEnd}) async {
-    await AyahFactsRitual.removeFromDayPlan(todayStr, _riwaya, surahId,
-        verseStart: verseStart, verseEnd: verseEnd);
-    _notify();
-  }
-
-  /// Extends a day plan surah's range by one verse (the "+" chip on the
-  /// check-in detail screen).
-  Future<void> extendDayPlanVerse(int surahId, int newVerse) async {
-    final s = sourateById(surahId);
-    if (s == null) return;
-    await AyahFactsRitual.proposeUnits(todayStr, _riwaya,
-        [RevisionUnit(sourate: s, verseStart: newVerse, verseEnd: newVerse, isWhole: false)]);
+  Future<void> addToDayPlan(RevisionUnit unit, String date) async {
+    await AyahFactsRitual.proposeUnits(date, _riwaya, [unit]);
     _notify();
   }
 

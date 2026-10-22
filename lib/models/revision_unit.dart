@@ -13,6 +13,16 @@ class RevisionUnit {
     required this.isWhole,
   });
 
+  /// A unit over [first]..[last] of [sourate], `isWhole` derived from the
+  /// range (`isWhole` is a fact about the range, never a choice).
+  factory RevisionUnit.spanning(Sourate sourate, int first, int last) =>
+      RevisionUnit(
+        sourate: sourate,
+        verseStart: first,
+        verseEnd: last,
+        isWhole: first == 1 && last == sourate.verses,
+      );
+
   int get verseCount => verseEnd - verseStart + 1;
 
   /// The verse numbers this unit spans, in order.

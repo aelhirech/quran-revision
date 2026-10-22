@@ -98,8 +98,8 @@ void main() {
   });
 
   test(
-      "ensureDayPlan propose de lui-même la suite d'une sourate déjà en cours "
-      "d'apprentissage", () async {
+      "le check-in propose de lui-même la suite d'une sourate déjà en cours "
+      "d'apprentissage, sans rien écrire avant la validation", () async {
     final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
     // Sourate démarrée hier, aucun verset encore acquis (reach=0).
     await AyahFactsLearning.proposeLearnVerses(yesterday, Riwaya.hafs, 108, [1]);
@@ -110,10 +110,18 @@ void main() {
     expect(state.pendingDate, isNull,
         reason: 'des lignes `learn` ne rendent pas un jour "en attente" — '
             'seul le type `revise` compte (AyahFactsRitual.pendingDate)');
+    expect(await state.todayLearningUnit(), isNull,
+        reason: 'ensureDayPlan n\'écrit plus la proposition');
+    final draft = await state.checkInStart();
+    expect(draft.learning!.ayahIds, [1, 2, 3],
+        reason: 'versesToLearnPerDay par défaut = 3, la sourate en fait 3');
+    expect(await state.todayLearningUnit(), isNull,
+        reason: 'le brouillon n\'écrit rien');
+
+    await state.commitCheckIn(draft);
     expect(await state.todayLearningUnit(), isNotNull);
     expect((await state.todayLearningUnit())!.sourate.id, 108);
-    expect((await state.todayLearningUnit())!.verseEnd, 3,
-        reason: 'versesToLearnPerDay par défaut = 3, la sourate en fait 3');
+    expect((await state.todayLearningUnit())!.verseEnd, 3);
 
     await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });
@@ -159,16 +167,16 @@ void main() {
     await AyahFactsRitual.clearDayProposal(dayKey(DateTime.now()), Riwaya.hafs);
 
     final state = newState();
-    await state.ensureDayPlan(); // génère le plan du jour + propose la suite
-    expect(await state.todayLearningUnit(), isNotNull);
+    final draft = await state.checkInStart();
+    expect(draft.learning, isNotNull, reason: 'proposé par défaut');
 
-    await state.setLearningForToday(null, 3); // refus explicite
+    await state.commitCheckIn(draft.withLearning(null)); // refus explicite
     expect(await state.todayLearningUnit(), isNull);
 
     await state.ensureDayPlan(); // réouverture de l'app le même jour
-    expect(await state.todayLearningUnit(), isNull,
-        reason: 'la proposition n\'est faite qu\'au moment où le plan du jour '
-            'est généré — sinon le refus serait annulé à chaque ouverture');
+    expect((await state.checkInStart()).learning, isNull,
+        reason: 'la proposition par défaut n\'est faite que pour un jour sans '
+            'aucune ligne — sinon le refus serait annulé à chaque ouverture');
 
     await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
   });
@@ -239,7 +247,7 @@ void main() {
     await state.addToDayPlan(
         RevisionUnit(
             sourate: extra, verseStart: 1, verseEnd: extra.verses, isWhole: true),
-        date: day);
+        day);
 
     final units = await state.dayUnits(date: day);
     expect(units.map((u) => u.sourate.id), contains(112),

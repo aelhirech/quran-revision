@@ -1,8 +1,7 @@
 part of 'check_out_screen.dart';
 
-/// Sections secondaires du check-out : « réviser en plus », le volet
-/// apprentissage, et la partie 2 optionnelle du rattrapage multi-jours (voir
-/// doc de [CheckOutScreen]).
+/// Sections secondaires du check-out : « réviser en plus » et le volet
+/// apprentissage (voir doc de [CheckOutScreen]).
 extension _CheckOutSections on _CheckOutScreenState {
   /// « J'ai révisé une sourate en plus » — le pendant du décochage : le
   /// check-out confirme ce qui a réellement été fait, en moins **comme en
@@ -35,7 +34,7 @@ extension _CheckOutSections on _CheckOutScreenState {
         verseEnd: range.verseEnd,
         isWhole: range.isWhole,
       ),
-      date: widget.date,
+      widget.date,
     );
     await _load();
   }
@@ -126,101 +125,4 @@ extension _CheckOutSections on _CheckOutScreenState {
                 color: checked ? palette.goldDark : palette.textMuted)),
         trailing: trailing,
       );
-
-  Widget _part2Body(AppPalette palette) {
-    final preview = context.read<AppState>().todayPreviewUnits;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        SCheckOut.checkOutAjouterAujourdhui,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: palette.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        SCheckOut.checkOutAjouterDesc,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: palette.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _addToday,
-                  onChanged: (v) => _setState(() => _addToday = v),
-                  activeThumbColor: palette.primary,
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (_addToday) ...[
-          const SizedBox(height: 10),
-          for (final unit in preview)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 11,
-              ),
-              decoration: BoxDecoration(
-                color: palette.surfaceCardSolid,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: palette.cardBorder),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    unit.sourate.nameAr,
-                    style: GoogleFonts.amiri(
-                      fontSize: 15,
-                      color: palette.goldDark,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          unit.sourate.nameFr,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: palette.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          'v.${unit.verseStart}–${unit.verseEnd}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
-                            color: palette.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ],
-    );
-  }
 }

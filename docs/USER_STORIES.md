@@ -40,6 +40,9 @@ est livrée (2026-10-13, voir « Archivées »), US-22 la suit (droits de la sou
   simple tableau d'états). Le cadre du 2026-09-30 tient ici aussi. Sont exclus des trois stories :
   points d'expérience, niveau global, trophées et badges, classement, chrono, vies, monnaie, série
   de jours propre au jeu, son, partage.
+  _Remplacé le 2026-10-17 par le cadre commun du blueprint Zellige (plus bas) : le registre
+  s'ouvre au jeu, avec la mosaïque et les niveaux par sourate. Les exclusions ci-dessus restent
+  valables._
 - **Le score est un fait** : les questions qui ont tenu, sur le total de la série. Il s'affiche
   avec le losange doré de l'ornement déjà présent sous les titres (plein si la question a tenu,
   vide sinon) et ne s'additionne pas d'un jour à l'autre.
@@ -75,49 +78,74 @@ est livrée (2026-10-13, voir « Archivées »), US-22 la suit (droits de la sou
   la partie à la place de l'utilisateur ; les versets similaires sont la difficulté qu'elles
   mettent en avant ; le chrono est reproché.
 
-### US-21 — Voir ce qui tient et ce qui m'échappe (paliers et retours)
-**État** : à scoper — blueprint du 2026-10-13. S'appuie sur US-20. Reprend l'Idée produit « Mode
-"versets à retravailler" en jeu à part » de `docs/CHANGELOG.md`, à retirer de ce fichier au
-scoping.
+### US-21 — Ma mosaïque : mes niveaux, mes questions ratées, ce que je risque d'oublier
+**État** : à scoper — blueprint du 2026-10-13, réécrit au blueprint Zellige du 2026-10-17 (voir le
+cadre commun plus bas). S'appuie sur US-20. Reprend les Idées produit « Mode "versets à
+retravailler" en jeu à part » et « Gamification narrative [H] » de `docs/CHANGELOG.md`, à retirer
+de ce fichier au scoping.
 
-**Statement** : En tant qu'utilisateur qui s'éprouve régulièrement, je veux que l'app retienne ce
-qui a tenu et ce qui m'a échappé, me le repose et me montre où j'en suis sourate par sourate, afin
-que chaque série porte sur ce qui en a besoin et que je voie ma mémoire se raffermir.
+**Statement** : En tant qu'utilisateur qui s'éprouve régulièrement, je veux voir mes sourates en
+mosaïque, avec mon niveau sur chacune et celles que je risque d'oublier, et des questions qui
+deviennent plus dures à mesure que je progresse, afin de savoir en moins de 3 secondes où sont mes
+trous et de voir ma mémoire se raffermir.
 
-**Diagnostic (état après US-20)** : une série ne laisse aucune trace. Un verset raté n'est pas
-reposé, la difficulté ne bouge pas, et rien ne dit quelle sourate est sûre.
+**Diagnostic (état après US-20 et US-22)** : une série ne laisse aucune trace. Un verset raté
+n'est pas reposé, la difficulté ne bouge jamais, et rien ne dit quelle sourate est sûre ni
+laquelle s'efface. La date de dernière révision existe (badges du Récap), mais elle se lit ligne
+par ligne, au bas de l'écran.
 
 **Critères d'acceptation** (haut niveau) :
-1. Given un verset raté dans une série, Then il revient dans une série suivante, jusqu'à ce qu'il
-   tienne. La fin de série dit combien reviendront, sans reproche.
-2. Given une sourate de la sélection, Then elle porte un palier de 1 à 3, qui dit parmi quels
-   mauvais choix l'utilisateur la tient : 1, des versets d'autres sourates ; 2, des versets de la
-   même sourate ; 3, ses versets voisins et similaires. Le palier règle la difficulté des
-   questions de cette sourate : l'utilisateur ne la choisit jamais.
-3. Given une sourate réussie de façon répétée à son palier, Then elle monte d'un palier. Given une
-   sourate ratée de façon répétée, Then elle redescend d'un palier (choix utilisateur du
-   2026-10-13). Dans les deux sens, l'annonce est sobre et sans reproche.
-4. Given l'onglet Renforcement, Then l'utilisateur voit le palier de chacune de ses sourates, et
-   c'est depuis cette vue qu'il en choisit une (US-20 crit. 5). Une sourate jamais éprouvée se
-   distingue d'une sourate au palier 1.
-5. Given des paliers et des retours, Then rien ne change dans le tour, la série de jours ni la
-   fraîcheur. Given deux riwayas, Then paliers et retours sont propres à chacune.
+1. Given l'onglet Renforcement, Then une mosaïque montre un carreau par sourate révisée, et le
+   nombre de sourates à risque d'oublier passe avant tout le reste. Test des 3 secondes : montré
+   3 secondes à quelqu'un qui ne connaît pas l'app, l'écran lui permet de dire quelles sourates
+   sont à risque. La mosaïque reste lisible de 1 à 114 sourates, plages partielles comprises.
+2. Given une sourate, Then elle porte un niveau, de « pas encore jouée » à 4, qui règle la
+   difficulté de ses questions : 1, mauvaises réponses tirées d'autres sourates ; 2, de la même
+   sourate ; 3, des versets voisins ; 4, des versets qui se ressemblent. L'utilisateur ne choisit
+   jamais le niveau. Seules les questions de versets le font bouger (US-22 crit. 6).
+3. Given une sourate réussie de façon répétée à son niveau, Then elle monte d'un niveau. Given une
+   sourate ratée de façon répétée, Then elle redescend d'un niveau (choix utilisateur du
+   2026-10-13, reconfirmé le 2026-10-17). Dans les deux sens, l'annonce est courte et sans
+   reproche.
+4. Given une question ratée (verset ou mot), Then elle revient dans une série suivante jusqu'à ce
+   qu'elle soit réussie. La fin de série dit combien reviendront, sans reproche.
+5. Given une sourate pas révisée depuis plus de 3 mois, ou depuis plus d'un tour quand le tour
+   dure plus de 3 mois (choix utilisateur du 2026-10-17), Then son carreau est orange, avec un
+   anneau, partout où la mosaïque apparaît. Il redevient normal dès qu'elle est révisée, c'est-à-
+   dire récitée et validée en fin de journée : les questions ne l'effacent jamais. L'orange ne veut
+   rien dire d'autre dans l'app. Les questions du jour font passer ces sourates avant les autres,
+   après la part du plan du jour.
+6. Given un carreau, When l'utilisateur le touche, Then il voit le nom de la sourate, son niveau et
+   sa dernière révision, et peut lancer une série sur elle (US-20 crit. 5) ou ouvrir son texte.
+   Given des niveaux, des retours et des sourates à risque, Then rien ne change dans le tour, les
+   jours de suite, ni ce que la fin de journée valide ; tout est propre à chaque riwaya.
 
 **Exclusions explicites** :
-- **Le palier peut se perdre** (choix utilisateur du 2026-10-13, contre « il reste acquis »). Pris
-  en sachant que l'app reprend alors quelque chose à l'utilisateur : d'où l'exigence d'une annonce
-  sans reproche (crit. 3).
-- Le palier n'est pas une fraîcheur. La fraîcheur dit depuis quand un passage a été récité, le
-  palier dit s'il tient à l'épreuve. Le palier ne s'affiche que dans l'onglet Renforcement : ni au
-  Récap, ni sur le plan du jour, ni au check-in.
-- Pas de niveau global, pas de palier au-delà de 3, pas d'historique ni de courbe des scores.
-- Pas de moment de jalon (US-13) pour un palier atteint, pas d'écran de collection.
-- Un verset raté ne retourne pas dans le plan de révision : le plan ne lit rien de l'onglet.
-  L'Idée produit « SRS réel par verset » reste ouverte, à part.
+- **Le niveau peut se perdre** (choix utilisateur du 2026-10-13, reconfirmé le 2026-10-17 contre
+  « il reste acquis »). Une question ratée coûte au plus un niveau, jamais un passage en orange :
+  chaque axe a son signal (choix utilisateur du 2026-10-17, contre un orange aux deux raisons).
+- Le niveau n'est pas une fraîcheur : le niveau dit si la sourate tient aux questions, l'orange
+  dit depuis quand elle n'a pas été récitée. La mosaïque s'affiche dans l'onglet Renforcement et
+  au Récap (US-23), jamais sur le plan du jour ni au check-in.
+- Pas de niveau global, pas de niveau au-delà de 4, pas d'historique ni de courbe des scores. Les
+  carreaux gagnés dans une série ne s'accumulent pas et ne s'échangent contre rien : ce n'est pas
+  une monnaie.
+- Pas de moment de jalon (US-13) pour un niveau atteint, pas d'écran de collection.
+- Une question ratée ne change rien au plan de révision : le plan ne lit rien de l'onglet. Il tient
+  compte de la dernière révision (US-26), jamais des questions.
+- Le compteur « N mots connus sur M » (US-22 crit. 4, reporté ici) est retiré : un indicateur de
+  plus irait contre le test des 3 secondes. Les mots ratés reviennent (crit. 4). _Proposition du
+  blueprint du 2026-10-17, à valider._
+- L'Idée produit « SRS réel par verset » reste ouverte, à part.
+
+**Défaut posé sans demander, à confirmer** : une sourate en cours d'apprentissage n'a pas de
+carreau ; elle entre dans la mosaïque quand elle passe en révision.
 
 **Points à lever au scoping** : le nombre de réussites et d'erreurs qui fait monter ou descendre
-un palier ; ce que devient le palier d'une sourate retirée de la sélection puis remise, ou dont la
-plage change.
+un niveau ; le niveau 4, qui demande de séparer « versets voisins » et « versets qui se
+ressemblent », regroupés jusqu'ici ; ce que devient le niveau d'une sourate retirée de la
+sélection puis remise, ou dont la plage change ; le carreau d'une plage partielle ; l'ordre des
+sourates à risque ; la place de la mosaïque à côté du bouton « Choisir une sourate ».
 
 ### US-22 — Comprendre les mots que je récite (questions de mots, trois modes)
 **État** : en sprint — Sprint C livré le 2026-10-13 (branche
@@ -148,6 +176,9 @@ et rien ne vérifie qu'un mot est compris. La série n'interroge que l'ordre des
    mot à mot est citée.
 4. Given l'onglet Renforcement, Then une mesure dit combien de mots de ses sourates l'utilisateur
    reconnaît (« N mots connus sur M »). Un mot raté sort du compte jusqu'à ce qu'il soit retrouvé.
+   _Retiré au blueprint Zellige du 2026-10-17 (proposition, à valider) : ce compteur irait contre
+   le test des 3 secondes d'US-21. Les mots ratés reviennent (US-21 crit. 4). Si le retrait est
+   validé, US-22 n'a plus de critère ouvert et peut être archivée._
 5. Given la riwaya Warsh, ou une langue de l'app sans source mot à mot, Then la série ne contient
    que des questions de versets, sans message d'erreur ni question manquante.
 6. Given une série mêlée, Then le score compte les deux types de questions ensemble. Le palier
@@ -261,6 +292,314 @@ avec le palier qui peut se perdre.
   à confirmer.
 - **Crit. 5** : en Warsh ou en anglais, le sélecteur de mode n'apparaît pas et l'onglet reste
   celui d'US-20.
+
+### Cadre commun du blueprint Zellige (2026-10-17) : US-21, US-23, US-24, US-25 et US-26
+
+Ces stories sortent d'une phase de design sans code (2026-10-13 et 14), partie d'un constat de
+l'utilisateur : Renforcement et Récap n'avaient « ni DA, ni vraiment jeu, ni objectif, ni avancée
+matérialisée ». Maquettes de référence : https://claude.ai/artifact/7vd5A955cuPtFYfNRfzT4H (page
+privée ; les écrans « Zellige » et la planche « Mosaïque » en haut du canevas, le reste est
+l'exploration). Les maquettes sont antérieures à ce blueprint : là où elles divergent des stories
+(orange aux deux raisons, date d'apprentissage au Récap), ce sont les stories qui font foi.
+
+- **Direction : Zellige** (choix utilisateur du 2026-10-13, contre l'enluminure et les
+  constellations). Chaque sourate est un carreau d'une mosaïque. La forme et la couleur du carreau
+  disent le niveau ; l'orange dit le risque d'oublier.
+- **Le registre s'ouvre au jeu** (choix utilisateur du 2026-10-13, revient sur le registre sobre du
+  cadre US-20 à US-22). Restent exclus : points d'expérience, niveau global, trophées et badges,
+  classement, chrono, vies, monnaie, série de jours propre au jeu, son, partage.
+- **Le test des 3 secondes** (critère de l'utilisateur, 2026-10-13) : en moins de 3 secondes,
+  l'utilisateur sait où sont ses trous. Il prime sur le reste : un seul signal chaud, l'orange, et
+  tout le reste au calme.
+- **Couleurs** : l'habillage reste vert et or, les couleurs actuelles de l'app (choix utilisateur
+  du 2026-10-14, contre le bleu de Fès, le turquoise et la terre cuite). Seuls les carreaux
+  prennent plusieurs couleurs. **Police** : Outfit partout (choix utilisateur du 2026-10-17, contre
+  Lora).
+- **Public : 13 à 45 ans** (précision utilisateur du 2026-10-13). Un collégien comprend chaque mot,
+  un adulte ne se sent pas infantilisé.
+- **Ce qui ne change pas** : les questions ne valident jamais une révision (reconnaître n'est pas
+  réciter, cadre US-20). L'app décide à la place de l'utilisateur : ni niveau, ni seuil, ni
+  pondération à régler.
+- **Ordre conseillé** : US-25 d'abord (police, styles, couleurs), puis US-21, puis US-23, qui
+  reprend sa mosaïque. US-24 et US-26 sont indépendantes. Le scoping tranche.
+
+### US-23 — Le Récap montre d'un coup d'œil ce qui tient et ce que je risque d'oublier (extension d'US-7)
+**État** : à scoper — blueprint du 2026-10-17. Prolonge US-7 (archivée, pas ressortie) et modifie
+ses critères 1 et 2 (voir les exclusions).
+
+**Moment de l'histoire** : hors du fil de la journée, quand l'utilisateur se demande où il en est.
+Ce que l'écran y prouve : ce qui tient, et ce qui demande de l'attention. Il regarde en arrière,
+comme le check-in : aucune projection n'y est ajoutée.
+
+**Statement** : En tant qu'utilisateur, je veux que le Récap me montre ma mosaïque et les sourates
+que je risque d'oublier, sans rien de superflu, afin de savoir en moins de 3 secondes où j'en suis.
+
+**Diagnostic (état actuel)** : huit blocs de même poids, onze chiffres avant l'historique, le total
+de pages affiché deux fois. La date de dernière révision n'apparaît qu'en badges, dans la liste du
+bas.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given le Récap ouvert, Then il commence par la mosaïque d'US-21 (mêmes carreaux, mêmes couleurs,
+   même règle), avec en tête le nombre de sourates à risque d'oublier, ou un message clair quand il
+   n'y en a aucune.
+2. Given des sourates à risque d'oublier, Then une section « Risque d'oublier » les nomme, de la
+   révision la plus ancienne à la plus récente, avec depuis combien de temps chacune n'a pas été
+   révisée.
+3. Given un apprentissage en cours, Then une ligne compacte le montre (la sourate, les versets déjà
+   appris), et permet toujours de supprimer un apprentissage (US-12).
+4. Given le Récap, Then rien d'autre n'y figure (choix utilisateur du 2026-10-17) : jours de suite,
+   pages, tour, rythme, historique jour par jour, répartition et liste « Mes sourates » le
+   quittent. Le texte d'une sourate s'ouvre depuis son carreau (US-21 crit. 6).
+
+**Exclusions explicites** :
+- **Modifie US-7 (archivée)** : la position dans le tour (crit. 1) quitte le Récap ; elle reste sur
+  le plan du jour au repos. La fraîcheur par sourate (crit. 2) prend la forme de l'orange et de la
+  section « Risque d'oublier », plus celle de badges.
+- Les jours de suite restent visibles sur le plan du jour (US-6), la durée du tour à la fin de
+  journée (US-14).
+- Pas de date d'apprentissage au Récap : une projection se lit à la fin de journée, pas ici
+  (règle « derrière au check-in, devant au check-out » du `CLAUDE.md`).
+- Pas de nouvel indicateur, pas de carte d'activité (l'Idée produit « Timeline d'activité » reste
+  ouverte).
+- Pas de liste des questions ratées au Récap : elles reviennent dans les séries de l'onglet
+  Renforcement (US-21 crit. 4).
+
+### US-24 — L'app parle avec des mots de tous les jours
+**État** : à scoper — blueprint du 2026-10-17.
+
+**Statement** : En tant qu'utilisateur de 13 à 45 ans, je veux que chaque écran, message et
+notification utilise des mots de tous les jours, un seul par idée, afin de tout comprendre du
+premier coup, sans vocabulaire à apprendre.
+
+**Diagnostic (état actuel)** : une cinquantaine de textes sont écrits dans un registre littéraire
+(« ce que tu portes », « pages en garde », « ce qui a tenu », « journée scellée », « à éprouver »).
+Deux mots désignent parfois la même chose (« cycle » et « tour », « portion » et « plan »), et des
+termes techniques s'affichent (« onboarding », « configuration », « session »). C'est le mal que la
+direction narrative du `CLAUDE.md` dit soigner : introduire du vocabulaire inconnu.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given n'importe quel texte de l'app (écrans, messages, notifications), Then chaque idée porte un
+   seul mot, le même partout, celui du lexique ci-dessous.
+2. Given n'importe quel texte, Then il ne reste ni métaphore à décoder ni terme technique. Les mots
+   religieux que l'utilisateur emploie lui-même restent : rakaa, riwaya, hizb, imam, Al-Fatiha,
+   sunna.
+3. Given les textes longs (introduction de l'onboarding, jalons, étapes guidées), Then ils sont
+   réécrits en phrases courtes, sans changer de sens. Les règles de la direction narrative
+   tiennent : jamais « fini » ni « terminé » à propos de la révision, jamais de reproche, un tour
+   plus long présenté comme une capacité.
+4. Given l'app en anglais, Then le même principe s'applique, en anglais de tous les jours.
+
+**Lexique** (proposé au blueprint du 2026-10-17, à valider) :
+
+| Idée | Aujourd'hui | Mot retenu |
+|---|---|---|
+| Ce que je connais | « ce que tu portes », « pages en garde », « mémorisées » | « ce que tu connais », « pages apprises », « sourates apprises » |
+| Réussir, oublier | « ce qui a tenu », « un verset qui ne tient plus » | « ce que tu as réussi », « un verset oublié » |
+| La boucle de révision | « cycle » et « tour » | « tour » |
+| Finir la journée | « clôturer », « clôturée », « scellée » | « terminer ma journée », « journée terminée » |
+| Le programme du jour | « portion », « plan », « portée du jour » | « plan du jour » |
+| Hafs et Warsh | « parcours » | « lecture (riwaya) » |
+| Depuis quand pas révisée | « fraîcheur », « partiellement récente » | « dernière révision », « révisée en partie » |
+| Pas révisée depuis longtemps | (nouveau) | « risque d'oublier » |
+| Jours d'affilée | « série », « régularité » | « jours de suite » |
+| Les questions | « série du jour » | « questions du jour » |
+| La difficulté | « palier » | « niveau » |
+| Les trois couches | « le nouveau », « le récent encore fragile », « l'ancien qu'on fait tourner » | « ce que tu apprends », « ce que tu viens d'apprendre », « ce que tu connais déjà » |
+| Mots techniques | « onboarding », « configuration », « session », « sélection » | « premiers réglages », « réglages », « journée », « tes sourates » |
+| Les prières | « surérogatoires » | « sunna » |
+| Le livre | « mushaf » | « Coran » |
+| L'onglet des questions | « Renforcement » | à trancher : « Renforcement » (choix du 2026-10-13) ou « Quiz », plus court |
+
+« Terminer ma journée » ne contredit pas la direction narrative : c'est la journée qui se termine,
+pas la révision.
+
+**Exclusions explicites** :
+- Aucun changement de fonctionnement : seuls les mots changent.
+- « Illuminer ma journée avec le Coran » reste : c'est la phrase de l'utilisateur.
+- Le texte coranique, les traductions (Hamidullah, Saheeh International) et les sens mot à mot
+  (CoranMot) ne sont jamais retouchés : ce ne sont pas des textes de l'app, et la source CoranMot
+  interdit toute modification.
+- Pas de nouvelle langue.
+
+**Livrable hors critères** : la règle et le lexique validé s'écrivent dans le `CLAUDE.md` du projet,
+à la clôture du sprint, pour que tout nouveau texte les suive.
+
+### US-25 — Une seule allure, tenue d'un écran à l'autre (extension d'US-15)
+**État** : à scoper — blueprint du 2026-10-17. Prolonge US-15 (archivée, pas ressortie) et revient
+sur son exclusion « pas de nouvelle couleur ni de nouvelle police ». Reprend l'Idée produit « Un
+seul style de titre en capitales » de `docs/CHANGELOG.md`, à retirer au scoping.
+
+**Statement** : En tant qu'utilisateur, je veux que l'app ait la même allure et les mêmes repères
+partout, afin de lire vite et de comprendre d'un coup d'œil ce que veut dire chaque couleur.
+
+**Diagnostic (état actuel)** : 23 tailles de texte différentes ; huit titres en capitales qui ont
+chacun leur taille et leur espacement ; une couleur hors palette au Récap. Aucune couleur n'existe
+pour les niveaux ni pour le risque d'oublier.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given n'importe quel écran, Then le texte est en Outfit (choix utilisateur du 2026-10-17 ; le
+   texte coranique garde sa police) et n'emploie qu'un petit jeu de styles fixes : titre d'écran,
+   titre de section, titre de carte, texte, légende, grand chiffre.
+2. Given les niveaux et le risque d'oublier, Then leurs couleurs et leurs formes sont définies une
+   seule fois et identiques partout : quatre teintes froides du vert au bleu nuit, un cœur doré au
+   niveau 4, un gris pour « pas encore jouée », et l'orange avec un anneau, réservé au risque
+   d'oublier.
+3. Given les niveaux, Then ils se distinguent aussi sans les couleurs, par la forme du carreau.
+4. Given le thème clair ou sombre de l'appareil, Then chaque style et chaque couleur a son
+   équivalent, avec un texte lisible (contraste de 4,5:1, de 3:1 pour les grands chiffres).
+   L'habillage reste vert et or.
+5. Given chaque écran retouché, Then il est vérifié à l'œil en clair et en sombre avant d'être
+   livré (règle d'US-15 crit. 5).
+
+**Exclusions explicites** :
+- Pas de nouvelle mise en page des autres écrans : on y applique la police et les styles, rien de
+  plus.
+- Pas de sélecteur de thème, pas de couleurs de tajwid.
+- Les débordements quand le texte système est agrandi (Idées produit de `docs/CHANGELOG.md`)
+  restent à part, sauf ceux que le passage à Outfit créerait : à revérifier, Outfit n'a pas la
+  largeur de Lora.
+
+### US-26 — Le plan fait passer plus tôt ce que je n'ai pas révisé depuis longtemps (extension d'US-2)
+**État** : à scoper — blueprint du 2026-10-17. Prolonge US-2 (archivée, pas ressortie). Touche la
+« Règle du plan quotidien » du `CLAUDE.md` (partie A, l'ordre du tour), pas ses invariants.
+
+**Statement** : En tant qu'utilisateur, je veux que l'ordre de mes sourates dans le tour favorise
+celles que je n'ai pas révisées depuis longtemps, afin de rattraper d'abord ce que je risque
+d'oublier, sans rien avoir à décider.
+
+**Diagnostic (état actuel)** : l'ordre du tour est fixé au départ, au hasard ou dans l'ordre du
+mushaf, sans regarder la date de dernière révision. Dans l'usage normal, la sourate révisée il y a
+le plus longtemps est déjà la prochaine du plan. Mais une sourate retirée au check-in, ou laissée
+de côté par un changement de sélection, peut attendre un tour entier de plus.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given un nouveau tour avec l'ordre aléatoire activé, Then l'ordre des sourates est tiré au
+   hasard, et une sourate a d'autant plus de chances de passer tôt qu'elle n'a pas été révisée
+   depuis longtemps (choix utilisateur du 2026-10-17). Une sourate jamais révisée compte comme la
+   plus ancienne.
+2. Given un tour en cours, Then l'ordre ne bouge plus jusqu'à la fin du tour (choix utilisateur du
+   2026-10-17, contre un nouveau tirage chaque jour) : aucune page sautée, aucune page proposée
+   deux fois avant la fin du tour, rythme quotidien inchangé.
+3. Given une sourate sur plusieurs pages, Then ses pages restent dans l'ordre du mushaf. Given des
+   sourates entières sur une même page, Then elles restent une seule journée (règle du plan,
+   partie A).
+4. Given l'ordre aléatoire désactivé, Then l'ordre du mushaf est gardé tel quel, sans pondération.
+5. Given deux riwayas, Then chaque tour est tiré avec l'historique de sa propre riwaya.
+
+**Exclusions explicites** :
+- Le plan ne lit jamais les questions de l'onglet Renforcement : seule la récitation validée en fin
+  de journée compte.
+- Pas de nouveau tirage en cours de tour : une sourate retirée au check-in attend la fin du tour.
+- Pas de réglage de la pondération.
+- La durée d'un tour ne change pas, ni la garantie « chaque sourate revue au moins une fois par
+  tour ».
+
+**Défaut posé sans demander, à confirmer** : le crit. 4 (l'ordre du mushaf reste sans pondération).
+
+**Point de vigilance** : la « Règle du plan quotidien » du `CLAUDE.md` fait foi sur le code. Ce
+changement demande de réécrire sa partie A et de verrouiller le nouveau comportement par test,
+invariants de la partie E compris.
+
+### US-27 — Le plan du jour n'existe qu'après « Illuminer ma journée avec le Coran » (extension d'US-3)
+**État** : en sprint — Sprint A livré le 2026-10-21 (branche
+`feature/phase-26-sprint22-plan-ecrit-au-checkin`) : crit. 1 à 5. Reste le Sprint B (crit. 6 et 7,
+prières facultatives). Demande directe de l'utilisateur le 2026-10-21 (sans blueprint : le besoin
+tient en une règle, les décisions ouvertes ont été tranchées au scoping). Prolonge US-3 (archivée,
+pas ressortie) et modifie son crit. 2 du rattrapage multi-jours (voir les exclusions).
+**Non vérifié** : l'app n'a pas été lancée sous Windows après le Sprint A. Le brouillon du check-in
+(retrait, ajout, extension, apprentissage, validation, retour arrière) et le rattrapage à une
+étape ne sont couverts que par les tests d'état et `flutter analyze`, pas par un passage à l'écran.
+Trois comportements aux bords sont en « Idées produit » de `docs/CHANGELOG.md`.
+
+**Statement** : En tant qu'utilisateur, je veux que ma journée ne commence que quand j'appuie sur
+« Illuminer ma journée avec le Coran », afin qu'une journée où je n'ai pas ouvert le rituel ne me
+laisse ni dette ni rattrapage le lendemain.
+
+**Diagnostic (état actuel)** : à chaque ouverture ou reprise de l'app, `ensureDayPlan` écrit déjà le
+plan du jour dans `ayah_facts` (`reach=0`, `checked_out=0`), avant tout appui. Le lendemain,
+`pendingDate` voit ces lignes non scellées et ouvre de force un check-out de rattrapage pour une
+journée jamais commencée. Ce check-out coche « fait » par défaut : il peut créditer des versets
+jamais révisés et faire avancer le tour. Les mêmes lignes bloquent aussi le changement de sélection
+dans les Réglages (`saveConfig` refuse tant qu'un jour est en attente).
+
+**Critères d'acceptation** (haut niveau) :
+1. Given l'app ouverte ou reprise, sans appui sur le bouton, Then rien n'est écrit dans
+   `ayah_facts` pour aujourd'hui, ni révision ni apprentissage.
+2. Given un check-in ouvert puis quitté sans valider (retour, app tuée), Then rien n'est écrit non
+   plus : la journée n'est pas commencée.
+3. Given un check-in validé, Then le plan du jour (révision et apprentissage, tels que l'utilisateur
+   les a ajustés) est écrit en une fois, puis réparti dans les rakaas.
+4. Given une journée jamais commencée, Then le lendemain il n'y a aucun rattrapage, le tour n'a pas
+   avancé et le contenu revient (règle « journée sautée » de la `CLAUDE.md`). Given une journée
+   commencée mais pas terminée, Then le rattrapage reste.
+5. Given le rattrapage de plusieurs jours, Then il ne parle que des jours passés. Après lui,
+   l'utilisateur retrouve l'accueil et appuie sur le bouton pour aujourd'hui.
+6. Given le check-in, Then choisir des prières est facultatif (demande de l'utilisateur, 2026-10-21) :
+   le bouton de validation marche sans aucune prière, et une phrase dit où ira le contenu.
+7. Given un check-in validé sans prière, Then tout le plan du jour s'affiche hors des rakaas : la
+   révision dans la section « à réviser en dehors des prières », et le passage à apprendre dans une
+   seconde section « À apprendre » (choix utilisateur du 2026-10-21, contre une seule section). Rien
+   n'est perdu : le check-out crédite ce contenu comme celui des rakaas. Given des prières choisies,
+   Then rien ne change : l'apprentissage reste dans la dernière rakaa récitée (US-4).
+
+**Exclusions explicites** :
+- **Modifie US-3 (archivée)** : l'étape « Et aujourd'hui ? » du rattrapage de plusieurs jours, qui
+  créait le plan du jour sans le bouton, disparaît (choix utilisateur du 2026-10-21, contre un
+  « Valider aujourd'hui » qui ouvrirait le check-in).
+- **Pas de migration** (choix utilisateur du 2026-10-21) : une ancienne journée proposée sans appui,
+  déjà dans la base d'un testeur, peut encore ouvrir un dernier rattrapage. Même logique que la
+  décision du 2026-08-30 (pas de rattrapage de base).
+- Le réglage du rythme et de l'apprentissage garde son effet sur le lendemain, qu'il ait été changé
+  dans le check-in ou dans les Réglages.
+
+**Scoping technique** (2026-10-21) :
+- **Fichiers UI** : `lib/screens/check_in_screen.dart` (309 lignes, au plafond),
+  `check_in_detail_screen.dart` (70), `check_out_screen.dart`, `check_out_sections.dart` (partie 2
+  du rattrapage), `lib/core/strings_check_out.dart` (cinq libellés orphelins).
+- **Nouveau fichier** : `lib/models/check_in_draft.dart` (~60 lignes, modèle immuable à `copyWith`) :
+  le plan en cours d'ajustement, tenu en mémoire dans le `State` du check-in.
+- **Variables / champs** : le brouillon n'est ni persisté ni dans `AppState`. Aucune clé
+  `SharedPreferences`. Un champ de plus dans `DailySession` : `outsideLearning` (`RevisionUnit?`),
+  renvoyé par `distributeToRakaas` quand aucune rakaa récitée n'existe.
+- **Prières facultatives (crit. 6 et 7)** : `distributeToRakaas` met déjà toute la révision en
+  « hors prières » quand le budget est 0 ; seul l'apprentissage se perd (`hasLearning` exige une rakaa
+  récitée). Les gardes `isEmpty` à lever : `check_in_screen.dart` (`ready`),
+  `day_plan_tab.dart:151`, `buildTodaySession`, la reprise dans `ensureDayPlan`. Une manche sans prière
+  se reprend si `active_prayers` vaut `[]` (et non `null`) : à vérifier dans `_decodePrayers`.
+  `saveLastSessionPrayers` n'est pas appelé avec une liste vide, sinon « reprendre les prières
+  d'hier » serait effacé.
+- **`ayah_facts`** : aucune colonne, aucune table. Le plan du jour n'y est écrit qu'au moment du
+  check-in validé. « Journée commencée » se dérive de l'existence d'une ligne ce jour-là, comme le
+  reste du modèle.
+- **Décision data model** : pas de drapeau « commencée ». Écrire les lignes plus tard suffit, et
+  `pendingDate` n'a pas à changer.
+- **Réutilisation** : `AyahFactsRitual.proposeUnits`, `clearDayProposal`, `removeFromDayPlan` ;
+  `AyahFactsLearning.proposeLearnVerses` ; `LearningProgress.nextBlock` ;
+  `AppState.todayPreviewUnits` (déjà pur, sans écriture) ; `buildTodaySession`.
+- **Risques / dépendances** :
+  - **Ré-appui après « Refaire le plan »** : les lignes du jour existent déjà, parfois à `reach=1`.
+    Le brouillon part alors de ces lignes, jamais du moteur, et l'enregistrement supprime ce que
+    l'utilisateur a retiré (même sémantique que `removeFromDayPlan`).
+  - **« Je n'apprends rien aujourd'hui »** : la proposition par défaut d'apprentissage ne se refait
+    que si le jour n'a aucune ligne du tout, comme le garde actuel. Sinon un ré-appui la remettrait.
+  - **Réglage du rythme depuis les Réglages** : `setPagesPerDay` réécrit la proposition du jour. Il
+    ne doit plus le faire quand le jour n'est pas commencé (aucune ligne).
+  - **Lecteurs de `dayUnits()` avant l'appui** : l'onglet Renforcement
+    (`app_state_reinforcement.dart`) lit le plan du jour pour le prioriser (US-20 crit. 1). Sans
+    lignes, il tombe sur son comportement « pas de plan », déjà prévu.
+  - **Tests existants** : `app_state_checkin_test.dart` (27 usages) et `app_state_learning_test.dart`
+    (22) comptent sur `ensureDayPlan` pour écrire le plan. Ils passent par l'enregistrement du
+    check-in.
+  - **Non géré** : un check-in ouvert avant minuit et validé après écrit sous la nouvelle date,
+    avec un brouillon calculé la veille. Cas rare, sans conséquence sur le tour.
+- **Tests** : `ensureDayPlan` n'écrit rien (jour vide avant et après, `pendingDate` nul le
+  lendemain) ; l'enregistrement écrit révision et apprentissage ; un ré-appui garde les `reach=1` et
+  supprime les unités retirées ; « rien à apprendre » n'est pas re-proposé ; `setPagesPerDay` sur un
+  jour non commencé n'écrit rien. Check-in quitté sans valider, rattrapage à une étape : vérification
+  visuelle sous Windows.
+- **Items Backlog** : `[P1] US-27 Sprint A` (livré, retiré du Backlog), puis
+  `[P2] US-27 Sprint B — Prières facultatives, tout le plan hors des rakaas` (crit. 6 et 7). Le
+  Sprint B réutilise le bouton de validation et `commitCheckIn`.
 
 ## Archivées
 

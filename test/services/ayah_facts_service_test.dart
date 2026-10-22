@@ -205,15 +205,6 @@ void main() {
     });
   });
 
-  group('removeFromDayPlan', () {
-    test('retire toute la sourate quand aucune plage précisée', () async {
-      const date = '2020-02-04';
-      await AyahFactsRitual.proposeUnits(date, Riwaya.hafs, [testUnit(13, 1, 3)]);
-      await AyahFactsRitual.removeFromDayPlan(date, Riwaya.hafs, 13);
-      expect(await AyahFactsRitual.dayFacts(date, Riwaya.hafs), isEmpty);
-    });
-  });
-
   group('sealDay', () {
     test('scelle uniquement la date/riwaya visée', () async {
       const date = '2020-02-05';

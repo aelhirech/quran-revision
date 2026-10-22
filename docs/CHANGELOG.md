@@ -101,6 +101,21 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     `StepTransition`. Une nouvelle étape dans l'un de ces deux écrans les réutilise.
   - `PrimaryCtaButton` réduit un libellé trop long au lieu de le couper, et n'a plus d'ombre
     quand il est désactivé.
+- **Plan du jour écrit au check-in validé (US-27, 2026-10-21)** :
+  - `ensureDayPlan` n'écrit aucune ligne. Seul `AppState.commitCheckIn` écrit le plan du jour
+    (révision et apprentissage) dans `ayah_facts`. Ne jamais réécrire une proposition à
+    l'ouverture de l'app : une journée où le bouton n'a pas été pressé redeviendrait un
+    rattrapage forcé le lendemain, dont le check-out « fait par défaut » crédite du contenu non
+    révisé.
+  - Le check-in édite un `CheckInDraft` en mémoire. Aucun écran n'écrit le plan par morceaux. Deux
+    réglages font exception et sont enregistrés dès le tap, comme dans les Réglages : le rythme
+    (`pagesPerDay`) et le nombre de versets à apprendre par jour.
+  - « Journée commencée » se dérive de l'existence d'une ligne ce jour-là, sans drapeau. Un jour
+    validé sans aucune ligne ne se distingue donc pas d'un jour jamais commencé (voir « Idées
+    produit »).
+  - Une ligne `reach=1` n'est jamais supprimée par un ajustement du plan : retirer au brouillon
+    une unité déjà atteinte ne la retire pas.
+
 - **Accès aux sourates (2026-10-13)** : la liste des sourates s'ouvre par
   `SouratePickerSheet.show`, le sélecteur de plage de versets par `VerseRangePicker.show`, et
   une sourate se retrouve par son id avec `AppState.sourateById`. Ne réécrire ni le
@@ -185,6 +200,42 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
+### [P2] US-27 Sprint B — Prières facultatives, tout le plan hors des rakaas
+Le Sprint A est livré : ce sprint réutilise `commitCheckIn` et le bouton de validation.
+Choix utilisateur du 2026-10-21 : sans prière, la révision va dans « à réviser en dehors des prières »
+et l'apprentissage dans une seconde section « À apprendre ».
+- **`RakaaDistributor.distributeToRakaas`** (`lib/core/rakaa_distributor.dart`) : le record renvoyé
+  gagne `outsideLearning` (`RevisionUnit?`), égal à `learningUnit` quand `totalSuratRakaas == 0`, `null`
+  sinon. La révision n'est pas touchée (budget 0 : `outside` contient déjà tout).
+- **`DailySession`** (`lib/models/daily_session.dart`) : champ `outsideLearning`, rempli par
+  `buildTodaySession`.
+- **`buildTodaySession`** : retirer `prayersAlone.isEmpty` de la garde (reste `_config == null`).
+  N'écrit `saveLastSessionPrayers` que si la liste n'est pas vide. `ensureDayPlan` reprend la manche
+  quand `loadActivePrayers` n'est pas `null` (au lieu de `isNotEmpty`) ; vérifier que `_decodePrayers`
+  renvoie `[]` et non `null` pour une liste vide, sinon le corriger.
+- **`DayPlanTab._openCheckIn`** : `null` = retour arrière, rien à faire ; une liste vide construit la
+  manche. Retirer `prayers.isEmpty`.
+- **`check_in_screen.dart`** : `ready` toujours vrai à la dernière étape. Le texte
+  `checkInPrieresManquantes` devient une phrase neutre (« Sans prière, tout ira dans la section à
+  réviser »), affichée quand aucune prière n'est choisie ; `checkInPrieresDesc` dit que c'est
+  facultatif. Libellés FR et EN dans `strings_check_in.dart`.
+- **`PlanScreen`** (`plan_screen.dart`) : sous `OutsidePrayersBlock`, un bloc « À apprendre » en lecture
+  seule quand `session.outsideLearning != null`. Nouveau widget `OutsideLearningBlock`
+  (`lib/widgets/`), même mise en page que `OutsidePrayersBlock` avec une seule ligne : à extraire
+  d'une base commune si la duplication dépasse la carte et son bouton « Voir le texte ». `allDone`
+  reste faux tant que `outsideLearning != null`, comme pour `outsidePrayers`. Vérifier que « Terminer
+  ma journée » reste utilisable quand il n'y a aucune rakaa.
+- **Réutilisé tel quel** : `OutsidePrayersBlock` pour la révision, `S.horsPrieresTitre`/`horsPrieresDesc`,
+  le check-out verset par verset (il crédite déjà révision et apprentissage sans rakaa).
+- **Tests** : `rakaa_distributor_test.dart` (sans prière : tout dans `outside`, `outsideLearning` posé ;
+  avec prière : `outsideLearning` nul, apprentissage dans la dernière rakaa inchangé) ;
+  `app_state_checkin_test.dart` (manche sans prière construite, reprise après redémarrage, « prières
+  d'hier » non écrasées). Visuel sous Windows : check-in sans prière, deux sections, bouton de clôture.
+- **Exclus** : tout changement du libellé « en dehors des prières » ; une règle pour répartir la
+  révision par blocs de temps sans prière.
+- **Doc** : `CLAUDE.md` (partie D de la règle du plan : « aucune prière = tout hors prières, apprentissage
+  en seconde section ») ; `docs/DOCUMENTATION_TECHNIQUE.md` §8.1 ; US-4 à recouper.
+
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
 qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) — et depuis US-10 Sprint B
@@ -196,6 +247,21 @@ généralisation anticipée pour un cas qui n'existe pas encore.
 ## Idées produit (non scopées)
 
 Vision/features pas encore prêtes à l'implémentation — pas de priorité technique tant qu'elles n'ont pas été cadrées (`quran-blueprint` → user story dans `docs/USER_STORIES.md`, puis `quran-scoping` → item ci-dessus). Ne pas lancer à la volée.
+
+- **Check-in : trois comportements aux bords, relevés au sprint US-27 (2026-10-21)**, à trancher
+  avant d'en faire un item :
+  - *Jour validé sans aucune ligne* (tout retiré, rien à apprendre) : indiscernable d'un jour jamais
+    commencé, donc un check-in rouvert après « Refaire le plan » repropose les valeurs par défaut du
+    moteur. Avant US-27 le cas existait aussi, à chaque ouverture de l'app. Un marqueur « commencé »
+    (comme `last_sealed_date`) le réglerait, au prix d'une seconde source de vérité.
+  - *Retirer une unité déjà atteinte* (`reach=1`) dans un check-in rouvert : l'unité disparaît de
+    l'écran, mais `commitCheckIn` ne supprime jamais une ligne `reach=1`, donc elle revient au plan
+    sans message. Il reste à choisir : bloquer le « × » sur une unité atteinte, ou autoriser la
+    suppression.
+  - *Étendre une unité jusqu'à toucher la suivante* (deux unités adjacentes d'une même sourate le
+    même jour, `+` du détail) : le brouillon montre le même verset dans les deux, alors que la base
+    n'en écrit qu'un. Il reste à choisir : cacher le « + » à la frontière, ou fusionner les deux
+    unités.
 
 - **Rattrapage d'un jour passé : le curseur lit celui d'aujourd'hui** (relevé en `/code-review`
   du sprint 21, déduit du code, non reproduit) : `_completedPagesFor` parcourt le cycle depuis

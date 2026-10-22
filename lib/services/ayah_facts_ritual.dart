@@ -58,38 +58,13 @@ class AyahFactsRitual {
     await batch.commit(noResult: true);
   }
 
-  /// Retire une sourate/portion du plan du jour (check-in, bouton "×").
-  static Future<void> removeFromDayPlan(
-      String date, Riwaya riwaya, int surahId,
-      {int? verseStart, int? verseEnd}) async {
-    final db = await AyahFactsService._open();
-    if (verseStart == null || verseEnd == null) {
-      await db.delete('ayah_facts',
-          where: 'date = ? AND riwaya = ? AND surah_id = ? AND type = ?',
-          whereArgs: [date, riwaya.name, surahId, AyahFactType.revise.name]);
-    } else {
-      await db.delete('ayah_facts',
-          where:
-              'date = ? AND riwaya = ? AND surah_id = ? AND ayah_id BETWEEN ? AND ? AND type = ?',
-          whereArgs: [
-            date,
-            riwaya.name,
-            surahId,
-            verseStart,
-            verseEnd,
-            AyahFactType.revise.name
-          ]);
-    }
-  }
-
   /// Efface la proposition non encore acquise d'un jour, pour la
   /// régénérer — l'utilisateur ajuste son rythme (révision) ou change de
   /// sourate/nombre de versets (apprentissage) au check-in. Ne touche jamais
   /// une ligne `reach = 1` : une progression déjà faite ne disparaît pas
   /// parce qu'on recalcule la proposition (voir CLAUDE.md § « Modèle de
-  /// données central »). Même nature de suppression que
-  /// [removeFromDayPlan] (retrait explicite du plan du jour), pas un
-  /// "retour en arrière" d'un pas.
+  /// données central »). Un vrai DELETE, réservé à la régénération de la
+  /// proposition, pas un "retour en arrière" d'un pas.
   static Future<void> clearDayProposal(String date, Riwaya riwaya,
       {AyahFactType type = AyahFactType.revise}) async {
     final db = await AyahFactsService._open();
@@ -126,7 +101,7 @@ class AyahFactsRitual {
   /// Comme [setReach], mais pour une liste de versets précis d'une même
   /// sourate en un seul aller-retour — la portion à apprendre d'un jour
   /// n'est pas nécessairement contiguë (l'utilisateur peut avoir désappris
-  /// un verset au milieu, voir `AppState._proposeLearning`), donc une plage
+  /// un verset au milieu, voir `AppState.setLearningForToday`), donc une plage
   /// `BETWEEN` ne suffit pas.
   static Future<void> setReachForVerses(String date, Riwaya riwaya, int surahId,
       List<int> ayahIds, bool reach,
@@ -173,7 +148,7 @@ class AyahFactsRitual {
   /// sequential queries on a full check-out instead of a few dozen.
   ///
   /// `reached` is `false` both when nothing was done and when the range was
-  /// removed at check-in ([removeFromDayPlan]); `exists` tells the two apart,
+  /// removed at check-in (never written); `exists` tells the two apart,
   /// which is exactly what `AppState._completedPagesFor` needs.
   static Future<({bool exists, bool reached})> rangeStatus(String date,
       Riwaya riwaya, int surahId, int verseStart, int verseEnd) async {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/day_dates.dart';
@@ -15,9 +14,7 @@ import '../widgets/milestone_moment.dart';
 import '../widgets/outlined_action_button.dart';
 import '../widgets/primary_cta_button.dart';
 import '../widgets/sourate_picker_sheet.dart';
-import '../widgets/step_dots.dart';
 import '../widgets/step_footer.dart';
-import '../widgets/step_transition.dart';
 import '../widgets/verse_chip.dart';
 import '../widgets/verse_range_picker.dart';
 import '../widgets/verse_toggle_chips.dart';
@@ -70,10 +67,8 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
   // day, and those the user withdraws (unchecked = no longer holds).
   List<int> _lastBlock = const [];
   final Set<int> _retiredFromLastBlock = {};
-  int _step = 1;
   // Les exceptions persistées n'ont été reprises qu'une fois (voir [_load]).
   bool _prefilled = false;
-  bool _addToday = false;
   bool _sealing = false;
 
   // `setState` is `@protected`, not callable from `_CheckOutSections` (an
@@ -104,12 +99,15 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     final state = context.read<AppState>();
     final itemsF = state.dayUnitsWithStatus(date: widget.date);
     final learnF = state.learningPlanFor(widget.date);
-    final lastBlockF = learnF.then<List<int>>((l) => l == null
-        ? const <int>[]
-        : state.lastLearnedBlock(l.sourate.id, widget.date));
+    final lastBlockF = learnF.then<List<int>>(
+      (l) => l == null
+          ? const <int>[]
+          : state.lastLearnedBlock(l.sourate.id, widget.date),
+    );
     final sealedF = state.isDaySealed(widget.date);
-    final learningProgressF =
-        state.guideDone('checkout_done') ? null : state.learningInProgress();
+    final learningProgressF = state.guideDone('checkout_done')
+        ? null
+        : state.learningInProgress();
     final items = await itemsF;
     final learn = await learnF;
     final sealed = await sealedF;
@@ -136,7 +134,8 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
         }
         if (learn != null) {
           _notLearned.addAll(
-              learn.ayahIds.where((v) => !learn.reachedVerses.contains(v)));
+            learn.ayahIds.where((v) => !learn.reachedVerses.contains(v)),
+          );
         }
       }
     });
@@ -170,8 +169,9 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       for (final it in _items!) {
         final surahId = it.unit.sourate.id;
         for (final v in it.unit.verses) {
-          final bucket =
-              _uncheckedVerses.contains((surahId, v)) ? uncheckedBySurah : checkedBySurah;
+          final bucket = _uncheckedVerses.contains((surahId, v))
+              ? uncheckedBySurah
+              : checkedBySurah;
           bucket.putIfAbsent(surahId, () => []).add(v);
         }
       }
@@ -187,13 +187,16 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
         for (final entry in uncheckedBySurah.entries)
           state.markVersesReached(widget.date, entry.key, entry.value, false),
         if (learn != null) ...[
+          state.markLearnVerses(widget.date, learn.sourate.id, [
+            for (final v in learn.ayahIds)
+              if (!_notLearned.contains(v)) v,
+          ], true),
           state.markLearnVerses(
-              widget.date,
-              learn.sourate.id,
-              [for (final v in learn.ayahIds) if (!_notLearned.contains(v)) v],
-              true),
-          state.markLearnVerses(
-              widget.date, learn.sourate.id, _notLearned.toList(), false),
+            widget.date,
+            learn.sourate.id,
+            _notLearned.toList(),
+            false,
+          ),
           state.unlearnVerses(learn.sourate.id, _retiredFromLastBlock),
         ],
       ]);
@@ -202,13 +205,9 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       // plain tap — see CLAUDE.md § "Modèle de données central" and the
       // guide rule (CHANGELOG, US-1 sprint B).
       await state.markGuideDone('checkout_done');
-      // Le jour en attente est scellé. Écart d'1 jour : pas de choix
-      // proposé, on enchaîne directement sur aujourd'hui comme avant.
-      // Écart multi-jours (Partie 2) : ne propose aujourd'hui que si
-      // l'utilisateur l'a explicitement demandé via le toggle — sinon
-      // "Terminer sans aujourd'hui" doit vraiment différer, pas générer le
-      // plan quand même à la ligne suivante (bug trouvé en revue de code).
-      if (!_isMultiDay || _addToday) await state.ensureDayPlan();
+      // Only re-reads the state (pending day, closed day): today's plan
+      // exists once the check-in is validated, not before.
+      await state.ensureDayPlan();
       if (!mounted) return;
       if (outcome.hasMilestone) {
         await showDialog<void>(
@@ -229,7 +228,6 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     final state = context.watch<AppState>();
     final palette = context.palette;
     final items = _items;
-    final showPart2 = _isMultiDay && _step == 2;
 
     return PopScope(
       canPop: !_sealing,
@@ -240,45 +238,40 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
             : SafeArea(
                 child: Column(
                   children: [
-                    _hero(palette, showPart2),
+                    _hero(palette),
                     if (!state.guideDone('checkout_done')) _guideStep(state),
                     Expanded(
-                      child: StepTransition(
-                        step: _step,
-                        child: showPart2
-                            ? _part2Body(palette)
-                            : ListView(
-                                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                                children: [
-                                  for (final it in items)
-                                    CheckOutRow(
-                                      unit: it.unit,
-                                      uncheckedVerses: {
-                                        for (final v in it.unit.verses)
-                                          if (_uncheckedVerses
-                                              .contains((it.unit.sourate.id, v)))
-                                            v,
-                                      },
-                                      onToggleVerse: (v) =>
-                                          _toggleVerse(it.unit.sourate.id, v),
-                                    ),
-                                  const SizedBox(height: 14),
-                                  if (state
-                                      .addableSelections({
-                                        for (final it in items)
-                                          it.unit.sourate.id
-                                      })
-                                      .isNotEmpty)
-                                    OutlinedActionButton(
-                                        icon: Icons.add,
-                                        label: SCheckOut.checkOutReviseEnPlus,
-                                        onTap: _addRevisedSourate),
-                                  ..._learnSection(palette),
-                                ],
-                              ),
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        children: [
+                          for (final it in items)
+                            CheckOutRow(
+                              unit: it.unit,
+                              uncheckedVerses: {
+                                for (final v in it.unit.verses)
+                                  if (_uncheckedVerses.contains((
+                                    it.unit.sourate.id,
+                                    v,
+                                  )))
+                                    v,
+                              },
+                              onToggleVerse: (v) =>
+                                  _toggleVerse(it.unit.sourate.id, v),
+                            ),
+                          const SizedBox(height: 14),
+                          if (state.addableSelections({
+                            for (final it in items) it.unit.sourate.id,
+                          }).isNotEmpty)
+                            OutlinedActionButton(
+                              icon: Icons.add,
+                              label: SCheckOut.checkOutReviseEnPlus,
+                              onTap: _addRevisedSourate,
+                            ),
+                          ..._learnSection(palette),
+                        ],
                       ),
                     ),
-                    _ctaBar(showPart2),
+                    _ctaBar(),
                   ],
                 ),
               ),
@@ -316,49 +309,48 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     final learn = _learnPlan;
     // [_lastBlock] belongs to [_learnPlan]'s surah, which may not be the one
     // [_learningProgress] tracks (most recently started unfinished surah).
-    if (progress == null || learn == null || learn.sourate.id != progress.sourate.id) {
+    if (progress == null ||
+        learn == null ||
+        learn.sourate.id != progress.sourate.id) {
       return progress;
     }
     return progress.copyWith(
-        learnedVerses: progress.learnedVerses.difference(_retiredFromLastBlock));
+      learnedVerses: progress.learnedVerses.difference(_retiredFromLastBlock),
+    );
   }
 
-  Widget _hero(AppPalette palette, bool showPart2) {
+  Widget _hero(AppPalette palette) {
     // Titre et badge suivent la même cascade : un seul choix plutôt que deux
     // ternaires jumeaux à garder synchronisés quand un cas s'ajoute.
-    final (title, badge) = showPart2
-        ? (SCheckOut.checkOutTitreAujourdhui, SCheckOut.checkOutPartieOptionnelle)
-        : _isMultiDay
-            ? (SCheckOut.checkOutTitreEnAttente, SCheckOut.checkOutIlYaNJours(_gapDays))
-            : _isToday
-                ? (SCheckOut.checkOutTitreCeJour, SCheckOut.checkOutAujourdhui)
-                : (SCheckOut.checkOutTitreHier, SCheckOut.checkOutHier);
+    final (title, badge) = _isMultiDay
+        ? (
+            SCheckOut.checkOutTitreEnAttente,
+            SCheckOut.checkOutIlYaNJours(_gapDays),
+          )
+        : _isToday
+        ? (SCheckOut.checkOutTitreCeJour, SCheckOut.checkOutAujourdhui)
+        : (SCheckOut.checkOutTitreHier, SCheckOut.checkOutHier);
 
     return CheckHero(
-      eyebrow: _isMultiDay ? SCheckOut.checkOutRattrapageEyebrow : SCheckOut.checkOutEyebrow,
-      extra: _isMultiDay ? StepDots(count: 2, current: showPart2 ? 1 : 0) : null,
+      eyebrow: _isMultiDay
+          ? SCheckOut.checkOutRattrapageEyebrow
+          : SCheckOut.checkOutEyebrow,
       title: title,
       badge: badge,
     );
   }
 
-  Widget _ctaBar(bool showPart2) {
-    String label;
-    VoidCallback? onPressed;
-    if (!_isMultiDay) {
-      label = _isToday ? S.cloturerMaJournee : SCheckOut.checkOutCloturerHier;
-      onPressed = _sealing ? null : _close;
-    } else if (!showPart2) {
-      label = SCheckOut.checkOutCloturerJour;
-      onPressed = () => setState(() => _step = 2);
-    } else {
-      label = _addToday ? SCheckOut.checkOutValiderAujourdhui : SCheckOut.checkOutTerminerSans;
-      onPressed = _sealing ? null : _close;
-    }
+  Widget _ctaBar() {
+    final label = _isMultiDay
+        ? SCheckOut.checkOutCloturerJour
+        : _isToday
+        ? S.cloturerMaJournee
+        : SCheckOut.checkOutCloturerHier;
     return StepFooter(
-      // Part 2 of a multi-day catch-up had no way back to part 1 (US-15).
-      onBack: showPart2 && !_sealing ? () => setState(() => _step = 1) : null,
-      primary: PrimaryCtaButton(label: label, onPressed: onPressed),
+      primary: PrimaryCtaButton(
+        label: label,
+        onPressed: _sealing ? null : _close,
+      ),
     );
   }
 }

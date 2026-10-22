@@ -7,6 +7,7 @@ import '../core/reinforcement_engine.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
 import '../models/ayah_fact.dart';
+import '../models/check_in_draft.dart';
 import '../models/daily_session.dart';
 import '../models/day_close.dart';
 import '../models/learning_progress.dart';

@@ -8,6 +8,7 @@ import 'package:quran_revision/services/page_metadata_service.dart';
 import 'package:quran_revision/state/app_state.dart';
 
 import '../services/test_helpers.dart';
+import 'day_helpers.dart';
 
 void main() {
   setUpAll(() async {
@@ -47,7 +48,7 @@ void main() {
 
   test('les versets du plan du jour sont dans today', () async {
     final state = newState();
-    await state.ensureDayPlan();
+    await validateCheckIn(state);
 
     final inputs = await state.reinforcementInputs();
     final planned = {
@@ -64,7 +65,7 @@ void main() {
       'un verset proposé à l\'apprentissage aujourd\'hui et pas encore appris '
       'n\'est ni porté ni dans today', () async {
     final state = newState();
-    await state.ensureDayPlan();
+    await validateCheckIn(state);
     await state.setLearningForToday(
         state.sourates.firstWhere((s) => s.id == 108), 2);
 

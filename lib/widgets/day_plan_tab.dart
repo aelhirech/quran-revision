@@ -138,9 +138,9 @@ class _DayPlanTabState extends State<DayPlanTab> {
 
   /// « Illuminer ma journée » : ouvre le check-in et, s'il est validé,
   /// répartit le plan du jour dans les rakaas des prières choisies. Fermer
-  /// le popup sans valider (retour arrière) ne construit aucune manche —
-  /// les ajustements faits dedans (rythme, sourates, apprentissage) sont
-  /// déjà persistés dans `ayah_facts`/la config de toute façon.
+  /// le popup sans valider (retour arrière) ne construit aucune manche et
+  /// n'écrit aucun plan : seuls les deux réglages (rythme, versets à
+  /// apprendre) sont déjà enregistrés dans la config.
   Future<void> _openCheckIn(AppState state) async {
     final prayers = await Navigator.of(context, rootNavigator: true).push<List<Prayer>>(
       MaterialPageRoute(
