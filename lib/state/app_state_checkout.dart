@@ -147,7 +147,7 @@ extension AppStateCheckOut on AppState {
   /// That grouping only holds when a surah fits ENTIRELY on the shared page —
   /// one that only spills onto it forms its own cycle position instead, never
   /// merged with a neighbour that does fit whole (see `RevisionEngine.
-  /// buildCycle`, `CLAUDE.md` § "Règle du plan quotidien" part A; fixed
+  /// buildCycle`, `docs/SPEC_PRODUIT.md` § "Règle du plan quotidien" part A; fixed
   /// 2026-09-08).
   ///
   /// Within a group, a unit the user removed at check-in

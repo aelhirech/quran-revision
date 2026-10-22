@@ -5,7 +5,7 @@ import '../core/strings.dart';
 /// Shown when surahs are selected but the cycle came out empty — the only
 /// possible cause is that the mushaf pagination failed to load. Saying so
 /// beats a silent "0 / 0 pages", which reads like a finished cycle
-/// (`CLAUDE.md`, "Règle du plan quotidien" §F).
+/// (`docs/SPEC_PRODUIT.md`, "Règle du plan quotidien" §F).
 ///
 /// Shared by the home screen and the onboarding day-1 step so the same
 /// failure never gets two different wordings or two different looks.

@@ -11,7 +11,7 @@ import 'ornamental_divider.dart';
 /// Home screen once today is sealed (US-14): what the day brought (looking
 /// back), then the round duration and the learning deadline (looking ahead).
 /// Shown every closed day, not only the first one — the "ahead at check-out"
-/// rule of CLAUDE.md § Direction narrative, held by state rather than by a
+/// rule of docs/SPEC_PRODUIT.md § Direction narrative, held by state rather than by a
 /// one-time guide.
 class DayClosedSummary extends StatefulWidget {
   /// Plays the entrance animation: true right after sealing, false when the

@@ -1,198 +1,6 @@
 # Changelog — Quran Revision App
 
-> Backlog en attente + décisions encore actives utiles aux prochains sprints. L'historique détaillé des sprints livrés (features, bugs corrigés, refactors) vit dans `git log`, pas ici. Pour *comment* le code fonctionne aujourd'hui (architecture, moteurs métier, écrans), voir `docs/DOCUMENTATION_TECHNIQUE.md`. Pour le modèle de données `ayah_facts` et l'algorithme du plan quotidien (vocabulaire, invariants, cas limites), voir `CLAUDE.md` — ce fichier ne les reformule plus, seulement ce qui n'y est pas déjà couvert.
-
----
-
-## Décisions actives à connaître
-
-Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix produit fait puis défait, ou un bug déjà corrigé sans piège résiduel, vit dans `git log` — pas ici.
-
-**Modèle de données**
-- Migration SQLite 2026-08-30 (introduction d'`ayah_facts`) faite **sans backfill**, décision prise faute d'utilisateurs réels à l'époque. Ne pas reproduire sans redemander confirmation si l'app a de vrais utilisateurs au moment d'un futur changement de schéma.
-- Profils élèves multi-utilisateurs (`StudentProfile`/`StudentService`/`StudentProfileBar`) supprimés en entier le 2026-09-01 sur retour utilisateur explicite (app mono-utilisateur). Ne pas réintroduire sans besoin confirmé.
-- Le "fait" par défaut au check-out (`CheckOutScreen`) ne s'applique **qu'à cet écran** — jamais à `AyahFactsService.proposeUnits` ni à `PlanScreen`/`toggleTodayUnitReach`, qui doivent garder `reach=0` tant que rien n'a été coché en priant. Les confondre ferait afficher "déjà fait" avant même d'avoir prié.
-- `todayClosed` a deux sources distinctes : `AyahFactsService.isDaySealed` (lignes `revise` réelles, seul garde-fou anti double-comptage du cycle) et `last_sealed_date` (`StorageService`, flag d'affichage uniquement pour les journées sans ligne à sceller — apprentissage seul, ou tout retiré au check-in). Ne jamais faire dépendre le comptage du cycle de la seconde.
-
-**Cycle / `RevisionEngine`**
-- Le mélange du cycle est un tri par clé stable par sourate (`_shuffleKey`), jamais un `List.shuffle` — insérer une sourate ne doit déplacer aucune autre (sinon pages sautées/reproposées pendant que `cyclePosition` reste en place). Verrouillé par test dans `revision_engine_test.dart`. Basculer le mélange on/off, en revanche, remet `cyclePosition` à 0 comme un changement de sélection.
-- Ce qui ne tient pas dans les prières (règle D) est retourné par `distributeToRakaas` (`{plan, outside}`) — ne jamais redériver "hors prières" par différence d'ensembles dans `AppState` : `RevisionUnit.==` porte sur la plage de versets, donc une unité subdivisée n'est jamais égale à sa mère et fausse tout le calcul.
-- Cocher une rakaa peut en cocher une autre automatiquement quand `_padCyclically` fait apparaître deux fois la même plage de versets dans la journée — `reach` est une vérité par verset/jour, pas par rakaa.
-- Agréger plusieurs groupes de cycle se fait par **union** de pages, jamais par somme (deux groupes peuvent partager une page physique).
-- **`pagesPerDay` compte des vraies pages du mushaf, pas des entrées de cycle (2026-09-26)** : avant cette date, le rythme quotidien prenait un nombre fixe d'*entrées* (`RevisionEngine.buildDayUnits`), pas toujours équivalent à une page réelle (fragment privé plus petit qu'une page, ou page frontière partagée par deux entrées consécutives) — l'onboarding annonçait « 1 page/jour » alors que ~0,7 page réelle était consommée en moyenne, contredisant l'accueil (« 85 pages ») qui, lui, comptait déjà en vraies pages via `DaySelection.realPages`. `RevisionEngine._takeEntriesForPages` (nouveau, partagé par `buildDayUnits` et `DaySelection.cycleDays`) prend maintenant des entrées jusqu'à couvrir AU MOINS `pagesPerDay` pages réelles distinctes — jamais une fraction d'entrée : un jour peut donc couvrir plus ou moins de pages que le budget exact (voir `CLAUDE.md` § Règle du plan quotidien, partie B, invariant 7). Ne jamais revenir à un décompte par entrées pour `pagesPerDay`/`cycleDays` — verrouillé par `test/core/revision_engine_test.dart` (groupe `DaySelection.cycleDays`).
-
-**UI / lecture**
-- **Portion de la vue Coran (US-11, US-18 — 2026-10-13)** : la portion vit dans le `State` de
-  `VerseBottomSheet` (`_portion`, jamais persistée), parce que le curseur et la liste de versets
-  doivent lire le même état. `VerseAudioBar` la reçoit par `portion`/`onPortionChanged`.
-  - **Ne jamais relire `widget.portion` dans la barre au moment d'un geste** : un ±1 appelle
-    `onChanged` puis `onChangeEnd` avant tout rebuild, `widget.portion` y vaut encore l'ancienne
-    portion. `_startLoop`, `_playsPortion` et `_followPortionIfPlaying` la prennent en argument.
-    Après un démarrage, le rattrapage relit `widget.portion` **après la frame**
-    (`addPostFrameCallback`), pour la même raison.
-  - La boucle en cours est portée par le handler, `QuranAudioHandler.currentLoop` (récitateur,
-    sourate, début, fin — `null` après `stop`), jamais recopiée dans la barre : une boucle
-    « appartient » à la vue si même récitateur, même sourate et plage incluse dans la plage
-    affichée, ce qui reconnaît une sous-portion après réouverture.
-  - La boucle ne suit un changement de portion que si **cette** boucle joue, et jamais après un
-    démarrage raté : relancer une requête injouable (hors ligne + récitateur non téléchargé)
-    bouclait sans fin, bug trouvé en `/code-review`. Relance au relâché du curseur ou au ±1
-    seulement, jamais à chaque pixel (`playLoop` remplace toute la playlist). Le texte, lui, suit
-    en direct.
-  - L'en-tête garde la plage d'origine. Aucun verset de contexte n'est affiché (retiré par US-18).
-- **Traduction dans la vue Coran (US-19, 2026-10-13)** :
-  - Les deux fichiers de `assets/quran/translations/` sont les éditions Tanzil (`fr.hamidullah`,
-    `en.sahih`), embarquées **sans aucune modification**. Tanzil les limite à l'**usage non
-    commercial** : à réexaminer avant toute version payante ou toute publicité. Mise à jour par
-    nouveau téléchargement, jamais par retouche.
-  - Les traductions suivent la numérotation Hafs. Le bouton n'existe qu'en Hafs
-    (`VerseBottomSheet`) : ne jamais appeler `TranslationService.verse` avec un verset Warsh.
-  - L'affichage (`_showTranslation`) vit dans le `State` de la feuille, jamais persisté. Le
-    bouton et la ligne de source restent **dans l'en-tête** : un sliver ajouté avant la barre
-    audio recréerait son état pendant l'écoute.
-- **`QuranAudioHandler.playLoop` n'attend jamais `_player.play()` (2026-09-29)** : dans
-  `just_audio`, ce `Future` ne se termine qu'à la pause/l'arrêt. L'attendre gardait `_starting`
-  vrai pendant toute l'écoute (bouton bloqué sur le spinner, et `_followPortionIfPlaying` jamais
-  exécuté). Son erreur est donc loguée dans le handler, plus remontée à la barre.
-- **File de téléchargement audio (US-10 Sprint B, 2026-10-05)** :
-  - La file (`AudioDownloadService.pending`, persistée par `AudioPrefs`) ne retient que les
-    **demandes** (`'reciterId'` ou `'reciterId:surahId'`), jamais ce qui est stocké : le disque
-    reste la seule vérité. Une demande ne sort de la file que quand tout est sur disque.
-  - Une seule boucle tourne (`resumePending`). Un appel pendant qu'elle tourne programme un
-    passage de plus, jamais une boucle parallèle : c'est ce qui relance une sourate coupée par
-    l'arrière-plan iOS.
-  - Pas de Wi-Fi ou disque plein arrêtent la file (`blockedBy`). Une sourate en échec réseau est
-    sautée et gardée : un fichier manquant chez KSU ne doit pas bloquer tout le reste.
-  - La règle réseau est revérifiée avant chaque verset téléchargé (pas une fois au départ).
-  - Un verset n'est écrit que si la réponse est de type `audio/*` (2026-10-12) : un portail
-    captif répond `200` avec du HTML. KSU sert `audio/mpeg` sur tous ses dossiers ; si ce type
-    change un jour, tous les téléchargements seront sautés — regarder là en premier.
-  - `deleteReciter` attend la fin du verset en cours avant d'effacer : effacer sous lui ferait
-    échouer son renommage, lu comme « disque plein ».
-  - Préférences audio (récitateur, file, données mobiles) : `AudioPrefs`, jamais
-    `StorageService` (déjà au plafond de taille).
-
-- **Clôture de journée (US-13/US-14, 2026-10-01)** :
-  - `AppState.checkOut` renvoie un `SealOutcome` (`lib/models/day_close.dart`). C'est l'**unique**
-    source des jalons : jamais un second calcul de « tour bouclé » ou de « sourate mémorisée »
-    côté écran.
-  - Le bilan de l'accueil (`dayRecap`) se relit toujours depuis `ayah_facts`, jamais mis en
-    cache, sinon une clôture corrigée afficherait l'ancien bilan.
-  - La transition de clôture est un état d'affichage de `DayPlanTab` (`_justClosedDate`, 4 s),
-    pas d'`AppState`. Elle ne joue ni après un jalon, ni à la réouverture d'une journée déjà
-    scellée.
-- **Début de tour (US-15, 2026-10-01)** : `CycleProgressCard` affiche « Nouveau tour » et
-  « N pages en garde » quand `pos == 0 && total > 0`, et cet affichage prime sur `showTotal`.
-  Ce n'est pas une fuite de la règle US-1 crit. 4 : des pages en garde sont de l'acquis, pas le
-  poids restant.
-
-- **Cartes et pas d'étapes (US-15 Sprint B, 2026-10-01)** :
-  - Le style des `Card` vient du `cardTheme` (`app_theme.dart`, marge nulle comprise). Ne pas
-    le recopier widget par widget : une copie locale ne suit plus le thème quand il change.
-    Une nouvelle carte `surfaceCard` + rayon 16 + `cardBorder` s'écrit `Card(...)`, jamais
-    `Container(decoration: …)` (nettoyage du 2026-10-02 : 11 copies retirées). Si elle contient
-    un `InkWell`, il va **dans** la `Card` : posé au-dessus, son onde est peinte sous le fond.
-    Restent en `Container`, volontairement : les cartes `surfaceCardSolid` et
-    `SouratesRecapCard` (rayon 20).
-- **Clé de jour (2026-10-02)** : `dayKey(DateTime)` (`core/day_dates.dart`) est la seule façon
-  d'écrire une date `YYYY-MM-DD` (format de `ayah_facts.date` et des préférences par jour).
-  Ne pas réécrire `toIso8601String().substring(0, 10)` à la main.
-  - Le check-in et le check-out passent d'une étape à l'autre par `StepFooter` et
-    `StepTransition`. Une nouvelle étape dans l'un de ces deux écrans les réutilise.
-  - `PrimaryCtaButton` réduit un libellé trop long au lieu de le couper, et n'a plus d'ombre
-    quand il est désactivé.
-- **Plan du jour écrit au check-in validé (US-27, 2026-10-21)** :
-  - `ensureDayPlan` n'écrit aucune ligne. Seul `AppState.commitCheckIn` écrit le plan du jour
-    (révision et apprentissage) dans `ayah_facts`. Ne jamais réécrire une proposition à
-    l'ouverture de l'app : une journée où le bouton n'a pas été pressé redeviendrait un
-    rattrapage forcé le lendemain, dont le check-out « fait par défaut » crédite du contenu non
-    révisé.
-  - Le check-in édite un `CheckInDraft` en mémoire. Aucun écran n'écrit le plan par morceaux. Deux
-    réglages font exception et sont enregistrés dès le tap, comme dans les Réglages : le rythme
-    (`pagesPerDay`) et le nombre de versets à apprendre par jour.
-  - « Journée commencée » se dérive de l'existence d'une ligne ce jour-là, sans drapeau. Un jour
-    validé sans aucune ligne ne se distingue donc pas d'un jour jamais commencé (voir « Idées
-    produit »).
-  - Une ligne `reach=1` n'est jamais supprimée par un ajustement du plan : retirer au brouillon
-    une unité déjà atteinte ne la retire pas.
-
-- **Accès aux sourates (2026-10-13)** : la liste des sourates s'ouvre par
-  `SouratePickerSheet.show`, le sélecteur de plage de versets par `VerseRangePicker.show`, et
-  une sourate se retrouve par son id avec `AppState.sourateById`. Ne réécrire ni le
-  `showModalBottomSheet` ni la recherche dans un écran.
-- **Onglet Renforcement (US-20, 2026-10-13)** :
-  - L'onglet et l'écran de série ne créditent rien et n'écrivent rien : ni `ayah_facts`, ni
-    préférence, ni champ d'`AppState`. Reconnaître un passage n'est pas le réciter. Ce qu'une
-    série retient (les passages posés, pour ne pas les reposer) vit dans le `State` de l'onglet,
-    le temps de la session.
-  - Un verset ne se coupe qu'aux signes de pause du mushaf (`ReinforcementEngine.passagesOf`).
-    L'écran n'ajoute que des « … » : devant le passage posé s'il ne commence pas son verset,
-    derrière tout passage qui ne le termine pas. Jamais devant un choix.
-  - Les onglets se désignent par constantes (`_recapTab`, `_settingsTab` dans `ShellScreen`),
-    jamais par un indice écrit en dur : insérer un onglet décale ceux qui le suivent. Verrouillé
-    par `test/screens/shell_screen_test.dart`, qui lit le libellé de l'onglet sélectionné et non
-    son indice : après l'insertion d'un onglet, un indice non corrigé garderait la même valeur.
-  - Un passage se reconnaît par `Passage.id` (sourate, verset, rang), jamais par `identical` ni
-    par un triplet réécrit à la main : le moteur, l'onglet et l'écran doivent parler du même.
-  - Une carte de choix n'est pas découpée (`clipBehavior`) : les signes coraniques hauts
-    dépassent leur ligne et seraient rognés. L'onde de l'appui prend sa forme par
-    `InkWell.customBorder`.
-  - Une carte dont la bordure change d'état part de `cardShape(palette)` (`app_theme.dart`) et
-    de `copyWith(side: …)`, sans réécrire le rayon.
-- **Questions de mots (US-22 Sprint C, 2026-10-13)** :
-  - `assets/quran/wbw/fr.coranmot.tsv` est l'export de la table `allwords` de CoranMot (Dr Usama
-    Nonnenmacher), embarqué **sans aucune modification**. Trois conditions d'usage : projet
-    islamique, aucune modification, source citée. Les sens ne sont donc jamais retouchés, triés
-    ni filtrés, même longs ou crus, et la ligne `SReinforcement.sourceMots` reste sous chaque
-    réponse. Mise à jour par nouvel export, jamais par retouche.
-  - Un sens est rattaché à un mot par son rang dans le verset, rien d'autre. Un verset qui n'a
-    pas un sens par mot n'est jamais interrogé : sept versets aujourd'hui (2:181, 8:6, 13:37,
-    15:7, 27:20, 36:22, 37:130), liste verrouillée par `word_gloss_service_test.dart`. Changer
-    la source du texte arabe peut changer cette liste.
-  - Les sens suivent la numérotation Hafs et n'existent qu'en français : le sélecteur de mode
-    n'apparaît que si `WordGlossService.availableFor(S.locale, riwaya)`. Ne jamais appeler
-    `WordGlossService.glosses` avec un verset Warsh.
-  - L'écran de série repère le choix appuyé par son rang parmi les choix, et la bonne réponse par
-    `SeriesQuestion.answerIndex` : un seul état pour les deux types de questions. Un mot se
-    reconnaît par `WordChoice.id` (sourate, verset, rang du mot dans le verset), comme un passage
-    par `Passage.id`.
-  - L'onglet garde les mots posés (`_lastWords`) à part des passages posés (`_lastPrompts`) : le
-    troisième champ n'y désigne pas la même chose. Une série d'un seul type ne touche pas la
-    mémoire de l'autre.
-  - Le mot en or est désigné par son rang parmi les mots du texte **affiché** : l'écran ajoute 1
-    quand le passage est précédé de « … ». Le « … » (`_shown`) et ce décalage lisent le même
-    prédicat, `_leads(passage)` : changer l'un sans l'autre dorerait le mot voisin, et aucun test
-    ne le dirait (écran vérifié sous Windows seulement).
-  - Le signe « ۞ » que le texte Hafs colle au premier mot de 199 versets n'appartient pas à ce
-    mot : `withoutHizbSign` (`core/reinforcement_engine.dart`) le retire, et c'est la seule règle,
-    lue par le moteur (`WordChoice.arabic`) et par `ArabicVerseText` (le mot en or). Ne pas la
-    réécrire ailleurs : le mot proposé et le mot doré ne diraient plus la même chose.
-  - Le tirage partagé (`ReinforcementEngine._draw`) reçoit des candidats **déjà restreints** à la
-    sourate demandée : c'est chaque appelant qui restreint, pour ne pas analyser toute la
-    sélection quand la série porte sur une sourate.
-
-- **Ajout de sourate au plan (sprint 21, 2026-10-13)** : « Ajouter une sourate » (check-in) et
-  « J'ai révisé une sourate en plus » (check-out) ne proposent que `UserConfig.selections`
-  (`AppState.addableSelections`). Le sélecteur de plage s'ouvre sur la plage choisie mais reste
-  réglable au-delà : voulu, ne pas le borner sans décision.
-
-**Cadrage produit encore valide**
-- « Prières où il est imam » = prières où c'est lui qui récite (seul ou en dirigeant) — un simple élargissement de libellé, pas un filtre d'exclusion ni une pondération de répartition.
-- L'apprentissage n'a plus d'onglet dédié : la sourate à apprendre est choisie au check-in, récitée dans la **dernière rakaa** du plan, confirmée au check-out.
-- Le hand-off "sourate mémorisée → révision" est automatique et passe par `AppState.addSelectionKeepingCycle`, **jamais** `saveConfig` (qui remettrait `cyclePosition` à 0).
-- « Faire plus » (sourate en plus, verset en plus) fait avancer le cycle au-delà de la proposition du jour — mais seulement si l'utilisateur l'a explicitement déclaré ce jour-là ; le curseur reste ordonné, déclarer un groupe plus loin dans la rotation ne crédite pas ceux qui le précèdent.
-- **Accompagnement guidé (`AppState.guideDone`/`markGuideDone`, US-1 sprint B, remplace l'ancien `hasSeenHook`/`HookBanner`)** : un id n'est marqué que par le callback du GESTE RÉEL qu'il accompagne (check-in validé, verset ouvert, check-out scellé, action du `GuideStep`) — jamais par le simple affichage d'une carte ni par une croix de fermeture. Toute nouvelle étape guidée doit suivre cette règle, pas réintroduire un dismiss passif.
-- Heures de rappel matin/soir (`StorageService.loadMorningTime`/`loadEveningTime`) sont des préférences **globales**, jamais préfixées par riwaya et jamais rechargées dans `_loadTrackState` — un réglage de notification n'a rien à voir avec le parcours de révision actif.
-- **`needs_work` retiré de tout le code applicatif (US-3, 2026-09-21)** : la colonne `ayah_facts.needs_work` reste dans le schéma SQLite (DEFAULT 0, jamais migrée/droppée sans utilisateurs réels) mais plus aucun code Dart ne l'écrit ni ne la lit — `AyahFactsRitual.setNeedsWork`/`lastRevisionFlags`, `AppState.setVerseNeedsWork`/`lastRevisionFlagsFor` et le toggle bookmark de `VerseBottomSheet` ont disparu. Le check-out est désormais **verset par verset** (`CheckOutRow`/`VerseToggleChips`, `Set<(int surahId, int ayahId)>`), plus par sourate/portion entière — un seul geste (décocher un verset précis) couvre révision et apprentissage. Ne jamais réintroduire de colonne/flag parallèle pour un besoin de correction fine : `reach` par verset suffit.
-
-**Cycle / `RevisionEngine`**
-- **Verset revenu + contexte (US-3 crit. 4, 2026-09-21)** : `RevisionEngine.contextVerseFor(surahId, ayahId, selections)` — pure, Dart — renvoie le verset `n-1` d'un verset donné **s'il reste dans la plage sélectionnée par l'utilisateur** (jamais hors plage, invariant E.3), `null` sinon. `AyahFactsRitual.returningVerses`/`AppState.returningVersesContext` identifient les versets laissés `reach=0` à un check-out **scellé** (`checked_out=1`) et redevenus candidats du plan du jour. Consommé par `PlanScreen` (US-1 sprint C, 2026-09-21) pour le message « ce verset est revenu seul », affiché une fois via l'étape guidée `return_proof_seen`.
-
-**Infra / divers**
-- `sqflite_common_ffi` est en dépendance de **prod**, pas dev-only : `main.dart` bascule dessus derrière `if (Platform.isWindows)`, une condition runtime que Dart ne tree-shake pas — léger surcoût de taille binaire mobile assumé pour pouvoir tester sur cette machine sans device.
-- Fraîcheur par verset (2026-09-04) : seuils changés délibérément (30j remplace l'ancien badge 7j ; paliers `neverRevised`/`sixMonths`/`oneYear` remplacent le seuil unique 180j). Pas tranché à l'identique partout — à ajuster sur retour utilisateur, pas à traiter comme un bug.
-- Tests `sqflite_common_ffi` : une seule `history.db` partagée par tous les tests d'un même fichier (`initFfiTestDb` isole les fichiers entre eux, pas les tests entre eux) — un test peut hériter d'un `checked_out` posé par le précédent. `clearFactsBetweenTests()` doit tourner en `setUp`, sans fermer la connexion (`openDatabase` renvoie l'instance en cache).
-- **Notifications planifiées via `zonedSchedule` + fuseau réel de l'appareil (US-3 crit. 6, 2026-09-21)**, plus `periodicallyShow`. Bug corrigé au passage, présent depuis US-1 sprint B et invisible faute de test : `periodicallyShow` ignore purement `hour`/`minute`, les rappels se déclenchaient 24h après le dernier `enable()`/changement d'heure, jamais à l'heure configurée. Dépendances ajoutées : `timezone` (déjà transitive via `flutter_local_notifications`, rendue directe) + `flutter_timezone` (détection du fuseau IANA de l'appareil). `NotificationService._initializeTimeZone()` retombe explicitement sur `tz.UTC` si la détection échoue — `tz.local` est un champ `late` du package `timezone`, sans filet : le laisser non initialisé casserait silencieusement les 3 rappels pour toujours, pas seulement celui du jour.
+> Backlog technique en attente + idées produit non scopées. L'historique des sprints livrés vit dans `git log`, pas ici. Ce que fait l'app aujourd'hui (règles produit, plan quotidien, invariants, cas limites) : `docs/SPEC_PRODUIT.md`. Comment c'est codé, et les décisions techniques actives à respecter : `docs/DOCUMENTATION_TECHNIQUE.md` (§13bis). Modèle de données `ayah_facts` : `CLAUDE.md`.
 
 ---
 
@@ -233,7 +41,7 @@ et l'apprentissage dans une seconde section « À apprendre ».
   d'hier » non écrasées). Visuel sous Windows : check-in sans prière, deux sections, bouton de clôture.
 - **Exclus** : tout changement du libellé « en dehors des prières » ; une règle pour répartir la
   révision par blocs de temps sans prière.
-- **Doc** : `CLAUDE.md` (partie D de la règle du plan : « aucune prière = tout hors prières, apprentissage
+- **Doc** : `docs/SPEC_PRODUIT.md` (partie D de la règle du plan : « aucune prière = tout hors prières, apprentissage
   en seconde section ») ; `docs/DOCUMENTATION_TECHNIQUE.md` §8.1 ; US-4 à recouper.
 
 ### [P2] US-25 Sprint A — Police Outfit, six styles, tokens de couleur et contrastes
@@ -333,9 +141,29 @@ futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
 
+### [P3] Retirer les `await` sur `DaySelection` dans deux fichiers de test
+Relevé à la clôture du sprint 23 (2026-10-22) : `flutter analyze lib test` remonte 26 infos
+`await_only_futures` — 21 dans `test/core/revision_engine_test.dart`, 5 dans
+`test/state/app_state_checkin_test.dart` — sur des `await` devant une expression `DaySelection`
+synchrone. Retirer ces `await`, sans autre changement ; `flutter analyze lib test` doit revenir à
+zéro. Pur bruit d'analyse, aucun comportement touché.
+
 ## Idées produit (non scopées)
 
 Vision/features pas encore prêtes à l'implémentation — pas de priorité technique tant qu'elles n'ont pas été cadrées (`quran-blueprint` → user story dans `docs/USER_STORIES.md`, puis `quran-scoping` → item ci-dessus). Ne pas lancer à la volée.
+
+- **Verset de contexte des versets revenus : calculé, jamais affiché** (relevé à la consolidation
+  de `docs/SPEC_PRODUIT.md`, 2026-10-22). US-3 crit. 4 et US-1 crit. 7 promettaient d'afficher le
+  verset qui précède un verset revenu. `AppState.returningVersesContext` le calcule
+  (`RevisionEngine.contextVerseFor`), mais `ReturnProofStep` n'utilise que les clés de la map :
+  la valeur est un calcul mort. La spec décrit l'état actuel (non affiché). À trancher : l'afficher
+  (story, recoupe l'idée « Versets revenus en révision » ci-dessous) ou retirer le calcul (item de
+  Backlog trivial).
+- **Section « À prioriser » du check-in (US-5) : absente du code** (relevé à la même
+  consolidation). US-5 la décrivait livrée ; seul subsiste un libellé discret de fraîcheur par
+  ligne du check-in. À vérifier : retrait volontaire (alors rien à faire, la spec est juste) ou
+  perte accidentelle (alors une story, à articuler avec US-26 qui fait déjà passer plus tôt ce qui
+  n'a pas été revu depuis longtemps).
 
 - **Check-in : trois comportements aux bords, relevés au sprint US-27 (2026-10-21)**, à trancher
   avant d'en faire un item :

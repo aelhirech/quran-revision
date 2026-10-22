@@ -873,7 +873,7 @@ void main() {
     });
   });
 
-  // ─── Règle du plan quotidien (CLAUDE.md § « Règle du plan quotidien ») ──────
+  // ─── Règle du plan quotidien (docs/SPEC_PRODUIT.md § « Règle du plan quotidien ») ──────
   //
   // Le cycle est une liste ORDONNÉE DE PAGES du mushaf, et `cyclePosition`
   // indexe cette liste. Ces tests verrouillent les invariants de ce bloc ;
