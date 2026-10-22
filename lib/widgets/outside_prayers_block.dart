@@ -13,6 +13,29 @@ class OutsidePrayersBlock extends StatelessWidget {
   const OutsidePrayersBlock({super.key, required this.units});
 
   @override
+  Widget build(BuildContext context) => _OutsideCard(
+      title: S.horsPrieresTitre, description: S.horsPrieresDesc, units: units);
+}
+
+/// Today's learning portion when no recited rakaa hosts it (no prayer chosen,
+/// US-27 crit. 7). Read-only like [OutsidePrayersBlock]: the check-out credits it.
+class OutsideLearningBlock extends StatelessWidget {
+  final RevisionUnit? unit;
+  const OutsideLearningBlock({super.key, required this.unit});
+
+  @override
+  Widget build(BuildContext context) => _OutsideCard(
+      title: S.aApprendreTitre, units: [?unit]);
+}
+
+class _OutsideCard extends StatelessWidget {
+  final String title;
+  final String? description;
+  final List<RevisionUnit> units;
+  const _OutsideCard(
+      {required this.title, this.description, required this.units});
+
+  @override
   Widget build(BuildContext context) {
     if (units.isEmpty) return const SizedBox.shrink();
     final palette = context.palette;
@@ -23,14 +46,16 @@ class OutsidePrayersBlock extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(S.horsPrieresTitre,
+            Text(title,
                 style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                     color: palette.textPrimary)),
-            const SizedBox(height: 4),
-            Text(S.horsPrieresDesc,
-                style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
+            if (description != null) ...[
+              const SizedBox(height: 4),
+              Text(description!,
+                  style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
+            ],
             const SizedBox(height: 10),
             for (final u in units)
               Padding(

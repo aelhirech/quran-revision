@@ -25,8 +25,14 @@ class RakaaDistributor {
   /// is left out) or ran out of rakaas (the tail is shown apart). Re-deriving
   /// that outside by comparing values gets it wrong — a subdivided unit is
   /// never equal to the sub-ranges that replaced it.
-  static ({List<PrayerPlan> plan, List<RevisionUnit> outside})
-      distributeToRakaas({
+  ///
+  /// `outsideLearning` is [learningUnit] when no recited rakaa exists to host
+  /// it (no prayer chosen, US-27 crit. 7), `null` otherwise.
+  static ({
+    List<PrayerPlan> plan,
+    List<RevisionUnit> outside,
+    RevisionUnit? outsideLearning,
+  }) distributeToRakaas({
     required List<RevisionUnit> units,
     required List<Prayer> prayersAlone,
     RevisionUnit? learningUnit,
@@ -70,6 +76,7 @@ class RakaaDistributor {
       plan: plan,
       outside:
           units.length > budget ? pool.unconsumed : const <RevisionUnit>[],
+      outsideLearning: totalSuratRakaas == 0 ? learningUnit : null,
     );
   }
 

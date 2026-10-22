@@ -215,7 +215,8 @@ class _PlanScreenState extends State<PlanScreen> {
     // as long as any remains, the day is not "all done", even if every
     // rakaa is checked.
     final allDone = _allDoneOf(checkedByPrayer) &&
-        widget.session.outsidePrayers.isEmpty;
+        widget.session.outsidePrayers.isEmpty &&
+        widget.session.outsideLearning == null;
     final checkedCount = _checkedCountOf(checkedByPrayer);
     final progress = _totalRakaasWithUnit == 0
         ? 1.0
@@ -278,6 +279,8 @@ class _PlanScreenState extends State<PlanScreen> {
             ),
           SliverToBoxAdapter(
               child: OutsidePrayersBlock(units: widget.session.outsidePrayers)),
+          SliverToBoxAdapter(
+              child: OutsideLearningBlock(unit: widget.session.outsideLearning)),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
             sliver: SliverList(

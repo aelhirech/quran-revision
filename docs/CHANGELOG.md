@@ -8,42 +8,6 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-27 Sprint B — Prières facultatives, tout le plan hors des rakaas
-Le Sprint A est livré : ce sprint réutilise `commitCheckIn` et le bouton de validation.
-Choix utilisateur du 2026-10-21 : sans prière, la révision va dans « à réviser en dehors des prières »
-et l'apprentissage dans une seconde section « À apprendre ».
-- **`RakaaDistributor.distributeToRakaas`** (`lib/core/rakaa_distributor.dart`) : le record renvoyé
-  gagne `outsideLearning` (`RevisionUnit?`), égal à `learningUnit` quand `totalSuratRakaas == 0`, `null`
-  sinon. La révision n'est pas touchée (budget 0 : `outside` contient déjà tout).
-- **`DailySession`** (`lib/models/daily_session.dart`) : champ `outsideLearning`, rempli par
-  `buildTodaySession`.
-- **`buildTodaySession`** : retirer `prayersAlone.isEmpty` de la garde (reste `_config == null`).
-  N'écrit `saveLastSessionPrayers` que si la liste n'est pas vide. `ensureDayPlan` reprend la manche
-  quand `loadActivePrayers` n'est pas `null` (au lieu de `isNotEmpty`) ; vérifier que `_decodePrayers`
-  renvoie `[]` et non `null` pour une liste vide, sinon le corriger.
-- **`DayPlanTab._openCheckIn`** : `null` = retour arrière, rien à faire ; une liste vide construit la
-  manche. Retirer `prayers.isEmpty`.
-- **`check_in_screen.dart`** : `ready` toujours vrai à la dernière étape. Le texte
-  `checkInPrieresManquantes` devient une phrase neutre (« Sans prière, tout ira dans la section à
-  réviser »), affichée quand aucune prière n'est choisie ; `checkInPrieresDesc` dit que c'est
-  facultatif. Libellés FR et EN dans `strings_check_in.dart`.
-- **`PlanScreen`** (`plan_screen.dart`) : sous `OutsidePrayersBlock`, un bloc « À apprendre » en lecture
-  seule quand `session.outsideLearning != null`. Nouveau widget `OutsideLearningBlock`
-  (`lib/widgets/`), même mise en page que `OutsidePrayersBlock` avec une seule ligne : à extraire
-  d'une base commune si la duplication dépasse la carte et son bouton « Voir le texte ». `allDone`
-  reste faux tant que `outsideLearning != null`, comme pour `outsidePrayers`. Vérifier que « Terminer
-  ma journée » reste utilisable quand il n'y a aucune rakaa.
-- **Réutilisé tel quel** : `OutsidePrayersBlock` pour la révision, `S.horsPrieresTitre`/`horsPrieresDesc`,
-  le check-out verset par verset (il crédite déjà révision et apprentissage sans rakaa).
-- **Tests** : `rakaa_distributor_test.dart` (sans prière : tout dans `outside`, `outsideLearning` posé ;
-  avec prière : `outsideLearning` nul, apprentissage dans la dernière rakaa inchangé) ;
-  `app_state_checkin_test.dart` (manche sans prière construite, reprise après redémarrage, « prières
-  d'hier » non écrasées). Visuel sous Windows : check-in sans prière, deux sections, bouton de clôture.
-- **Exclus** : tout changement du libellé « en dehors des prières » ; une règle pour répartir la
-  révision par blocs de temps sans prière.
-- **Doc** : `docs/SPEC_PRODUIT.md` (partie D de la règle du plan : « aucune prière = tout hors prières, apprentissage
-  en seconde section ») ; `docs/DOCUMENTATION_TECHNIQUE.md` §8.1 ; US-4 à recouper.
-
 ### [P2] US-25 Sprint B1 — Les six styles sur le plan du jour, le check-in et le check-out
 Le Sprint A est livré : `AppText` (`lib/core/app_theme.dart`) porte les six styles.
 - **Périmètre** : accueil et plan du jour (`plan_screen.dart`, `home_screen.dart`, cartes
@@ -59,8 +23,8 @@ Le Sprint A est livré : `AppText` (`lib/core/app_theme.dart`) porte les six sty
   `streak_card.dart:48`, `verse_chips_scaffold.dart:37`, `check_hero.dart:38` passent tous au style
   titre de section d'`AppText` (le `.toUpperCase()` reste à l'appel). « Hadith du jour » reste en
   casse normale.
-- **Fichiers proches du plafond** (`check_out_screen.dart` 356, `plan_screen.dart` 350,
-  `check_in_screen.dart` 306) : le remplacement ne doit pas ajouter de lignes ; s'il en ajoute,
+- **Fichiers proches du plafond** (`check_out_screen.dart` 356, `plan_screen.dart` 353,
+  `check_in_screen.dart` 305) : le remplacement ne doit pas ajouter de lignes ; s'il en ajoute,
   extraire d'abord.
 - **Vérification à l'œil sous Windows** : clair et sombre, 390 et 320 px, texte ×1,5, chaque écran
   touché.
@@ -126,7 +90,7 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   perte accidentelle (alors une story, à articuler avec US-26 qui fait déjà passer plus tôt ce qui
   n'a pas été revu depuis longtemps).
 
-- **Check-in : trois comportements aux bords, relevés au sprint US-27 (2026-10-21)**, à trancher
+- **Check-in : trois comportements aux bords, relevés au Sprint A d'US-27 (2026-10-21)**, à trancher
   avant d'en faire un item :
   - *Jour validé sans aucune ligne* (tout retiré, rien à apprendre) : indiscernable d'un jour jamais
     commencé, donc un check-in rouvert après « Refaire le plan » repropose les valeurs par défaut du
@@ -141,6 +105,12 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
     n'en écrit qu'un. Il reste à choisir : cacher le « + » à la frontière, ou fusionner les deux
     unités.
 
+- **Plan du jour sans prière : trois textes parlent encore de prières** (relevé au Sprint B
+  d'US-27, 2026-10-22, vu sous Windows) : la description du bloc hors prières dit « il ne rentrait
+  pas dans les prières que tu as choisies » alors qu'aucune n'est choisie ; le résumé affiche
+  « 0 rakaas » et le compteur du bas « 0 / 0 rakaas », avec une barre de progression pleine dès
+  l'ouverture. Rien n'est faux dans les données. Il reste à choisir : une seconde description pour
+  le cas sans prière, cacher le compteur de rakaas, ou les deux.
 - **Rattrapage d'un jour passé : le curseur lit celui d'aujourd'hui** (relevé en `/code-review`
   du sprint 21, déduit du code, non reproduit) : `_completedPagesFor` parcourt le cycle depuis
   `cyclePosition` d'aujourd'hui même pour un check-out passé ; une sourate de la sélection déclarée

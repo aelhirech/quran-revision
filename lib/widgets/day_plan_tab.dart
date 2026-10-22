@@ -148,7 +148,7 @@ class _DayPlanTabState extends State<DayPlanTab> {
         builder: (_) => const CheckInScreen(),
       ),
     );
-    if (prayers == null || prayers.isEmpty || !mounted) return;
+    if (prayers == null || !mounted) return;
     await state.buildTodaySession(prayers);
   }
 

@@ -283,10 +283,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
   Widget _ctaBar(AppPalette palette) {
     final onLastStep = _step == _stepCount - 1;
-    final ready = _effectivePrayers.isNotEmpty;
     return StepFooter(
-      hint: onLastStep && !ready
-          ? Text(SCheckIn.checkInPrieresManquantes,
+      hint: onLastStep && _effectivePrayers.isEmpty
+          ? Text(SCheckIn.checkInSansPriere,
               style: TextStyle(fontSize: 11, color: palette.textMuted))
           : null,
       onBack: _step > 0 ? () => setState(() => _step--) : null,
@@ -294,7 +293,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
           ? PrimaryCtaButton(
               label: SCheckIn.checkInLancerPlan,
               icon: Icons.check_rounded,
-              onPressed: ready && !_saving ? _validate : null,
+              onPressed: _saving ? null : _validate,
             )
           : PrimaryCtaButton(
               label: SCheckIn.suivant,

@@ -33,6 +33,7 @@ class S {
   static String get horsPrieresDesc => _t(
       "Ce contenu fait partie de ta journée, mais il ne rentrait pas dans les prières que tu as choisies.",
       'This is part of your day, but it did not fit in the prayers you picked.');
+  static String get aApprendreTitre => _t('À apprendre', 'To learn');
   static String get cloturerMaJournee =>
       _t('Clôturer ma journée', 'Close out my day');
   static String get refairePlan => _t('Refaire le plan', 'Rebuild plan');

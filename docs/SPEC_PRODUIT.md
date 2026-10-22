@@ -160,7 +160,8 @@ aucun chiffre de projection dans le récit ; pas de librairie de coach-marks ni 
   portion précise à réviser ; le sélecteur s'ouvre sur la plage choisie mais reste réglable
   au-delà (voulu).
 - **« Prières où il récite »** = prières où c'est lui qui récite, seul ou en dirigeant. Ni filtre
-  d'exclusion ni pondération.
+  d'exclusion ni pondération. **Choisir une prière est facultatif** : le check-in se valide sans
+  aucune, et une phrase dit alors que tout le plan sera en dehors des prières.
 - Chaque ligne proposée porte un **libellé discret de fraîcheur** (depuis quand ces versets n'ont
   pas été revus, au grain verset).
 - **Ré-appui après « Refaire le plan »** : le brouillon repart de ce qui est déjà enregistré pour
@@ -315,6 +316,11 @@ sinon :
     LE RESTE est affiché à part, dans un bloc « à réviser en dehors des prières ».
     # Rien n'est perdu ni caché : tout le contenu du jour reste visible et créditable.
 
+si rakaasRécitées = 0 (aucune prière choisie) :
+    toute la révision va dans le bloc « à réviser en dehors des prières » ;
+    la portion à apprendre va dans un second bloc, « À apprendre ».
+    # Le check-out crédite ces deux blocs comme le contenu des rakaas.
+
 dans une même prière : ne jamais assigner deux fois le même fragment
 tant qu'une alternative non encore utilisée dans cette prière existe.
 les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas de rakaa vide légitime.
@@ -348,7 +354,7 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
 | Changement de sélection | Le cycle est reconstruit ; la progression repart de 0 (`saveConfig` le fait déjà). |
 | Changement de riwaya | Cycle et curseur sont scopés par riwaya, indépendants. |
 | Journée sautée | Le curseur n'avance pas ; rien n'est perdu, le contenu revient le lendemain. |
-| Bouton « Illuminer ma journée avec le Coran » jamais pressé (ou check-in quitté sans valider) | Aucune ligne n'est écrite dans `ayah_facts` pour ce jour (US-27) : pas de jour en attente, pas de rattrapage le lendemain. Le plan du jour n'est écrit que par `AppState.commitCheckIn`. |
+| Bouton « Illuminer ma journée avec le Coran » jamais pressé (ou check-in quitté sans valider) | Aucune ligne n'est écrite dans `ayah_facts` pour ce jour : pas de jour en attente, pas de rattrapage le lendemain. Le plan du jour n'est écrit que par `AppState.commitCheckIn`. |
 
 ## Pendant la journée — le Plan du jour
 
@@ -360,7 +366,9 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
   revient deux fois dans la journée : ce qui est fait l'est par verset, pas par rakaa.
 - Sur chaque ligne, **l'icône livre** ouvre la vue Coran sur la plage concernée.
 - Rien n'est « fait » avant d'avoir été coché : seul le check-out coche tout par défaut.
-- Aujourd'hui, valider le check-in demande **au moins une prière** choisie.
+- **Sans prière choisie**, le plan n'a aucune rakaa : la révision est dans le bloc « à réviser
+  en dehors des prières » et le passage à apprendre dans un bloc « À apprendre », en lecture
+  seule. La journée se clôture comme les autres.
 
 **Ne fait pas** : aucune animation pendant les prières au-delà du retour tactile de coche ;
 aucun lecteur de Coran libre (lire reste attaché à une ligne du plan — un mushaf libre
@@ -413,7 +421,8 @@ pression) ; pas de son, pas de trophées ni de collection de jalons ; pas de mod
 ## Apprentissage
 
 - Pas d'onglet dédié. La sourate à apprendre est **choisie au check-in**, ses versets sont
-  récités dans la **toute dernière rakaa** du jour, et ils ne sont crédités **qu'au check-out**.
+  récités dans la **toute dernière rakaa** du jour (dans le bloc « À apprendre » quand aucune
+  prière n'est choisie), et ils ne sont crédités **qu'au check-out**.
 - Démarrer une sourate en garde la trace même avant qu'aucun verset ne soit appris.
 - Quand le dernier verset est confirmé, la sourate **bascule automatiquement en révision** sans
   remettre le tour à zéro.
