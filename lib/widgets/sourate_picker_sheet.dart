@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
+import '../core/app_theme.dart';
 
 class SouratePickerSheet extends StatefulWidget {
   final List<Sourate> sourates;
@@ -56,7 +57,7 @@ class _SouratePickerSheetState extends State<SouratePickerSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(widget.title ?? S.commencerSourate,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                  style: AppText.cardTitle),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -82,10 +83,8 @@ class _SouratePickerSheetState extends State<SouratePickerSheet> {
                     leading: CircleAvatar(
                       backgroundColor: cs.primaryContainer,
                       child: Text('${s.id}',
-                          style: TextStyle(
-                              color: cs.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12)),
+                          style: AppText.caption
+                              .copyWith(color: cs.primary, fontWeight: FontWeight.w700)),
                     ),
                     title: Text(s.nameFr,
                         style: const TextStyle(fontWeight: FontWeight.w600)),

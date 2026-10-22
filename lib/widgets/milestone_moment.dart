@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/day_close.dart';
 import 'ornamental_divider.dart';
@@ -38,7 +39,8 @@ class MilestoneMoment extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         side: BorderSide(color: palette.cardBorder),
       ),
-      child: Padding(
+      // Scrolls when enlarged text makes the content taller than the screen.
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(28, 36, 28, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -55,16 +57,13 @@ class MilestoneMoment extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: palette.textPrimary),
+              style: AppText.cardTitle.copyWith(color: palette.textPrimary),
             ).animate().fadeIn(delay: 600.ms, duration: 800.ms),
             const SizedBox(height: 12),
             Text(
               body,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, height: 1.5, color: palette.textMuted),
+              style: AppText.body.copyWith(height: 1.5, color: palette.textMuted),
             ).animate().fadeIn(delay: 800.ms, duration: 800.ms),
             const SizedBox(height: 28),
             PrimaryCtaButton(

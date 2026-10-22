@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
@@ -313,7 +314,7 @@ class _PlanScreenState extends State<PlanScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('$checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
-                  style: TextStyle(fontSize: 12, color: palette.textMuted)),
+                  style: AppText.caption.copyWith(color: palette.textMuted)),
               const SizedBox(height: 8),
               SizedBox(height: 56, child: _completionButton(allDone)),
             ],

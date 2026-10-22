@@ -59,11 +59,8 @@ class LearningProgressCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(s.nameFr,
-                              style: TextStyle(
-                                  fontFamily: AppText.family,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                  color: palette.textPrimary)),
+                              style: AppText.body.copyWith(
+                                  fontWeight: FontWeight.w600, color: palette.textPrimary)),
                           Text(s.nameAr,
                               style: GoogleFonts.amiri(
                                   fontSize: 16, color: palette.textPrimary)),
@@ -79,15 +76,12 @@ class LearningProgressCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(S.complet,
-                            style: TextStyle(
-                                color: palette.primary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12)),
+                            style: AppText.caption.copyWith(
+                                color: palette.primary, fontWeight: FontWeight.w700)),
                       )
                     else
                       Text(S.versetN(progress.nextVerse, s.verses),
-                          style: TextStyle(
-                              color: palette.textMuted, fontSize: 12)),
+                          style: AppText.caption.copyWith(color: palette.textMuted)),
                     IconButton(
                       icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 18),
                       tooltip: S.voirLeTexte,
@@ -108,10 +102,8 @@ class LearningProgressCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(S.versetsAppris(progress.learnedCount, s.verses),
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontStyle: FontStyle.italic,
-                        color: palette.textMuted)),
+                    style: AppText.caption
+                        .copyWith(fontStyle: FontStyle.italic, color: palette.textMuted)),
               ],
             ),
           ),

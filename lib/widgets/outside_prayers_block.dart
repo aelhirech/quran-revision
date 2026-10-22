@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import 'unit_range_label.dart';
@@ -47,14 +48,11 @@ class _OutsideCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title,
-                style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: palette.textPrimary)),
+                style: AppText.cardTitle.copyWith(color: palette.textPrimary)),
             if (description != null) ...[
               const SizedBox(height: 4),
               Text(description!,
-                  style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
+                  style: AppText.caption.copyWith(color: palette.textMuted)),
             ],
             const SizedBox(height: 10),
             for (final u in units)

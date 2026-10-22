@@ -292,8 +292,9 @@ pas la révision.
 
 ### US-25 — Une seule allure, tenue d'un écran à l'autre (extension d'US-15)
 **État** : en cours — Sprint A livré (police Outfit, `AppText`, tokens de couleur, contrastes,
-badge de fraîcheur neutre : fondu dans `docs/SPEC_PRODUIT.md` § Registre visuel) ; restent les
-Sprints B1 et B2 (les six styles dans les écrans, crit. 1 et 5). Blueprint du 2026-10-17, scoping
+badge de fraîcheur neutre : fondu dans `docs/SPEC_PRODUIT.md` § Registre visuel) et Sprint B1
+(les six styles sur l'accueil, le plan du jour, le check-in et le check-out, idem) ; reste le
+Sprint B2 (réglages, onboarding, vue Coran ; crit. 1 et 5). Blueprint du 2026-10-17, scoping
 du 2026-10-22. Prolonge US-15 (livrée, voir `docs/SPEC_PRODUIT.md` § Registre visuel) et revient
 sur son exclusion « pas de nouvelle couleur ni de nouvelle police ». Reprend l'Idée produit « Un
 seul style de titre en capitales » de `docs/CHANGELOG.md`, retirée au scoping.
@@ -366,7 +367,7 @@ pour les niveaux ni pour le risque d'oublier.
   3:1 ; clair et sombre ; la carte composée sur le fond par `Color.alphaBlend`) ; famille Outfit
   portée par `buildAppTheme`. À l'œil sous Windows : clair et sombre, 390, 360 et 320 px, texte
   ×1,5. Non vérifiable ici : le rendu sur iPhone.
-- **Item Backlog** : `[P2] US-25 Sprint B1`, `[P2] US-25 Sprint B2` (Sprint A livré).
+- **Item Backlog** : `[P2] US-25 Sprint B2` (Sprints A et B1 livrés).
 
 **Ajustement au scoping** (2026-10-22) :
 - Crit. 3 (forme du carreau) : passe à US-21, qui crée le seul écran qui affiche des carreaux.

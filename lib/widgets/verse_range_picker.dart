@@ -4,6 +4,7 @@ import '../core/strings.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import 'verse_range_slider.dart';
+import '../core/app_theme.dart';
 
 class VerseRangePicker extends StatefulWidget {
   final Sourate sourate;
@@ -60,8 +61,7 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
             padding: const EdgeInsets.only(right: 8),
             child: ActionChip(
               label: Text('v.${c.start}–${c.end}',
-                  style: TextStyle(
-                      fontSize: 11,
+                  style: AppText.caption.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isActive ? Theme.of(context).colorScheme.primary : null)),
               backgroundColor: isActive ? Theme.of(context).colorScheme.primaryContainer : null,
@@ -102,7 +102,7 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
           ),
           const SizedBox(height: 20),
           Text(widget.sourate.nameFr,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              style: AppText.cardTitle),
           Text(widget.sourate.nameAr,
               style: GoogleFonts.amiri(fontSize: 20, height: 1.8)),
           const SizedBox(height: 16),

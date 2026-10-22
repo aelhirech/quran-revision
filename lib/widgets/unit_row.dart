@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../models/revision_unit.dart';
 import '../models/sourate.dart';
 import 'unit_range_label.dart';
@@ -53,7 +54,7 @@ class UnitRow extends StatelessWidget {
                     UnitRangeLabel(unit: unit, nameColor: palette.textPrimary),
                     const SizedBox(height: 1),
                     Text(subtitle,
-                        style: TextStyle(fontSize: 11, color: palette.textMuted)),
+                        style: AppText.caption.copyWith(color: palette.textMuted)),
                   ],
                 ),
               ),

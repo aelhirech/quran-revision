@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 
 /// Numbered-dot progress indicator, shown in `CheckHero.extra` — shared
 /// between `CheckOutScreen` (2 steps) and `CheckInScreen` (3 steps) instead
@@ -22,7 +23,7 @@ class StepDots extends StatelessWidget {
             color: active ? palette.gold : Colors.transparent,
             border: Border.all(color: palette.gold),
           ),
-          child: Text(label, style: TextStyle(fontSize: 11, color: palette.onPrimary)),
+          child: Text(label, style: AppText.caption.copyWith(color: palette.onPrimary)),
         );
     return Row(
       mainAxisSize: MainAxisSize.min,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../models/revision_unit.dart';
 
 /// Texte "Sourate · v.X–Y" partagé entre les lignes de check-in et
@@ -16,16 +17,13 @@ class UnitRangeLabel extends StatelessWidget {
     final palette = context.palette;
     return Text.rich(
       TextSpan(
-        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: nameColor),
+        style: AppText.body.copyWith(fontWeight: FontWeight.w600, color: nameColor),
         children: [
           TextSpan(text: unit.sourate.nameFr),
           TextSpan(
             text: '  ·  v.${unit.verseStart}–${unit.verseEnd}',
-            style: TextStyle(
-                fontWeight: FontWeight.w400,
-                fontStyle: FontStyle.italic,
-                fontSize: 11.5,
-                color: palette.textMuted),
+            style: AppText.caption
+                .copyWith(fontStyle: FontStyle.italic, color: palette.textMuted),
           ),
         ],
       ),

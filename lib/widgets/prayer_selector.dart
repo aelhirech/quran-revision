@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/app_rules.dart';
 import '../core/prayer_l10n.dart';
 import '../core/strings.dart';
@@ -46,11 +47,7 @@ class PrayerSelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label.toUpperCase(),
-            style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurfaceVariant,
-                letterSpacing: 1.2)),
+            style: AppText.sectionTitle.copyWith(color: cs.onSurfaceVariant)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -78,11 +75,7 @@ class PrayerSelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(S.priereMasjid.toUpperCase(),
-            style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurfaceVariant,
-                letterSpacing: 1.2)),
+            style: AppText.sectionTitle.copyWith(color: cs.onSurfaceVariant)),
         const SizedBox(height: 8),
         AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -109,10 +102,9 @@ class PrayerSelector extends StatelessWidget {
                   tahiyyatCount == 0
                       ? S.tahiyyatCount
                       : '${Prayer.tahiyyatMasjid.displayName}  ×$tahiyyatCount',
-                  style: TextStyle(
+                  style: AppText.caption.copyWith(
                     color: isActive ? cs.onPrimary : cs.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
-                    fontSize: 13,
                   ),
                 ),
               ),

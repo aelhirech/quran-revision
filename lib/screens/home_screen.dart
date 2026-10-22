@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/day_dates.dart';
 import '../core/hadith_data.dart';
 import '../core/strings.dart';
@@ -116,10 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 10),
                 Text(S.reviserAujourdhui,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w600,
-                        color: palette.textPrimary)),
+                    style: AppText.screenTitle.copyWith(color: palette.textPrimary)),
                 const SizedBox(height: 10),
                 const Center(child: OrnamentalDivider(lineWidth: 26)),
                 const SizedBox(height: 18),
@@ -176,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? S.journeeClotureeSousTitre
                           : SCheckIn.illuminerSousTitre,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: palette.textMuted)),
+                      style: AppText.caption.copyWith(color: palette.textMuted)),
                 ).animate().fadeIn(delay: 300.ms),
               ]),
             ),

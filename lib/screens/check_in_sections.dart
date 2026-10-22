@@ -108,7 +108,7 @@ extension _CheckInSections on _CheckInScreenState {
           TextButton(
             onPressed: () => _setLearning(null, count),
             child: Text(SCheckIn.checkInAucunApprentissage,
-                style: TextStyle(fontSize: 12, color: palette.textMuted)),
+                style: AppText.caption.copyWith(color: palette.textMuted)),
           ),
         ],
       ],
@@ -127,7 +127,7 @@ extension _CheckInSections on _CheckInScreenState {
                   onPressed: _applyLastPrayers,
                   icon: const Icon(Icons.history, size: 16),
                   label: Text(_isYesterday ? S.commeHier : S.derniereSelection,
-                      style: const TextStyle(fontSize: 12)),
+                      style: AppText.caption),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -137,7 +137,7 @@ extension _CheckInSections on _CheckInScreenState {
             ],
           ),
           Text(SCheckIn.checkInPrieresDesc,
-              style: TextStyle(fontSize: 11, color: palette.textMuted)),
+              style: AppText.caption.copyWith(color: palette.textMuted)),
           const SizedBox(height: 10),
           PrayerSelector(
             selected: _prayers,

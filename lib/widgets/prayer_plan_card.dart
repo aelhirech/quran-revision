@@ -56,11 +56,7 @@ class PrayerPlanCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(pp.prayer.displayName,
-                    style: TextStyle(
-                        fontFamily: AppText.family,
-                        fontWeight: FontWeight.w600,
-                        color: palette.textPrimary,
-                        fontSize: 15)),
+                    style: AppText.cardTitle.copyWith(color: palette.textPrimary)),
                 Text(pp.prayer.nameAr,
                     style: GoogleFonts.amiri(color: palette.textPrimary, fontSize: 18)),
               ],
@@ -99,16 +95,15 @@ class PrayerPlanCard extends StatelessWidget {
                 children: [
                   hasUnit
                       ? Text(r.unit!.label,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 13.5,
+                          style: AppText.body.copyWith(
+                            fontWeight: FontWeight.w600,
                             decoration: isChecked ? TextDecoration.lineThrough : null,
                             color: isChecked
                                 ? palette.textMuted
                                 : palette.textPrimary,
                           ))
                       : Text(S.alFatihaSeul,
-                          style: TextStyle(color: palette.textMuted, fontSize: 13)),
+                          style: AppText.body.copyWith(color: palette.textMuted)),
                   // La rakaa d'apprentissage garde le même sous-titre que les
                   // autres (compte de versets) — sans fraîcheur, qui n'a pas
                   // de sens pour un contenu jamais révisé — et gagne un tag
@@ -172,15 +167,15 @@ class PrayerPlanCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(S.rakaaApprentissage,
-                  style: TextStyle(fontSize: 10, color: palette.goldDark)),
+                  style: AppText.caption.copyWith(color: palette.goldDark)),
             ),
             const SizedBox(width: 8),
           ],
           if (showCount)
             Text(
               S.versetsCount(unit.verseCount),
-              style: TextStyle(
-                  color: palette.textMuted, fontStyle: FontStyle.italic, fontSize: 11),
+              style: AppText.caption
+                  .copyWith(color: palette.textMuted, fontStyle: FontStyle.italic),
             ),
           if (showCount && showBadge) const SizedBox(width: 8),
           if (showBadge) FreshnessBadge(level: freshness),

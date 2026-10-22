@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 
 /// Bandeau "hero" partagé entre `CheckInScreen` et `CheckOutScreen` — même
 /// structure (eyebrow, titre, badge à bordure) pour les deux ; `extra` est le
@@ -32,11 +33,8 @@ class CheckHero extends StatelessWidget {
       child: Column(
         children: [
           Text(eyebrow,
-              style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.5,
-                  color: palette.onPrimary.withValues(alpha: 0.65))),
+              style: AppText.sectionTitle
+                  .copyWith(color: palette.onPrimary.withValues(alpha: 0.65))),
           if (extra != null) ...[
             const SizedBox(height: 10),
             extra!,
@@ -44,8 +42,7 @@ class CheckHero extends StatelessWidget {
           const SizedBox(height: 10),
           Text(title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 21, fontWeight: FontWeight.w600, color: palette.onPrimary)),
+              style: AppText.screenTitle.copyWith(color: palette.onPrimary)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
@@ -54,7 +51,7 @@ class CheckHero extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(badge,
-                style: TextStyle(fontSize: 10, color: palette.onPrimary.withValues(alpha: 0.82))),
+                style: AppText.caption.copyWith(color: palette.onPrimary.withValues(alpha: 0.82))),
           ),
         ],
       ),

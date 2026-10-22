@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/day_dates.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
@@ -238,36 +239,46 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
             : SafeArea(
                 child: Column(
                   children: [
-                    _hero(palette),
-                    if (!state.guideDone('checkout_done')) _guideStep(state),
                     Expanded(
+                      // Hero and guide scroll with the content, as in the
+                      // check-in: fixed, they hid it on a small screen.
                       child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        padding: const EdgeInsets.only(bottom: 8),
                         children: [
-                          for (final it in items)
-                            CheckOutRow(
-                              unit: it.unit,
-                              uncheckedVerses: {
-                                for (final v in it.unit.verses)
-                                  if (_uncheckedVerses.contains((
-                                    it.unit.sourate.id,
-                                    v,
-                                  )))
-                                    v,
-                              },
-                              onToggleVerse: (v) =>
-                                  _toggleVerse(it.unit.sourate.id, v),
+                          _hero(palette),
+                          if (!state.guideDone('checkout_done')) _guideStep(state),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                for (final it in items)
+                                  CheckOutRow(
+                                    unit: it.unit,
+                                    uncheckedVerses: {
+                                      for (final v in it.unit.verses)
+                                        if (_uncheckedVerses.contains((
+                                          it.unit.sourate.id,
+                                          v,
+                                        )))
+                                          v,
+                                    },
+                                    onToggleVerse: (v) =>
+                                        _toggleVerse(it.unit.sourate.id, v),
+                                  ),
+                                const SizedBox(height: 14),
+                                if (state.addableSelections({
+                                  for (final it in items) it.unit.sourate.id,
+                                }).isNotEmpty)
+                                  OutlinedActionButton(
+                                    icon: Icons.add,
+                                    label: SCheckOut.checkOutReviseEnPlus,
+                                    onTap: _addRevisedSourate,
+                                  ),
+                                ..._learnSection(palette),
+                              ],
                             ),
-                          const SizedBox(height: 14),
-                          if (state.addableSelections({
-                            for (final it in items) it.unit.sourate.id,
-                          }).isNotEmpty)
-                            OutlinedActionButton(
-                              icon: Icons.add,
-                              label: SCheckOut.checkOutReviseEnPlus,
-                              onTap: _addRevisedSourate,
-                            ),
-                          ..._learnSection(palette),
+                          ),
                         ],
                       ),
                     ),
@@ -316,27 +327,6 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     }
     return progress.copyWith(
       learnedVerses: progress.learnedVerses.difference(_retiredFromLastBlock),
-    );
-  }
-
-  Widget _hero(AppPalette palette) {
-    // Titre et badge suivent la même cascade : un seul choix plutôt que deux
-    // ternaires jumeaux à garder synchronisés quand un cas s'ajoute.
-    final (title, badge) = _isMultiDay
-        ? (
-            SCheckOut.checkOutTitreEnAttente,
-            SCheckOut.checkOutIlYaNJours(_gapDays),
-          )
-        : _isToday
-        ? (SCheckOut.checkOutTitreCeJour, SCheckOut.checkOutAujourdhui)
-        : (SCheckOut.checkOutTitreHier, SCheckOut.checkOutHier);
-
-    return CheckHero(
-      eyebrow: _isMultiDay
-          ? SCheckOut.checkOutRattrapageEyebrow
-          : SCheckOut.checkOutEyebrow,
-      title: title,
-      badge: badge,
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/hadith_data.dart';
 import '../core/strings.dart';
 
@@ -27,8 +28,7 @@ class HadithCard extends StatelessWidget {
                 Icon(Icons.format_quote_rounded, color: palette.goldDark, size: 16),
                 const SizedBox(width: 6),
                 Text(S.hadithDuJourLabel,
-                    style: TextStyle(
-                        fontSize: 10,
+                    style: AppText.caption.copyWith(
                         fontWeight: FontWeight.w700,
                         color: palette.goldDark,
                         letterSpacing: 1.2)),
@@ -36,17 +36,14 @@ class HadithCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(text,
-                style: TextStyle(
-                    fontSize: 13,
+                style: AppText.body.copyWith(
                     fontStyle: FontStyle.italic,
                     height: 1.6,
                     color: palette.textPrimary)),
             const SizedBox(height: 8),
             Text(source,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: palette.textMuted,
-                    fontWeight: FontWeight.w500)),
+                style: AppText.caption
+                    .copyWith(color: palette.textMuted, fontWeight: FontWeight.w600)),
           ],
         ),
       ),

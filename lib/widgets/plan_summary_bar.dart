@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
 
@@ -28,17 +29,15 @@ class PlanSummaryBar extends StatelessWidget {
         children: [
           Text(
             S.pagesRakaas(session.pagesToday, session.totalRakaas),
-            style: TextStyle(
-                color: palette.textPrimary,
-                fontWeight: FontWeight.w600,
-                fontSize: 13),
+            style: AppText.body
+                .copyWith(color: palette.textPrimary, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
               Text(
                 '${S.cycleEnCours} : ${session.cyclePosition} / ${session.cycleTotal}',
-                style: TextStyle(color: palette.textMuted, fontSize: 11),
+                style: AppText.caption.copyWith(color: palette.textMuted),
               ),
               const SizedBox(width: 8),
               Expanded(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/day_dates.dart';
 import '../core/strings.dart';
 import '../models/check_in_draft.dart';
@@ -219,14 +220,25 @@ class _CheckInScreenState extends State<CheckInScreen> {
           : SafeArea(
               child: Column(
                 children: [
-                  _hero(units.fold(0, (s, u) => s + u.verseCount)),
-                  if (!state.guideDone('checkin_done')) _guideStep(state),
                   Expanded(
                     child: StepTransition(
                       step: _step,
+                      // Hero and guide scroll with the step: kept fixed above
+                      // it, they left no room for it on a small screen with
+                      // enlarged text.
                       child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        children: _stepChildren(palette, state, units),
+                        padding: const EdgeInsets.only(bottom: 8),
+                        children: [
+                          _hero(units.fold(0, (s, u) => s + u.verseCount)),
+                          if (!state.guideDone('checkin_done')) _guideStep(state),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: _stepChildren(palette, state, units),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -274,11 +286,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
   Widget _sectionLabel(AppPalette palette, String text) => Text(
         text.toUpperCase(),
-        style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.4,
-            color: palette.textMuted),
+        style: AppText.sectionTitle.copyWith(color: palette.textMuted),
       );
 
   Widget _ctaBar(AppPalette palette) {
@@ -286,7 +294,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
     return StepFooter(
       hint: onLastStep && _effectivePrayers.isEmpty
           ? Text(SCheckIn.checkInSansPriere,
-              style: TextStyle(fontSize: 11, color: palette.textMuted))
+              style: AppText.caption.copyWith(color: palette.textMuted))
           : null,
       onBack: _step > 0 ? () => setState(() => _step--) : null,
       primary: onLastStep

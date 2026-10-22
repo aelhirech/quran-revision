@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 
 /// Shown when surahs are selected but the cycle came out empty — the only
@@ -28,7 +29,7 @@ class PaginationIndisponible extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(S.paginationIndisponible,
-                style: TextStyle(fontSize: 12, color: palette.textPrimary)),
+                style: AppText.body.copyWith(color: palette.textPrimary)),
           ),
         ],
       ),

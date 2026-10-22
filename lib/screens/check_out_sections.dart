@@ -62,10 +62,8 @@ extension _CheckOutSections on _CheckOutScreenState {
               _miniLabel(palette, SCheckOut.checkOutApprentissage),
               const SizedBox(height: 6),
               Text('${learn.sourate.nameFr} · ${learn.sourate.nameAr}',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: palette.textPrimary)),
+                  style: AppText.body
+                      .copyWith(fontWeight: FontWeight.w600, color: palette.textPrimary)),
               const SizedBox(height: 10),
               _goldToggleChips(palette, learn.ayahIds, _notLearned, trailing: [
                 if (learn.ayahIds.length < learn.sourate.verses)
@@ -96,15 +94,10 @@ extension _CheckOutSections on _CheckOutScreenState {
   }
 
   Widget _miniLabel(AppPalette palette, String text) => Text(text.toUpperCase(),
-      style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.4,
-          color: palette.textMuted));
+      style: AppText.sectionTitle.copyWith(color: palette.textMuted));
 
   Widget _hint(AppPalette palette, String text) => Text(text,
-      style: TextStyle(
-          fontSize: 11, fontStyle: FontStyle.italic, color: palette.textMuted));
+      style: AppText.caption.copyWith(fontStyle: FontStyle.italic, color: palette.textMuted));
 
   /// Checked by default; tapping a verse toggles it in [unchecked].
   Widget _goldToggleChips(AppPalette palette, List<int> verses, Set<int> unchecked,
@@ -120,9 +113,29 @@ extension _CheckOutSections on _CheckOutScreenState {
         // learned vs not at a glance (US-15 critique pass).
         checkedFillColor: palette.gold.withValues(alpha: 0.15),
         childFor: (v, checked) => Text('$v',
-            style: TextStyle(
-                fontSize: 11,
-                color: checked ? palette.goldDark : palette.textMuted)),
+            style: AppText.caption
+                .copyWith(color: checked ? palette.goldDark : palette.textMuted)),
         trailing: trailing,
       );
+
+  Widget _hero(AppPalette palette) {
+    // Titre et badge suivent la même cascade : un seul choix plutôt que deux
+    // ternaires jumeaux à garder synchronisés quand un cas s'ajoute.
+    final (title, badge) = _isMultiDay
+        ? (
+            SCheckOut.checkOutTitreEnAttente,
+            SCheckOut.checkOutIlYaNJours(_gapDays),
+          )
+        : _isToday
+        ? (SCheckOut.checkOutTitreCeJour, SCheckOut.checkOutAujourdhui)
+        : (SCheckOut.checkOutTitreHier, SCheckOut.checkOutHier);
+
+    return CheckHero(
+      eyebrow: _isMultiDay
+          ? SCheckOut.checkOutRattrapageEyebrow
+          : SCheckOut.checkOutEyebrow,
+      title: title,
+      badge: badge,
+    );
+  }
 }
