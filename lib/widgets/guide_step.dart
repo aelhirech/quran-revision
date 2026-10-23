@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 
 /// Guided accompaniment on a real gesture (US-1 sprint B) — replaces the old
 /// dismissible [HookBanner]/`HookVisibilityMixin`. Same gold-highlight visual
@@ -51,14 +52,12 @@ class GuideStep extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: palette.textPrimary)),
+                        style: AppText.body.copyWith(
+                            fontWeight: FontWeight.w700, color: palette.textPrimary)),
                     const SizedBox(height: 4),
                     Text(body,
-                        style: TextStyle(
-                            fontSize: 12, color: palette.textMuted, height: 1.4)),
+                        style: AppText.caption
+                            .copyWith(color: palette.textMuted, height: 1.4)),
                   ],
                 ),
               ),
@@ -72,10 +71,8 @@ class GuideStep extends StatelessWidget {
                 style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8)),
                 child: Text(actionLabel!,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: palette.goldDark)),
+                    style: AppText.caption
+                        .copyWith(fontWeight: FontWeight.w700, color: palette.goldDark)),
               ),
             ),
         ],

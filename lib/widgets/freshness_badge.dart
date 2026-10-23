@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 
@@ -81,7 +82,7 @@ class FreshnessBadge extends StatelessWidget {
         border: Border.all(color: palette.cardBorder),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(freshnessLabel(level), style: TextStyle(fontSize: 10, color: palette.textMuted)),
+      child: Text(freshnessLabel(level), style: AppText.caption.copyWith(color: palette.textMuted)),
     );
   }
 }

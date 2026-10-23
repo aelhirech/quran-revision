@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/day_close.dart';
 import '../models/learning_progress.dart';
@@ -105,17 +106,13 @@ class _DayClosedSummaryState extends State<DayClosedSummary> {
 
   List<Widget> _section(AppPalette palette, String title, List<String> lines) => [
         Text(title.toUpperCase(),
-            style: TextStyle(
-                fontSize: 11,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w600,
-                color: palette.goldDark)),
+            style: AppText.sectionTitle.copyWith(color: palette.goldDark)),
         const SizedBox(height: 8),
         for (final line in lines)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(line,
-                style: TextStyle(fontSize: 14, height: 1.45, color: palette.textPrimary)),
+                style: AppText.body.copyWith(height: 1.45, color: palette.textPrimary)),
           ),
       ];
 }

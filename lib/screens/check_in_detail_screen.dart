@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/revision_unit.dart';
 import '../widgets/verse_chip.dart';
@@ -46,7 +47,7 @@ class _CheckInDetailScreenState extends State<CheckInDetailScreen> {
         for (int v = _unit.verseStart; v <= _unit.verseEnd; v++)
           VerseChip(
             borderColor: palette.cardBorder,
-            child: Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
+            child: Text('$v', style: AppText.caption.copyWith(color: palette.textMuted)),
           ),
         if (_unit.verseEnd < _unit.sourate.verses)
           VerseChip(
@@ -56,7 +57,7 @@ class _CheckInDetailScreenState extends State<CheckInDetailScreen> {
           ),
       ],
       footer: Text(SCheckIn.checkInExtendHint,
-          style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: palette.textMuted)),
+          style: AppText.caption.copyWith(fontStyle: FontStyle.italic, color: palette.textMuted)),
     );
   }
 }

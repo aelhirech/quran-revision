@@ -32,10 +32,7 @@ class StreakCard extends StatelessWidget {
                 child: Transform.rotate(
                   angle: -0.7854,
                   child: Text('$streak',
-                      style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w600,
-                          color: palette.onPrimary)),
+                      style: AppText.cardTitle.copyWith(color: palette.onPrimary)),
                 ),
               ),
             ),
@@ -46,19 +43,11 @@ class StreakCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(S.streakLabel.toUpperCase(),
-                    style: TextStyle(
-                        color: palette.goldDark,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5)),
+                    style: AppText.sectionTitle.copyWith(color: palette.goldDark)),
                 const SizedBox(height: 3),
                 Text(
                   streak > 0 ? S.streakJours(streak) : S.aucuneSession,
-                  style: TextStyle(
-                      fontFamily: AppText.family,
-                      color: palette.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600),
+                  style: AppText.cardTitle.copyWith(color: palette.textPrimary),
                 ),
               ],
             ),
@@ -67,16 +56,10 @@ class StreakCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text('$totalDays',
-                  style: TextStyle(
-                      color: palette.primary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      height: 1)),
+                  style: AppText.cardTitle.copyWith(color: palette.primary, height: 1)),
               Text(S.totalJoursLabel,
-                  style: TextStyle(
-                      color: palette.textMuted,
-                      fontStyle: FontStyle.italic,
-                      fontSize: 11)),
+                  style: AppText.caption
+                      .copyWith(color: palette.textMuted, fontStyle: FontStyle.italic)),
             ],
           ),
         ],

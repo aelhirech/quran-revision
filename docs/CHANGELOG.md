@@ -8,28 +8,6 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-25 Sprint B1 — Les six styles sur le plan du jour, le check-in et le check-out
-Le Sprint A est livré : `AppText` (`lib/core/app_theme.dart`) porte les six styles.
-- **Périmètre** : accueil et plan du jour (`plan_screen.dart`, `home_screen.dart`, cartes
-  `cycle_progress_card`, `streak_card`, `learning_progress_card`, `prayer_plan_card`,
-  `hadith_card`, `pill_chip`), check-in (`check_in_screen.dart`, `prayer_selector.dart`,
-  `check_hero.dart`), check-out (`check_out_screen.dart`, `check_out_sections.dart`,
-  `day_closed_summary.dart`, `verse_chips_scaffold.dart`), et les widgets qu'ils incluent.
-- **Règle** : chaque `TextStyle` à `fontSize:` littéral devient `AppText.<style>.copyWith(...)`, en
-  prenant le style de son rôle (pas celui de sa taille actuelle). Les graisses 500 et 800 passent à
-  600 et 700. Le texte arabe (Amiri, Scheherazade) n'est pas touché.
-- **Titres de section en capitales** : `check_in_screen.dart:276`, `check_out_sections.dart:98`,
-  `cycle_progress_card.dart:73`, `day_closed_summary.dart:107`, `prayer_selector.dart:48` et `:80`,
-  `streak_card.dart:48`, `verse_chips_scaffold.dart:37`, `check_hero.dart:38` passent tous au style
-  titre de section d'`AppText` (le `.toUpperCase()` reste à l'appel). « Hadith du jour » reste en
-  casse normale.
-- **Fichiers proches du plafond** (`check_out_screen.dart` 356, `plan_screen.dart` 353,
-  `check_in_screen.dart` 305) : le remplacement ne doit pas ajouter de lignes ; s'il en ajoute,
-  extraire d'abord.
-- **Vérification à l'œil sous Windows** : clair et sombre, 390 et 320 px, texte ×1,5, chaque écran
-  touché.
-- **Exclus** : mise en page, couleurs de niveau, le reflet `Colors.white` de `plan_screen.dart:346`.
-
 ### [P2] US-25 Sprint B2 — Les six styles sur les réglages, l'onboarding et la vue Coran
 Le Sprint A est livré. Indépendant de B1.
 - **Périmètre** : réglages (`profile_screen.dart`, 361 lignes : extraire avant si le remplacement
@@ -37,12 +15,27 @@ Le Sprint A est livré. Indépendant de B1.
   latin seulement : titres, traductions, boutons), séries (`series_screen.dart`, dont le titre en
   capitales l. 54 passe au style titre de section), et les widgets restants qui portent un
   `fontSize:` littéral, hors Récap et onglet Quiz.
-- **Règle** : celle du Sprint B1.
+- **Règle** (celle du Sprint B1, livré) : chaque `TextStyle` à `fontSize:` littéral devient
+  `AppText.<style>.copyWith(...)`, en prenant le style de son rôle (pas celui de sa taille
+  actuelle). Les graisses 500 et 800 passent à 600 et 700. Le texte arabe (Amiri, Scheherazade)
+  n'est pas touché. Une boîte de dialogue prend le titre de carte, pas le titre d'écran.
+- **Écran fixe qui ne défile pas** : à 375 px avec texte ×1,5, vérifier qu'un en-tête ou une
+  colonne non défilante ne déborde pas une fois les styles appliqués ; si oui, le faire défiler
+  (correctif appliqué au check-in, au check-out et au jalon par B1).
 - **Récap et onglet Quiz exclus** : US-23 et US-21 les reconstruisent avec les six styles. Seul
   `recap_screen.dart:226` change ici : `cs.tertiary`, hors palette, devient `palette.primary`.
 - **Vérification à l'œil sous Windows** : clair et sombre, 390 et 320 px, texte ×1,5.
 - **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §8.5 point 3 (retirer les dérogations corrigées ; la
   mention du `Colors.black` de `SpotlightOverlay` ne correspond plus au code, à corriger).
+
+### [P3] Test qui interdit un `fontSize:` littéral hors `app_theme.dart` (après US-25 Sprint B2)
+Relevé au Sprint B1 d'US-25 (2026-10-22) : rien n'empêche un futur écran de réécrire un
+`TextStyle(fontSize: …)` à côté des six styles d'`AppText`. Un test (`test/core/
+app_text_usage_test.dart`) lit chaque fichier `.dart` de `lib/` et échoue sur toute ligne qui
+contient `fontSize:`, sauf dans `lib/core/app_theme.dart` et sauf les lignes `GoogleFonts.` (texte
+arabe). Exclus tant qu'US-23 et US-21 n'ont pas reconstruit le Récap et l'onglet Quiz :
+`recap_screen.dart` et `lib/screens/reinforcement/`, listés en dur dans le test et retirés au fil
+des livraisons. À écrire après le Sprint B2, sinon il échoue dès sa création.
 
 ### [P2] Embarquer Amiri et Scheherazade dans l'app
 Relevé au scoping d'US-25 (2026-10-22). Les polices du texte coranique sont téléchargées par
@@ -209,12 +202,22 @@ Vision/features pas encore prêtes à l'implémentation — pas de priorité tec
   Seul changement dû à Outfit : la plage « (v.1–10) » d'une rakaa se coupe désormais après le
   tiret. Il reste à choisir le correctif (plafonner l'agrandissement du texte, passer à la ligne,
   raccourcir), comme pour les deux débordements de la vue Coran ci-dessus. Le Récap est reconstruit
-  par US-23 : à revérifier après.
+  par US-23 : à revérifier après. Remesuré au sprint 26 (US-25 Sprint B1, 2026-10-22, sous
+  Windows, guides affichés) : le bouton « Choisir une sourate » ne déborde plus (son libellé
+  rétrécit, comme celui de `PrimaryCtaButton`) ; le badge « Jamais » d'une rakaa est coupé d'un
+  demi-pixel (13 px avant B1) ; la ligne d'une rakaa d'apprentissage (« Apprentissage » + « 3
+  versets ») déborde de 54 px à droite, créée par B1 (légende 13 au lieu de 10). La ligne « Dernières
+  prières » n'a pas été remesurée. Au Récap, la liste des sourates met le badge de fraîcheur (agrandi
+  par B1) et le nombre de versets dans la zone de fin d'un `ListTile` : selon les données, cette zone
+  prend toute la largeur (assertion Flutter en debug) ; à reprendre avec US-23, qui reconstruit le
+  Récap. À 375 px ×1,5 (plus petit iPhone pris en charge), plus aucun
+  débordement sur l'accueil, le check-in, le plan du jour, le check-out et le Récap.
 - **Italique synthétique en Outfit** (relevé au sprint 24, US-25 Sprint A, 2026-10-22) : Outfit
   n'a pas de fichier italique, Flutter penche donc les lettres (hadith du jour, « 10 versets »,
   plage « v.1–40 » du check-out, « jours de révision »). Lisible sous Windows, non vérifié sur
-  iPhone. Les six styles d'US-25 n'ont pas d'italique. Il reste à choisir aux Sprints B1/B2 :
-  retirer l'italique (le style de légende suffit) ou le garder penché.
+  iPhone. Les six styles d'US-25 n'ont pas d'italique. Il reste à choisir : retirer l'italique (le
+  style de légende suffit) ou le garder penché. Le Sprint B1 n'a pas retiré l'italique (pas de
+  décision) : il reste posé sur `AppText.caption`/`AppText.body`.
 - **Sélecteur de plage : « Tout sélectionner » passe sur deux lignes** (relevé au sprint 20,
   2026-10-13, vu sous Windows à 390 px, taille de texte par défaut, en clair et en sombre) : dans
   `VerseRangePicker`, le bouton de gauche écrit « Tout / sélectionner » sur deux lignes, calé à

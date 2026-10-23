@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../models/revision_unit.dart';
 import '../widgets/unit_range_label.dart';
 import '../widgets/verse_toggle_chips.dart';
@@ -48,7 +49,7 @@ class CheckOutRow extends StatelessWidget {
             checkedFillColor: palette.primary,
             childFor: (v, checked) => checked
                 ? Icon(Icons.check, size: 14, color: palette.onPrimary)
-                : Text('$v', style: TextStyle(fontSize: 11, color: palette.textMuted)),
+                : Text('$v', style: AppText.caption.copyWith(color: palette.textMuted)),
           ),
         ],
       ),

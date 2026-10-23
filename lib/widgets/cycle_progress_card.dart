@@ -71,22 +71,12 @@ class CycleProgressCard extends StatelessWidget {
           // mid-sentence (PlanSummaryBar). Home said "Cycle en cours", Recap
           // "CYCLE ACTUEL" — same eyebrow, two cases.
           Text(label.toUpperCase(),
-              style: TextStyle(
-                  fontFamily: AppText.family,
-                  color: onPrimary.withValues(alpha: 0.65),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2.5)),
+              style: AppText.sectionTitle.copyWith(color: onPrimary.withValues(alpha: 0.65))),
           const SizedBox(height: 8),
           if (newRound)
             Text(S.nouveauTour,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontFamily: AppText.family,
-                        color: onPrimary,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w600,
-                        height: 1.1))
+                    style: AppText.screenTitle.copyWith(color: onPrimary, height: 1.1))
                 .animate()
                 .fadeIn(delay: 100.ms)
           else
@@ -95,16 +85,11 @@ class CycleProgressCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text('$percent',
-                    style: TextStyle(
-                        color: onPrimary,
-                        fontSize: 52,
-                        fontWeight: FontWeight.w600,
-                        height: 1)),
+                    style: AppText.bigNumber.copyWith(color: onPrimary, height: 1)),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text('%',
-                      style: TextStyle(
-                          color: palette.gold, fontSize: 24, fontWeight: FontWeight.w600)),
+                      style: AppText.cardTitle.copyWith(color: palette.gold)),
                 ),
               ],
             ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
@@ -113,11 +98,8 @@ class CycleProgressCard extends StatelessWidget {
             onTap: () => _showPagesInfo(context),
             child: Text(
               pagesText,
-              style: TextStyle(
-                  fontFamily: AppText.family,
-                  color: onPrimary.withValues(alpha: 0.75),
-                  fontStyle: FontStyle.italic,
-                  fontSize: 13),
+              style: AppText.caption.copyWith(
+                  color: onPrimary.withValues(alpha: 0.75), fontStyle: FontStyle.italic),
             ),
           ),
           const SizedBox(height: 14),
@@ -147,9 +129,7 @@ class CycleProgressCard extends StatelessWidget {
                 border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
               ),
               child: Text(S.streakJours(streak),
-                  style: TextStyle(
-                      color: onPrimary.withValues(alpha: 0.9),
-                      fontSize: 12)),
+                  style: AppText.caption.copyWith(color: onPrimary.withValues(alpha: 0.9))),
             ),
           ],
         ],

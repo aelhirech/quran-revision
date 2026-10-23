@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 
 /// Bouton pleine largeur à bordure dorée, sans fond — l'action secondaire du
 /// rituel quotidien, par opposition au `PrimaryCtaButton` rempli. Partagé par
@@ -35,8 +36,16 @@ class OutlinedActionButton extends StatelessWidget {
           children: [
             Icon(icon, size: 16, color: palette.textPrimary),
             const SizedBox(width: 8),
-            Text(label,
-                style: TextStyle(fontSize: 13, color: palette.textPrimary)),
+            // Same shrink-to-fit as PrimaryCtaButton: with enlarged text on a
+            // narrow screen, the label overflowed or lost its end.
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(label,
+                    maxLines: 1,
+                    style: AppText.body.copyWith(color: palette.textPrimary)),
+              ),
+            ),
           ],
         ),
       ),

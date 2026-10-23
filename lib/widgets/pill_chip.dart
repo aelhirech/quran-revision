@@ -46,9 +46,7 @@ class PillChip extends StatelessWidget {
             ],
             Text(
               label,
-              style: TextStyle(
-                fontFamily: AppText.family,
-                fontSize: 13,
+              style: AppText.caption.copyWith(
                 color: selected ? palette.onPrimary : palette.textPrimary,
               ),
             ),
