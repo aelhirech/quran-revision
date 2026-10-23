@@ -52,170 +52,133 @@ zéro. Pur bruit d'analyse, aucun comportement touché.
 
 ## Idées produit (non scopées)
 
-Vision/features pas encore prêtes à l'implémentation — pas de priorité technique tant qu'elles n'ont pas été cadrées (`quran-blueprint` → user story dans `docs/USER_STORIES.md`, puis `quran-scoping` → item ci-dessus). Ne pas lancer à la volée.
+Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. Ils passent par `quran-blueprint` (user story dans `docs/USER_STORIES.md`) puis `quran-scoping` (item au Backlog ci-dessus) avant tout code. Ne pas lancer à la volée.
 
-- **Verset de contexte des versets revenus : calculé, jamais affiché** (relevé à la consolidation
-  de `docs/SPEC_PRODUIT.md`, 2026-10-22). US-3 crit. 4 et US-1 crit. 7 promettaient d'afficher le
-  verset qui précède un verset revenu. `AppState.returningVersesContext` le calcule
-  (`RevisionEngine.contextVerseFor`), mais `ReturnProofStep` n'utilise que les clés de la map :
-  la valeur est un calcul mort. La spec décrit l'état actuel (non affiché). À trancher : l'afficher
-  (story, recoupe l'idée « Versets revenus en révision » ci-dessous) ou retirer le calcul (item de
-  Backlog trivial).
-- **Section « À prioriser » du check-in (US-5) : absente du code** (relevé à la même
-  consolidation). US-5 la décrivait livrée ; seul subsiste un libellé discret de fraîcheur par
-  ligne du check-in. À vérifier : retrait volontaire (alors rien à faire, la spec est juste) ou
-  perte accidentelle (alors une story, à articuler avec US-26 qui fait déjà passer plus tôt ce qui
-  n'a pas été revu depuis longtemps).
+### Plan du jour et check-in
 
-- **Check-in : trois comportements aux bords, relevés au Sprint A d'US-27 (2026-10-21)**, à trancher
-  avant d'en faire un item :
+- **Versets revenus : contexte calculé, jamais affiché.** `AppState.returningVersesContext` calcule
+  le verset qui précède chaque verset revenu (`RevisionEngine.contextVerseFor`), mais
+  `ReturnProofStep` n'en lit que les clés : la valeur est un calcul mort. Piste retenue le
+  2026-09-26 : faire atterrir les versets revenus dans le bloc hors prières
+  (`OutsidePrayersBlock`) plutôt que de les montrer avec leur contexte. Reste à choisir : cette
+  piste (story, à articuler avec `distributeToRakaas`/`RevisionUnit.==` et le message
+  `return_proof_seen`), ou retirer le calcul (alors item de Backlog trivial).
+- **Check-in : trois comportements aux bords** (Sprint A d'US-27, 2026-10-21) :
   - *Jour validé sans aucune ligne* (tout retiré, rien à apprendre) : indiscernable d'un jour jamais
-    commencé, donc un check-in rouvert après « Refaire le plan » repropose les valeurs par défaut du
-    moteur. Avant US-27 le cas existait aussi, à chaque ouverture de l'app. Un marqueur « commencé »
-    (comme `last_sealed_date`) le réglerait, au prix d'une seconde source de vérité.
-  - *Retirer une unité déjà atteinte* (`reach=1`) dans un check-in rouvert : l'unité disparaît de
+    commencé, donc un check-in rouvert après « Refaire le plan » repropose les valeurs par défaut.
+    Un marqueur « commencé » (comme `last_sealed_date`) le réglerait, au prix d'une seconde source
+    de vérité.
+  - *Retirer une unité déjà atteinte* (`reach=1`) dans un check-in rouvert : elle disparaît de
     l'écran, mais `commitCheckIn` ne supprime jamais une ligne `reach=1`, donc elle revient au plan
-    sans message. Il reste à choisir : bloquer le « × » sur une unité atteinte, ou autoriser la
-    suppression.
-  - *Étendre une unité jusqu'à toucher la suivante* (deux unités adjacentes d'une même sourate le
-    même jour, `+` du détail) : le brouillon montre le même verset dans les deux, alors que la base
-    n'en écrit qu'un. Il reste à choisir : cacher le « + » à la frontière, ou fusionner les deux
-    unités.
+    sans message. À choisir : bloquer le « × » sur une unité atteinte, ou autoriser la suppression.
+  - *Étendre une unité jusqu'à toucher la suivante* (même sourate, même jour, `+` du détail) : le
+    brouillon montre le même verset dans les deux unités, la base n'en écrit qu'un. À choisir :
+    cacher le « + » à la frontière, ou fusionner les deux unités.
+- **Plan du jour sans prière : trois textes parlent encore de prières** (Sprint B d'US-27) : le
+  bloc hors prières dit « il ne rentrait pas dans les prières que tu as choisies » alors
+  qu'aucune n'est choisie ; le résumé affiche « 0 rakaas », le compteur du bas « 0 / 0 rakaas »
+  avec une barre pleine dès l'ouverture. Les données sont justes. À choisir : une seconde
+  description pour ce cas, cacher le compteur de rakaas, ou les deux.
+- **Rattrapage d'un jour passé : le curseur lit celui d'aujourd'hui** (déduit du code au sprint
+  21, non reproduit) : `_completedPagesFor` parcourt le cycle depuis la `cyclePosition` du jour
+  même pour un check-out passé. Une sourate déclarée « en plus » un jour passé pourrait faire
+  sauter des groupes jamais révisés si ce jour est scellé après que le curseur a bougé.
+  `ensureDayPlan` gèle le plan tant qu'un jour est en attente, ce qui rend le cas rare. À
+  reproduire par un test avant de choisir un correctif.
+- **Sourate entièrement apprise alors qu'une plage en est déjà sélectionnée** (Sprint A d'US-20) :
+  `handOffLearnedSurahs` ne bascule pas une sourate qui a déjà une sélection, même partielle. Les
+  versets appris hors de la plage n'entrent ni dans le tour ni dans les séries, alors que le Récap
+  compte la sourate comme mémorisée. À choisir : élargir la sélection à la sourate entière au
+  passage en révision, ou la laisser telle que l'utilisateur l'a réglée.
+- **Onboarding : case de hizb dont toutes les sourates ont une plage partielle** (sprint 21) :
+  elle s'affiche cochée, et un appui retire ces sourates, plages comprises. Conforme à l'item (une
+  plage partielle compte comme sélectionnée), à revoir sur usage.
 
-- **Plan du jour sans prière : trois textes parlent encore de prières** (relevé au Sprint B
-  d'US-27, 2026-10-22, vu sous Windows) : la description du bloc hors prières dit « il ne rentrait
-  pas dans les prières que tu as choisies » alors qu'aucune n'est choisie ; le résumé affiche
-  « 0 rakaas » et le compteur du bas « 0 / 0 rakaas », avec une barre de progression pleine dès
-  l'ouverture. Rien n'est faux dans les données. Il reste à choisir : une seconde description pour
-  le cas sans prière, cacher le compteur de rakaas, ou les deux.
-- **Rattrapage d'un jour passé : le curseur lit celui d'aujourd'hui** (relevé en `/code-review`
-  du sprint 21, déduit du code, non reproduit) : `_completedPagesFor` parcourt le cycle depuis
-  `cyclePosition` d'aujourd'hui même pour un check-out passé ; une sourate de la sélection déclarée
-  « en plus » un jour passé pourrait faire sauter des groupes jamais révisés si ce jour est scellé
-  après que le curseur a bougé. `ensureDayPlan` gèle le plan tant qu'un jour est en attente, ce
-  qui rend le cas rare. À reproduire par un test avant de décider d'un correctif.
-- **Onboarding : case de hizb dont toutes les sourates ont une plage partielle** (sprint 21) : elle
-  s'affiche cochée, et un appui retire alors ces sourates, plages comprises. Conforme à l'item
-  (une plage partielle « compte comme sélectionnée »), à revoir sur usage.
-- **SRS réel par verset** (score de difficulté depuis l'historique `ayah_facts`, aujourd'hui écrasé par `lastRevisionDatesPerVerse` qui ne garde que `MAX(date)`) — dépendait de `needsWork`, **retiré du code au sprint US-3** (2026-09-21) ; à rescoper sur un autre signal (ex. fréquence des décochages verset par verset) avant toute implémentation.
-- **Coran en SQLite** (texte + word-by-word + tajweed) — débloquerait "tajweed coloré" ci-dessous, JOIN naturel avec `ayah_facts`. Garde-fou : ne pas migrer parce que "c'est plus propre", seulement si cette feature est réellement engagée. Les questions de mots (US-22) s'en passent : leurs données sont un asset texte.
-- **Affichage tajweed coloré** — bloqué faute de données tajwid (QUL), voir Coran SQLite. Passera par `AppPalette`/tokens sémantiques, jamais de couleur en dur.
-- **Timeline d'activité (heatmap) dans Profil/Récap** — chaque fait `ayah_facts` est déjà daté, gratuit en donnée.
-- **Mode "versets à retravailler" en jeu à part** — mécanique de jeu à définir avant tout code.
-- **Gamification narrative [H]** — vision long terme, direction artistique déjà validée (Mus'haf/Tahajjud), mécanique narrative encore à définir.
-- **Versets revenus en révision → section "à réviser en dehors des prières", pas verset de contexte** (reformulation 2026-09-26 des items P2 "verset de contexte") : pour la révision, le contexte n'aide pas autant qu'à l'apprentissage (où il a été livré le 2026-09-26, puis retiré par US-18 le 2026-10-13) — l'idée retenue est plutôt de faire atterrir les versets revenus dans le bloc hors-prières existant (`OutsidePrayersBlock`) plutôt que de les représenter avec leur contexte. À passer par `quran-blueprint` avant scoping : reste à définir comment ça s'articule avec `distributeToRakaas`/`RevisionUnit.==` (règle D) et si ça remplace ou complète le banner `return_proof_seen` actuel.
-- **Vue Coran : la barre saute quand on resserre la portion après avoir défilé** (relevé au
-  sprint US-18, 2026-10-13, mesuré sous Windows) : feuille défilée de 140 px, portion resserrée
-  de 50 à 2 versets, le contenu devient plus court que la position de défilement, Flutter recale
-  et la barre descend de 140 px sous le doigt. Le glissé d'une poignée n'est pas gêné, un ±1
-  répété peut tomber à côté du bouton. Il reste à choisir le comportement voulu (défilement figé
-  pendant le réglage, retour en haut, autre) avant tout correctif.
-- **Vue Coran à 320×568 avec texte ×1,5 : deux débordements** (relevés au sprint US-19,
-  2026-10-13, sous Windows, présents avec ou sans traduction) : la ligne « − v.282 + … − v.283 + »
-  de `VerseRangeSlider` (`verse_range_slider.dart`, l. 71) déborde de 38 px à droite avec des
-  numéros à trois chiffres (14 px avec deux), et `IndexBadge` coupe un numéro à trois chiffres
-  (« 282 » affiché « 28 »). Il reste à choisir le correctif (réduire, passer à la ligne, plafonner
-  l'agrandissement du texte) avant d'en faire un item de Backlog.
-- **Renforcement : qualité des mauvais choix à régler sur usage** (relevé au Sprint A d'US-20,
-  2026-10-13) : le mauvais choix « similaire » est tiré au hasard parmi les passages similaires,
-  pas le plus proche, et les deux seuils (12 mots par passage, moitié des mots en commun) viennent
-  des mesures du scoping, pas d'un usage. Il reste à jouer de vraies séries (après le Sprint B)
-  pour choisir : garder le hasard, prendre toujours le plus proche (mais alors le même piège
-  revient à chaque fois), ou déplacer un seuil. Déjà mesuré au Sprint B (5 900 questions) : le
-  « … » final d'un choix ne désigne pas la bonne réponse (le choix « à part » est le bon dans 12
-  à 20 % des cas, contre 25 % au hasard). Pour les questions de mots (Sprint C d'US-22, 5 200
-  questions) : aucun mauvais choix ne se lit comme le bon sens, à la casse et à la ponctuation
-  près. Mais 8 à 10 % des bons sens n'ont aucun mot de 4 lettres (« qui », « sur ») : la règle
-  qui écarte un sens voisin ne les protège pas, et deux synonymes sans mot commun passent
-  toujours. À juger aussi sur de vraies séries.
-- **Sourate entièrement apprise alors qu'une plage en est déjà sélectionnée** (relevé en
-  `/code-review` du Sprint A d'US-20, 2026-10-13) : `handOffLearnedSurahs` ne bascule pas une
-  sourate qui a déjà une sélection, même partielle. Les versets appris hors de cette plage
-  n'entrent donc ni dans le tour de révision ni dans les séries de Renforcement, alors que le
-  Récap compte la sourate comme mémorisée. Il reste à choisir : élargir la sélection à la sourate
-  entière au hand-off, ou la laisser telle que l'utilisateur l'a réglée.
-- **Barre à quatre onglets : « Renforcement » se coupe en deux lignes quand le texte est agrandi**
-  (remesuré en Outfit au sprint 24, US-25 Sprint A, 2026-10-22 : « Renforcement » occupe 76,5 px au
-  lieu de 79,4 à la taille par défaut, et passe toujours sur deux lignes à 320 px ×1,5, comme avant ;
-  à remesurer quand US-24 renommera l'onglet « Quiz »)
-  (relevé au Sprint B d'US-20, 2026-10-13, mesuré sous Windows) : à la taille de texte par défaut,
-  les quatre libellés tiennent sur une ligne à 390, 360 et 320 px (« Renforcement » occupe 79,4 px
-  sur 80 à 320 px). Avec un texte système agrandi, le mot passe sur deux lignes (« Renforceme /
-  nt ») : dès ×1,15 à 320 px, et à ×1,3 à 360 et 390 px (`NavigationBar` plafonne lui-même à
-  ×1,3). « Plan du jour » fait de même à 320 px. Rien ne déborde. Avec trois onglets, aucun
-  libellé ne se coupait. Il reste à choisir : plafonner l'agrandissement du texte dans la barre,
-  resserrer l'espacement des lettres, raccourcir le libellé, ou l'accepter. Même question pour le
-  sélecteur de mode de l'onglet (Sprint C d'US-22, mesuré sous Windows à 320 px) : à la taille
-  par défaut, « Traduction » tient au plus juste (73,1 px sur 73,3). Avec un texte agrandi, chaque
-  libellé rétrécit pour tenir sur une ligne, mais chacun pour soi : dès ×1,15, « Traduction »
-  garde sa taille pendant que « Mélange » et « Versets » grandissent. Rien ne se coupe ni ne
-  déborde.
-- **Renforcement : le message « sélection trop petite » ne dit pas toujours vrai** (relevé au
-  Sprint B d'US-20, 2026-10-13, déduit du code, non reproduit) : une sourate prise par « Choisir
-  une sourate » peut n'offrir aucune question, quand un seul passage en est porté (premier verset
-  appris d'une sourate en cours, plage d'un seul verset court). L'onglet affiche alors « Ta
-  sélection est trop petite… Ajoute une sourate dans les Réglages », alors que la sélection
-  entière suffirait. Le message reste aussi affiché après un ajout de sourates, jusqu'au
-  lancement suivant. Il reste à choisir : ne lister que les sourates qui offrent une question,
-  écrire un second message, ou les deux. Le mode « Traduction » (Sprint C d'US-22) a le même
-  défaut : une sourate dont un seul mot est posable n'offre aucune question.
-- **Renforcement : composer une série fige l'interface près d'une seconde sur une très grande
-  sélection** (relevé au Sprint C d'US-22, 2026-10-13, mesuré dans l'app en debug sous Windows) :
-  avec 113 sourates portées, 395 à 460 ms en mode « Versets » (inchangé), 365 à 420 ms en mode
-  « Traduction », 710 à 810 ms en mode « Mélange », qui est le mode par défaut. La première série
-  de mots lit en plus le fichier des sens, environ 100 ms. Sous `flutter test` : 120 ms en
-  « Mélange » avec les cinq derniers juz, 22 ms avec le juz 30. Une série sur une seule sourate
-  ne lit plus que ses mots (0 à 50 ms), mais ses passages lisent encore toute la sélection pour
-  leurs mauvais choix : 310 à 400 ms en « Mélange ». Non mesuré sur téléphone. Il reste à mesurer
-  sur un iPhone, puis à choisir : garder en mémoire les passages et les mots portés entre deux
-  séries, retenir la forme normalisée de chaque mot distinct, normaliser le texte sans expression
-  régulière, ou composer la série hors du fil de l'interface.
-- **Questions de mots : trois points d'affichage** (relevés au Sprint C d'US-22, 2026-10-13) :
-  dans le sens « sens vers arabe », la sourate et le verset ne sont affichés nulle part, même
-  après la réponse (seul « Voir le texte » les donne). Le mot posé n'est signalé que par sa
-  couleur or, ce qu'un lecteur d'écran ne dit pas. Sous un mauvais choix, le mot arabe de la
-  ligne « mot : sens » est écrit dans la police du système et non en Amiri : lisible sous
-  Windows, non vérifié sur iPhone. Il reste à choisir où afficher la référence et comment
-  désigner le mot autrement que par la couleur, et à regarder cette ligne sur un iPhone.
-- **320×568 avec texte ×1,5 : débordements et mots coupés hors vue Coran** (relevés au sprint 24,
-  US-25 Sprint A, 2026-10-22, sous Windows ; tous présents avant le passage à Outfit, qui les
-  réduit) : au check-in, le bouton « Choisir une sourate à apprendre » déborde de 23 px (39 en
-  Lora) et la ligne « Mes prières du jour » + « Dernières prières » de 88 px (101 en Lora) ; la
-  carte de série du Récap coupe « Aucune session enregistrée » au milieu des mots ; aux Réglages,
-  le libellé « Rythme » s'écrit une lettre par ligne ; le titre « Révision en cours » est tronqué.
-  Seul changement dû à Outfit : la plage « (v.1–10) » d'une rakaa se coupe désormais après le
-  tiret. Il reste à choisir le correctif (plafonner l'agrandissement du texte, passer à la ligne,
-  raccourcir), comme pour les deux débordements de la vue Coran ci-dessus. Le Récap est reconstruit
-  par US-23 : à revérifier après. Remesuré au sprint 26 (US-25 Sprint B1, 2026-10-22, sous
-  Windows, guides affichés) : le bouton « Choisir une sourate » ne déborde plus (son libellé
-  rétrécit, comme celui de `PrimaryCtaButton`) ; le badge « Jamais » d'une rakaa est coupé d'un
-  demi-pixel (13 px avant B1) ; la ligne d'une rakaa d'apprentissage (« Apprentissage » + « 3
-  versets ») déborde de 54 px à droite, créée par B1 (légende 13 au lieu de 10). La ligne « Dernières
-  prières » n'a pas été remesurée. Au Récap, la liste des sourates met le badge de fraîcheur (agrandi
-  par B1) et le nombre de versets dans la zone de fin d'un `ListTile` : selon les données, cette zone
-  prend toute la largeur (assertion Flutter en debug) ; à reprendre avec US-23, qui reconstruit le
-  Récap. À 375 px ×1,5 (plus petit iPhone pris en charge), plus aucun
-  débordement sur l'accueil, le check-in, le plan du jour, le check-out et le Récap.
-- **375×667 avec texte ×1,5 : onboarding et Réglages** (relevé au Sprint B2 d'US-25, 2026-10-23,
-  sous Windows, comparé à `main`) : la rangée « Sélection rapide » de l'onboarding déborde de 12 px
-  à droite (67 px à 320), comme avant le sprint ; l'en-tête du mode édition des Réglages
-  (« Réviser en 2 pages / jour » + « Tout sélectionner ») déborde de 110 px (98 avant le sprint,
-  le bouton passe de 12 à 13 px). L'en-tête des étapes d'onboarding prend désormais le titre
-  d'écran (28 au lieu de 20) : rien ne déborde, mais il ne reste que deux sourates visibles dans
-  la liste de sélection à 375 px (trois avant), une et demie à 320. Il reste à choisir : laisser
-  la rangée de pastilles défiler ou passer à la ligne, empiler l'en-tête des Réglages, réduire
-  l'en-tête d'étape quand la liste défile, ou l'accepter.
-- **Italique synthétique en Outfit** (relevé au sprint 24, US-25 Sprint A, 2026-10-22) : Outfit
-  n'a pas de fichier italique, Flutter penche donc les lettres (hadith du jour, « 10 versets »,
-  plage « v.1–40 » du check-out, « jours de révision »). Lisible sous Windows, non vérifié sur
-  iPhone. Les six styles d'US-25 n'ont pas d'italique. Il reste à choisir : retirer l'italique (le
-  style de légende suffit) ou le garder penché. Le Sprint B1 n'a pas retiré l'italique (pas de
-  décision) : il reste posé sur `AppText.caption`/`AppText.body`.
-- **Sélecteur de plage : « Tout sélectionner » passe sur deux lignes** (relevé au sprint 20,
-  2026-10-13, vu sous Windows à 390 px, taille de texte par défaut, en clair et en sombre) : dans
-  `VerseRangePicker`, le bouton de gauche écrit « Tout / sélectionner » sur deux lignes, calé à
-  gauche, à côté d'un « Confirmer » sur une ligne. Rien ne déborde. Il reste à choisir :
-  raccourcir le libellé, réduire le texte comme `PrimaryCtaButton`, ou empiler les deux boutons.
+### Renforcement (onglet « Quiz » après US-24)
+
+- **Qualité des mauvais choix, à régler sur de vraies séries** (US-20, US-22) : le mauvais choix
+  « similaire » est tiré au hasard parmi les passages similaires, pas le plus proche ; les seuils
+  (12 mots par passage, moitié des mots en commun) viennent des mesures du scoping. Mesuré : le
+  « … » final d'un choix ne trahit pas la bonne réponse (le choix « à part » est le bon dans 12 à
+  20 % des cas, contre 25 % au hasard) ; aucun mauvais sens de mot ne se lit comme le bon. Mais 8 à
+  10 % des bons sens n'ont aucun mot de 4 lettres (« qui », « sur ») et échappent à la règle qui
+  écarte un sens voisin ; deux synonymes sans mot commun passent toujours. À choisir après usage :
+  garder le hasard, prendre toujours le plus proche (le même piège reviendrait), ou déplacer un
+  seuil.
+- **Message « sélection trop petite » parfois faux** (déduit du code, non reproduit) : une sourate
+  prise par « Choisir une sourate » peut n'offrir aucune question (un seul passage porté, un seul
+  mot posable en mode « Traduction ») ; l'onglet dit alors « Ta sélection est trop petite… »
+  alors que la sélection entière suffirait. Le message reste aussi affiché après un ajout de
+  sourates, jusqu'au lancement suivant. À choisir : ne lister que les sourates qui offrent une
+  question, écrire un second message, ou les deux.
+- **Composer une série fige l'interface sur une très grande sélection** (mesuré en debug sous
+  Windows, 113 sourates portées) : 395 à 460 ms en « Versets », 365 à 420 ms en « Traduction »,
+  710 à 810 ms en « Mélange » (mode par défaut), plus environ 100 ms pour lire les sens à la
+  première série de mots. Une série sur une seule sourate prend encore 310 à 400 ms en
+  « Mélange » (ses mauvais choix lisent toute la sélection). À mesurer sur iPhone, puis choisir :
+  garder les passages et les mots en mémoire entre deux séries, retenir la forme normalisée de
+  chaque mot, normaliser sans expression régulière, ou composer hors du fil de l'interface.
+- **Questions de mots : trois points d'affichage** (US-22) : en « sens vers arabe », la sourate et
+  le verset ne sont affichés nulle part, même après la réponse (seul « Voir le texte » les
+  donne) ; le mot posé n'est signalé que par sa couleur or, ce qu'un lecteur d'écran ne dit pas ;
+  sous un mauvais choix, le mot arabe de la ligne « mot : sens » est dans la police du système, pas
+  en Amiri (non vérifié sur iPhone). À choisir : où afficher la référence, comment désigner le mot
+  sans la couleur.
+- **Mode « versets à retravailler » en jeu à part** : mécanique de jeu à définir avant tout code.
+
+### Affichage et texte agrandi
+
+Une seule question derrière les cinq premiers points : que faire quand le texte système est
+agrandi (plafonner l'agrandissement, passer à la ligne, faire rétrécir le libellé comme
+`PrimaryCtaButton`, raccourcir, ou accepter). La trancher une fois, puis l'appliquer partout.
+375×667 avec texte ×1,5 correspond au plus petit iPhone pris en charge ; 320×568 sert de marge.
+Mesures sous Windows, à jour au 2026-10-23.
+
+- **À 375 px ×1,5** : la rangée « Sélection rapide » de l'onboarding déborde de 12 px à droite ;
+  l'en-tête du mode édition des Réglages (« Réviser en 2 pages / jour » + « Tout sélectionner »)
+  déborde de 110 px ; l'en-tête des étapes d'onboarding (titre d'écran, 28 px) ne laisse que deux
+  sourates visibles dans la liste de sélection. Accueil, check-in, plan du jour, check-out et
+  Récap : aucun débordement.
+- **À 320 px ×1,5, hors vue Coran** : rangée « Sélection rapide » (67 px) ; au plan du jour, la
+  ligne d'une rakaa d'apprentissage (« Apprentissage » + « 3 versets ») déborde de 54 px, le badge
+  « Jamais » est coupé d'un demi-pixel, la plage « (v.1–10) » se coupe après le tiret ; au
+  check-in, la ligne « Mes prières du jour » + « Dernières prières » débordait de 88 px (pas
+  remesurée depuis le 2026-10-22) ; aux Réglages, « Rythme » s'écrit une lettre par ligne ; le
+  titre « Révision en cours » est tronqué. Au Récap (reconstruit par US-23, à revérifier après) :
+  « Aucune session enregistrée » se coupe au milieu des mots, et la zone de fin d'une ligne de
+  sourate peut prendre toute la largeur (assertion Flutter en debug).
+- **Vue Coran à 320 px ×1,5** : la ligne « − v.282 + … − v.283 + » de `VerseRangeSlider` déborde de
+  38 px avec des numéros à trois chiffres (18 px avec deux), et `IndexBadge` coupe un numéro à
+  trois chiffres (« 282 » affiché « 28 »).
+- **Barre d'onglets** : avec un texte agrandi, « Renforcement » passe sur deux lignes (dès ×1,15 à
+  320 px, à ×1,3 à 360 et 390 px ; `NavigationBar` plafonne lui-même à ×1,3), « Plan du jour »
+  aussi à 320 px. Rien ne déborde. À remesurer quand US-24 renommera l'onglet « Quiz ». Dans le
+  sélecteur de mode de l'onglet, chaque libellé rétrécit pour tenir, mais chacun pour soi
+  (« Traduction » garde sa taille quand « Mélange » et « Versets » grandissent).
+- **Sélecteur de plage** (`VerseRangePicker`, dès 390 px, taille par défaut) : « Tout /
+  sélectionner » passe sur deux lignes à côté d'un « Confirmer » sur une ligne. Rien ne déborde.
+- **Vue Coran : la barre saute quand on resserre la portion après avoir défilé** : feuille défilée
+  de 140 px, portion resserrée de 50 à 2 versets, le contenu devient plus court que la position
+  de défilement et la barre descend de 140 px sous le doigt ; un ±1 répété peut tomber à côté du
+  bouton. À choisir : défilement figé pendant le réglage, retour en haut, ou autre.
+- **Italique synthétique en Outfit** : Outfit n'a pas de fichier italique, Flutter penche les
+  lettres (hadith du jour, « 10 versets », plage « v.1–40 » du check-out, « jours de révision »,
+  textes de l'intro, de la méthode et de la célébration de l'onboarding). Lisible sous Windows,
+  non vérifié sur iPhone. À choisir : retirer l'italique (les six styles n'en ont pas) ou le
+  garder penché.
+
+### Long terme
+
+- **Révision espacée par verset** : un score de difficulté tiré de l'historique `ayah_facts`
+  (aujourd'hui `lastRevisionDatesPerVerse` ne garde que la dernière date). L'ancien signal
+  `needsWork` a été retiré au sprint US-3 : à rescoper sur un autre signal (par exemple la
+  fréquence des versets décochés) avant tout code.
+- **Coran en SQLite et tajwid coloré** : texte, mot à mot et tajwid dans une base, jointe
+  naturellement à `ayah_facts`. Le tajwid coloré en dépend (données QUL) et passera par
+  `AppPalette`. Ne migrer que si cette fonctionnalité est réellement engagée, pas parce que
+  « c'est plus propre ». Les questions de mots s'en passent (asset texte).
+- **Calendrier d'activité (heatmap) au Récap** : chaque fait `ayah_facts` est déjà daté, la donnée
+  est gratuite.
 
 ---
 
