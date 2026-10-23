@@ -38,14 +38,10 @@ class _StepHeader extends StatelessWidget {
               ],
               Expanded(
                 child: Text(title,
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: cs.onPrimaryContainer)),
+                    style: AppText.screenTitle.copyWith(color: cs.onPrimaryContainer)),
               ),
               Text(SOnboarding.etapeN(step, total),
-                  style: TextStyle(
-                      fontSize: 12,
+                  style: AppText.caption.copyWith(
                       fontWeight: FontWeight.w600,
                       color: cs.onPrimaryContainer.withValues(alpha: 0.7))),
             ],
@@ -57,9 +53,8 @@ class _StepHeader extends StatelessWidget {
               child: Text(
                 subtitle!,
                 key: ValueKey(subtitle),
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                style: AppText.caption.copyWith(
+                    fontWeight: FontWeight.w600,
                     color: cs.onPrimaryContainer.withValues(alpha: 0.8)),
               ),
             ),

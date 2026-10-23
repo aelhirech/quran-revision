@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/riwaya.dart';
 import '../models/sourate.dart';
@@ -147,10 +148,9 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
   }
 
   Widget _header(ColorScheme cs, Riwaya riwaya) {
-    final secondary = TextStyle(
-      fontSize: 12,
+    final secondary = AppText.caption.copyWith(
       color: cs.onSurfaceVariant,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
     );
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
@@ -176,7 +176,7 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
                   Text(
                     S.traductionSource,
                     textAlign: TextAlign.center,
-                    style: secondary.copyWith(fontSize: 11, fontWeight: FontWeight.normal),
+                    style: secondary.copyWith(fontWeight: FontWeight.w400),
                   ),
                 ],
                 const SizedBox(height: 12),

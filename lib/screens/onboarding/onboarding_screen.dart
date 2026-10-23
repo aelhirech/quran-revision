@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_sticky_header/flutter_sticky_header.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_theme.dart';
 import '../../core/revision_engine.dart';
 import '../../core/strings.dart';
 import '../../models/revision_unit.dart';
@@ -39,6 +40,7 @@ part 'widgets/group_toggle.dart';
 part 'widgets/sourate_list.dart';
 part 'widgets/recap_card.dart';
 part 'widgets/day_story.dart';
+part 'widgets/fill_or_scroll.dart';
 
 /// Nombre d'étapes comptées dans le stepper (`_StepHeader`) — Intro/Méthode/
 /// Riwaya n'y figurent pas (pages d'accueil et de pédagogie, pas de config),

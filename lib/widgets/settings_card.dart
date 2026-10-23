@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/riwaya.dart';
 import '../services/notification_service.dart';
@@ -197,10 +198,9 @@ class _SettingsCardState extends State<SettingsCard> {
           ),
         ),
         child: Text(label,
-            style: TextStyle(
+            style: AppText.caption.copyWith(
               color: selected ? cs.onPrimary : cs.onSurfaceVariant,
               fontWeight: FontWeight.w700,
-              fontSize: 12,
             )),
       ),
     );
@@ -221,10 +221,9 @@ class _SettingsCardState extends State<SettingsCard> {
           ),
         ),
         child: Text(label,
-            style: TextStyle(
+            style: AppText.caption.copyWith(
               color: selected ? cs.onPrimary : cs.onSurfaceVariant,
               fontWeight: FontWeight.w700,
-              fontSize: 12,
             )),
       ),
     );

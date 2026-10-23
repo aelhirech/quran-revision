@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_theme.dart';
 import 'arabic_verse_text.dart';
 import 'index_badge.dart';
 
@@ -41,8 +42,7 @@ class VerseRow extends StatelessWidget {
                   child: Text(
                     translation,
                     textAlign: TextAlign.left,
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: AppText.body.copyWith(
                       height: 1.5,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),

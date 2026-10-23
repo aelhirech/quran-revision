@@ -54,10 +54,7 @@ class _PreviewPage extends StatelessWidget {
                 ],
                 Text(
                   SOnboarding.planJour1Titre,
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: palette.textPrimary),
+                  style: AppText.cardTitle.copyWith(color: palette.textPrimary),
                 ),
                 const SizedBox(height: 12),
                 if (paginationUnavailable)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
@@ -222,7 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: paused ? cs.onTertiaryContainer : cs.onSurface)),
         subtitle: Text(
           paused ? S.pauseActive : S.pauseDesc,
-          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+          style: AppText.caption.copyWith(color: cs.onSurfaceVariant),
         ),
       ),
     ).animate().fadeIn(delay: 150.ms);
@@ -305,10 +306,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _selectedIds.length == totalSourates
                         ? SOnboarding.toutDeselectionner
                         : SOnboarding.toutSelectionner,
-                    style: TextStyle(
-                        color: cs.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12),
+                    style: AppText.caption.copyWith(
+                        color: cs.onPrimaryContainer, fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -348,7 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         selected ? cs.onPrimary : cs.onSurfaceVariant,
                     radius: 18,
                     child: Text('${s.id}',
-                        style: const TextStyle(fontSize: 11)),
+                        style: AppText.caption),
                   ),
                 );
               },

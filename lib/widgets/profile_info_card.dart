@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/user_config.dart';
 
@@ -57,10 +58,8 @@ class ProfileInfoCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(value,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: cs.onSurface,
-                  fontSize: 15)),
+              style: AppText.body
+                  .copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
           if (onTap != null)
             Icon(Icons.chevron_right, size: 20, color: cs.onSurfaceVariant),
         ],

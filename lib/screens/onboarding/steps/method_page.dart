@@ -27,18 +27,12 @@ class _MethodPage extends StatelessWidget {
                 children: [
                   Text(
                     SOnboarding.methodTitle,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      color: palette.textPrimary,
-                      height: 1.25,
-                    ),
+                    style: AppText.screenTitle.copyWith(color: palette.textPrimary),
                   ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08),
                   const SizedBox(height: 12),
                   Text(
                     SOnboarding.methodSubtitle,
-                    style: TextStyle(
-                        fontSize: 14.5, color: palette.textMuted, height: 1.6),
+                    style: AppText.body.copyWith(color: palette.textMuted, height: 1.6),
                   ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
                   const SizedBox(height: 28),
                   _MethodLayer(
@@ -61,8 +55,7 @@ class _MethodPage extends StatelessWidget {
                   const SizedBox(height: 26),
                   Text(
                     SOnboarding.methodLegitimacy,
-                    style: TextStyle(
-                      fontSize: 13.5,
+                    style: AppText.caption.copyWith(
                       fontStyle: FontStyle.italic,
                       color: palette.goldDark,
                       height: 1.6,
@@ -107,16 +100,10 @@ class _MethodLayer extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: palette.textPrimary)),
+                  style: AppText.cardTitle.copyWith(color: palette.textPrimary)),
               const SizedBox(height: 4),
               Text(body,
-                  style: TextStyle(
-                      fontSize: 13.5,
-                      color: palette.textMuted,
-                      height: 1.5)),
+                  style: AppText.body.copyWith(color: palette.textMuted, height: 1.5)),
             ],
           ),
         ),
