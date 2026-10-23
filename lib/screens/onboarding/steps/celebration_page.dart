@@ -49,17 +49,13 @@ class _CelebrationPageState extends State<_CelebrationPage> {
                 Text(
                   SOnboarding.bienvenueTitre,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      color: palette.textPrimary),
+                  style: AppText.screenTitle.copyWith(color: palette.textPrimary),
                 ).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(begin: 0.1),
                 const SizedBox(height: 12),
                 Text(
                   SOnboarding.bienvenueSubtitle,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 14,
+                  style: AppText.body.copyWith(
                       fontStyle: FontStyle.italic,
                       color: palette.textPrimary.withValues(alpha: 0.7),
                       height: 1.6),
@@ -77,10 +73,8 @@ class _CelebrationPageState extends State<_CelebrationPage> {
                   ),
                   child: Text(
                     S.souratesCount(widget.selections.length, widget.totalVerses),
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: palette.goldDark),
+                    style: AppText.body
+                        .copyWith(fontWeight: FontWeight.w600, color: palette.goldDark),
                   ),
                 ).animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.15),
                 const Spacer(flex: 4),

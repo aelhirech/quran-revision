@@ -49,11 +49,8 @@ class _SelectionPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(SOnboarding.selectionRapide,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurfaceVariant)),
+                Text(SOnboarding.selectionRapide.toUpperCase(),
+                    style: AppText.sectionTitle.copyWith(color: cs.onSurfaceVariant)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -132,10 +129,7 @@ class _SelectionPage extends StatelessWidget {
               height: 52,
               child: FilledButton(
                 onPressed: onNext,
-                child: Text(
-                  onNext == null ? SOnboarding.selectSourates : S.continuer,
-                  style: const TextStyle(fontSize: 16),
-                ),
+                child: Text(onNext == null ? SOnboarding.selectSourates : S.continuer),
               ),
             ),
           ),

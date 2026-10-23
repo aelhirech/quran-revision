@@ -34,8 +34,7 @@ class _GroupToggle extends StatelessWidget {
                 color: value ? cs.primary : cs.onSurfaceVariant),
             const SizedBox(width: 4),
             Text(label,
-                style: TextStyle(
-                    fontSize: 12,
+                style: AppText.caption.copyWith(
                     fontWeight: FontWeight.w600,
                     color: value ? cs.primary : cs.onSurfaceVariant)),
           ],

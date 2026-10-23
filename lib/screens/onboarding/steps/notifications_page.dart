@@ -56,17 +56,13 @@ class _NotificationsPageState extends State<_NotificationsPage> {
             Text(
               SOnboarding.rappelsTitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: palette.textPrimary),
+              style: AppText.screenTitle.copyWith(color: palette.textPrimary),
             ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
             const SizedBox(height: 12),
             Text(
               SOnboarding.rappelsBody,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 14,
+              style: AppText.body.copyWith(
                   color: palette.textPrimary.withValues(alpha: 0.7),
                   height: 1.5),
             ).animate().fadeIn(delay: 180.ms, duration: 300.ms),

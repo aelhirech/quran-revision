@@ -52,12 +52,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
   Sourate _sourate(int id) => context.read<AppState>().sourateById(id)!;
 
   Widget _eyebrow(String text, AppPalette palette) => Text(text.toUpperCase(),
-      style: TextStyle(
-          fontFamily: AppText.family,
-          color: palette.textMuted,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 2.5));
+      style: AppText.sectionTitle.copyWith(color: palette.textMuted));
 
   void _pick(SeriesQuestion question, int choice) => setState(() {
         _picked = choice;

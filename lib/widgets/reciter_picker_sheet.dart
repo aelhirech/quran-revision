@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/app_theme.dart';
 import '../core/reciters.dart';
 import '../core/strings.dart';
 import 'draggable_handle.dart';
@@ -28,7 +29,7 @@ class ReciterPickerSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(S.choisirRecitateur,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                  style: AppText.cardTitle),
             ),
             Flexible(
               child: ListView(

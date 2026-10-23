@@ -150,8 +150,9 @@ sourates à risque ; la place de la mosaïque à côté du bouton « Choisir une
 **Reçu d'US-25** (scoping du 2026-10-22) : US-21 livre les formes de carreau (US-25 crit. 3). Formes
 des maquettes Zellige : pas jouée, petit losange ; niveau 1, losange ; niveau 2, étoile à huit
 pointes ; niveau 3, étoile évidée au centre ; niveau 4, étoile à cœur doré (`palette.gold`) ;
-risque d'oublier, étoile orange dans un anneau. Les couleurs viennent des tokens d'US-25. La
-mosaïque et l'onglet Quiz prennent directement les six styles d'US-25.
+risque d'oublier, étoile orange dans un anneau. Les couleurs viennent des tokens d'US-25
+(`AppPalette.levelTints`, `risk`, livrés). La mosaïque et l'onglet Quiz prennent directement les
+six styles d'`AppText` (livrés).
 
 ### Cadre commun du blueprint Zellige (2026-10-17) : US-21, US-23, US-24, US-25 et US-26
 
@@ -180,8 +181,8 @@ l'exploration). Les maquettes sont antérieures à ce blueprint : là où elles 
 - **Ce qui ne change pas** : les questions ne valident jamais une révision (reconnaître n'est pas
   réciter, cadre US-20). L'app décide à la place de l'utilisateur : ni niveau, ni seuil, ni
   pondération à régler.
-- **Ordre conseillé** : US-25 d'abord (police, styles, couleurs), puis US-21, puis US-23, qui
-  reprend sa mosaïque. US-24 et US-26 sont indépendantes. Le scoping tranche.
+- **Ordre conseillé** : US-25 d'abord (police, styles, couleurs ; livrée, voir
+  `docs/SPEC_PRODUIT.md` § Registre visuel), puis US-21, puis US-23, qui reprend sa mosaïque. US-24 et US-26 sont indépendantes. Le scoping tranche.
 
 ### US-23 — Le Récap montre d'un coup d'œil ce qui tient et ce que je risque d'oublier (extension d'US-7)
 **État** : à scoper — blueprint du 2026-10-17. Prolonge US-7 (livrée, voir `docs/SPEC_PRODUIT.md` § Récap) et modifie
@@ -289,97 +290,6 @@ pas la révision.
 
 **Livrable hors critères** : la règle et le lexique validé s'écrivent dans le `CLAUDE.md` du projet,
 à la clôture du sprint, pour que tout nouveau texte les suive.
-
-### US-25 — Une seule allure, tenue d'un écran à l'autre (extension d'US-15)
-**État** : en cours — Sprint A livré (police Outfit, `AppText`, tokens de couleur, contrastes,
-badge de fraîcheur neutre : fondu dans `docs/SPEC_PRODUIT.md` § Registre visuel) et Sprint B1
-(les six styles sur l'accueil, le plan du jour, le check-in et le check-out, idem) ; reste le
-Sprint B2 (réglages, onboarding, vue Coran ; crit. 1 et 5). Blueprint du 2026-10-17, scoping
-du 2026-10-22. Prolonge US-15 (livrée, voir `docs/SPEC_PRODUIT.md` § Registre visuel) et revient
-sur son exclusion « pas de nouvelle couleur ni de nouvelle police ». Reprend l'Idée produit « Un
-seul style de titre en capitales » de `docs/CHANGELOG.md`, retirée au scoping.
-
-**Statement** : En tant qu'utilisateur, je veux que l'app ait la même allure et les mêmes repères
-partout, afin de lire vite et de comprendre d'un coup d'œil ce que veut dire chaque couleur.
-
-**Diagnostic (état actuel)** : 23 tailles de texte différentes ; huit titres en capitales qui ont
-chacun leur taille et leur espacement ; une couleur hors palette au Récap. Aucune couleur n'existe
-pour les niveaux ni pour le risque d'oublier.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given n'importe quel écran, Then le texte est en Outfit (choix utilisateur du 2026-10-17 ; le
-   texte coranique garde sa police) et n'emploie qu'un petit jeu de styles fixes : titre d'écran,
-   titre de section, titre de carte, texte, légende, grand chiffre.
-2. Given les niveaux et le risque d'oublier, Then leurs couleurs et leurs formes sont définies une
-   seule fois et identiques partout : quatre teintes froides du vert au bleu nuit, un cœur doré au
-   niveau 4, un gris pour « pas encore jouée », et l'orange avec un anneau, réservé au risque
-   d'oublier.
-3. Given les niveaux, Then ils se distinguent aussi sans les couleurs, par la forme du carreau.
-   _Livré par US-21 (ajustement au scoping du 2026-10-22)._
-4. Given le thème clair ou sombre de l'appareil, Then chaque style et chaque couleur a son
-   équivalent, avec un texte lisible (contraste de 4,5:1, de 3:1 pour les grands chiffres).
-   L'habillage reste vert et or.
-5. Given chaque écran retouché, Then il est vérifié à l'œil en clair et en sombre avant d'être
-   livré (règle d'US-15 crit. 5).
-
-**Exclusions explicites** :
-- Pas de nouvelle mise en page des autres écrans : on y applique la police et les styles, rien de
-  plus.
-- Pas de sélecteur de thème, pas de couleurs de tajwid.
-- Les débordements quand le texte système est agrandi (Idées produit de `docs/CHANGELOG.md`)
-  restent à part, sauf ceux que le passage à Outfit créerait : à revérifier, Outfit n'a pas la
-  largeur de Lora.
-
-**Scoping technique** (2026-10-22) :
-- **Valeurs de design** : reprises des maquettes Zellige validées (écrans `Z-*` et planche
-  `Z-Mosaique`). Les choix de DA ont été laissés à Claude par l'utilisateur le 2026-10-22.
-  - Six styles, en Outfit : titre d'écran 28/600 (interligne 40, lettres −0,4) ; titre de section
-    11/600, en capitales, lettres +2 (l'« eyebrow » des maquettes : c'est lui, le titre de
-    section) ; titre de carte 17/600 ; texte 15/400 ; légende 13/400 ; grand chiffre 56/700.
-    Trois graisses seulement : 400, 600, 700.
-  - Carreaux, clair puis sombre : pas jouée `#8E8571` / `#4A524D` ; niveau 1 `#3C8F62` / `#4FA873` ;
-    niveau 2 `#24909B` / `#45B5C2` ; niveau 3 `#2F5FB3` / `#6C97F0` ; niveau 4 `#2E2A78` / `#7B6CF0`.
-    Gris sombre livré en `#626A65` au Sprint A : `#4A524D` n'atteignait que 2,3:1 sur le fond.
-    Risque d'oublier : `#C2571F` / `#F0936B`. Le cœur doré réutilise `palette.gold`.
-  - Contrastes corrigés : `textMuted` clair `#5A635D` (5,6:1, valeur des maquettes, au lieu de
-    3,9) ; `danger` sombre `#F28B7D` (7,8:1, au lieu de 2,3) ; `goldDark` clair `#806226` (5,1:1,
-    au lieu de 4,3, il sert de couleur de texte dans 8 fichiers).
-- **Fichiers UI** : `pubspec.yaml` (fontes) ; `lib/core/app_theme.dart` (`textTheme`, styles des
-  composants, classe `AppText`) ; `lib/core/app_colors.dart` (124 lignes, tokens) ;
-  `lib/widgets/freshness_badge.dart` (texte neutre) ; puis, aux Sprints B1 et B2, les écrans à
-  texte latin (59 fichiers portent un `fontSize:` littéral : 169 occurrences, 23 valeurs, chiffre
-  du diagnostic confirmé ; 9 fichiers et 10 titres en capitales, et non 8).
-- **Variables / champs** : `AppPalette` gagne `levelTints` (liste de 5 : pas jouée, niveaux 1 à 4)
-  et `risk`, en clair et en sombre, avec `copyWith` et `lerp`. Aucune clé `SharedPreferences`,
-  aucun champ d'`AppState`.
-- **`ayah_facts`** : aucune lecture ni écriture. Story purement visuelle.
-- **Décision data model** : sans objet (tokens de thème, pas de donnée).
-- **Réutilisation** : `AppPalette`/`context.palette`, `palette.gold` pour le cœur ; `google_fonts`
-  reste pour Amiri et Scheherazade. `AppText` vit dans `app_theme.dart` : `lib/core/` n'admet
-  Flutter que dans `app_colors.dart` et `app_theme.dart` (documentation technique §13).
-- **Risques / dépendances** : Outfit n'a pas la largeur de Lora et le texte passe de 13-14 à 15 px :
-  débordements possibles, d'où la vérification à 320 px avec texte agrandi ×1,5. Pas de fonte
-  variable (graisse rendue de façon inégale selon la plateforme, pas d'iPhone pour vérifier).
-  Le Récap et l'onglet Quiz ne reçoivent pas les styles aux Sprints B : US-23 et US-21 les
-  reconstruisent et les y prennent directement (sinon on retouche deux fois les mêmes lignes).
-  US-24 change les libellés des mêmes widgets : conflits de merge mineurs, aucun ordre imposé.
-- **Tests** : `test/core/app_palette_contrast_test.dart` (texte 4,5:1 ; grand chiffre et carreaux
-  3:1 ; clair et sombre ; la carte composée sur le fond par `Color.alphaBlend`) ; famille Outfit
-  portée par `buildAppTheme`. À l'œil sous Windows : clair et sombre, 390, 360 et 320 px, texte
-  ×1,5. Non vérifiable ici : le rendu sur iPhone.
-- **Item Backlog** : `[P2] US-25 Sprint B2` (Sprints A et B1 livrés).
-
-**Ajustement au scoping** (2026-10-22) :
-- Crit. 3 (forme du carreau) : passe à US-21, qui crée le seul écran qui affiche des carreaux.
-  US-25 livre les couleurs, la mosaïque d'US-21 livre les formes. Le sens ne change pas : les
-  niveaux se distinguent sans couleur. Validé par l'utilisateur : oui, 2026-10-22.
-- Crit. 4 (contraste) : 4,5:1 pour le texte ; 3:1 pour les grands chiffres et pour les carreaux
-  (seuil WCAG d'une forme). Le gris, le niveau 1 et le niveau 2 des maquettes sont assombris d'un
-  cran en clair pour l'atteindre (2,05, 2,4 et 3,0 auparavant). Validé par l'utilisateur : oui,
-  2026-10-22.
-- Crit. 2 (une couleur, un sens) : les badges de date de révision du plan du jour perdent leurs
-  couleurs (vert, or, rouge) et passent en texte secondaire neutre. Seuls l'orange et les niveaux
-  portent un sens par la couleur. Validé par l'utilisateur : oui, 2026-10-22.
 
 ### US-26 — Le plan fait passer plus tôt ce que je n'ai pas révisé depuis longtemps (extension d'US-2)
 **État** : à scoper — blueprint du 2026-10-17. Prolonge US-2 (livrée, voir `docs/SPEC_PRODUIT.md` § Règle du plan quotidien). Touche la

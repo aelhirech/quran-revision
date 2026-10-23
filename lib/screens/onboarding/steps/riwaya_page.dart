@@ -8,8 +8,8 @@ class _RiwayaPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: _FillOrScroll(
+        horizontalPadding: 28,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -17,19 +17,13 @@ class _RiwayaPage extends StatelessWidget {
             Text(
               S.choisirRiwayaTitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w600,
-                color: palette.textPrimary,
-                height: 1.25,
-              ),
+              style: AppText.screenTitle.copyWith(color: palette.textPrimary),
             ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08),
             const SizedBox(height: 12),
             Text(
               S.choisirRiwayaSubtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
+              style: AppText.body.copyWith(
                 color: palette.textPrimary.withValues(alpha: 0.7),
                 height: 1.5,
               ),
@@ -84,13 +78,10 @@ class _RiwayaChoiceCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: palette.textPrimary)),
+                  style: AppText.cardTitle.copyWith(color: palette.textPrimary)),
               const SizedBox(height: 6),
               Text(description,
-                  style: TextStyle(fontSize: 13, color: palette.textMuted)),
+                  style: AppText.caption.copyWith(color: palette.textMuted)),
             ],
           ),
         ),

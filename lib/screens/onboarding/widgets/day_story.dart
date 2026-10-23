@@ -87,14 +87,10 @@ class _DayStoryMoment extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: palette.textPrimary)),
+                    style: AppText.cardTitle.copyWith(color: palette.textPrimary)),
                 const SizedBox(height: 4),
                 Text(body,
-                    style: TextStyle(
-                        fontSize: 13.5, color: palette.textMuted, height: 1.5)),
+                    style: AppText.body.copyWith(color: palette.textMuted, height: 1.5)),
                 const SizedBox(height: 10),
                 control,
               ],

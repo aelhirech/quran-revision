@@ -105,12 +105,8 @@ class _SourateList extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(label,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: palette.goldDark,
-                          letterSpacing: 0.8)),
+                  child: Text(label.toUpperCase(),
+                      style: AppText.sectionTitle.copyWith(color: palette.goldDark)),
                 ),
               ),
               Checkbox(
@@ -140,7 +136,7 @@ class _SourateList extends StatelessWidget {
         title: Row(
           children: [
             Text(s.nameFr,
-                style: TextStyle(fontSize: 14, color: palette.textPrimary)),
+                style: AppText.body.copyWith(color: palette.textPrimary)),
             if (sel != null && !sel.isWhole) ...[
               const SizedBox(width: 6),
               Container(
@@ -150,14 +146,14 @@ class _SourateList extends StatelessWidget {
                   border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
                 ),
                 child: Text('v.${sel.verseStart}–${sel.verseEnd}',
-                    style: TextStyle(fontSize: 10, color: palette.goldDark)),
+                    style: AppText.caption.copyWith(color: palette.goldDark)),
               ),
             ],
           ],
         ),
         subtitle: Text(
             '${sel != null && !sel.isWhole ? '${sel.verseCount}/${s.verses}' : s.verses} ${S.versetsLabel}',
-            style: TextStyle(fontSize: 12, color: palette.textMuted)),
+            style: AppText.caption.copyWith(color: palette.textMuted)),
         secondary: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

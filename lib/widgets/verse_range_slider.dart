@@ -72,7 +72,7 @@ class VerseRangeSlider extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _bound(cs, start: true),
-            Text('$count ${S.versetsLabel}', style: const TextStyle(fontWeight: FontWeight.w500)),
+            Text('$count ${S.versetsLabel}', style: const TextStyle(fontWeight: FontWeight.w600)),
             _bound(cs, start: false),
           ],
         ),

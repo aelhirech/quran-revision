@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import '../core/app_colors.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
 import '../models/riwaya.dart';
@@ -223,7 +224,7 @@ class _RecapScreenState extends State<RecapScreen> {
                     Icons.check_circle_outline, cs.primary),
                 const SizedBox(width: 8),
                 _repartitionChip(cs, enCours, S.enCoursDApprentissage,
-                    Icons.edit_note_outlined, cs.tertiary),
+                    Icons.edit_note_outlined, context.palette.primary),
               ],
             ),
           ],

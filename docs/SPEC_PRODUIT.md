@@ -546,10 +546,11 @@ une phrase qui l'explique au moment où elle compte.
 - **Une seule police latine, Outfit**, embarquée dans l'app (même rendu hors connexion au premier
   lancement). Le texte coranique garde ses polices arabes.
 - **Six styles de texte**, chacun choisi selon son rôle : titre d'écran, titre de section (en
-  capitales), titre de carte, texte, légende, grand chiffre. L'accueil, le plan du jour, le
-  check-in et le check-out n'emploient que ceux-là ; les autres écrans gardent encore leurs
-  tailles propres. Avec un texte système agrandi, l'en-tête du check-in et du check-out défile
-  avec le contenu, et un libellé de bouton trop long rétrécit plutôt que d'être coupé.
+  capitales), titre de carte, texte, légende, grand chiffre. Tous les écrans n'emploient que
+  ceux-là, sauf le Récap et l'onglet Quiz, qui gardent encore leurs tailles propres. Avec un texte
+  système agrandi, l'en-tête du check-in et du check-out défile avec le contenu, les pages
+  d'accueil et de choix de la riwaya de l'onboarding défilent quand elles ne tiennent plus, et un
+  libellé de bouton trop long rétrécit plutôt que d'être coupé.
 - **Une couleur, un sens.** Les badges de date de révision du plan du jour et du Récap sont
   neutres (texte secondaire, sans couleur) quel que soit le niveau. Seuls les niveaux de jeu
   (quatre teintes froides du vert au bleu nuit, un gris pour « pas encore jouée ») et le risque

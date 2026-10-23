@@ -22,10 +22,7 @@ class _RecapCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(label,
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: cs.onSurface)),
+                style: AppText.body.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
           ),
           ?trailing,
         ],

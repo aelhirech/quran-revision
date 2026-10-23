@@ -57,18 +57,13 @@ class _RhythmPage extends StatelessWidget {
                   children: [
                     Text(
                       SOnboarding.tourDuree(cycleDays),
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: palette.textPrimary),
+                      style: AppText.body
+                          .copyWith(fontWeight: FontWeight.w700, color: palette.textPrimary),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       SOnboarding.tourGarantie(cycleDays),
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: palette.textMuted,
-                          height: 1.5),
+                      style: AppText.caption.copyWith(color: palette.textMuted, height: 1.5),
                     ),
                   ],
                 ),
