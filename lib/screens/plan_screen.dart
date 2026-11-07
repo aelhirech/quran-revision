@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import '../core/app_colors.dart';
-import '../core/app_theme.dart';
 import '../core/freshness_engine.dart';
 import '../core/strings.dart';
 import '../models/daily_session.dart';
@@ -11,9 +9,9 @@ import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/guide_step.dart';
 import '../widgets/outside_prayers_block.dart';
+import '../widgets/plan_bottom_bar.dart';
 import '../widgets/plan_summary_bar.dart';
 import '../widgets/prayer_plan_card.dart';
-import '../widgets/primary_cta_button.dart';
 import '../widgets/return_proof_step.dart';
 
 /// Rakaa layout of a plan already validated at check-in (Phase 6 Sprint 2,
@@ -210,14 +208,14 @@ class _PlanScreenState extends State<PlanScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    final palette = context.palette;
+    final session = widget.session;
     final checkedByPrayer = _checkedByPrayer();
     // Content that did not fit in the prayers is still today's content:
     // as long as any remains, the day is not "all done", even if every
     // rakaa is checked.
     final allDone = _allDoneOf(checkedByPrayer) &&
-        widget.session.outsidePrayers.isEmpty &&
-        widget.session.outsideLearning == null;
+        session.outsidePrayers.isEmpty &&
+        session.outsideLearning == null;
     final checkedCount = _checkedCountOf(checkedByPrayer);
     final progress = _totalRakaasWithUnit == 0
         ? 1.0
@@ -240,25 +238,29 @@ class _PlanScreenState extends State<PlanScreen> {
                   onPressed: _confirmRefairePlan,
                 ),
             ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(4),
-              child: ClipRRect(
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: cs.surfaceContainerHighest,
-                  color: cs.primary,
-                  minHeight: 4,
-                ),
-              ),
-            ),
+            bottom: session.hasPrayers
+                ? PreferredSize(
+                    preferredSize: const Size.fromHeight(4),
+                    child: ClipRRect(
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: cs.surfaceContainerHighest,
+                        color: cs.primary,
+                        minHeight: 4,
+                      ),
+                    ),
+                  )
+                : null,
           ),
-          SliverToBoxAdapter(child: PlanSummaryBar(session: widget.session)),
+          SliverToBoxAdapter(child: PlanSummaryBar(session: session)),
           if (!state.guideDone('verses_reachable'))
             SliverToBoxAdapter(
               child: GuideStep(
                 icon: Icons.menu_book_outlined,
                 title: SGuide.guideVersesTitle,
-                body: SGuide.guideVersesBody,
+                body: session.hasPrayers
+                    ? SGuide.guideVersesBody
+                    : SGuide.guideVersesBodySansPriere,
               ),
             ),
           if (widget.showNotFinishedHint)
@@ -279,15 +281,16 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
             ),
           SliverToBoxAdapter(
-              child: OutsidePrayersBlock(units: widget.session.outsidePrayers)),
+              child: OutsidePrayersBlock(
+                  units: session.outsidePrayers, withPrayers: session.hasPrayers)),
           SliverToBoxAdapter(
-              child: OutsideLearningBlock(unit: widget.session.outsideLearning)),
+              child: OutsideLearningBlock(unit: session.outsideLearning)),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (_, i) {
-                  final pp = widget.session.plan[i];
+                  final pp = session.plan[i];
                   return PrayerPlanCard(
                     prayerIndex: i,
                     pp: pp,
@@ -301,54 +304,19 @@ class _PlanScreenState extends State<PlanScreen> {
                       .fadeIn(delay: Duration(milliseconds: i * 80))
                       .slideY(begin: 0.06);
                 },
-                childCount: widget.session.plan.length,
+                childCount: session.plan.length,
               ),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('$checkedCount / $_totalRakaasWithUnit ${S.rakaasLabel}',
-                  style: AppText.caption.copyWith(color: palette.textMuted)),
-              const SizedBox(height: 8),
-              SizedBox(height: 56, child: _completionButton(allDone)),
-            ],
-          ),
-        ),
+      bottomNavigationBar: PlanBottomBar(
+        checkedCount: checkedCount,
+        totalRakaas: _totalRakaasWithUnit,
+        showRakaaCount: session.hasPrayers,
+        allDone: allDone,
+        onCloturer: widget.onCloturer,
       ),
     );
   }
-
-  /// "Close my day" — **always active** (2026-09-07 scoping decision):
-  /// check-out is precisely the place to correct what wasn't done as well as
-  /// what was done extra; locking it until every rakaa is checked would
-  /// force a false check just to close the day. The celebration animation,
-  /// though, only fires once everything is actually checked.
-  Widget _completionButton(bool allDone) {
-    final button = PrimaryCtaButton(
-      onPressed: widget.onCloturer,
-      icon: allDone ? Icons.check_circle : Icons.nightlight_outlined,
-      label: S.cloturerMaJournee,
-    );
-
-    if (!allDone) return button;
-
-    return button
-        .animate(key: const ValueKey('done'))
-        .scale(
-            begin: const Offset(0.92, 0.92),
-            end: const Offset(1, 1),
-            duration: 350.ms,
-            curve: Curves.elasticOut)
-        .shimmer(
-            duration: 900.ms,
-            color: Colors.white.withValues(alpha: 0.4),
-            delay: 100.ms);
-  }
-
 }

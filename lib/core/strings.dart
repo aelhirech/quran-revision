@@ -33,6 +33,11 @@ class S {
   static String get horsPrieresDesc => _t(
       "Ce contenu fait partie de ta journée, mais il ne rentrait pas dans les prières que tu as choisies.",
       'This is part of your day, but it did not fit in the prayers you picked.');
+  static String get aRevoirAujourdhuiTitre =>
+      _t("À réviser aujourd'hui", 'To revise today');
+  static String get aRevoirAujourdhuiDesc => _t(
+      "C'est tout ce que tu as à réviser aujourd'hui. Tu le confirmeras en fin de journée.",
+      "This is everything to revise today. You'll confirm it at the end of the day.");
   static String get aApprendreTitre => _t('À apprendre', 'To learn');
   static String get cloturerMaJournee =>
       _t('Clôturer ma journée', 'Close out my day');
@@ -113,8 +118,9 @@ class S {
 
   static String _t(String fr, String en) => locale == 'fr' ? fr : en;
 
+  static String pagesCount(int p) => '$p ${_pages(p)}';
   static String pagesRakaas(int p, int r) =>
-      '$p ${_pages(p)} · $r $rakaasLabel';
+      '${pagesCount(p)} · $r $rakaasLabel';
 
   static String souratesCount(int n, int v) => locale == 'fr'
       ? '$n sourate${n > 1 ? 's' : ''} sélectionnée${n > 1 ? 's' : ''} · ${versetsCount(v)}'

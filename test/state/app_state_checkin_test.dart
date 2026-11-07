@@ -660,6 +660,8 @@ void main() {
     expect(session!.plan, isEmpty);
     expect(session.outsidePrayers, await state.dayUnits());
     expect(session.outsideLearning?.sourate.id, 108);
+    expect(session.hasPrayers, isFalse,
+        reason: 'sans prière, le plan ne parle pas de rakaas (US-28)');
 
     final restarted = AppState(_config(), riwaya: Riwaya.hafs);
     await restarted.ensureDayPlan();
@@ -669,6 +671,9 @@ void main() {
     final last = await StorageService.loadLastSessionPrayers(Riwaya.hafs);
     expect(last?.prayers, [Prayer.fajr],
         reason: 'une manche sans prière n\'efface pas « reprendre hier »');
+
+    await state.buildTodaySession([Prayer.fajr]);
+    expect(state.todaySession!.hasPrayers, isTrue);
   });
 
   test('addableSelections ne propose que la sélection, hors plan, dans l\'ordre du mushaf',

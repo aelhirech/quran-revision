@@ -24,8 +24,8 @@ class SCheckIn {
   static String get checkInApprentissage =>
       S._t("Ce que j'apprends aujourd'hui", "What I'm learning today");
   static String get checkInApprentissageDesc => S._t(
-      'Ces versets seront récités dans ta dernière rakaa.',
-      'These verses will be recited in your last rakaa.');
+      'Si tu choisis des prières, ces versets iront dans ta dernière rakaa.',
+      'If you choose prayers, these verses go into your last rakaa.');
   static String get checkInChoisirSourate =>
       S._t('Choisir une sourate à apprendre', 'Choose a surah to learn');
   static String get checkInAucunApprentissage =>

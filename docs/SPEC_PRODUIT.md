@@ -369,11 +369,16 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
   revient deux fois dans la journée : ce qui est fait l'est par verset, pas par rakaa.
 - Sur chaque ligne, **l'icône livre** ouvre la vue Coran sur la plage concernée.
 - Rien n'est « fait » avant d'avoir été coché : seul le check-out coche tout par défaut.
-- **Sans prière choisie**, le plan n'a aucune rakaa : la révision est dans le bloc « à réviser
-  en dehors des prières » et le passage à apprendre dans un bloc « À apprendre », en lecture
-  seule. La journée se clôture comme les autres.
+- **Sans prière choisie**, le plan n'a aucune rakaa et ne parle pas de prières : la révision est
+  dans un bloc **« À réviser aujourd'hui »**, avec sa propre phrase, et le passage à apprendre
+  dans un bloc « À apprendre », en lecture seule. Ni le résumé ni le bas de l'écran n'affichent de
+  nombre de rakaas ou de barre de progression. La journée se clôture comme les autres.
+- **Avec au moins une prière**, le compteur « N / M rakaas » et sa barre restent, même si aucune
+  rakaa ne reçoit de contenu (« 0 / 0 rakaas »).
 
-**Ne fait pas** : aucune animation pendant les prières au-delà du retour tactile de coche ;
+**Ne fait pas** : aucun compteur de remplacement (versets, pages) un jour sans prière — il n'y a
+rien à cocher, la fin de journée valide ce qui a été fait ; aucune animation pendant les prières
+au-delà du retour tactile de coche ;
 aucun lecteur de Coran libre (lire reste attaché à une ligne du plan — un mushaf libre
 redonnerait la décision que l'app existe pour retirer).
 
