@@ -8,6 +8,337 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
+### [P2] US-28 — Plan du jour sans prière : ni rakaas, ni barre, ni texte de prières
+US-27 Sprint B a rendu les prières facultatives. Sans prière, `buildTodaySession([])` produit un plan
+sans rakaa : `plan` vide, `outsidePrayers` contient tout le contenu du jour, `outsideLearning` la
+portion à apprendre (`docs/DOCUMENTATION_TECHNIQUE.md` §8.1). Mais `PlanScreen` affiche encore les
+rakaas. Rien ne change dans `ayah_facts`, `RakaaDistributor` ni `RevisionEngine`.
+- **Préalable : extraire la barre du bas de PlanScreen.** `lib/screens/plan_screen.dart` fait
+  354 lignes, au-dessus du plafond de CLAUDE.md. Déplacer le compteur `N / M rakaas`, le bouton de fin
+  de journée et `_completionButton` (l.310-352) dans `lib/widgets/plan_bottom_bar.dart` : classe
+  `PlanBottomBar`, stateless, avec `checkedCount`, `totalRakaas`, `showRakaaCount`, `allDone`,
+  `onCloturer`. Comportement strictement inchangé ; l'animation `done` suit le widget.
+- **`lib/models/daily_session.dart`** : `bool get hasPrayers => prayersAlone.isNotEmpty;`. C'est la
+  seule condition de l'item. Commentaire WHY : elle ne se dérive pas du total de rakaas, car une
+  journée avec prière mais sans contenu garde son affichage actuel.
+- **`lib/screens/plan_screen.dart`** (après l'extraction) :
+  - `AppBar.bottom` : la barre de rakaas n'apparaît que si `session.hasPrayers` (sinon `null`).
+  - Étape guidée `verses_reachable` : `session.hasPrayers ? SGuide.guideVersesBody :
+    SGuide.guideVersesBodySansPriere`.
+  - `OutsidePrayersBlock(…, withPrayers: session.hasPrayers)`.
+  - `PlanBottomBar(…, showRakaaCount: session.hasPrayers)`.
+  - Le dialogue « Refaire le plan » reste inchangé.
+- **`lib/widgets/outside_prayers_block.dart`** : paramètre `final bool withPrayers` (défaut `true`).
+  Si `false`, titre `S.aRevoirAujourdhuiTitre` et description `S.aRevoirAujourdhuiDesc` ; le reste
+  (lignes, icône livre) ne change pas.
+- **`lib/widgets/plan_summary_bar.dart`** l.31 : `session.hasPrayers ? S.pagesRakaas(pagesToday,
+  totalRakaas) : S.pagesCount(pagesToday)`. La ligne du tour en cours et sa barre restent (elles
+  comptent des pages).
+- **`lib/core/strings.dart`** (316 lignes), près de `horsPrieresTitre` :
+  - `aRevoirAujourdhuiTitre` : FR « À réviser aujourd'hui » / EN « To revise today ».
+  - `aRevoirAujourdhuiDesc` : FR « C'est tout ce que tu as à réviser aujourd'hui. Tu le confirmeras
+    en fin de journée. » / EN « This is everything to revise today. You'll confirm it at the end of
+    the day. »
+  - `static String pagesCount(int p) => '$p ${_pages(p)}';`, et `pagesRakaas` délègue :
+    `'${pagesCount(p)} · $r $rakaasLabel'`.
+- **`lib/core/strings_guide.dart`** :
+  - Nouveau `guideVersesBodySansPriere` : FR « L'icône livre, sur chaque ligne, ouvre le texte des
+    versets, sans sortir de l'app. » / EN « The book icon on each line opens the verses' text,
+    without leaving the app. »
+  - `guideCheckinStep1Body` devient FR « Si tu choisis des prières, ces versets rejoindront ta
+    dernière rakaa. Rien d'obligatoire : « je n'apprends rien aujourd'hui » reste toujours possible. »
+    / EN « If you choose prayers, these verses join your last rakaa. Nothing is mandatory: "I'm not
+    learning anything today" always stays an option. »
+- **`lib/core/strings_check_in.dart`** l.26-28 : `checkInApprentissageDesc` devient FR « Si tu choisis
+  des prières, ces versets iront dans ta dernière rakaa. » / EN « If you choose prayers, these verses
+  go into your last rakaa. » Texte fixe : l'étape Apprentissage du check-in passe avant l'étape
+  Prières, donc le choix n'est pas encore connu à ce moment.
+- **Réutilisé tel quel** : `OutsidePrayersBlock`/`_OutsideCard` (paramètre, pas de copie),
+  `S.pagesRakaas`, `allDone` (déjà calculé sans rakaa, la fin de journée marche).
+- **Tests** :
+  - Dart pur : dans le test « check-in validé sans prière… » de
+    `test/state/app_state_checkin_test.dart`, ajouter `expect(session.hasPrayers, isFalse)`, plus une
+    assertion `buildTodaySession([Prayer.fajr])` → `hasPrayers` vrai. Pas de nouveau fichier.
+  - Pas de test widget de PlanScreen (test/CLAUDE.md). Vérification visuelle sous Windows :
+    - plan sans prière : titre, phrase, étape guidée, résumé sans rakaas, ni compteur ni barre ;
+    - plan avec une prière : tout identique à avant ;
+    - check-in étape Apprentissage : nouvelle phrase.
+  - `flutter analyze` sans nouvelle alerte, `flutter test` vert.
+- **Exclus** :
+  - Pas de compteur de remplacement.
+  - Une journée avec prière mais sans contenu garde « 0 / 0 rakaas » (crit. 3).
+  - Le dialogue « Refaire le plan » ne change pas : il renvoie au check-in, il ne décrit pas le plan.
+- **Doc** :
+  - `docs/SPEC_PRODUIT.md` § Pendant la journée, puce « Sans prière choisie » : ni rakaa, ni
+    compteur, ni barre, et un bloc « À réviser aujourd'hui ».
+  - `docs/DOCUMENTATION_TECHNIQUE.md` : §8.1, point PlanScreen (le décompte N / M rakaas ne
+    s'affiche qu'avec au moins une prière) ; §8.2, retirer l'affirmation que la démo d'onboarding
+    réutilise `OutsidePrayersBlock` (aucun usage dans `lib/screens/onboarding`).
+  - Fondre US-28 dans `docs/SPEC_PRODUIT.md` § Pendant la journée, puis la retirer de
+    `docs/USER_STORIES.md`.
+
+### [P2] US-30 Sprint A — Quiz : sourates proposées exactes, message à jour, composition sans calcul répété, mots lisibles
+US-20 et US-22 sont livrées (`docs/DOCUMENTATION_TECHNIQUE.md` §5.6, §5.7, §8.7). Trois causes lues
+dans le code :
+- **Liste « Choisir une sourate »** : `reinforcement_tab.dart` l.124-126 la filtre sur
+  `inputs.carried`, donc toute sourate connue, même sans question.
+- **Message « trop petite »** : `_tooSmall` est posé une fois dans `_start` (l.89-91) et jamais
+  recalculé.
+- **Temps de composition** : `ReinforcementEngine.buildSeries` (l.149-156) analyse toute la sélection
+  (passages et mots, regex par jeton) à chaque série, même pour une seule sourate, et chaque mauvais
+  choix matérialise le pool entier (`pick`).
+Aucune écriture, aucune persistance.
+- **`lib/core/reinforcement_corpus.dart`** (nouveau, `part of 'reinforcement_engine.dart'` ;
+  `reinforcement_engine.dart` est à 281 lignes) : classe `ReinforcementCorpus`, mémo de session tenu
+  par l'onglet.
+  - `passagesOf(surahId, ayahId, text)` et `wordsOf(surahId, ayahId, text, glosses)` renvoient le
+    résultat de `ReinforcementEngine.passagesOf` et de `_askableWords`, mémorisé par
+    `(surahId, ayahId)`.
+  - Les listes plates `all` (passages, mots) sont aussi mémorisées, et recalculées seulement quand
+    `carried` change (comparaison de valeur).
+  - `clear()` est appelé quand la riwaya change. Sinon, un verset Hafs serait servi en Warsh.
+- **`lib/core/reinforcement_engine.dart`** et **`lib/core/reinforcement_words.dart`** :
+  - `buildSeries`, `buildMixedSeries` et `buildWordQuestions` acceptent un paramètre optionnel
+    `ReinforcementCorpus? corpus` ; sans lui, comportement actuel. Avec lui, `chains` et `all` passent
+    par le mémo.
+  - Nouvelle fonction `surahsOfferingPassages({carried, textOf, corpus})` : les `surahId` qui ont au
+    moins un lien posable (`_askableLinks`), dont le couple (passage montré, bonne suite) laisse au
+    moins une clé de passage connue hors de {clé du passage montré, clé de la suite}. C'est
+    exactement la condition qu'applique `_question`, car tous ses pools sont des sous-ensembles de
+    `all`. Les clés distinctes de `all` sont calculées une fois.
+  - `pick` (dans les deux fichiers) : tirer d'abord jusqu'à 20 candidats au hasard
+    (`pool[random.nextInt(pool.length)]`). Le filtre ne parcourt le pool entier que si aucun
+    candidat ne convient. Distribution inchangée.
+- **`lib/screens/reinforcement/reinforcement_tab.dart`** :
+  - État `Set<int> _offered` : les sourates qui offrent une question dans `_mode`.
+    - Passages : `surahsOfferingPassages`.
+    - Mots : `await WordGlossService.load()`, puis une sourate S est offerte si
+      `buildWordQuestions(…, surahId: S, count: 1, corpus: _corpus)` est non vide.
+    - Mélange : union des deux.
+  - Quand recalculer : au changement de mode (`onSelectionChanged`, l.156-159) et à chaque
+    notification d'`AppState` dont `carried` a changé. Un compteur de génération écarte un résultat
+    périmé ; vérifier `if (!mounted) return;` après chaque `await`.
+  - `_pickSourate` : `state.sourates.where((s) => _offered.contains(s.id))`.
+  - `_tooSmall` n'est plus un état posé : il vaut `_offered.isEmpty`. Le garde `questions.isEmpty`
+    de `_start` reste en repli.
+  - `_start` passe `_corpus` aux trois composeurs. `_corpus.clear()` au changement de riwaya.
+- **`lib/screens/reinforcement/series_word_question.dart`** :
+  - `_wordFollowUp` : si `!question.arabicToMeaning`, afficher
+    `SReinforcement.sourateVerset(surah.nameFr, answer.ayahId)` au-dessus du passage (même style que
+    l'en-tête de question). En « arabe vers sens », la ligne est déjà affichée avant la réponse : ne
+    pas la répéter.
+  - `_passageWithWord` : envelopper dans `Semantics(container: true, label: '<texte affiché>,
+    ${SReinforcement.motDemande(answer.arabic)}', child: ExcludeSemantics(child: …))`.
+  - Sous un mauvais choix : `Text.rich` avec le mot arabe en `GoogleFonts.amiri(fontSize: 15, color:
+    palette.textMuted)`, puis `SReinforcement.motSensSep` et le sens.
+- **`lib/screens/reinforcement/widgets/passage_choice.dart`** : `note` passe de `String?` à `Widget?`.
+  L'appel des passages enveloppe `SReinforcement.passageDans(…)` dans un `Text` au style actuel
+  (12, `palette.textMuted`).
+- **`lib/widgets/arabic_verse_text.dart`** l.55 : le `TextSpan` du mot en or reçoit
+  `decoration: TextDecoration.underline, decorationColor: highlightColor`. Rien ne change sans
+  `highlightWord` (seul appelant : la question de mots).
+- **`lib/core/strings_reinforcement.dart`** :
+  - `motDemande(String mot)` : FR « mot demandé : $mot » / EN « asked word: $mot ».
+  - `motSensSep` : FR ' : ' / EN ': '.
+  - `motSens` est retiré (son seul usage disparaît).
+- **Réutilisé tel quel** : `_draw`, `_question`, `passagesOf`, `SeriesScreen`, `SouratePickerSheet`,
+  `WordGlossService`, `VerseBottomSheet`, `AppPalette.gold`.
+- **Tests** :
+  - Parité de l'offre, `test/core/reinforcement_engine_test.dart` : sur la sélection réelle (Hafs et
+    Warsh, toutes sourates connues), pour chaque sourate S, S ∈ `surahsOfferingPassages` ⇔
+    `buildSeries(…, surahId: S, count: 1)` non vide. Une sourate à un seul passage n'est pas offerte.
+  - Parité des mots, `test/core/reinforcement_words_test.dart` : même équivalence en mode mots (Hafs).
+  - Même graine, série avec et sans `corpus` : mêmes `Passage.id` et `WordChoice.id`.
+  - `clear()` : après `clear()`, un verset Warsh n'est pas servi par le mémo Hafs.
+  - `flutter test` vert. L'échantillonnage change la suite aléatoire : ne corriger une assertion que
+    si elle porte sur une valeur de tirage précise, jamais sur une règle.
+  - **Mesure (crit. 3)** : `flutter run -d windows --profile`, sélection de 113 sourates, trois modes
+    × {sélection entière, une sourate}, à froid (première série) et à chaud (série suivante),
+    ouverture de « Choisir une sourate » comprise. `Stopwatch` temporaire du tap jusqu'à l'affichage
+    de la série, retiré avant le commit. Pire de trois essais, seuil 100 ms par cas. Consigner les
+    chiffres dans §5.6.
+  - Vérification sous Windows :
+    - crit. 2 : le message disparaît à l'ajout d'une sourate et revient au retrait ;
+    - crit. 4 : sourate et verset affichés après la réponse en « sens vers arabe » ;
+    - crit. 5 : mot en or et souligné ;
+    - crit. 6 : mot arabe de la note en Amiri.
+    Le lecteur d'écran (VoiceOver) ne se vérifie que sur iPhone.
+- **Exclus** : pas de second message ; la qualité des mauvais choix (Idée produit) ; rien n'est crédité
+  ni écrit ; Amiri embarquée (item P2 séparé, pas un préalable : hors connexion, tout l'arabe de
+  l'onglet retombe déjà sur la police système) ; composition hors du fil de l'interface (Sprint B).
+- **Doc** :
+  - `docs/DOCUMENTATION_TECHNIQUE.md` :
+    - §5.6 : mémo, échantillonnage, fonction d'offre et mesures en profile. Remplacer « Coût » et
+      « Si ce temps dépasse 500 ms ».
+    - §8.7 : sélecteur filtré, `_tooSmall` dérivé, référence en sens vers arabe, soulignement et
+      sémantique, note en Amiri. Retirer les points correspondants des « Limites connues ».
+    - §11 : les nouveaux tests.
+    - §13bis : le mémo est lié à la riwaya ; l'offre et `_question` partagent leur condition,
+      verrouillée par test.
+  - `docs/SPEC_PRODUIT.md` § Renforcement : « Choisir une sourate » ne liste que les sourates qui
+    offrent une question, et le message suit la sélection et le mode. Fondre US-30 dans ce
+    paragraphe à la clôture du Sprint A si le Sprint B n'est pas déclenché, sinon à celle du
+    Sprint B.
+
+### [P3] US-30 Sprint B — Composer les questions hors du fil de l'interface (seulement si déclenché par le Sprint A)
+Déclencheur, consigné à la clôture du Sprint A : un cas de la mesure en profile sous Windows
+dépasse 100 ms, ou l'utilisateur sent l'écran se figer sur iPhone (TestFlight). Sans déclencheur,
+supprimer cet item en notant la mesure dans §5.6. Le Sprint A doit être livré.
+- **Étape 1, si le dépassement n'a lieu qu'à froid (première série)** : `ReinforcementCorpus.warm(
+  carried, textOf, glosses)` remplit le mémo par tranches de 10 sourates, avec `await
+  Future<void>.delayed(Duration.zero)` entre deux tranches. Il est lancé à la première image de
+  l'onglet. Aucun isolate.
+- **Étape 2, si un cas à chaud dépasse encore 100 ms après l'étape 1** (ou d'emblée, si le
+  dépassement est à chaud) : composer dans un isolate avec `Isolate.run` (`dart:isolate`), appelé
+  depuis `reinforcement_tab.dart`. En entrée : textes et sens des versets connus, graine, mode,
+  `surahId`. En sortie : la liste de questions. `lib/core/` reste sans import Flutter. Les objets
+  renvoyés sont des copies : les écrans comparent déjà par `id`, jamais par `identical`.
+- **Tests** : parité, même graine avec et sans isolate, mêmes `id`. Même protocole de mesure que le
+  Sprint A, après chaque étape.
+- **Exclus** : normalisation sans expression régulière (à reconsidérer seulement si l'étape 1 ne
+  suffit pas à froid) ; aucun changement d'affichage.
+- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §5.6 (mesures avant et après), §13bis (préchauffage,
+  isolate). Fondre US-30 dans `docs/SPEC_PRODUIT.md` § Renforcement, puis la retirer de
+  `docs/USER_STORIES.md`.
+
+### [P2] US-31 Sprint A — Texte agrandi : plages insécables, libellés qui rétrécissent, italique retiré, test de débordement
+US-25 a posé Outfit et les six styles. Le rétrécissement d'un libellé existe déjà :
+`FittedBox(fit: BoxFit.scaleDown)` autour d'un `Text` à `maxLines: 1` (`primary_cta_button.dart`
+l.61-69, `outlined_action_button.dart` l.42-49). C'est ce mécanisme qui est réutilisé, sans widget
+dédié.
+- **`lib/core/strings.dart`** l.183, `S.blocRange` : le corps devient `'v.$from⁠–⁠$to'`
+  (WORD JOINER de chaque côté du tiret, écrit en échappement dans le source). Write et Edit
+  enregistrent le caractère réel : écrire l'échappement par un script, puis vérifier que
+  `grep -c $'⁠'` vaut 0 et que `grep -c '\\u2060'` donne le compte attendu. Les sites qui
+  formatent eux-mêmes `v.X–Y` appellent désormais `S.blocRange` :
+  - `widgets/unit_range_label.dart` l.24 ;
+  - `widgets/verse_range_picker.dart` l.63 ;
+  - `screens/onboarding/widgets/sourate_list.dart` l.148 ;
+  - `models/revision_unit.dart` l.39 (`'$name (${S.blocRange(a, b)})'`) ;
+  - `models/sourate_selection.dart` l.29 ;
+  - `screens/check_in_detail_screen.dart` l.44.
+  Les deux modèles portaient déjà du texte en dur : ils passent ainsi par `strings.dart`. Ni le texte
+  coranique ni les traductions ne sont touchés.
+- **Italique** : retirer `fontStyle: FontStyle.italic` aux douze sites, sans rien à la place :
+  - `screens/` : `check_in_detail_screen.dart` l.60, `check_out_sections.dart` l.100 ;
+  - `screens/onboarding/steps/` : `celebration_page.dart` l.59, `intro_page.dart` l.34 et l.43,
+    `method_page.dart` l.59 ;
+  - `widgets/` : `cycle_progress_card.dart` l.102, `hadith_card.dart` l.40,
+    `learning_progress_card.dart` l.106, `prayer_plan_card.dart` l.178, `streak_card.dart` l.62,
+    `unit_range_label.dart` l.26.
+- **`widgets/index_badge.dart`** l.55 : le `Text` va dans `FittedBox(fit: BoxFit.scaleDown)`. La
+  pastille garde sa taille (30 px ou 26 px).
+- **`widgets/freshness_badge.dart`** l.85 : le `Text` va dans `FittedBox(fit: BoxFit.scaleDown)`.
+- **`screens/reinforcement/reinforcement_tab.dart`** l.136-147 (`_modePicker`) : retirer le
+  `FittedBox` de chaque segment, et envelopper le `SegmentedButton` entier dans
+  `SizedBox(width: double.infinity)` puis `FittedBox(fit: BoxFit.scaleDown)`. Les trois libellés
+  rétrécissent ensemble. Si US-30 Sprint A passe avant, appliquer ce changement sur sa version du
+  fichier.
+- **`widgets/verse_range_picker.dart`** l.120-140 : retirer les deux `Expanded`, et envelopper la
+  `Row` « Tout sélectionner » / « Confirmer » dans `SizedBox(width: double.infinity)` puis
+  `FittedBox(fit: BoxFit.scaleDown)`.
+- **Test de débordement** (exception validée par l'utilisateur le 2026-10-23) :
+  `test/widgets/text_scale_fit_test.dart`, nouveau.
+  - Monter chaque widget sous `MediaQuery(size: Size(320, 568), textScaler: TextScaler.linear(1.5))`
+    avec `buildAppTheme`.
+  - Charger les vraies polices de `assets/fonts/` avec `FontLoader` dans `setUpAll` : sans elles,
+    Ahem fausse les largeurs.
+  - Widgets : `PrimaryCtaButton`, `OutlinedActionButton`, `IndexBadge` (« 282 »), `FreshnessBadge`
+    (« Jamais »), `UnitRangeLabel`, la rangée du `VerseRangePicker`.
+  - Le test n'échoue que sur un `RenderFlex overflowed` (`FlutterError`) : il ne compare aucun
+    rendu.
+  - Ajouter l'exception à `test/CLAUDE.md` : un test d'absence de débordement est un invariant de
+    mise en page, pas un test d'apparence.
+  - Plus un test Dart pur dans le même fichier : `S.blocRange(1, 10)` contient U+2060 de chaque
+    côté du tiret.
+- **Réutilisé tel quel** : `FittedBox` (mécanisme de `PrimaryCtaButton`), `S.blocRange`.
+- **Tests manuels** : sous Windows, 320×568 et 375×667, texte ×1,5 : sélecteur de mode du Quiz,
+  sélecteur de plage, pastilles de la vue Coran et du plan, plage « v.1–10 » au plan du jour.
+- **Exclus** : pas de plafond d'agrandissement, pas de réglage de taille, pas de texte raccourci
+  (US-24). Le Récap et la barre d'onglets attendent US-23 et US-24 (voir US-31).
+- **Doc** :
+  - `docs/DOCUMENTATION_TECHNIQUE.md` §9 : aucun `FontStyle.italic` dans `lib/`, les plages passent
+    par `S.blocRange`, `FittedBox` est le mécanisme de rétrécissement.
+  - `docs/SPEC_PRODUIT.md` § Registre visuel : plage insécable, libellés côte à côte qui
+    rétrécissent ensemble, aucun italique.
+
+### [P2] US-31 Sprint B — Texte agrandi : en-têtes qui défilent, lignes qui rétrécissent (onboarding, Réglages, check-in, plan)
+Le Sprint A est livré : la ligne de rakaa réutilise `FreshnessBadge` et `S.blocRange`. US-28 doit
+être livrée avant, car elle extrait la barre du bas de `plan_screen.dart`.
+- **Préalable** : `lib/screens/profile_screen.dart` fait 360 lignes. Extraire `_editBody` (l.266)
+  dans `lib/screens/profile_edit_body.dart` avant toute autre modification, sans changer le
+  comportement.
+- **`screens/onboarding/steps/selection_page.dart`** :
+  - `_StepHeader` (l.40), les pastilles (l.47) et le champ de recherche (l.86) sortent de la
+    `Column` fixe. Ils deviennent les premiers `SliverToBoxAdapter` du `CustomScrollView` de
+    `_SourateList` (l.116), dont le `Expanded` disparaît. L'en-tête collant des hizb reste.
+    Précédent : `check_in_screen.dart` l.229.
+  - La rangée des pastilles « Sélection rapide » (l.55) va dans `SizedBox(width: double.infinity)`
+    puis `FittedBox(fit: BoxFit.scaleDown)`, sans `Expanded` à l'intérieur.
+- **`screens/profile_edit_body.dart`** (extrait, l.274-300) : les deux textes « Réviser en N
+  pages / jour » deviennent un seul `Text.rich` dans `Expanded`. Retirer le `Spacer`. Le libellé du
+  `TextButton.icon` « Tout sélectionner » va dans `FittedBox(fit: BoxFit.scaleDown)`.
+- **`widgets/profile_info_card.dart`** (`_row`, l.54-72) : la valeur sort du `trailing` du
+  `ListTile`. La ligne devient une `Row` : l'icône, `Expanded(Text(label))`, puis
+  `Flexible(FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerRight, child: Row(valeur,
+  chevron)))`. C'est la cause de « Rythme » écrit lettre par lettre.
+- **`screens/plan_screen.dart`** l.231 : `title: FittedBox(fit: BoxFit.scaleDown, alignment:
+  Alignment.centerLeft, child: Text(S.revisionEnCours))`. « Révision en cours » est le titre du
+  plan du jour, son seul usage.
+- **`screens/check_in_sections.dart`** l.121-135 : `_sectionLabel` va dans `Expanded` (retour à la
+  ligne), et le libellé du `TextButton.icon` « Dernières prières » dans
+  `FittedBox(fit: BoxFit.scaleDown)`.
+- **`widgets/prayer_plan_card.dart`** `_subtitle` (l.156-186) : le tag « Apprentissage » et le badge
+  de fraîcheur vont dans `FittedBox(fit: BoxFit.scaleDown)`, `Text(S.versetsCount)` dans
+  `Flexible`.
+- **Réutilisé tel quel** : `FittedBox`, `Expanded`/`Flexible`, l'en-tête qui défile du check-in.
+- **Tests** :
+  - Étendre `test/widgets/text_scale_fit_test.dart` à `ProfileInfoCard` et à la rangée de
+    `PillChip`.
+  - Les écrans qui chargent `AppState` se vérifient sous Windows, à 320×568 et 375×667, texte ×1,5 :
+    - onboarding : sélection, l'en-tête défile, plus de deux sourates visibles ;
+    - Réglages : mode édition, ligne Rythme ;
+    - check-in : section prières ;
+    - plan du jour : titre et rakaa d'apprentissage.
+- **Exclus** : aucun texte raccourci ; aucun déplacement de l'en-tête du mode édition des Réglages
+  (il n'est pas haut).
+- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §8.2 (onboarding : l'en-tête défile avec la liste),
+  §8.4 (Réglages : extraction de `profile_edit_body.dart`).
+
+### [P2] US-31 Sprint C — Vue Coran : la barre de réglage reste sous le doigt, bornes lisibles à trois chiffres
+Indépendant du Sprint B. Il suit le Sprint A, qui règle la pastille à trois chiffres de `verse_row.dart`.
+
+Cause lue dans le SDK : `VerseBottomSheet` met un `CustomScrollView` dans un
+`DraggableScrollableSheet`. Quand la portion se resserre, `maxScrollExtent` baisse, et
+`ScrollPosition.correctForNewDimensions` (`scroll_position.dart` l.698) appelle
+`ClampingScrollPhysics.adjustPositionForNewDimensions` (`scroll_physics.dart` l.356, l.577), qui
+recale la position. La barre, fixe dans le contenu, descend sous le doigt.
+- **`lib/widgets/verse_bottom_sheet.dart`** : ajouter une classe privée `_KeepOffsetPhysics extends
+  ClampingScrollPhysics`, qui surcharge deux méthodes :
+  - `applyTo` : `_KeepOffsetPhysics(parent: buildParent(ancestor))` ;
+  - `adjustPositionForNewDimensions` : `oldPosition.pixels` quand `isScrolling` est faux, l'appel
+    au parent sinon.
+  Passer `physics: const _KeepOffsetPhysics()` au `CustomScrollView` (l.97). Commentaire WHY en
+  anglais : garder la position pendant un réglage, laisser le recalage au premier glissé.
+- **Coût accepté par l'utilisateur (2026-10-23)** : une zone vide en bas, de la taille de la
+  réduction, jusqu'au premier glissé, qui recale la position comme aujourd'hui.
+- **`lib/widgets/verse_range_slider.dart`** (`_bound`, l.54-79) : « N versets » sort de la `Row` des
+  bornes, sur sa propre ligne. Chaque borne va en `Flexible`, et le texte `v.N` dans
+  `FittedBox(fit: BoxFit.scaleDown)`.
+- **Réutilisé tel quel** : `ClampingScrollPhysics`, `VerseRangeSlider`, `nudgeRange`.
+- **Tests** :
+  - `test/widgets/verse_list_offset_test.dart`, nouveau (piège d'état, admis par `test/CLAUDE.md`) :
+    `CustomScrollView` de 300 éléments avec `_KeepOffsetPhysics` (la rendre testable via une
+    fabrique `@visibleForTesting`), défilé à 2000 px puis reconstruit avec 10 éléments : `pixels`
+    reste à 2000. Un glissé ramène ensuite à `maxScrollExtent`, sans assertion en debug.
+  - Étendre `text_scale_fit_test.dart` à `VerseRangeSlider` avec les bornes 282 et 283.
+  - Sous Windows : resserrer la portion après un défilement, la barre ne bouge pas, et un ±1
+    répété reste sur le bouton.
+- **Exclus** : pas de retour en haut ; rien ne change dans la portion ni dans le rendu des versets.
+- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §8.6 (vue Coran : physique de défilement). Une fois les
+  sprints A à C livrés, fondre dans `docs/SPEC_PRODUIT.md` § Registre visuel la partie livrée
+  d'US-31. US-31 reste dans `docs/USER_STORIES.md` pour le Récap et la barre d'onglets.
+
 ### [P3] Test qui interdit un `fontSize:` littéral hors `app_theme.dart`
 Relevé au Sprint B1 d'US-25 (2026-10-22) : rien n'empêche un futur écran de réécrire un
 `TextStyle(fontSize: …)` à côté des six styles d'`AppText`. Un test (`test/core/
@@ -74,25 +405,16 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   - *Étendre une unité jusqu'à toucher la suivante* (même sourate, même jour, `+` du détail) : le
     brouillon montre le même verset dans les deux unités, la base n'en écrit qu'un. À choisir :
     cacher le « + » à la frontière, ou fusionner les deux unités.
-- **Plan du jour sans prière : trois textes parlent encore de prières** (Sprint B d'US-27) : le
-  bloc hors prières dit « il ne rentrait pas dans les prières que tu as choisies » alors
-  qu'aucune n'est choisie ; le résumé affiche « 0 rakaas », le compteur du bas « 0 / 0 rakaas »
-  avec une barre pleine dès l'ouverture. Les données sont justes. À choisir : une seconde
-  description pour ce cas, cacher le compteur de rakaas, ou les deux.
 - **Rattrapage d'un jour passé : le curseur lit celui d'aujourd'hui** (déduit du code au sprint
   21, non reproduit) : `_completedPagesFor` parcourt le cycle depuis la `cyclePosition` du jour
   même pour un check-out passé. Une sourate déclarée « en plus » un jour passé pourrait faire
   sauter des groupes jamais révisés si ce jour est scellé après que le curseur a bougé.
   `ensureDayPlan` gèle le plan tant qu'un jour est en attente, ce qui rend le cas rare. À
   reproduire par un test avant de choisir un correctif.
-- **Sourate entièrement apprise alors qu'une plage en est déjà sélectionnée** (Sprint A d'US-20) :
-  `handOffLearnedSurahs` ne bascule pas une sourate qui a déjà une sélection, même partielle. Les
-  versets appris hors de la plage n'entrent ni dans le tour ni dans les séries, alors que le Récap
-  compte la sourate comme mémorisée. À choisir : élargir la sélection à la sourate entière au
-  passage en révision, ou la laisser telle que l'utilisateur l'a réglée.
-- **Onboarding : case de hizb dont toutes les sourates ont une plage partielle** (sprint 21) :
-  elle s'affiche cochée, et un appui retire ces sourates, plages comprises. Conforme à l'item (une
-  plage partielle compte comme sélectionnée), à revoir sur usage.
+- **Verset retiré après l'élargissement d'une sourate** (US-29, 2026-10-28) : retirer au check-out
+  le dernier bloc appris d'une sourate déjà élargie la remet en apprentissage, mais sa sélection
+  reste entière. Quand elle est finie à nouveau, la fin de journée ne l'annonce plus, car elle est
+  déjà entière. À choisir : revenir à la plage d'avant, ou garder la sélection et refaire l'annonce.
 
 ### Renforcement (onglet « Quiz » après US-24)
 
@@ -105,67 +427,7 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   écarte un sens voisin ; deux synonymes sans mot commun passent toujours. À choisir après usage :
   garder le hasard, prendre toujours le plus proche (le même piège reviendrait), ou déplacer un
   seuil.
-- **Message « sélection trop petite » parfois faux** (déduit du code, non reproduit) : une sourate
-  prise par « Choisir une sourate » peut n'offrir aucune question (un seul passage porté, un seul
-  mot posable en mode « Traduction ») ; l'onglet dit alors « Ta sélection est trop petite… »
-  alors que la sélection entière suffirait. Le message reste aussi affiché après un ajout de
-  sourates, jusqu'au lancement suivant. À choisir : ne lister que les sourates qui offrent une
-  question, écrire un second message, ou les deux.
-- **Composer une série fige l'interface sur une très grande sélection** (mesuré en debug sous
-  Windows, 113 sourates portées) : 395 à 460 ms en « Versets », 365 à 420 ms en « Traduction »,
-  710 à 810 ms en « Mélange » (mode par défaut), plus environ 100 ms pour lire les sens à la
-  première série de mots. Une série sur une seule sourate prend encore 310 à 400 ms en
-  « Mélange » (ses mauvais choix lisent toute la sélection). À mesurer sur iPhone, puis choisir :
-  garder les passages et les mots en mémoire entre deux séries, retenir la forme normalisée de
-  chaque mot, normaliser sans expression régulière, ou composer hors du fil de l'interface.
-- **Questions de mots : trois points d'affichage** (US-22) : en « sens vers arabe », la sourate et
-  le verset ne sont affichés nulle part, même après la réponse (seul « Voir le texte » les
-  donne) ; le mot posé n'est signalé que par sa couleur or, ce qu'un lecteur d'écran ne dit pas ;
-  sous un mauvais choix, le mot arabe de la ligne « mot : sens » est dans la police du système, pas
-  en Amiri (non vérifié sur iPhone). À choisir : où afficher la référence, comment désigner le mot
-  sans la couleur.
 - **Mode « versets à retravailler » en jeu à part** : mécanique de jeu à définir avant tout code.
-
-### Affichage et texte agrandi
-
-Une seule question derrière les cinq premiers points : que faire quand le texte système est
-agrandi (plafonner l'agrandissement, passer à la ligne, faire rétrécir le libellé comme
-`PrimaryCtaButton`, raccourcir, ou accepter). La trancher une fois, puis l'appliquer partout.
-375×667 avec texte ×1,5 correspond au plus petit iPhone pris en charge ; 320×568 sert de marge.
-Mesures sous Windows, à jour au 2026-10-23.
-
-- **À 375 px ×1,5** : la rangée « Sélection rapide » de l'onboarding déborde de 12 px à droite ;
-  l'en-tête du mode édition des Réglages (« Réviser en 2 pages / jour » + « Tout sélectionner »)
-  déborde de 110 px ; l'en-tête des étapes d'onboarding (titre d'écran, 28 px) ne laisse que deux
-  sourates visibles dans la liste de sélection. Accueil, check-in, plan du jour, check-out et
-  Récap : aucun débordement.
-- **À 320 px ×1,5, hors vue Coran** : rangée « Sélection rapide » (67 px) ; au plan du jour, la
-  ligne d'une rakaa d'apprentissage (« Apprentissage » + « 3 versets ») déborde de 54 px, le badge
-  « Jamais » est coupé d'un demi-pixel, la plage « (v.1–10) » se coupe après le tiret ; au
-  check-in, la ligne « Mes prières du jour » + « Dernières prières » débordait de 88 px (pas
-  remesurée depuis le 2026-10-22) ; aux Réglages, « Rythme » s'écrit une lettre par ligne ; le
-  titre « Révision en cours » est tronqué. Au Récap (reconstruit par US-23, à revérifier après) :
-  « Aucune session enregistrée » se coupe au milieu des mots, et la zone de fin d'une ligne de
-  sourate peut prendre toute la largeur (assertion Flutter en debug).
-- **Vue Coran à 320 px ×1,5** : la ligne « − v.282 + … − v.283 + » de `VerseRangeSlider` déborde de
-  38 px avec des numéros à trois chiffres (18 px avec deux), et `IndexBadge` coupe un numéro à
-  trois chiffres (« 282 » affiché « 28 »).
-- **Barre d'onglets** : avec un texte agrandi, « Renforcement » passe sur deux lignes (dès ×1,15 à
-  320 px, à ×1,3 à 360 et 390 px ; `NavigationBar` plafonne lui-même à ×1,3), « Plan du jour »
-  aussi à 320 px. Rien ne déborde. À remesurer quand US-24 renommera l'onglet « Quiz ». Dans le
-  sélecteur de mode de l'onglet, chaque libellé rétrécit pour tenir, mais chacun pour soi
-  (« Traduction » garde sa taille quand « Mélange » et « Versets » grandissent).
-- **Sélecteur de plage** (`VerseRangePicker`, dès 390 px, taille par défaut) : « Tout /
-  sélectionner » passe sur deux lignes à côté d'un « Confirmer » sur une ligne. Rien ne déborde.
-- **Vue Coran : la barre saute quand on resserre la portion après avoir défilé** : feuille défilée
-  de 140 px, portion resserrée de 50 à 2 versets, le contenu devient plus court que la position
-  de défilement et la barre descend de 140 px sous le doigt ; un ±1 répété peut tomber à côté du
-  bouton. À choisir : défilement figé pendant le réglage, retour en haut, ou autre.
-- **Italique synthétique en Outfit** : Outfit n'a pas de fichier italique, Flutter penche les
-  lettres (hadith du jour, « 10 versets », plage « v.1–40 » du check-out, « jours de révision »,
-  textes de l'intro, de la méthode et de la célébration de l'onboarding). Lisible sous Windows,
-  non vérifié sur iPhone. À choisir : retirer l'italique (les six styles n'en ont pas) ou le
-  garder penché.
 
 ### Long terme
 
@@ -177,8 +439,6 @@ Mesures sous Windows, à jour au 2026-10-23.
   naturellement à `ayah_facts`. Le tajwid coloré en dépend (données QUL) et passera par
   `AppPalette`. Ne migrer que si cette fonctionnalité est réellement engagée, pas parce que
   « c'est plus propre ». Les questions de mots s'en passent (asset texte).
-- **Calendrier d'activité (heatmap) au Récap** : chaque fait `ayah_facts` est déjà daté, la donnée
-  est gratuite.
 
 ---
 

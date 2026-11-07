@@ -153,37 +153,68 @@ extension AppStateLearning on AppState {
   Future<void> unlearnVerses(int surahId, Iterable<int> ayahIds) =>
       AyahFactsLearning.unlearnVerses(surahId, ayahIds.toList(), _riwaya);
 
-  /// Any fully memorized surah automatically switches to the revision
-  /// selection and leaves learning — "once a surah's learning is finished
-  /// it becomes revision" (Phase 9 cadrage). Replaces the old manual "Add
-  /// to revision" button on the Learn tab (removed). Returns the surahs
-  /// that just switched, so the caller can inform the user. Called at
-  /// check-out (with `notify: false`, since the caller notifies once for
-  /// the whole operation).
+  /// Surahs whose last verse was first acquired on [date] join the revision
+  /// selection whole (replacing any partial range) and leave learning.
+  /// Returns them, for the check-out announcement.
   ///
-  /// The surah joins `selections` **without** going through [saveConfig],
-  /// which would reset `cyclePosition` to 0: a freshly memorized surah is
-  /// added to the current cycle, it doesn't invalidate the position already
-  /// reached in the others.
-  Future<List<Sourate>> handOffLearnedSurahs({bool notify = true}) async {
+  /// Keyed on the completion date, not on "complete and not whole yet", so
+  /// it happens once: a range narrowed or a surah removed later is the
+  /// user's choice and is never undone on another day.
+  ///
+  /// Bypasses [saveConfig], which resets `cyclePosition` to 0. The cursor is
+  /// an entry index of `buildCycle` and the widened surah can sort before it
+  /// (shuffle), so it is re-anchored on the verse it pointed to instead.
+  Future<List<Sourate>> handOffLearnedSurahs({
+    required String date,
+    bool notify = true,
+  }) async {
     if (_config == null) return const [];
+    final completed = await AyahFactsLearning.surahsCompletedOn(date, _riwaya);
     final handed = <Sourate>[];
-    for (final p in await learningProgressList()) {
-      // Already switched over at a previous check-out: neither re-added nor
-      // re-reported. This check — not deleting the `learn` facts — is what
-      // makes the switch idempotent: those facts are the memorization trail
-      // feeding "Memorized surahs" (Récap, Settings); deleting them would
-      // reset that counter to 0 forever.
-      if (!p.isComplete ||
-          _config!.selections.any((s) => s.sourate.id == p.sourate.id)) {
-        continue;
-      }
-      _config = _config!.copyWith(
-          selections: [..._config!.selections, SourateSelection.whole(p.sourate)]);
-      await StorageService.saveConfig(_config!, _riwaya);
-      handed.add(p.sourate);
+    for (final MapEntry(key: surahId, value: learned) in completed.entries) {
+      final sourate = sourateById(surahId);
+      if (sourate == null || learned < sourate.verses) continue;
+      final alreadyWhole = _config!.selections.any(
+        (s) => s.sourate.id == surahId && s.isWhole,
+      );
+      if (!alreadyWhole) handed.add(sourate);
     }
-    if (notify && handed.isNotEmpty) _notify();
+    if (handed.isEmpty) return const [];
+
+    final before = _selection;
+    _config = _config!.copyWith(selections: _widenedSelections(handed));
+    await StorageService.saveConfig(_config!, _riwaya);
+
+    final anchored = reanchorCursor(
+      before.cycle,
+      before.cyclePosition,
+      _selection.cycle,
+    );
+    if (anchored == null && before.cycle.isNotEmpty) {
+      debugPrint(
+        '[AppState] handOffLearnedSurahs: cursor $_cyclePosition '
+        'not found in the widened cycle, position kept as is',
+      );
+    }
+    _cyclePosition = anchored ?? _cyclePosition;
+    await StorageService.saveCyclePosition(_cyclePosition, _riwaya);
+
+    if (notify) _notify();
     return handed;
+  }
+
+  /// Current selections with each of [sourates] made whole, at the place of
+  /// its first range (duplicates dropped), or appended if it had none.
+  List<SourateSelection> _widenedSelections(List<Sourate> sourates) {
+    final selections = [..._config!.selections];
+    for (final sourate in sourates) {
+      final first = selections.indexWhere((s) => s.sourate.id == sourate.id);
+      selections.removeWhere((s) => s.sourate.id == sourate.id);
+      selections.insert(
+        first == -1 ? selections.length : first,
+        SourateSelection.whole(sourate),
+      );
+    }
+    return selections;
   }
 }
