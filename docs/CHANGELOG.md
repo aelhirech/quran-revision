@@ -69,20 +69,6 @@ arabe). Exclus tant qu'US-23 et US-21 n'ont pas reconstruit le Récap et l'ongle
 `sourates_recap_card.dart`, `learning_progress_card.dart`) et `lib/screens/reinforcement/`, listés
 en dur dans le test et retirés au fil des livraisons.
 
-### [P2] Embarquer Amiri et Scheherazade dans l'app
-Relevé au scoping d'US-25 (2026-10-22). Les polices du texte coranique sont téléchargées par
-`google_fonts` au premier affichage : hors connexion au premier lancement, le Coran s'affiche dans la
-police du système. Tâche technique, hors blueprint. US-25 Sprint A a créé `assets/fonts/` (Outfit,
-déclaré dans `pubspec.yaml`).
-- **Fontes** : les fichiers Amiri et Scheherazade New utilisés par l'app (graisses à relever sur les
-  12 appels existants) vont dans `assets/fonts/` avec leurs licences OFL. `google_fonts` les trouve
-  dans les assets par leur nom de fichier : garder le nom exact attendu par le package
-  (`Amiri-Regular.ttf`, ...) et ne pas changer les 12 appels.
-- **`lib/main.dart`** : `GoogleFonts.config.allowRuntimeFetching = false`, pour qu'aucune police ne
-  soit plus téléchargée.
-- **Tests** : les tests qui mettent déjà `allowRuntimeFetching = false` passent toujours ; à l'œil
-  sous Windows, réseau coupé, le texte coranique s'affiche en Amiri.
-
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
 qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) — et depuis US-10 Sprint B
@@ -97,6 +83,15 @@ Relevé à la clôture du sprint 23 (2026-10-22) : `flutter analyze lib test` re
 `test/state/app_state_checkin_test.dart` — sur des `await` devant une expression `DaySelection`
 synchrone. Retirer ces `await`, sans autre changement ; `flutter analyze lib test` doit revenir à
 zéro. Pur bruit d'analyse, aucun comportement touché.
+
+### [P3] Livrer les licences OFL des polices dans l'app
+Relevé au sprint 34 (2026-11-07, polices embarquées). La licence OFL demande que chaque copie d'une
+police l'accompagne. `assets/fonts/OFL.txt` (Outfit), `Amiri-OFL.txt` et `ScheherazadeNew-OFL.txt`
+sont dans le dépôt mais pas dans l'app installée : aucun n'est déclaré dans `pubspec.yaml`.
+- **`pubspec.yaml`** : ajouter les trois fichiers sous `assets:`, sans renommer `OFL.txt`.
+- **Tests** : `flutter test` vert ; `flutter build windows` puis vérifier que les trois fichiers
+  sont présents dans `build/windows/x64/runner/Release/data/flutter_assets/assets/fonts/`.
+- **Exclus** : pas d'écran de licences dans l'app.
 
 ## Idées produit (non scopées)
 

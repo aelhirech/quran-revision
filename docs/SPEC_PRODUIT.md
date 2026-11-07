@@ -571,7 +571,8 @@ une phrase qui l'explique au moment où elle compte.
 - Direction artistique **Mus'haf** (clair : papier crème, vert, or) et **Tahajjud** (sombre),
   registre **sobre et solennel** : lumière dorée, ornement qui se dessine, fondu lent.
 - **Une seule police latine, Outfit**, embarquée dans l'app (même rendu hors connexion au premier
-  lancement). Le texte coranique garde ses polices arabes.
+  lancement). Le texte coranique garde ses polices arabes, Amiri et Scheherazade New, embarquées
+  elles aussi : hors connexion au premier lancement, il ne s'affiche jamais dans la police du système.
 - **Six styles de texte**, chacun choisi selon son rôle : titre d'écran, titre de section (en
   capitales), titre de carte, texte, légende, grand chiffre. Tous les écrans n'emploient que
   ceux-là, sauf le Récap et l'onglet Quiz, qui gardent encore leurs tailles propres. Avec un texte

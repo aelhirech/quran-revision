@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'core/app_theme.dart';
@@ -56,6 +57,9 @@ Future<void> _initSurahMeta() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Amiri and Scheherazade New ship in assets/fonts/: the Quran must render
+  // the same offline on first launch, never in the system font.
+  GoogleFonts.config.allowRuntimeFetching = false;
   // `sqflite` (package:sqflite) n'a pas d'implémentation native Windows (app
   // mobile-only par conception, aucun dossier linux/ dans ce projet donc pas
   // de cible Linux à couvrir) — bascule vers l'implémentation FFI desktop,
