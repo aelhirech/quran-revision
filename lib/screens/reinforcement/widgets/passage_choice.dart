@@ -11,7 +11,7 @@ enum ChoiceState { idle, correct, pickedWrong, dimmed }
 class PassageChoice extends StatelessWidget {
   final String text;
   final ChoiceState state;
-  final String? note;
+  final Widget? note;
   final VoidCallback? onTap;
   final bool latin;
 
@@ -77,8 +77,7 @@ class PassageChoice extends StatelessWidget {
           if (note != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-              child: Text(note,
-                  style: TextStyle(fontSize: 12, color: palette.textMuted)),
+              child: note,
             ),
         ],
       ),

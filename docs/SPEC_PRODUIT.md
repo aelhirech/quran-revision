@@ -500,6 +500,8 @@ KSU.
 
 - L'onglet propose une **série déjà composée** : une dizaine de questions, finie, sans chrono,
   lancée en un geste ; un second geste lance une série sur une sourate choisie dans la sélection.
+  « Choisir une sourate » ne liste que les sourates qui offrent au moins une question dans le
+  mode choisi : une sourate listée mène toujours à une série.
 - **Question de suite** : un passage est affiché (avec sourate et numéro) et l'utilisateur
   retrouve celui qui le suit parmi quatre au plus. Un verset de plus de 12 mots est coupé aux
   signes de pause du mushaf ; « … » marque un passage qui ne commence ou ne termine pas son
@@ -507,10 +509,13 @@ KSU.
   sourates, même sourate, voisins, passages similaires : au moins la moitié des mots en commun).
   Jamais deux bonnes réponses : un passage qui se répète à l'identique dans la sourate, ou dont la
   suite se répète, n'est pas posé.
-- **Questions de mots** (français, Hafs) : un mot montré en or dans son verset, quatre sens au
-  plus ; ou un sens, quatre mots arabes au plus. Mots d'au moins 3 lettres, tirés des sourates
-  portées ; un mauvais choix n'est jamais un sens voisin du bon. Sens affichés tels que la source
-  (CoranMot, Dr Usama Nonnenmacher) les donne, source citée sous chaque réponse.
+- **Questions de mots** (français, Hafs) : un mot montré en or et souligné dans son verset,
+  quatre sens au plus ; ou un sens, quatre mots arabes au plus, la sourate et le verset du mot
+  n'apparaissant qu'avec la réponse. Un lecteur d'écran annonce le mot souligné comme le mot
+  demandé. Mots d'au moins 3 lettres, tirés des sourates portées ; un mauvais choix n'est jamais
+  un sens voisin du bon. Sens affichés tels que la source (CoranMot, Dr Usama Nonnenmacher) les
+  donne, source citée sous chaque réponse. Sous un mauvais choix, le mot arabe de la ligne
+  « mot : sens » est dans la police arabe de l'onglet.
 - **Trois modes** quand les questions de mots existent : « Mélange » (présélectionné, 5 + 5),
   « Versets », « Traduction ». En Warsh ou en anglais, pas de sélecteur : questions de suite
   seulement.
@@ -519,15 +524,17 @@ KSU.
   d'autres.
 - Après chaque réponse : la bonne réponse en entier, un accès au texte, et sous un mauvais choix
   l'endroit d'où il vient — jamais un « faux ». En fin de série, un score factuel.
-- Sélection trop petite : l'onglet le dit au lancement, jamais de série vide ni de verset pris
-  hors sélection.
+- Sélection trop petite : l'onglet le dit dès qu'aucune sourate n'offre de question dans le mode
+  choisi, et le message disparaît dès que la sélection ou le mode suffit, sans attendre un
+  lancement. Jamais de série vide ni de verset pris hors sélection.
 
 **Ne fait pas** : rien n'est crédité ni enregistré (reconnaître un passage n'est pas le
 réciter) ; aucun verset hors de ce que l'utilisateur porte — sa sélection dans les plages
 choisies et les versets déjà appris ; jamais un verset pas encore appris, jamais une suite hors
 plage ; pas de question sur le verset précédent, de remise en ordre, de sourate à nommer, ni par
 l'écoute ; pas de rappel pour jouer ; une série quittée repart du début ; pas de cours de mots
-fréquents, de grammaire ni de racines.
+fréquents, de grammaire ni de racines ; pas de second message pour une sourate sans question
+(elle n'est simplement pas proposée).
 
 ## Récap
 

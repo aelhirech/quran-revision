@@ -8,119 +8,21 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-30 Sprint A — Quiz : sourates proposées exactes, message à jour, composition sans calcul répété, mots lisibles
-US-20 et US-22 sont livrées (`docs/DOCUMENTATION_TECHNIQUE.md` §5.6, §5.7, §8.7). Trois causes lues
-dans le code :
-- **Liste « Choisir une sourate »** : `reinforcement_tab.dart` l.124-126 la filtre sur
-  `inputs.carried`, donc toute sourate connue, même sans question.
-- **Message « trop petite »** : `_tooSmall` est posé une fois dans `_start` (l.89-91) et jamais
-  recalculé.
-- **Temps de composition** : `ReinforcementEngine.buildSeries` (l.149-156) analyse toute la sélection
-  (passages et mots, regex par jeton) à chaque série, même pour une seule sourate, et chaque mauvais
-  choix matérialise le pool entier (`pick`).
-Aucune écriture, aucune persistance.
-- **`lib/core/reinforcement_corpus.dart`** (nouveau, `part of 'reinforcement_engine.dart'` ;
-  `reinforcement_engine.dart` est à 281 lignes) : classe `ReinforcementCorpus`, mémo de session tenu
-  par l'onglet.
-  - `passagesOf(surahId, ayahId, text)` et `wordsOf(surahId, ayahId, text, glosses)` renvoient le
-    résultat de `ReinforcementEngine.passagesOf` et de `_askableWords`, mémorisé par
-    `(surahId, ayahId)`.
-  - Les listes plates `all` (passages, mots) sont aussi mémorisées, et recalculées seulement quand
-    `carried` change (comparaison de valeur).
-  - `clear()` est appelé quand la riwaya change. Sinon, un verset Hafs serait servi en Warsh.
-- **`lib/core/reinforcement_engine.dart`** et **`lib/core/reinforcement_words.dart`** :
-  - `buildSeries`, `buildMixedSeries` et `buildWordQuestions` acceptent un paramètre optionnel
-    `ReinforcementCorpus? corpus` ; sans lui, comportement actuel. Avec lui, `chains` et `all` passent
-    par le mémo.
-  - Nouvelle fonction `surahsOfferingPassages({carried, textOf, corpus})` : les `surahId` qui ont au
-    moins un lien posable (`_askableLinks`), dont le couple (passage montré, bonne suite) laisse au
-    moins une clé de passage connue hors de {clé du passage montré, clé de la suite}. C'est
-    exactement la condition qu'applique `_question`, car tous ses pools sont des sous-ensembles de
-    `all`. Les clés distinctes de `all` sont calculées une fois.
-  - `pick` (dans les deux fichiers) : tirer d'abord jusqu'à 20 candidats au hasard
-    (`pool[random.nextInt(pool.length)]`). Le filtre ne parcourt le pool entier que si aucun
-    candidat ne convient. Distribution inchangée.
-- **`lib/screens/reinforcement/reinforcement_tab.dart`** :
-  - État `Set<int> _offered` : les sourates qui offrent une question dans `_mode`.
-    - Passages : `surahsOfferingPassages`.
-    - Mots : `await WordGlossService.load()`, puis une sourate S est offerte si
-      `buildWordQuestions(…, surahId: S, count: 1, corpus: _corpus)` est non vide.
-    - Mélange : union des deux.
-  - Quand recalculer : au changement de mode (`onSelectionChanged`, l.156-159) et à chaque
-    notification d'`AppState` dont `carried` a changé. Un compteur de génération écarte un résultat
-    périmé ; vérifier `if (!mounted) return;` après chaque `await`.
-  - `_pickSourate` : `state.sourates.where((s) => _offered.contains(s.id))`.
-  - `_tooSmall` n'est plus un état posé : il vaut `_offered.isEmpty`. Le garde `questions.isEmpty`
-    de `_start` reste en repli.
-  - `_start` passe `_corpus` aux trois composeurs. `_corpus.clear()` au changement de riwaya.
-- **`lib/screens/reinforcement/series_word_question.dart`** :
-  - `_wordFollowUp` : si `!question.arabicToMeaning`, afficher
-    `SReinforcement.sourateVerset(surah.nameFr, answer.ayahId)` au-dessus du passage (même style que
-    l'en-tête de question). En « arabe vers sens », la ligne est déjà affichée avant la réponse : ne
-    pas la répéter.
-  - `_passageWithWord` : envelopper dans `Semantics(container: true, label: '<texte affiché>,
-    ${SReinforcement.motDemande(answer.arabic)}', child: ExcludeSemantics(child: …))`.
-  - Sous un mauvais choix : `Text.rich` avec le mot arabe en `GoogleFonts.amiri(fontSize: 15, color:
-    palette.textMuted)`, puis `SReinforcement.motSensSep` et le sens.
-- **`lib/screens/reinforcement/widgets/passage_choice.dart`** : `note` passe de `String?` à `Widget?`.
-  L'appel des passages enveloppe `SReinforcement.passageDans(…)` dans un `Text` au style actuel
-  (12, `palette.textMuted`).
-- **`lib/widgets/arabic_verse_text.dart`** l.55 : le `TextSpan` du mot en or reçoit
-  `decoration: TextDecoration.underline, decorationColor: highlightColor`. Rien ne change sans
-  `highlightWord` (seul appelant : la question de mots).
-- **`lib/core/strings_reinforcement.dart`** :
-  - `motDemande(String mot)` : FR « mot demandé : $mot » / EN « asked word: $mot ».
-  - `motSensSep` : FR ' : ' / EN ': '.
-  - `motSens` est retiré (son seul usage disparaît).
-- **Réutilisé tel quel** : `_draw`, `_question`, `passagesOf`, `SeriesScreen`, `SouratePickerSheet`,
-  `WordGlossService`, `VerseBottomSheet`, `AppPalette.gold`.
-- **Tests** :
-  - Parité de l'offre, `test/core/reinforcement_engine_test.dart` : sur la sélection réelle (Hafs et
-    Warsh, toutes sourates connues), pour chaque sourate S, S ∈ `surahsOfferingPassages` ⇔
-    `buildSeries(…, surahId: S, count: 1)` non vide. Une sourate à un seul passage n'est pas offerte.
-  - Parité des mots, `test/core/reinforcement_words_test.dart` : même équivalence en mode mots (Hafs).
-  - Même graine, série avec et sans `corpus` : mêmes `Passage.id` et `WordChoice.id`.
-  - `clear()` : après `clear()`, un verset Warsh n'est pas servi par le mémo Hafs.
-  - `flutter test` vert. L'échantillonnage change la suite aléatoire : ne corriger une assertion que
-    si elle porte sur une valeur de tirage précise, jamais sur une règle.
-  - **Mesure (crit. 3)** : `flutter run -d windows --profile`, sélection de 113 sourates, trois modes
-    × {sélection entière, une sourate}, à froid (première série) et à chaud (série suivante),
-    ouverture de « Choisir une sourate » comprise. `Stopwatch` temporaire du tap jusqu'à l'affichage
-    de la série, retiré avant le commit. Pire de trois essais, seuil 100 ms par cas. Consigner les
-    chiffres dans §5.6.
-  - Vérification sous Windows :
-    - crit. 2 : le message disparaît à l'ajout d'une sourate et revient au retrait ;
-    - crit. 4 : sourate et verset affichés après la réponse en « sens vers arabe » ;
-    - crit. 5 : mot en or et souligné ;
-    - crit. 6 : mot arabe de la note en Amiri.
-    Le lecteur d'écran (VoiceOver) ne se vérifie que sur iPhone.
-- **Exclus** : pas de second message ; la qualité des mauvais choix (Idée produit) ; rien n'est crédité
-  ni écrit ; Amiri embarquée (item P2 séparé, pas un préalable : hors connexion, tout l'arabe de
-  l'onglet retombe déjà sur la police système) ; composition hors du fil de l'interface (Sprint B).
-- **Doc** :
-  - `docs/DOCUMENTATION_TECHNIQUE.md` :
-    - §5.6 : mémo, échantillonnage, fonction d'offre et mesures en profile. Remplacer « Coût » et
-      « Si ce temps dépasse 500 ms ».
-    - §8.7 : sélecteur filtré, `_tooSmall` dérivé, référence en sens vers arabe, soulignement et
-      sémantique, note en Amiri. Retirer les points correspondants des « Limites connues ».
-    - §11 : les nouveaux tests.
-    - §13bis : le mémo est lié à la riwaya ; l'offre et `_question` partagent leur condition,
-      verrouillée par test.
-  - `docs/SPEC_PRODUIT.md` § Renforcement : « Choisir une sourate » ne liste que les sourates qui
-    offrent une question, et le message suit la sélection et le mode. Fondre US-30 dans ce
-    paragraphe à la clôture du Sprint A si le Sprint B n'est pas déclenché, sinon à celle du
-    Sprint B.
-
-### [P3] US-30 Sprint B — Composer les questions hors du fil de l'interface (seulement si déclenché par le Sprint A)
-Déclencheur, consigné à la clôture du Sprint A : un cas de la mesure en profile sous Windows
-dépasse 100 ms, ou l'utilisateur sent l'écran se figer sur iPhone (TestFlight). Sans déclencheur,
-supprimer cet item en notant la mesure dans §5.6. Le Sprint A doit être livré.
-- **Étape 1, si le dépassement n'a lieu qu'à froid (première série)** : `ReinforcementCorpus.warm(
-  carried, textOf, glosses)` remplit le mémo par tranches de 10 sourates, avec `await
-  Future<void>.delayed(Duration.zero)` entre deux tranches. Il est lancé à la première image de
-  l'onglet. Aucun isolate.
-- **Étape 2, si un cas à chaud dépasse encore 100 ms après l'étape 1** (ou d'emblée, si le
-  dépassement est à chaud) : composer dans un isolate avec `Isolate.run` (`dart:isolate`), appelé
+### [P2] US-30 Sprint B — Composer les questions hors du fil de l'interface
+Déclencheur atteint à la clôture du Sprint A (2026-11-07, profile sous Windows, 113 sourates, pire
+de trois essais, `docs/DOCUMENTATION_TECHNIQUE.md` §5.6) :
+- à froid, 439 ms à la première ouverture de l'onglet (calcul de l'offre :
+  `surahsOfferingPassages` analyse toute la sélection) et 575 ms à la première série « Mélange »
+  (mots de toute la sélection) ;
+- à chaud, 104 à 129 ms pour une série « Mélange » sur toute la sélection et 85 à 106 ms en
+  « Versets ». « Traduction » (73 à 93 ms), une seule sourate (45 à 79 ms) et « Choisir une
+  sourate » (environ 27 ms) tiennent déjà.
+Les deux étapes sont donc à faire, dans l'ordre, avec la mesure après chacune.
+- **Étape 1, froid** : `ReinforcementCorpus.warm(carried, textOf, glosses)` remplit le mémo par
+  tranches de 10 sourates (passages, puis mots si `WordGlossService.availableFor`), avec `await
+  Future<void>.delayed(Duration.zero)` entre deux tranches. Lancé par l'onglet quand il devient
+  affiché (`shown`, `didUpdateWidget`), **avant** `_computeOffer`, qui attend sa fin. Aucun isolate.
+- **Étape 2, chaud** (si un cas dépasse encore 100 ms après l'étape 1) : composer dans un isolate avec `Isolate.run` (`dart:isolate`), appelé
   depuis `reinforcement_tab.dart`. En entrée : textes et sens des versets connus, graine, mode,
   `surahId`. En sortie : la liste de questions. `lib/core/` reste sans import Flutter. Les objets
   renvoyés sont des copies : les écrans comparent déjà par `id`, jamais par `identical`.
@@ -255,6 +157,9 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   garder le hasard, prendre toujours le plus proche (le même piège reviendrait), ou déplacer un
   seuil.
 - **Mode « versets à retravailler » en jeu à part** : mécanique de jeu à définir avant tout code.
+- **« Choisir une sourate » quand aucune sourate n'offre de question** (US-30 Sprint A,
+  2026-11-07) : le bouton reste affiché sous le message « sélection trop petite » et ouvre une
+  feuille vide. À choisir : masquer le bouton, le désactiver, ou garder la feuille vide.
 
 ### Long terme
 

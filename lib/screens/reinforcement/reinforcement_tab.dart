@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/reinforcement_engine.dart';
 import '../../core/strings.dart';
+import '../../models/riwaya.dart';
 import '../../models/sourate.dart';
 import '../../services/verse_service.dart';
 import '../../services/word_gloss_service.dart';
@@ -16,7 +17,11 @@ import 'series_screen.dart';
 enum SeriesMode { mix, passages, words }
 
 class ReinforcementTab extends StatefulWidget {
-  const ReinforcementTab({super.key});
+  /// The shell keeps every tab mounted: the offer, costly on a large
+  /// selection, is worked out only while this one is on screen.
+  final bool shown;
+
+  const ReinforcementTab({super.key, this.shown = true});
 
   @override
   State<ReinforcementTab> createState() => _ReinforcementTabState();
@@ -30,8 +35,98 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
   // name the same thing.
   Set<(int, int, int)> _lastWords = {};
   SeriesMode _mode = SeriesMode.mix;
-  bool _tooSmall = false;
   bool _busy = false;
+  final _corpus = ReinforcementCorpus();
+  Riwaya? _corpusRiwaya;
+  late final AppState _state;
+
+  // The surahs that offer a question in the current mode; null until known.
+  Set<int>? _offered;
+  ({SeriesMode mode, Riwaya riwaya, Map<int, Set<int>> carried})? _offeredFor;
+  // A newer computation makes an older one's result stale.
+  int _generation = 0;
+
+  bool get _tooSmall => _offered?.isEmpty ?? false;
+
+  @override
+  void initState() {
+    super.initState();
+    _state = context.read<AppState>()..addListener(_refreshOffer);
+    _refreshOffer();
+  }
+
+  @override
+  void didUpdateWidget(ReinforcementTab old) {
+    super.didUpdateWidget(old);
+    // Notifications seen while hidden are caught up on showing.
+    if (widget.shown && !old.shown) _refreshOffer();
+  }
+
+  @override
+  void dispose() {
+    _state.removeListener(_refreshOffer);
+    super.dispose();
+  }
+
+  SeriesMode _modeFor(AppState state) =>
+      _withWords(state) ? _mode : SeriesMode.passages;
+
+  // The memo holds one riwaya's text.
+  ReinforcementCorpus _corpusFor(Riwaya riwaya) {
+    if (riwaya != _corpusRiwaya) {
+      _corpus.clear();
+      _corpusRiwaya = riwaya;
+    }
+    return _corpus;
+  }
+
+  void _refreshOffer() {
+    if (widget.shown) _computeOffer();
+  }
+
+  Future<void> _computeOffer() async {
+    final generation = ++_generation;
+    final mode = _modeFor(_state);
+    final riwaya = _state.riwaya;
+    final inputs = await _state.reinforcementInputs();
+    if (!mounted || generation != _generation) return;
+    final last = _offeredFor;
+    if (last != null &&
+        _offered != null &&
+        last.mode == mode &&
+        last.riwaya == riwaya &&
+        sameCarried(last.carried, inputs.carried)) {
+      return;
+    }
+    if (mode != SeriesMode.passages) {
+      await WordGlossService.load();
+      if (!mounted || generation != _generation) return;
+    }
+    final corpus = _corpusFor(riwaya);
+    String textOf(int surahId, int ayahId) =>
+        VerseService.getVerse(surahId, ayahId, riwaya: riwaya);
+    final fromPassages = mode == SeriesMode.words
+        ? const <int>{}
+        : ReinforcementEngine.surahsOfferingPassages(
+            carried: inputs.carried, textOf: textOf, corpus: corpus);
+    final offered = mode == SeriesMode.passages
+        ? fromPassages
+        : {
+            ...fromPassages,
+            // Reading every word of a large selection is the costly part: a
+            // surah that already offers passages needs no word to be offered.
+            ...ReinforcementWords.surahsOfferingWords(
+                carried: inputs.carried,
+                textOf: textOf,
+                glossesOf: WordGlossService.glosses,
+                corpus: corpus,
+                except: fromPassages),
+          };
+    setState(() {
+      _offered = offered;
+      _offeredFor = (mode: mode, riwaya: riwaya, carried: inputs.carried);
+    });
+  }
 
   // Composing a series blocks for a few hundred ms: a second tap in that
   // window would stack a second series (or a second sheet) on the first.
@@ -47,7 +142,7 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
 
   Future<void> _start({Sourate? sourate}) async {
     final state = context.read<AppState>();
-    final mode = _withWords(state) ? _mode : SeriesMode.passages;
+    final mode = _modeFor(state);
     final inputs = await state.reinforcementInputs();
     if (!mounted) return;
     if (mode != SeriesMode.passages) {
@@ -56,6 +151,7 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
     }
     String textOf(int surahId, int ayahId) =>
         VerseService.getVerse(surahId, ayahId, riwaya: state.riwaya);
+    final corpus = _corpusFor(state.riwaya);
     final random = Random();
     final List<SeriesQuestion> questions = switch (mode) {
       SeriesMode.passages => ReinforcementEngine.buildSeries(
@@ -65,6 +161,7 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
           random: random,
           avoid: _lastPrompts,
           surahId: sourate?.id,
+          corpus: corpus,
         ),
       SeriesMode.words => ReinforcementWords.buildWordQuestions(
           carried: inputs.carried,
@@ -74,6 +171,7 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
           random: random,
           avoid: _lastWords,
           surahId: sourate?.id,
+          corpus: corpus,
         ),
       SeriesMode.mix => ReinforcementWords.buildMixedSeries(
           carried: inputs.carried,
@@ -84,10 +182,17 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
           avoidPassages: _lastPrompts,
           avoidWords: _lastWords,
           surahId: sourate?.id,
+          corpus: corpus,
         ),
     };
+    // Fallback only: the offer and the composers share their condition.
     if (questions.isEmpty) {
-      setState(() => _tooSmall = true);
+      final surahId = sourate?.id;
+      setState(() => _offered = {
+            if (surahId != null)
+              for (final id in _offered ?? const <int>{})
+                if (id != surahId) id,
+          });
       return;
     }
     final prompts = {
@@ -99,7 +204,6 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
         question.answer.id,
     };
     setState(() {
-      _tooSmall = false;
       // A series of one kind leaves the memory of the other kind as it was.
       if (prompts.isNotEmpty) _lastPrompts = prompts;
       if (words.isNotEmpty) _lastWords = words;
@@ -117,12 +221,14 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
 
   Future<void> _pickSourate() async {
     final state = context.read<AppState>();
-    final inputs = await state.reinforcementInputs();
+    // Up to date on return, unless the selection changes meanwhile.
+    await _computeOffer();
     if (!mounted) return;
+    final offered = _offered ?? const {};
     final picked = await SouratePickerSheet.show(
       context,
       sourates: state.sourates
-          .where((sourate) => inputs.carried.containsKey(sourate.id))
+          .where((sourate) => offered.contains(sourate.id))
           .toList(),
       title: SReinforcement.choisirSourate,
     );
@@ -154,10 +260,14 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
             segment(SeriesMode.words, SReinforcement.modeTraduction),
           ],
           selected: {_mode},
-          onSelectionChanged: (picked) => setState(() {
-            _mode = picked.single;
-            _tooSmall = false;
-          }),
+          onSelectionChanged: (picked) {
+            // The old mode's offer must not show while the new one is worked out.
+            setState(() {
+              _mode = picked.single;
+              _offered = null;
+            });
+            _refreshOffer();
+          },
         ),
       ),
     );

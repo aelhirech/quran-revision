@@ -12,6 +12,7 @@ import 'profile_screen.dart';
 import 'reinforcement/reinforcement_tab.dart';
 
 // Named, not numbered: an index shifts whenever a tab is inserted before it.
+const _reinforcementTab = 1;
 const _recapTab = 2;
 const _settingsTab = 3;
 
@@ -129,11 +130,11 @@ class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [
-          DayPlanTab(),
-          ReinforcementTab(),
-          RecapScreen(),
-          ProfileScreen(),
+        children: [
+          const DayPlanTab(),
+          ReinforcementTab(shown: _index == _reinforcementTab),
+          const RecapScreen(),
+          const ProfileScreen(),
         ],
       ),
       bottomNavigationBar: Container(

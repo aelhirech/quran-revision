@@ -4,6 +4,7 @@ import 'dart:math';
 import '../models/learning_progress.dart';
 import '../models/sourate_selection.dart';
 
+part 'reinforcement_corpus.dart';
 part 'reinforcement_words.dart';
 
 const _seriesLength = 10;
@@ -11,11 +12,23 @@ const _maxPassageWords = 12;
 const _similarity = 0.5;
 const _neighbourReach = 3;
 const _maxWrongChoices = 3;
+const _sampleTries = 20;
 
 // U+00A0 is here because the Hafs text glues the hizb sign to the next word
 // with a no-break space.
 final _marks = RegExp('[ؐ-ًؚ-ٰٟۖ-ۭـ‏ ]');
 final _pauseSign = RegExp('[ۖۗۘۚ]');
+
+// A few random draws usually land on a fitting choice, and the caller reads
+// the whole pool only when they all miss: each fitting choice stays equally
+// likely either way.
+T? _sampleFit<T>(List<T> pool, bool Function(T) fits, Random random) {
+  for (var i = 0; i < _sampleTries; i++) {
+    final candidate = pool[random.nextInt(pool.length)];
+    if (fits(candidate)) return candidate;
+  }
+  return null;
+}
 
 String _normalize(String token) =>
     token.replaceAll(_marks, '').replaceAll('ٱ', 'ا');
@@ -144,30 +157,41 @@ class ReinforcementEngine {
     Set<(int, int, int)> avoid = const {},
     int? surahId,
     int count = _seriesLength,
+    ReinforcementCorpus? corpus,
   }) {
-    // Sorted so that a given seed always yields the same series.
-    final chains = <int, List<Passage>>{
-      for (final id in carried.keys.toList()..sort())
-        id: [
-          for (final ayah in carried[id]!.toList()..sort())
-            ...passagesOf(id, ayah, textOf(id, ayah)),
-        ],
-    };
-    final all = [for (final chain in chains.values) ...chain];
+    // Without a memo, a throwaway one: same questions, a single code path.
+    final chains = (corpus ?? ReinforcementCorpus())._chainsOf(carried, textOf);
     return _draw(
       candidates: [
-        for (final chain in chains.values)
-          if (surahId == null || chain.firstOrNull?.surahId == surahId)
-            ..._askableLinks(chain),
+        for (final id in chains.bySurah.keys)
+          if (surahId == null || id == surahId) ...chains.linksOf(id),
       ],
       idOf: (link) => link.prompt.id,
-      build: (link) => _question(link, all, random),
+      build: (link) => _question(link, chains, random),
       random: random,
       today: today,
       avoid: avoid,
       surahId: surahId,
       count: count,
     );
+  }
+
+  /// The surahs on which [buildSeries] finds at least one question.
+  static Set<int> surahsOfferingPassages({
+    required Map<int, Set<int>> carried,
+    required String Function(int surahId, int ayahId) textOf,
+    ReinforcementCorpus? corpus,
+  }) {
+    final chains = (corpus ?? ReinforcementCorpus())._chainsOf(carried, textOf);
+    return {
+      for (final id in chains.bySurah.keys)
+        // The condition of [_question]: a wrong choice is any carried passage
+        // whose text is neither the prompt's nor the answer's. Both of those
+        // texts are among the distinct ones.
+        if (chains.linksOf(id).any((link) =>
+            chains.keyCount > {link.prompt._key, link.answer._key}.length))
+          id,
+    };
   }
 
   /// The draw shared by passage and word questions.
@@ -242,32 +266,42 @@ class ReinforcementEngine {
   }
 
   static PassageQuestion? _question(
-      _Link link, List<Passage> all, Random random) {
+      _Link link, _Chains chains, Random random) {
     final answer = link.answer;
+    final all = chains.all;
     final wrong = <Passage>[];
     // The prompt's key too: the same text carried in another surah must not
     // come back as a choice under its own prompt.
     final takenKeys = {answer._key, link.prompt._key};
 
-    bool pick(Iterable<Passage> pool) {
-      if (wrong.length == _maxWrongChoices) return false;
-      final open = pool.where((c) => !takenKeys.contains(c._key)).toList();
-      if (open.isEmpty) return false;
+    bool pick(List<Passage> pool, [bool Function(Passage)? fits]) {
+      if (wrong.length == _maxWrongChoices || pool.isEmpty) return false;
+      bool open(Passage c) =>
+          (fits == null || fits(c)) && !takenKeys.contains(c._key);
       // A choice that starts mid-verse next to an answer that starts a verse
       // (or the reverse) would give the answer away.
-      final sameKind =
-          open.where((c) => c.startsVerse == answer.startsVerse).toList();
-      final from = sameKind.isEmpty ? open : sameKind;
-      final choice = from[random.nextInt(from.length)];
+      bool sameKind(Passage c) => c.startsVerse == answer.startsVerse;
+
+      var choice =
+          _sampleFit(pool, (Passage c) => open(c) && sameKind(c), random);
+      if (choice == null) {
+        final opens = pool.where(open).toList();
+        if (opens.isEmpty) return false;
+        final sameKinds = opens.where(sameKind).toList();
+        final from = sameKinds.isEmpty ? opens : sameKinds;
+        choice = from[random.nextInt(from.length)];
+      }
       wrong.add(choice);
       takenKeys.add(choice._key);
       return true;
     }
 
-    final sameSurah = all.where((c) => c.surahId == answer.surahId);
-    pick(all.where((c) => _similar(c, answer)));
+    // The surah's chain holds the same passages, in the same order, as
+    // [all] filtered on the surah.
+    final sameSurah = chains.bySurah[answer.surahId]!;
+    pick(all, (c) => _similar(c, answer));
     pick(link.neighbours);
-    pick(all.where((c) => c.surahId != answer.surahId));
+    pick(all, (c) => c.surahId != answer.surahId);
     while (pick(sameSurah)) {}
     while (pick(all)) {}
 

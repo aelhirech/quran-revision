@@ -251,6 +251,66 @@ void main() {
     });
   });
 
+  group('ReinforcementCorpus et offre (US-30)', () {
+    test('14. une sourate est offerte en mots si et seulement si elle donne une série',
+        () {
+      final selections = [
+        _whole(1, 114),
+        {108: {1}},
+        {108: {1}, 112: {1}},
+      ];
+      for (final carried in selections) {
+        final offered = ReinforcementWords.surahsOfferingWords(
+          carried: carried,
+          textOf: HafsService.getVerse,
+          glossesOf: WordGlossService.glosses,
+          corpus: ReinforcementCorpus(),
+        );
+        for (final surah in carried.keys) {
+          expect(offered.contains(surah), words(carried, surah, surahId: surah).isNotEmpty,
+              reason: 'sourate $surah sur ${carried.length} sourates');
+        }
+      }
+      // Without a single offered surah the test would prove nothing.
+      expect(
+          ReinforcementWords.surahsOfferingWords(
+              carried: _whole(1, 114),
+              textOf: HafsService.getVerse,
+              glossesOf: WordGlossService.glosses),
+          hasLength(114));
+    });
+
+    test('15. même graine, avec ou sans mémo : mêmes questions', () {
+      final carried = _whole(78, 114);
+      final corpus = ReinforcementCorpus();
+      for (var seed = 0; seed < 20; seed++) {
+        for (final surahId in [null, 93]) {
+          List<List<Object>> words(ReinforcementCorpus? corpus) => [
+                for (final question in ReinforcementWords.buildMixedSeries(
+                  carried: carried,
+                  textOf: HafsService.getVerse,
+                  glossesOf: WordGlossService.glosses,
+                  random: Random(seed),
+                  surahId: surahId,
+                  corpus: corpus,
+                ))
+                  switch (question) {
+                    PassageQuestion(:final prompt, :final choices) => [
+                        prompt.id,
+                        for (final choice in choices) choice.id,
+                      ],
+                    WordQuestion(:final answer, :final choices) => [
+                        answer.id,
+                        for (final choice in choices) choice.id,
+                      ],
+                  },
+              ];
+          expect(words(corpus), words(null), reason: 'graine $seed, $surahId');
+        }
+      }
+    });
+  });
+
   group('buildMixedSeries', () {
     test('10. cinq passages et cinq mots', () {
       final carried = _whole(78, 114);

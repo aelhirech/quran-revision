@@ -221,16 +221,31 @@ Depuis US-22, une série peut aussi poser des questions de mots : elles vivent d
   n'importe où pour compléter. À chaque tirage, un passage de même nature que la bonne suite
   (début de verset ou non) est préféré : sinon la forme seule désignerait la réponse. Une question
   sans aucun mauvais choix est écartée ; une sélection trop petite donne une liste vide.
+  Chaque mauvais choix est tiré par `_sampleFit` (partagé avec les mots) : jusqu'à 20 tirages au
+  hasard dans le pool, puis, s'ils échouent tous, le filtre sur le pool entier. Chaque choix qui
+  convient reste également probable ; seule la suite aléatoire diffère d'avant US-30.
 - **Seuils** : 10 questions, 5 du plan du jour, 12 mots, 0,5 de similarité, 3 rangs, 3 mauvais
   choix. Constantes privées du fichier, pas d'`AppRules` : un seul lecteur. Les deux seuils de
   qualité (12 mots, 0,5) sont posés sur mesure, à ajuster sur retour d'usage.
-- **Coût** : une série recalcule tous les passages portés, sans cache. Mesuré sous `flutter test`
-  sur 113 sourates : 350 à 450 ms. Dans l'app (debug, Windows, 113 sourates, 2026-10-13) : 405 à
-  437 ms, soit environ 500 ms entre l'appui sur « Commencer » et l'écran de série, pendant
-  lesquels l'interface est figée. Non mesuré sur téléphone. Si ce temps dépasse 500 ms, la
-  réponse prévue est de garder les passages en mémoire entre deux séries.
-  Depuis US-22, le mode « Mélange », qui est le mode par défaut, y ajoute le coût des mots
-  (§5.7).
+- **Mémo de session** (`ReinforcementCorpus`, `lib/core/reinforcement_corpus.dart`, `part of`,
+  US-30) : garde les passages et les mots analysés de chaque verset, par (sourate, verset), plus
+  les chaînes par sourate (`_Chains` : liste plate, liens posables par sourate, nombre de clés
+  distinctes), recalculées seulement quand la sélection change (`sameCarried`, comparaison de
+  valeur). Il tient le texte d'**une** riwaya : `clear()` au changement de riwaya, fait par
+  l'onglet (§8.7). Chaque composeur accepte `corpus` en paramètre optionnel ; sans lui, il en
+  crée un jetable : mêmes questions, un seul chemin de code (verrouillé par test, §11).
+- **Offre** (`surahsOfferingPassages`) : les sourates sur lesquelles `buildSeries` trouve au moins
+  une question. C'est la condition de `_question` : un lien posable, et au moins une clé de passage
+  porté hors de celles du passage montré et de sa suite. Verrouillée par un test de parité.
+- **Coût** (profile, Windows, 113 sourates, 2026-11-07, pire de trois essais, de l'appui à la
+  première image de la série) : avant US-30, chaque série relisait toute la sélection : 931 ms en
+  « Mélange », 407 ms en « Versets », 444 ms en « Traduction », encore 368 à 397 ms sur une seule
+  sourate. Avec le mémo : 104 à 129 ms en « Mélange », 85 à 106 ms en « Versets », 73 à 93 ms en
+  « Traduction » sur toute la sélection ; 45 à 79 ms sur une sourate ; environ 27 ms pour ouvrir
+  « Choisir une sourate ». À froid, le coût a seulement changé de place : 439 ms à la première
+  ouverture de l'onglet (calcul de l'offre, passages de toute la sélection), 575 ms à la première
+  série « Mélange » (mots de toute la sélection). Le seuil de 100 ms est dépassé à froid et à
+  chaud : le Sprint B d'US-30 (`docs/CHANGELOG.md`) est déclenché. Non mesuré sur iPhone.
 
 ### 5.7 Questions de mots (`lib/core/reinforcement_words.dart`, US-22 Sprint C, 2026-10-13)
 
@@ -279,11 +294,11 @@ paramètre `glossesOf`, comme le texte par `textOf`. Français et Hafs seulement
   que la sienne, sauf si elle manque de mauvais choix.
 - **Seuils** : 3 lettres pour le mot, 3 pour le sens, 4 pour écarter un sens voisin. Constantes
   privées du fichier, posées au scoping sur mesure, à ajuster sur retour d'usage.
-- **Coût** (sous `flutter test`, Windows, 113 sourates portées) : environ 370 ms pour une série
-  de mots, 720 ms pour une série mêlée. Pour une série sur une seule sourate : 0 à 50 ms pour les
-  mots, 310 à 400 ms pour la série mêlée (les passages lisent encore toute la sélection pour
-  leurs mauvais choix). Avec le juz 30 seul : 22 ms pour une série mêlée. Non mesuré sur
-  téléphone : voir `docs/CHANGELOG.md`, Idées produit.
+- **Offre** (`surahsOfferingWords`) : une sourate est offerte si `buildWordQuestions` y pose au
+  moins une question (`count: 1`, même mémo) ; le tirage essaie chaque mot avant d'abandonner, la
+  graine ne change donc rien. `except` laisse de côté, sans les lire, les sourates déjà offertes
+  par les passages : c'est ce qui rend l'offre « Mélange » abordable.
+- **Coût** : voir §5.6, mesures communes aux trois modes.
 
 ---
 
@@ -737,15 +752,27 @@ repos), `series_screen.dart` (questions, retour après la réponse, score),
 **`ReinforcementTab`** : une carte « Série du jour » et un bouton « Choisir une sourate ».
 - `_start({sourate})` lit les entrées, compose la série (`random: Random()`,
   `avoid: _lastPrompts`, `surahId`), puis pousse `SeriesScreen` comme le check-in
-  (`rootNavigator`, `fullscreenDialog`). Une série vide affiche
-  `SReinforcement.selectionTropPetite` sous le bouton (`_tooSmall`) : une sélection trop petite
-  se constate au lancement, pas à l'affichage de l'onglet.
+  (`rootNavigator`, `fullscreenDialog`). Elle passe le mémo `_corpus` (§5.6) aux composeurs ;
+  `_corpusFor(riwaya)` le vide quand la riwaya change.
+- **Offre (US-30)** : `_offered`, les sourates qui offrent une question dans le mode en cours
+  (`surahsOfferingPassages`, `surahsOfferingWords`, union des deux en « Mélange » avec `except`
+  pour ne pas relire les mots d'une sourate déjà offerte). `_computeOffer` tourne à
+  l'initialisation, au changement de mode et à chaque notification d'`AppState` ; il relit
+  `reinforcementInputs()` puis ne recalcule que si (mode, riwaya, sélection) a changé
+  (`_offeredFor`, `sameCarried`). Un compteur `_generation` écarte un résultat périmé. Le
+  calcul n'a lieu que si l'onglet est affiché : `ShellScreen` passe `shown` (son
+  `IndexedStack` garde tous les onglets montés, sans quoi l'offre se calculait au démarrage,
+  873 ms mesurés), et `didUpdateWidget` rattrape à l'affichage. Au changement de mode,
+  `_offered` repasse à `null` le temps du calcul.
+- `_tooSmall` vaut `_offered.isEmpty` : le message `SReinforcement.selectionTropPetite` suit la
+  sélection et le mode sans attendre un lancement. Une série vide malgré l'offre (repli, ne
+  devrait pas arriver) retire la sourate, ou tout, de `_offered`.
 - `_lastPrompts` garde les `Passage.id` posés à la dernière série, dans le `State` de l'onglet.
   L'onglet reste monté (`IndexedStack`), donc cette mémoire dure la session et pas plus.
-- « Choisir une sourate » ouvre `SouratePickerSheet` sur les seules sourates portées (les clés
-  de `carried`).
-- `_once` ignore un second appui tant qu'une série se compose ou est ouverte. Composer bloque
-  l'interface environ 400 ms (§5.6) : sans ce garde, un double appui empilait deux séries
+- « Choisir une sourate » attend `_computeOffer()` puis ouvre `SouratePickerSheet` sur les
+  seules sourates de `_offered` : une sourate listée mène toujours à une série.
+- `_once` ignore un second appui tant qu'une série se compose ou est ouverte. Composer bloquait
+  l'interface environ 400 ms avant le mémo (§5.6) : sans ce garde, un double appui empilait deux séries
   (reproduit sous Windows). Le garde ne grise pas le bouton : la lecture des entrées revient en
   moins d'une image, l'état grisé ne serait pas peint avant le blocage.
 - **Modes (US-22)** : `enum SeriesMode { mix, passages, words }`, état local `_mode`, `mix` par
@@ -786,16 +813,22 @@ extension sur son `State`, pour garder `series_screen.dart` sous le plafond de t
 - **Arabe vers sens** : sourate et verset, le passage dans une `Card` avec le mot posé en
   `palette.gold`, « Que veut dire le mot en or ? », puis les sens en choix, tels quels.
 - **Sens vers arabe** : le sens en 20 px, « Quel mot porte ce sens ? », puis les mots arabes en
-  choix. Le passage n'apparaît qu'après la réponse.
-- Après un appui : les mêmes états que pour un passage. Sous un mauvais choix, la ligne
-  `SReinforcement.motSens` (« mot : sens »). Dessous, une `Card` : le passage avec le mot en or,
-  le bon sens, la ligne de source `SReinforcement.sourceMots` (condition d'usage, §10) et
-  `S.voirLeTexte`.
+  choix. Le passage, la sourate et le verset n'apparaissent qu'après la réponse.
+- Après un appui : les mêmes états que pour un passage. Sous un mauvais choix, un `Text.rich` :
+  le mot arabe en Amiri 15 px `textMuted`, `SReinforcement.motSensSep`, puis le sens (la note
+  de `PassageChoice` est un `Widget`). Dessous, une `Card` : en « sens vers arabe » seulement,
+  `SReinforcement.sourateVerset` (déjà affichée avant la réponse dans l'autre sens) ; puis le
+  passage avec le mot en or, le bon sens, la ligne de source `SReinforcement.sourceMots`
+  (condition d'usage, §10) et `S.voirLeTexte`.
+- `_passageWithWord` enveloppe le passage dans `Semantics(container: true, label: '<texte
+  affiché>, mot demandé : <mot>')` et `ExcludeSemantics` : l'or ne dit rien à un lecteur
+  d'écran. Vérifié dans l'arbre d'accessibilité sous Windows, pas avec VoiceOver.
 - Le mot en or est désigné à `ArabicVerseText` par son rang parmi les mots du texte **affiché**.
   Quand le passage est précédé de « … », ce rang est `wordIndex + 1`. Le « … » et ce décalage
   lisent le même prédicat, `_leads(passage)` : ne pas réécrire la condition à la main.
 - `ArabicVerseText` (`lib/widgets/`) : avec `highlightWord` et `highlightColor`, le texte est
-  rendu en trois `TextSpan` du même style. Sans eux, le rendu est celui d'avant. Le signe « ۞ »
+  rendu en trois `TextSpan` du même style, le mot en couleur aussi souligné de sa couleur. Sans
+  eux, le rendu est celui d'avant. Le signe « ۞ »
   collé au mot mis en couleur reste dans le premier `TextSpan`, de la couleur du texte
   (`withoutHizbSign`, §5.6).
 
@@ -809,9 +842,11 @@ avec l'`InkWell` dedans. Pas de `clipBehavior` : les signes
 coraniques hauts dépassent leur ligne et seraient rognés (vu en Warsh). L'onde de l'appui prend
 la forme de la carte par `customBorder`. La bordure d'état part de `cardShape(palette)` (§9).
 
-**Limites connues** (`docs/CHANGELOG.md`, Idées produit) : une série mêlée sur une très grande sélection fige l'interface près d'une seconde ; les libellés du sélecteur rétrécissent chacun pour soi quand le texte système est agrandi ; en « sens vers arabe », la sourate et le verset ne sont affichés nulle part ; dans la barre, « Renforcement » se
-coupe en deux lignes dès que le texte système est agrandi ; le message « sélection trop petite »
-s'affiche aussi quand c'est la sourate choisie qui n'offre aucune question. Aucun test
+**Limites connues** (`docs/CHANGELOG.md`) : la composition et l'offre tournent sur le fil de
+l'interface, au-dessus de 100 ms à froid et sur toute la sélection (§5.6, Sprint B d'US-30) ;
+« Choisir une sourate » ouvre une feuille vide quand rien n'est offert (Idée produit) ; les
+libellés du sélecteur rétrécissent chacun pour soi quand le texte système est agrandi ; dans la
+barre, « Renforcement » se coupe en deux lignes dès que le texte système est agrandi. Aucun test
 automatisé sur ces écrans : ils sont vérifiés sous Windows.
 
 ---
@@ -861,6 +896,7 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 - **`test/widgets/verse_list_offset_test.dart`** (US-31 Sprint C, 1 test sur Android et iOS) : un `CustomScrollView` de 300 éléments avec `keepOffsetPhysics()`, défilé à 2000 px puis reconstruit à 10 éléments, garde 2000 après `pumpAndSettle` ; un glissé le ramène à `maxScrollExtent`. Chaque surcharge, retirée seule, fait échouer le test. `verse_bottom_sheet_test.dart` vérifie que la feuille porte bien cette physique.
 - **`test/screens/shell_screen_test.dart`** (sprint 19, 1 test widget) : `ShellScreen` monté avec le vrai thème sous un `AppState` sans étape guidée. `checkout_done` ouvre le Récap, `recap_seen` ouvre les Réglages, puis un onglet choisi à la main reste après `settings_seen`. Le test lit le **libellé** de l'onglet sélectionné, pas son indice : un onglet inséré avant le Récap sans corriger `_recapTab` laisserait l'indice à 2. Il n'attend jamais les lectures SQLite lancées par `ShellScreen.initState`, qui ne se terminent pas sous l'horloge simulée.
 - **`test/services/word_gloss_service_test.dart`** (US-22 Sprint C, 4 tests, vrai asset) : rien avant le chargement puis 77 429 sens ; chaque verset Hafs a autant de sens que de mots, sauf exactement sept (2:181, 8:6, 13:37, 15:7, 27:20, 36:22, 37:130) ; les sens de 112:1 et de 17:79 sont ceux de la source, espaces insécables et espace finale comprises ; disponible en français et en Hafs seulement. Si la source du texte arabe change, la liste des sept versets peut changer : ce test le dira.
+- **US-30 Sprint A** (20 tests dans `reinforcement_engine_test.dart`, 17 dans `reinforcement_words_test.dart`) : une sourate est offerte si et seulement si elle donne une série (passages en Hafs et Warsh, sélection entière et petits cas, sourate à un seul passage non offerte ; mots en Hafs) ; même graine avec ou sans mémo, mêmes questions (passages, et série mêlée) ; après `clear()`, un verset Warsh n'est pas servi par le mémo Hafs ; `sameCarried`. La parité de l'offre et `clear()` mordent (vérifié en cassant le code).
 - **Règle verrouillée au passage** (`reinforcement_engine_test.dart`, test 10 bis) : une série sur une sourate ignore le plan du jour. Elle datait d'US-20 et aucun test ne la tenait.
 - **`test/services/test_helpers.dart`** porte aussi `bareWord` (un token sans voyelles ni signes) et `wholeSurahs` (toutes les sourates d'un intervalle), partagés par ces trois fichiers au lieu d'y être recopiés.
 - **Piège de test découvert au Sprint 2** : `databaseFactoryFfi.getDatabasesPath()` résout un chemin par défaut **partagé** entre fichiers de test — `flutter test` lance les fichiers dans des process séparés mais qui peuvent écrire dans le même `history.db` s'ils tournent en parallèle. Les suites SQLite pointent chacune vers un répertoire temporaire dédié (`initFfiTestDb` dans `setUpAll`) plutôt que de compter sur des dates de test disjointes pour s'isoler — à reproduire pour toute nouvelle suite touchant `AyahFactsService`/`AppState`.
@@ -1077,6 +1113,15 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
   - Le tirage partagé (`ReinforcementEngine._draw`) reçoit des candidats **déjà restreints** à la
     sourate demandée : c'est chaque appelant qui restreint, pour ne pas analyser toute la
     sélection quand la série porte sur une sourate.
+  - Le mémo `ReinforcementCorpus` (US-30) est indexé par (sourate, verset), pas par texte : il
+    tient **une** riwaya. Qui le garde le vide au changement de riwaya (`clear()`, fait par
+    `_corpusFor` dans l'onglet), sinon un verset Hafs serait servi en Warsh. Il ne doit pas non
+    plus servir avant `WordGlossService.load()` : sa liste plate de mots garderait des versets
+    vides jusqu'au prochain changement de sélection.
+  - L'offre (`surahsOfferingPassages`, `surahsOfferingWords`) et les composeurs partagent leur
+    condition, verrouillée par deux tests de parité : changer la règle d'un mauvais choix dans
+    `_question` sans changer l'offre ferait échouer ces tests, pas proposer en silence une
+    sourate sans question.
 
 - **Ajout de sourate au plan (sprint 21, 2026-10-13)** : « Ajouter une sourate » (check-in) et
   « J'ai révisé une sourate en plus » (check-out) ne proposent que `UserConfig.selections`
