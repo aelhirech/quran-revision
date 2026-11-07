@@ -175,7 +175,7 @@ class PrayerPlanCard extends StatelessWidget {
             Text(
               S.versetsCount(unit.verseCount),
               style: AppText.caption
-                  .copyWith(color: palette.textMuted, fontStyle: FontStyle.italic),
+                  .copyWith(color: palette.textMuted),
             ),
           if (showCount && showBadge) const SizedBox(width: 8),
           if (showBadge) FreshnessBadge(level: freshness),

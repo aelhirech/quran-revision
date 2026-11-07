@@ -1,3 +1,4 @@
+import '../core/strings.dart';
 import 'sourate.dart';
 
 class RevisionUnit {
@@ -36,7 +37,7 @@ class RevisionUnit {
   String get label {
     final name = '${sourate.nameAr} · ${sourate.nameFr}';
     if (isWhole) return name;
-    return '$name (v.$verseStart–$verseEnd)';
+    return '$name (${S.blocRange(verseStart, verseEnd)})';
   }
 
   /// Deux unités qui portent exactement la même plage de versets de la même

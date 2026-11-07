@@ -132,67 +132,6 @@ supprimer cet item en notant la mesure dans §5.6. Le Sprint A doit être livré
   isolate). Fondre US-30 dans `docs/SPEC_PRODUIT.md` § Renforcement, puis la retirer de
   `docs/USER_STORIES.md`.
 
-### [P2] US-31 Sprint A — Texte agrandi : plages insécables, libellés qui rétrécissent, italique retiré, test de débordement
-US-25 a posé Outfit et les six styles. Le rétrécissement d'un libellé existe déjà :
-`FittedBox(fit: BoxFit.scaleDown)` autour d'un `Text` à `maxLines: 1` (`primary_cta_button.dart`
-l.61-69, `outlined_action_button.dart` l.42-49). C'est ce mécanisme qui est réutilisé, sans widget
-dédié.
-- **`lib/core/strings.dart`** l.183, `S.blocRange` : le corps devient `'v.$from⁠–⁠$to'`
-  (WORD JOINER de chaque côté du tiret, écrit en échappement dans le source). Write et Edit
-  enregistrent le caractère réel : écrire l'échappement par un script, puis vérifier que
-  `grep -c $'⁠'` vaut 0 et que `grep -c '\\u2060'` donne le compte attendu. Les sites qui
-  formatent eux-mêmes `v.X–Y` appellent désormais `S.blocRange` :
-  - `widgets/unit_range_label.dart` l.24 ;
-  - `widgets/verse_range_picker.dart` l.63 ;
-  - `screens/onboarding/widgets/sourate_list.dart` l.148 ;
-  - `models/revision_unit.dart` l.39 (`'$name (${S.blocRange(a, b)})'`) ;
-  - `models/sourate_selection.dart` l.29 ;
-  - `screens/check_in_detail_screen.dart` l.44.
-  Les deux modèles portaient déjà du texte en dur : ils passent ainsi par `strings.dart`. Ni le texte
-  coranique ni les traductions ne sont touchés.
-- **Italique** : retirer `fontStyle: FontStyle.italic` aux douze sites, sans rien à la place :
-  - `screens/` : `check_in_detail_screen.dart` l.60, `check_out_sections.dart` l.100 ;
-  - `screens/onboarding/steps/` : `celebration_page.dart` l.59, `intro_page.dart` l.34 et l.43,
-    `method_page.dart` l.59 ;
-  - `widgets/` : `cycle_progress_card.dart` l.102, `hadith_card.dart` l.40,
-    `learning_progress_card.dart` l.106, `prayer_plan_card.dart` l.178, `streak_card.dart` l.62,
-    `unit_range_label.dart` l.26.
-- **`widgets/index_badge.dart`** l.55 : le `Text` va dans `FittedBox(fit: BoxFit.scaleDown)`. La
-  pastille garde sa taille (30 px ou 26 px).
-- **`widgets/freshness_badge.dart`** l.85 : le `Text` va dans `FittedBox(fit: BoxFit.scaleDown)`.
-- **`screens/reinforcement/reinforcement_tab.dart`** l.136-147 (`_modePicker`) : retirer le
-  `FittedBox` de chaque segment, et envelopper le `SegmentedButton` entier dans
-  `SizedBox(width: double.infinity)` puis `FittedBox(fit: BoxFit.scaleDown)`. Les trois libellés
-  rétrécissent ensemble. Si US-30 Sprint A passe avant, appliquer ce changement sur sa version du
-  fichier.
-- **`widgets/verse_range_picker.dart`** l.120-140 : retirer les deux `Expanded`, et envelopper la
-  `Row` « Tout sélectionner » / « Confirmer » dans `SizedBox(width: double.infinity)` puis
-  `FittedBox(fit: BoxFit.scaleDown)`.
-- **Test de débordement** (exception validée par l'utilisateur le 2026-10-23) :
-  `test/widgets/text_scale_fit_test.dart`, nouveau.
-  - Monter chaque widget sous `MediaQuery(size: Size(320, 568), textScaler: TextScaler.linear(1.5))`
-    avec `buildAppTheme`.
-  - Charger les vraies polices de `assets/fonts/` avec `FontLoader` dans `setUpAll` : sans elles,
-    Ahem fausse les largeurs.
-  - Widgets : `PrimaryCtaButton`, `OutlinedActionButton`, `IndexBadge` (« 282 »), `FreshnessBadge`
-    (« Jamais »), `UnitRangeLabel`, la rangée du `VerseRangePicker`.
-  - Le test n'échoue que sur un `RenderFlex overflowed` (`FlutterError`) : il ne compare aucun
-    rendu.
-  - Ajouter l'exception à `test/CLAUDE.md` : un test d'absence de débordement est un invariant de
-    mise en page, pas un test d'apparence.
-  - Plus un test Dart pur dans le même fichier : `S.blocRange(1, 10)` contient U+2060 de chaque
-    côté du tiret.
-- **Réutilisé tel quel** : `FittedBox` (mécanisme de `PrimaryCtaButton`), `S.blocRange`.
-- **Tests manuels** : sous Windows, 320×568 et 375×667, texte ×1,5 : sélecteur de mode du Quiz,
-  sélecteur de plage, pastilles de la vue Coran et du plan, plage « v.1–10 » au plan du jour.
-- **Exclus** : pas de plafond d'agrandissement, pas de réglage de taille, pas de texte raccourci
-  (US-24). Le Récap et la barre d'onglets attendent US-23 et US-24 (voir US-31).
-- **Doc** :
-  - `docs/DOCUMENTATION_TECHNIQUE.md` §9 : aucun `FontStyle.italic` dans `lib/`, les plages passent
-    par `S.blocRange`, `FittedBox` est le mécanisme de rétrécissement.
-  - `docs/SPEC_PRODUIT.md` § Registre visuel : plage insécable, libellés côte à côte qui
-    rétrécissent ensemble, aucun italique.
-
 ### [P2] US-31 Sprint B — Texte agrandi : en-têtes qui défilent, lignes qui rétrécissent (onboarding, Réglages, check-in, plan)
 Le Sprint A est livré : la ligne de rakaa réutilise `FreshnessBadge` et `S.blocRange`. US-28 est
 livrée : la barre du bas de `plan_screen.dart` est dans `widgets/plan_bottom_bar.dart`.
@@ -206,6 +145,11 @@ livrée : la barre du bas de `plan_screen.dart` est dans `widgets/plan_bottom_ba
     Précédent : `check_in_screen.dart` l.229.
   - La rangée des pastilles « Sélection rapide » (l.55) va dans `SizedBox(width: double.infinity)`
     puis `FittedBox(fit: BoxFit.scaleDown)`, sans `Expanded` à l'intérieur.
+- **`screens/onboarding/widgets/sourate_list.dart`** (`_tile`, `title:`) : la `Row` du nom et de
+  la pastille de plage devient un `Wrap(spacing: 6, crossAxisAlignment: WrapCrossAlignment.center)`.
+  La pastille passe sous le nom au lieu de déborder. Relevé au Sprint A sous Windows : « Al-Baqara »
+  suivi de « v.101–200 » déborde de 93 px à 320×568 avec un texte ×1,5. La plage, désormais
+  insécable, reste entière.
 - **`screens/profile_edit_body.dart`** (extrait, l.274-300) : les deux textes « Réviser en N
   pages / jour » deviennent un seul `Text.rich` dans `Expanded`. Retirer le `Spacer`. Le libellé du
   `TextButton.icon` « Tout sélectionner » va dans `FittedBox(fit: BoxFit.scaleDown)`.
@@ -262,7 +206,10 @@ recale la position. La barre, fixe dans le contenu, descend sous le doigt.
     `CustomScrollView` de 300 éléments avec `_KeepOffsetPhysics` (la rendre testable via une
     fabrique `@visibleForTesting`), défilé à 2000 px puis reconstruit avec 10 éléments : `pixels`
     reste à 2000. Un glissé ramène ensuite à `maxScrollExtent`, sans assertion en debug.
-  - Étendre `text_scale_fit_test.dart` à `VerseRangeSlider` avec les bornes 282 et 283.
+  - Étendre `text_scale_fit_test.dart` à `VerseRangeSlider` avec les bornes 282 et 283, puis au
+    `VerseRangePicker` entier (sourate de 286 versets, dans un `SingleChildScrollView`). Ce cas était
+    prévu au Sprint A, qui l'a sorti du test : les bornes du curseur débordent de 66 px dès une sourate
+    de 7 versets, au-dessus de la rangée « Tout sélectionner » / « Confirmer ».
   - Sous Windows : resserrer la portion après un défilement, la barre ne bouge pas, et un ±1
     répété reste sur le bouton.
 - **Exclus** : pas de retour en haut ; rien ne change dans la portion ni dans le rendu des versets.
@@ -350,6 +297,14 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   `SCheckIn.checkInSansPriere` dit « tout ton plan sera en dehors des prières », alors que le plan
   sans prière affiche désormais « À réviser aujourd'hui ». À choisir : la nouvelle phrase, ou la
   garder (elle décrit le choix au moment où on le fait).
+
+### Affichage et texte agrandi
+
+- **Zones tactiles des contrôles qui rétrécissent** (relevé à la revue d'US-31 Sprint A,
+  2026-11-07) : le sélecteur de mode du Quiz et la rangée « Tout sélectionner » / « Confirmer »
+  rétrécissent en bloc avec un texte agrandi, zone tactile comprise. À 320 px et ×1,5, les boutons
+  descendent sous 48 px de haut. Reste à choisir : accepter, ou empiler les boutons sur deux
+  lignes au-delà d'un seuil (lequel ?).
 
 ### Renforcement (onglet « Quiz » après US-24)
 

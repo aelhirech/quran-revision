@@ -1,3 +1,4 @@
+import '../core/strings.dart';
 import 'sourate.dart';
 
 /// Représente la portion d'une sourate que l'utilisateur a mémorisée.
@@ -26,7 +27,7 @@ class SourateSelection {
   int get estimatedWords =>
       (sourate.words * verseCount / sourate.verses).round().clamp(1, sourate.words);
 
-  String get rangeLabel => isWhole ? '' : ' (v.$verseStart–$verseEnd)';
+  String get rangeLabel => isWhole ? '' : ' (${S.blocRange(verseStart, verseEnd)})';
 
   /// Same range of the same surah is the same selection, regardless of the
   /// `Sourate` instance's other fields — mirrors `RevisionUnit.==`.

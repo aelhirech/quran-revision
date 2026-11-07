@@ -134,29 +134,32 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
       WordGlossService.availableFor(S.locale, state.riwaya);
 
   Widget _modePicker() {
-    // Enlarged text shrinks to fit rather than breaking inside a word.
+    // The whole control shrinks, so the three labels keep one shared size
+    // instead of each segment shrinking on its own.
     ButtonSegment<SeriesMode> segment(SeriesMode mode, String label) =>
-        ButtonSegment(
-          value: mode,
-          label: FittedBox(
-              fit: BoxFit.scaleDown, child: Text(label, maxLines: 1)),
-        );
-    return SegmentedButton<SeriesMode>(
-      showSelectedIcon: false,
-      // A 320 px screen leaves 85 px per segment: with the default padding
-      // "Traduction" broke in two.
-      style: SegmentedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 6)),
-      segments: [
-        segment(SeriesMode.mix, SReinforcement.modeMelange),
-        segment(SeriesMode.passages, SReinforcement.modeVersets),
-        segment(SeriesMode.words, SReinforcement.modeTraduction),
-      ],
-      selected: {_mode},
-      onSelectionChanged: (picked) => setState(() {
-        _mode = picked.single;
-        _tooSmall = false;
-      }),
+        ButtonSegment(value: mode, label: Text(label, maxLines: 1));
+    return SizedBox(
+      width: double.infinity,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: SegmentedButton<SeriesMode>(
+          showSelectedIcon: false,
+          // A 320 px screen leaves 85 px per segment: with the default padding
+          // "Traduction" broke in two.
+          style: SegmentedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6)),
+          segments: [
+            segment(SeriesMode.mix, SReinforcement.modeMelange),
+            segment(SeriesMode.passages, SReinforcement.modeVersets),
+            segment(SeriesMode.words, SReinforcement.modeTraduction),
+          ],
+          selected: {_mode},
+          onSelectionChanged: (picked) => setState(() {
+            _mode = picked.single;
+            _tooSmall = false;
+          }),
+        ),
+      ),
     );
   }
 

@@ -37,7 +37,6 @@ class HadithCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(text,
                 style: AppText.body.copyWith(
-                    fontStyle: FontStyle.italic,
                     height: 1.6,
                     color: palette.textPrimary)),
             const SizedBox(height: 8),

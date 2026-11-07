@@ -59,7 +59,7 @@ class StreakCard extends StatelessWidget {
                   style: AppText.cardTitle.copyWith(color: palette.primary, height: 1)),
               Text(S.totalJoursLabel,
                   style: AppText.caption
-                      .copyWith(color: palette.textMuted, fontStyle: FontStyle.italic)),
+                      .copyWith(color: palette.textMuted)),
             ],
           ),
         ],

@@ -103,7 +103,7 @@ class LearningProgressCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(S.versetsAppris(progress.learnedCount, s.verses),
                     style: AppText.caption
-                        .copyWith(fontStyle: FontStyle.italic, color: palette.textMuted)),
+                        .copyWith(color: palette.textMuted)),
               ],
             ),
           ),

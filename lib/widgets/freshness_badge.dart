@@ -82,7 +82,11 @@ class FreshnessBadge extends StatelessWidget {
         border: Border.all(color: palette.cardBorder),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(freshnessLabel(level), style: AppText.caption.copyWith(color: palette.textMuted)),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(freshnessLabel(level),
+            style: AppText.caption.copyWith(color: palette.textMuted)),
+      ),
     );
   }
 }

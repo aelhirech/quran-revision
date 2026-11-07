@@ -31,7 +31,6 @@ class _IntroPage extends StatelessWidget {
               SOnboarding.introLine1,
               textAlign: TextAlign.center,
               style: AppText.body.copyWith(
-                  fontStyle: FontStyle.italic,
                   color: palette.textPrimary.withValues(alpha: 0.7),
                   height: 1.7),
             ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
@@ -40,7 +39,6 @@ class _IntroPage extends StatelessWidget {
               SOnboarding.introLine2,
               textAlign: TextAlign.center,
               style: AppText.body.copyWith(
-                  fontStyle: FontStyle.italic,
                   color: palette.textPrimary.withValues(alpha: 0.7),
                   height: 1.7),
             ).animate().fadeIn(delay: 300.ms, duration: 400.ms),

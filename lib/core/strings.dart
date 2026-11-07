@@ -186,7 +186,7 @@ class S {
   static String get fraicheur1AnLabel => _t('Il y a plus d\'un an', 'Over a year ago');
 
   // Apprentissage multi-versets
-  static String blocRange(int from, int to) => 'v.$from–$to';
+  static String blocRange(int from, int to) => 'v.$from\u2060–\u2060$to';
 
   // Journée clôturée (état au repos de l'accueil)
   static String get paginationIndisponible => _t(

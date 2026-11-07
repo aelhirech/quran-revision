@@ -418,8 +418,9 @@ Sprint B. Une mesure chiffrée sur iPhone demanderait un build TestFlight hors d
 Codemagic ne produit pas. Validé par l'utilisateur : oui (2026-10-23).
 
 ### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
-**État** : scopée (sprints A à C ; Récap et barre d'onglets après US-23 et US-24) — blueprint du
-2026-10-23, scoping du 2026-10-28. Prolonge US-25 (livrée, voir `docs/SPEC_PRODUIT.md`
+**État** : en cours — Sprint A livré le 2026-11-07 (fondu dans `docs/SPEC_PRODUIT.md`
+§ Registre visuel) ; restent les sprints B et C, puis le Récap et la barre d'onglets après US-23
+et US-24 — blueprint du 2026-10-23, scoping du 2026-10-28. Prolonge US-25 (livrée, voir `docs/SPEC_PRODUIT.md`
 § Registre visuel). Reprend tout le bloc « Affichage et texte agrandi » des Idées produit.
 
 **Moment de l'histoire** : tous. Ce que la story y prouve : rien de nouveau. Elle garantit qu'un
