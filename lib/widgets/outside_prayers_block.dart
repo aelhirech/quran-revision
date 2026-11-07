@@ -11,11 +11,18 @@ import 'verse_bottom_sheet.dart';
 /// will still credit (cadrage 2026-09-08, `PlanScreen`).
 class OutsidePrayersBlock extends StatelessWidget {
   final List<RevisionUnit> units;
-  const OutsidePrayersBlock({super.key, required this.units});
+
+  /// `false` when no prayer was chosen: the block then holds the whole
+  /// revision of the day, so it must not speak of prayers (US-28).
+  final bool withPrayers;
+  const OutsidePrayersBlock(
+      {super.key, required this.units, this.withPrayers = true});
 
   @override
   Widget build(BuildContext context) => _OutsideCard(
-      title: S.horsPrieresTitre, description: S.horsPrieresDesc, units: units);
+      title: withPrayers ? S.horsPrieresTitre : S.aRevoirAujourdhuiTitre,
+      description: withPrayers ? S.horsPrieresDesc : S.aRevoirAujourdhuiDesc,
+      units: units);
 }
 
 /// Today's learning portion when no recited rakaa hosts it (no prayer chosen,

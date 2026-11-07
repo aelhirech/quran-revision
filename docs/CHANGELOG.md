@@ -8,75 +8,6 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-28 — Plan du jour sans prière : ni rakaas, ni barre, ni texte de prières
-US-27 Sprint B a rendu les prières facultatives. Sans prière, `buildTodaySession([])` produit un plan
-sans rakaa : `plan` vide, `outsidePrayers` contient tout le contenu du jour, `outsideLearning` la
-portion à apprendre (`docs/DOCUMENTATION_TECHNIQUE.md` §8.1). Mais `PlanScreen` affiche encore les
-rakaas. Rien ne change dans `ayah_facts`, `RakaaDistributor` ni `RevisionEngine`.
-- **Préalable : extraire la barre du bas de PlanScreen.** `lib/screens/plan_screen.dart` fait
-  354 lignes, au-dessus du plafond de CLAUDE.md. Déplacer le compteur `N / M rakaas`, le bouton de fin
-  de journée et `_completionButton` (l.310-352) dans `lib/widgets/plan_bottom_bar.dart` : classe
-  `PlanBottomBar`, stateless, avec `checkedCount`, `totalRakaas`, `showRakaaCount`, `allDone`,
-  `onCloturer`. Comportement strictement inchangé ; l'animation `done` suit le widget.
-- **`lib/models/daily_session.dart`** : `bool get hasPrayers => prayersAlone.isNotEmpty;`. C'est la
-  seule condition de l'item. Commentaire WHY : elle ne se dérive pas du total de rakaas, car une
-  journée avec prière mais sans contenu garde son affichage actuel.
-- **`lib/screens/plan_screen.dart`** (après l'extraction) :
-  - `AppBar.bottom` : la barre de rakaas n'apparaît que si `session.hasPrayers` (sinon `null`).
-  - Étape guidée `verses_reachable` : `session.hasPrayers ? SGuide.guideVersesBody :
-    SGuide.guideVersesBodySansPriere`.
-  - `OutsidePrayersBlock(…, withPrayers: session.hasPrayers)`.
-  - `PlanBottomBar(…, showRakaaCount: session.hasPrayers)`.
-  - Le dialogue « Refaire le plan » reste inchangé.
-- **`lib/widgets/outside_prayers_block.dart`** : paramètre `final bool withPrayers` (défaut `true`).
-  Si `false`, titre `S.aRevoirAujourdhuiTitre` et description `S.aRevoirAujourdhuiDesc` ; le reste
-  (lignes, icône livre) ne change pas.
-- **`lib/widgets/plan_summary_bar.dart`** l.31 : `session.hasPrayers ? S.pagesRakaas(pagesToday,
-  totalRakaas) : S.pagesCount(pagesToday)`. La ligne du tour en cours et sa barre restent (elles
-  comptent des pages).
-- **`lib/core/strings.dart`** (316 lignes), près de `horsPrieresTitre` :
-  - `aRevoirAujourdhuiTitre` : FR « À réviser aujourd'hui » / EN « To revise today ».
-  - `aRevoirAujourdhuiDesc` : FR « C'est tout ce que tu as à réviser aujourd'hui. Tu le confirmeras
-    en fin de journée. » / EN « This is everything to revise today. You'll confirm it at the end of
-    the day. »
-  - `static String pagesCount(int p) => '$p ${_pages(p)}';`, et `pagesRakaas` délègue :
-    `'${pagesCount(p)} · $r $rakaasLabel'`.
-- **`lib/core/strings_guide.dart`** :
-  - Nouveau `guideVersesBodySansPriere` : FR « L'icône livre, sur chaque ligne, ouvre le texte des
-    versets, sans sortir de l'app. » / EN « The book icon on each line opens the verses' text,
-    without leaving the app. »
-  - `guideCheckinStep1Body` devient FR « Si tu choisis des prières, ces versets rejoindront ta
-    dernière rakaa. Rien d'obligatoire : « je n'apprends rien aujourd'hui » reste toujours possible. »
-    / EN « If you choose prayers, these verses join your last rakaa. Nothing is mandatory: "I'm not
-    learning anything today" always stays an option. »
-- **`lib/core/strings_check_in.dart`** l.26-28 : `checkInApprentissageDesc` devient FR « Si tu choisis
-  des prières, ces versets iront dans ta dernière rakaa. » / EN « If you choose prayers, these verses
-  go into your last rakaa. » Texte fixe : l'étape Apprentissage du check-in passe avant l'étape
-  Prières, donc le choix n'est pas encore connu à ce moment.
-- **Réutilisé tel quel** : `OutsidePrayersBlock`/`_OutsideCard` (paramètre, pas de copie),
-  `S.pagesRakaas`, `allDone` (déjà calculé sans rakaa, la fin de journée marche).
-- **Tests** :
-  - Dart pur : dans le test « check-in validé sans prière… » de
-    `test/state/app_state_checkin_test.dart`, ajouter `expect(session.hasPrayers, isFalse)`, plus une
-    assertion `buildTodaySession([Prayer.fajr])` → `hasPrayers` vrai. Pas de nouveau fichier.
-  - Pas de test widget de PlanScreen (test/CLAUDE.md). Vérification visuelle sous Windows :
-    - plan sans prière : titre, phrase, étape guidée, résumé sans rakaas, ni compteur ni barre ;
-    - plan avec une prière : tout identique à avant ;
-    - check-in étape Apprentissage : nouvelle phrase.
-  - `flutter analyze` sans nouvelle alerte, `flutter test` vert.
-- **Exclus** :
-  - Pas de compteur de remplacement.
-  - Une journée avec prière mais sans contenu garde « 0 / 0 rakaas » (crit. 3).
-  - Le dialogue « Refaire le plan » ne change pas : il renvoie au check-in, il ne décrit pas le plan.
-- **Doc** :
-  - `docs/SPEC_PRODUIT.md` § Pendant la journée, puce « Sans prière choisie » : ni rakaa, ni
-    compteur, ni barre, et un bloc « À réviser aujourd'hui ».
-  - `docs/DOCUMENTATION_TECHNIQUE.md` : §8.1, point PlanScreen (le décompte N / M rakaas ne
-    s'affiche qu'avec au moins une prière) ; §8.2, retirer l'affirmation que la démo d'onboarding
-    réutilise `OutsidePrayersBlock` (aucun usage dans `lib/screens/onboarding`).
-  - Fondre US-28 dans `docs/SPEC_PRODUIT.md` § Pendant la journée, puis la retirer de
-    `docs/USER_STORIES.md`.
-
 ### [P2] US-30 Sprint A — Quiz : sourates proposées exactes, message à jour, composition sans calcul répété, mots lisibles
 US-20 et US-22 sont livrées (`docs/DOCUMENTATION_TECHNIQUE.md` §5.6, §5.7, §8.7). Trois causes lues
 dans le code :
@@ -263,8 +194,8 @@ dédié.
     rétrécissent ensemble, aucun italique.
 
 ### [P2] US-31 Sprint B — Texte agrandi : en-têtes qui défilent, lignes qui rétrécissent (onboarding, Réglages, check-in, plan)
-Le Sprint A est livré : la ligne de rakaa réutilise `FreshnessBadge` et `S.blocRange`. US-28 doit
-être livrée avant, car elle extrait la barre du bas de `plan_screen.dart`.
+Le Sprint A est livré : la ligne de rakaa réutilise `FreshnessBadge` et `S.blocRange`. US-28 est
+livrée : la barre du bas de `plan_screen.dart` est dans `widgets/plan_bottom_bar.dart`.
 - **Préalable** : `lib/screens/profile_screen.dart` fait 360 lignes. Extraire `_editBody` (l.266)
   dans `lib/screens/profile_edit_body.dart` avant toute autre modification, sans changer le
   comportement.
@@ -415,6 +346,10 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   le dernier bloc appris d'une sourate déjà élargie la remet en apprentissage, mais sa sélection
   reste entière. Quand elle est finie à nouveau, la fin de journée ne l'annonce plus, car elle est
   déjà entière. À choisir : revenir à la plage d'avant, ou garder la sélection et refaire l'annonce.
+- **Check-in sans prière : la phrase annonce encore « en dehors des prières »** (US-28, 2026-11-07) :
+  `SCheckIn.checkInSansPriere` dit « tout ton plan sera en dehors des prières », alors que le plan
+  sans prière affiche désormais « À réviser aujourd'hui ». À choisir : la nouvelle phrase, ou la
+  garder (elle décrit le choix au moment où on le fait).
 
 ### Renforcement (onglet « Quiz » après US-24)
 

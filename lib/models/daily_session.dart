@@ -64,6 +64,10 @@ class DailySession {
     this.outsideLearning,
   });
 
+  // Not derived from the rakaa total: a day with a prayer but no content keeps
+  // its rakaa counter ("0 / 0"), only a day with no prayer drops it.
+  bool get hasPrayers => prayersAlone.isNotEmpty;
+
   int get totalRakaas =>
       prayersAlone.fold(0, (sum, p) => sum + p.rakaas);
 }

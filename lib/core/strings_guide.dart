@@ -13,8 +13,8 @@ class SGuide {
   static String get guideCheckinStep1Title =>
       S._t("Ce que tu apprends aujourd'hui", "What you're learning today");
   static String get guideCheckinStep1Body => S._t(
-      "Ces versets rejoindront ta dernière rakaa. Rien d'obligatoire : « je n'apprends rien aujourd'hui » reste toujours possible.",
-      "These verses join your last rakaa. Nothing is mandatory: \"I'm not learning anything today\" always stays an option.");
+      "Si tu choisis des prières, ces versets rejoindront ta dernière rakaa. Rien d'obligatoire : « je n'apprends rien aujourd'hui » reste toujours possible.",
+      "If you choose prayers, these verses join your last rakaa. Nothing is mandatory: \"I'm not learning anything today\" always stays an option.");
   static String get guideCheckinStep2Title =>
       S._t('Tes prières deviennent ta checklist', 'Your prayers become your checklist');
   static String get guideCheckinStep2Body => S._t(
@@ -24,6 +24,9 @@ class SGuide {
   static String get guideVersesBody => S._t(
       "L'icône livre, sur chaque rakaa, ouvre les versets à réciter — jamais besoin de sortir de l'app.",
       "The book icon, on every rakaa, opens the verses to recite — no need to ever leave the app.");
+  static String get guideVersesBodySansPriere => S._t(
+      "L'icône livre, sur chaque ligne, ouvre le texte des versets, sans sortir de l'app.",
+      "The book icon on each line opens the verses' text, without leaving the app.");
   static String get guideAudioTitle =>
       S._t('Écoute, puis répète', 'Listen, then repeat');
   static String get guideAudioBody => S._t(

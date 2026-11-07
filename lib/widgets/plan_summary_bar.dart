@@ -28,7 +28,9 @@ class PlanSummaryBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            S.pagesRakaas(session.pagesToday, session.totalRakaas),
+            session.hasPrayers
+                ? S.pagesRakaas(session.pagesToday, session.totalRakaas)
+                : S.pagesCount(session.pagesToday),
             style: AppText.body
                 .copyWith(color: palette.textPrimary, fontWeight: FontWeight.w600),
           ),
