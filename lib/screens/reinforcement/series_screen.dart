@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_theme.dart';
@@ -160,8 +161,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
             question,
             index,
             text: _shown([choice], lead: false),
-            wrongNote: SReinforcement.passageDans(
-                _sourate(choice.surahId).nameFr, choice.ayahId),
+            wrongNote: Text(
+                SReinforcement.passageDans(
+                    _sourate(choice.surahId).nameFr, choice.ayahId),
+                style: TextStyle(fontSize: 12, color: palette.textMuted)),
           ),
         if (_picked != null) _followUp(palette, question, surah),
       ],
@@ -169,7 +172,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
   }
 
   Widget _choice(SeriesQuestion question, int index,
-      {required String text, required String wrongNote, bool latin = false}) {
+      {required String text, required Widget wrongNote, bool latin = false}) {
     final state = _stateOf(question, index);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),

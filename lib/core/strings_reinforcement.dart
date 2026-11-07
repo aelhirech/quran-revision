@@ -33,8 +33,9 @@ class SReinforcement {
       'Que veut dire le mot en or ?', 'What does the golden word mean?');
   static String get quelMot =>
       S._t('Quel mot porte ce sens ?', 'Which word carries this meaning?');
-  static String motSens(String mot, String sens) =>
-      S._t('$mot : $sens', '$mot: $sens');
+  static String get motSensSep => S._t(' : ', ': ');
+  static String motDemande(String mot) =>
+      S._t('mot demandé : $mot', 'asked word: $mot');
   static String get sourceMots => S._t(
       'Sens : Dr Usama Nonnenmacher, CoranMot',
       'Meanings: Dr Usama Nonnenmacher, CoranMot');

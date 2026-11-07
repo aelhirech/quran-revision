@@ -52,7 +52,12 @@ class ArabicVerseText extends StatelessWidget {
     return Text.rich(
       TextSpan(children: [
         if (before.isNotEmpty) TextSpan(text: before),
-        TextSpan(text: word, style: TextStyle(color: highlightColor)),
+        TextSpan(
+            text: word,
+            style: TextStyle(
+                color: highlightColor,
+                decoration: TextDecoration.underline,
+                decorationColor: highlightColor)),
         if (highlightWord < words.length - 1) TextSpan(text: ' $after'),
       ]),
       textAlign: textAlign,

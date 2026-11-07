@@ -74,7 +74,13 @@ class ReinforcementWords {
     Set<(int, int, int)> avoid = const {},
     int? surahId,
     int count = _seriesLength,
+    ReinforcementCorpus? corpus,
   }) {
+    // Without a memo, a throwaway one: same questions, a single code path.
+    final memo = corpus ?? ReinforcementCorpus();
+    List<Passage> versePassages(int id, int ayah) =>
+        memo.passagesOf(id, ayah, textOf(id, ayah));
+
     // A surah's words are analysed when a question first reads them. A series
     // on the whole selection reads them all; a series on one surah leaves the
     // rest of a large selection alone.
@@ -85,12 +91,13 @@ class ReinforcementWords {
               // Sorted so that a given seed always yields the same series.
               for (final ayah in (carried[id] ?? const <int>{}).toList()
                 ..sort())
-                ..._askableWords(
+                ...memo.wordsOf(
                     id, ayah, textOf(id, ayah), glossesOf(id, ayah)),
             ]);
-    late final all = [
-      for (final id in carried.keys.toList()..sort()) ...wordsOf(id),
-    ];
+    List<WordChoice> allWords() => [
+          for (final id in carried.keys.toList()..sort()) ...wordsOf(id),
+        ];
+    late final all = memo._allWordsOf(carried, allWords);
     final asked = <String>{};
 
     return ReinforcementEngine._draw(
@@ -99,7 +106,7 @@ class ReinforcementWords {
       build: (word) {
         if (asked.contains(word._normalized)) return null;
         final question = _question(
-            word, wordsOf(word.surahId), () => all, textOf, random);
+            word, wordsOf(word.surahId), () => all, versePassages, random);
         if (question != null) asked.add(word._normalized);
         return question;
       },
@@ -109,6 +116,34 @@ class ReinforcementWords {
       surahId: surahId,
       count: count,
     );
+  }
+
+  /// The surahs on which [buildWordQuestions] finds at least one question,
+  /// [except] left out unread.
+  static Set<int> surahsOfferingWords({
+    required Map<int, Set<int>> carried,
+    required String Function(int surahId, int ayahId) textOf,
+    required List<String>? Function(int surahId, int ayahId) glossesOf,
+    ReinforcementCorpus? corpus,
+    Set<int> except = const {},
+  }) {
+    final memo = corpus ?? ReinforcementCorpus();
+    return {
+      for (final id in carried.keys)
+        // The draw tries every word of the surah before it gives up: one
+        // question, whatever the seed, settles it.
+        if (!except.contains(id) &&
+            buildWordQuestions(
+              carried: carried,
+              textOf: textOf,
+              glossesOf: glossesOf,
+              random: Random(0),
+              surahId: id,
+              count: 1,
+              corpus: memo,
+            ).isNotEmpty)
+          id,
+    };
   }
 
   /// Half passages, half words. When one kind falls short, the other makes
@@ -122,7 +157,10 @@ class ReinforcementWords {
     Set<(int, int, int)> avoidPassages = const {},
     Set<(int, int, int)> avoidWords = const {},
     int? surahId,
+    ReinforcementCorpus? corpus,
   }) {
+    // Shared by both kinds: each verse is read once.
+    corpus ??= ReinforcementCorpus();
     List<WordQuestion> wordQuestions(int count) => buildWordQuestions(
           carried: carried,
           textOf: textOf,
@@ -132,6 +170,7 @@ class ReinforcementWords {
           avoid: avoidWords,
           surahId: surahId,
           count: count,
+          corpus: corpus,
         );
 
     const half = _seriesLength ~/ 2;
@@ -144,6 +183,7 @@ class ReinforcementWords {
       avoid: avoidPassages,
       surahId: surahId,
       count: _seriesLength - words.length,
+      corpus: corpus,
     );
     // Words are drawn again only when passages fell short, which takes a
     // selection small enough for a second draw to cost nothing.
@@ -174,25 +214,27 @@ class ReinforcementWords {
     WordChoice word,
     List<WordChoice> sameSurah,
     List<WordChoice> Function() everywhere,
-    String Function(int surahId, int ayahId) textOf,
+    List<Passage> Function(int surahId, int ayahId) versePassages,
     Random random,
   ) {
     final wrong = <WordChoice>[];
     final takenWords = {word._normalized};
     final takenGlosses = {word.gloss};
 
+    bool open(WordChoice candidate) =>
+        !takenWords.contains(candidate._normalized) &&
+        !takenGlosses.contains(candidate.gloss) &&
+        // "un livre" next to "Le Livre" would be a second right answer.
+        !candidate._longMeaningWords.any(word._longMeaningWords.contains);
+
     bool pick(List<WordChoice> pool) {
-      if (wrong.length == _maxWrongChoices) return false;
-      final open = pool
-          .where((candidate) =>
-              !takenWords.contains(candidate._normalized) &&
-              !takenGlosses.contains(candidate.gloss) &&
-              // "un livre" next to "Le Livre" would be a second right answer.
-              !candidate._longMeaningWords
-                  .any(word._longMeaningWords.contains))
-          .toList();
-      if (open.isEmpty) return false;
-      final choice = open[random.nextInt(open.length)];
+      if (wrong.length == _maxWrongChoices || pool.isEmpty) return false;
+      var choice = _sampleFit(pool, open, random);
+      if (choice == null) {
+        final opens = pool.where(open).toList();
+        if (opens.isEmpty) return false;
+        choice = opens[random.nextInt(opens.length)];
+      }
       wrong.add(choice);
       takenWords.add(choice._normalized);
       takenGlosses.add(choice.gloss);
@@ -208,8 +250,7 @@ class ReinforcementWords {
     if (wrong.isEmpty) return null;
 
     final spots = [
-      for (final passage in ReinforcementEngine.passagesOf(
-          word.surahId, word.ayahId, textOf(word.surahId, word.ayahId)))
+      for (final passage in versePassages(word.surahId, word.ayahId))
         for (var i = 0; i < passage.words.length; i++)
           if (_normalize(passage.words[i]).isNotEmpty) (passage, i),
     ];

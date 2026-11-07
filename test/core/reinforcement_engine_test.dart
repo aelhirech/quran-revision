@@ -248,6 +248,106 @@ void main() {
     });
   });
 
+  group('ReinforcementCorpus et offre (US-30)', () {
+    test('13. une sourate est offerte si et seulement si elle donne une série',
+        () {
+      final riwayas = {
+        'Hafs': (HafsService.verseCounts, HafsService.getVerse),
+        'Warsh': (WarshService.verseCounts, WarshService.getVerse),
+      };
+      riwayas.forEach((name, riwaya) {
+        final (counts, textOf) = riwaya;
+        final selections = [
+          wholeSurahs(1, 114, counts),
+          wholeSurahs(109, 109, counts),
+          {108: {1, 2}},
+          {108: {1, 2, 3}},
+          {1: {1}, ...wholeSurahs(112, 114, counts)},
+        ];
+        for (final carried in selections) {
+          final corpus = ReinforcementCorpus();
+          final offered = ReinforcementEngine.surahsOfferingPassages(
+              carried: carried, textOf: textOf, corpus: corpus);
+          for (final surah in carried.keys) {
+            final series = ReinforcementEngine.buildSeries(
+              carried: carried,
+              textOf: textOf,
+              random: Random(surah),
+              surahId: surah,
+              count: 1,
+              corpus: corpus,
+            );
+            expect(offered.contains(surah), series.isNotEmpty,
+                reason: '$name, sourate $surah sur ${carried.length} sourates');
+          }
+        }
+      });
+    });
+
+    test('14. une sourate à un seul passage n\'est pas offerte', () {
+      final carried = {1: {1}, ...wholeSurahs(112, 114, HafsService.verseCounts)};
+      final offered = ReinforcementEngine.surahsOfferingPassages(
+          carried: carried, textOf: HafsService.getVerse);
+      expect(offered, isNot(contains(1)));
+      expect(offered, containsAll([112, 113, 114]));
+      expect(
+          ReinforcementEngine.surahsOfferingPassages(
+              carried: {108: {1, 2}}, textOf: HafsService.getVerse),
+          isEmpty);
+    });
+
+    test('15. même graine, avec ou sans mémo : mêmes questions', () {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      final corpus = ReinforcementCorpus();
+      for (var seed = 0; seed < 20; seed++) {
+        for (final surahId in [null, 93]) {
+          List<List<(int, int, int)>> ids(ReinforcementCorpus? corpus) => [
+                for (final q in ReinforcementEngine.buildSeries(
+                  carried: carried,
+                  textOf: HafsService.getVerse,
+                  random: Random(seed),
+                  surahId: surahId,
+                  corpus: corpus,
+                ))
+                  [_id(q.prompt), for (final c in q.choices) _id(c)],
+              ];
+          expect(ids(corpus), ids(null), reason: 'graine $seed, $surahId');
+        }
+      }
+    });
+
+    test('16. après clear(), un verset Warsh n\'est pas servi par le mémo Hafs',
+        () {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      final corpus = ReinforcementCorpus();
+      ReinforcementEngine.buildSeries(
+          carried: carried,
+          textOf: HafsService.getVerse,
+          random: Random(1),
+          corpus: corpus);
+      corpus.clear();
+      List<String> texts(ReinforcementCorpus? corpus) => [
+            for (final q in ReinforcementEngine.buildSeries(
+              carried: wholeSurahs(78, 114, WarshService.verseCounts),
+              textOf: WarshService.getVerse,
+              random: Random(2),
+              corpus: corpus,
+            ))
+              q.prompt.text,
+          ];
+      expect(texts(corpus), texts(null));
+      expect(corpus.passagesOf(112, 1, 'ignoré').single.text,
+          WarshService.getVerse(112, 1));
+    });
+
+    test('17. sameCarried compare les versets, pas les objets', () {
+      expect(sameCarried({1: {1, 2}}, {1: {2, 1}}), isTrue);
+      expect(sameCarried({1: {1, 2}}, {1: {1}}), isFalse);
+      expect(sameCarried({1: {1}}, {2: {1}}), isFalse);
+      expect(sameCarried({1: {1}}, {1: {1}, 2: {1}}), isFalse);
+    });
+  });
+
   test('11. carriedVerses : plages choisies et versets appris en cours', () {
     final carried = ReinforcementEngine.carriedVerses(
       selections: [

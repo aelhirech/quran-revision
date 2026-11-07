@@ -333,89 +333,31 @@ changement demande de réécrire sa partie A et de verrouiller le nouveau compor
 invariants de la partie E compris.
 
 ### US-30 — Le Quiz reste juste et fluide, quelle que soit la sélection (extension d'US-20 et US-22)
-**État** : scopée — blueprint du 2026-10-23, scoping du 2026-10-28. Prolonge US-20 et US-22 (livrées, voir
-`docs/SPEC_PRODUIT.md` § Renforcement). Reprend les Idées produit « Message « sélection trop
-petite » parfois faux », « Composer une série fige l'interface sur une très grande sélection » et
-« Questions de mots : trois points d'affichage ». Le cadre commun d'US-20 à US-22 s'applique.
+**État** : en cours — Sprint A livré (critères 1, 2, 4, 5 et 6 fondus dans `docs/SPEC_PRODUIT.md`
+§ Renforcement). Reste le critère 3 : item « [P2] US-30 Sprint B » de `docs/CHANGELOG.md`, dont
+le déclencheur est atteint.
 
 **Moment de l'histoire** : le milieu de journée, à un moment choisi. Ce que l'onglet y prouve :
-ce que je connais tient quand on me le demande dans le désordre. Un message faux ou un écran figé
-casse cette preuve avant la première question.
+ce que je connais tient quand on me le demande dans le désordre. Un écran figé casse cette preuve
+avant la première question.
 
 **Statement** : En tant qu'utilisateur qui lance des questions, je veux qu'elles démarrent sans
-attente, sur n'importe quelle sourate proposée, et que chaque réponse dise d'où vient le mot,
-afin de m'éprouver sans être freiné ni trompé par l'écran.
+attente, sur n'importe quelle sourate proposée, afin de m'éprouver sans être freiné par l'écran.
 
-**Diagnostic (état actuel)** :
-- « Choisir une sourate » peut proposer une sourate qui n'offre aucune question (un seul passage
-  connu, un seul mot posable en « Traduction »). L'onglet dit alors « Ta sélection est trop
-  petite… » alors que la sélection entière suffirait. Le message reste aussi affiché après un ajout
-  de sourates, jusqu'au lancement suivant (déduit du code, non reproduit).
-- Composer une série fige l'écran (debug sous Windows, 113 sourates) : 395 à 460 ms en « Versets »,
-  365 à 420 ms en « Traduction », 710 à 810 ms en « Mélange », plus environ 100 ms à la première
-  série de mots. Sur une seule sourate, encore 310 à 400 ms en « Mélange ». Pas encore mesuré sur
-  iPhone.
-- En « sens vers arabe », la sourate et le verset du mot ne sont affichés nulle part, même après la
-  réponse. Le mot posé n'est signalé que par l'or, qu'un lecteur d'écran ne dit pas. Sous un
-  mauvais choix, le mot arabe de la ligne « mot : sens » est dans la police du système.
+**Diagnostic (après le Sprint A)** : mesuré en profile sous Windows, 113 sourates, pire de trois
+essais (`docs/DOCUMENTATION_TECHNIQUE.md` §5.6). À chaud : 104 à 129 ms pour une série
+« Mélange » sur toute la sélection, 85 à 106 ms en « Versets ». À froid : 439 ms à la première
+ouverture de l'onglet, 575 ms à la première série « Mélange ». Avant le Sprint A : 931 ms par
+série « Mélange ». Pas encore ressenti sur iPhone.
 
-**Critères d'acceptation** (haut niveau) :
-1. Given « Choisir une sourate », Then la liste ne propose que les sourates qui offrent au moins
-   une question dans le mode choisi ; une sourate listée ne mène jamais à « sélection trop
-   petite » (choix utilisateur du 2026-10-23).
-2. Given le message « sélection trop petite », Then il reflète toujours la sélection actuelle :
-   il disparaît dès qu'elle suffit, sans attendre un nouveau lancement.
+**Critère d'acceptation restant** :
 3. Given la plus grande sélection (114 sourates) ou une seule sourate, When je lance une série
-   dans n'importe quel mode, Then l'écran ne se fige pas de façon perceptible, mesuré sur iPhone.
-4. Given une question « sens vers arabe », When j'ai répondu, Then la sourate et le verset du mot
-   s'affichent avec la bonne réponse, pas avant (choix utilisateur du 2026-10-23).
-5. Given une question qui montre un mot dans son verset, Then le mot est en or et souligné, et un
-   lecteur d'écran l'annonce comme le mot demandé (choix utilisateur du 2026-10-23).
-6. Given un mauvais choix, Then le mot arabe de la ligne « mot : sens » s'affiche dans la police
-   arabe des mots de l'onglet, pas dans celle du système.
+   dans n'importe quel mode, Then l'écran ne se fige pas de façon perceptible : 100 ms au plus par
+   cas, mesuré en profile sous Windows (trois modes, sélection entière et une sourate, première
+   série et suivantes, ouverture de l'onglet et de « Choisir une sourate » comprises), plus le
+   ressenti de l'utilisateur sur iPhone via TestFlight.
 
-**Exclusions explicites** :
-- Pas de second message pour « cette sourate n'offre pas de question » : le filtre du crit. 1 rend
-  ce cas impossible.
-- La qualité des mauvais choix reste une Idée produit à part, à régler sur de vraies séries.
-- Rien ne change dans ce qui est validé ni dans le tour (cadre US-20).
-
-**Point à lever au scoping** : le seuil de « pas perceptible » et la mesure sur iPhone, qui
-décident de la technique. Si l'iPhone tient déjà le seuil, le crit. 3 se vérifie sans code.
-_Tranché au scoping du 2026-10-28, voir l'ajustement du crit. 3._
-
-**Scoping technique** (2026-10-28) :
-- **Fichiers UI** : `reinforcement_tab.dart` (231 lignes), `series_word_question.dart`,
-  `widgets/passage_choice.dart`, `widgets/arabic_verse_text.dart`, `strings_reinforcement.dart`.
-- **Variables / champs** : état `_offered` de l'onglet (sourates offrant une question dans le mode) ;
-  `_tooSmall` devient `_offered.isEmpty` ; mémo `ReinforcementCorpus` tenu par l'onglet pour la
-  session. Rien de persistant.
-- **`ayah_facts`** : aucune lecture ni écriture (vérifié : l'onglet n'écrit rien).
-- **Décision data model** : état d'écran dérivé et mémo de calcul en mémoire, vidé au changement de
-  riwaya.
-- **Réutilisation** : la condition d'offre est celle que `_question` applique déjà, verrouillée par un
-  test de parité ; `FittedBox`, `SouratePickerSheet`, `WordGlossService` inchangés.
-- **Risques / dépendances** :
-  - Le moteur analyse toute la sélection à chaque série, même pour une seule sourate : c'est la
-    cause du temps mesuré.
-  - Le tirage accéléré change la suite aléatoire des tests à graine fixe.
-  - US-21 et US-31 touchent les mêmes fichiers de l'onglet : faire US-30 avant.
-- **Tests** : parité offre ⇔ série non vide sur la sélection réelle, parité avec et sans mémo, mémo
-  vidé au changement de riwaya ; mesure en profile sous Windows ; affichage vérifié sous Windows ;
-  lecteur d'écran sur iPhone.
-- **Item Backlog** : « [P2] US-30 Sprint A — Quiz : sourates proposées exactes, message à jour,
-  composition sans calcul répété, mots lisibles » ; « [P3] US-30 Sprint B — Composer les questions
-  hors du fil de l'interface (seulement si déclenché par le Sprint A) ».
-
-**Ajustement au scoping** (2026-10-28) — crit. 2 précisé, sens inchangé : le message suit aussi le
-changement de mode, car les sourates qui offrent une question dépendent du mode.
-
-**Ajustement au scoping** (2026-10-28) — crit. 3 précisé, sens inchangé : « pas perceptible » =
-100 ms au plus par cas, mesuré en mode profile sous Windows (trois modes, sélection entière et une
-sourate, première série et suivantes, ouverture de « Choisir une sourate » comprise). S'y ajoute le
-ressenti de l'utilisateur sur iPhone via TestFlight. Un dépassement de l'un ou l'autre déclenche le
-Sprint B. Une mesure chiffrée sur iPhone demanderait un build TestFlight hors de `main`, que
-Codemagic ne produit pas. Validé par l'utilisateur : oui (2026-10-23).
+**Exclusions explicites** : aucun changement d'affichage ; rien n'est crédité ni écrit.
 
 ### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
 **État** : en cours — Sprints A, B et C livrés (fondus dans `docs/SPEC_PRODUIT.md` § Registre

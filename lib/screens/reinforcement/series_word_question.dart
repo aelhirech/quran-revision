@@ -4,12 +4,20 @@ extension _WordQuestionView on _SeriesScreenState {
   Widget _passageWithWord(AppPalette palette, WordQuestion question,
       {double fontSize = 24}) {
     final passage = question.passage;
-    return ArabicVerseText(
-      text: _shown([passage]),
-      fontSize: fontSize,
-      // The leading "…" is one more word in the text that is shown.
-      highlightWord: question.wordIndex + (_leads(passage) ? 1 : 0),
-      highlightColor: palette.gold,
+    final shown = _shown([passage]);
+    // Gold says nothing to a screen reader: the asked word is named instead.
+    return Semantics(
+      container: true,
+      label: '$shown, ${SReinforcement.motDemande(question.answer.arabic)}',
+      child: ExcludeSemantics(
+        child: ArabicVerseText(
+          text: shown,
+          fontSize: fontSize,
+          // The leading "…" is one more word in the text that is shown.
+          highlightWord: question.wordIndex + (_leads(passage) ? 1 : 0),
+          highlightColor: palette.gold,
+        ),
+      ),
     );
   }
 
@@ -40,7 +48,17 @@ extension _WordQuestionView on _SeriesScreenState {
             index,
             text: question.arabicToMeaning ? choice.gloss : choice.arabic,
             latin: question.arabicToMeaning,
-            wrongNote: SReinforcement.motSens(choice.arabic, choice.gloss),
+            wrongNote: Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                    text: choice.arabic,
+                    style: GoogleFonts.amiri(
+                        fontSize: 15, color: palette.textMuted)),
+                TextSpan(text: SReinforcement.motSensSep),
+                TextSpan(text: choice.gloss),
+              ]),
+              style: TextStyle(fontSize: 12, color: palette.textMuted),
+            ),
           ),
         if (_picked != null) _wordFollowUp(palette, question, surah),
       ],
@@ -56,6 +74,13 @@ extension _WordQuestionView on _SeriesScreenState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Asked from its meaning, the word was shown with no surah or
+            // verse: they come with the answer.
+            if (!question.arabicToMeaning) ...[
+              const SizedBox(height: 8),
+              Text(SReinforcement.sourateVerset(surah.nameFr, answer.ayahId),
+                  style: TextStyle(fontSize: 13, color: palette.textMuted)),
+            ],
             _passageWithWord(palette, question, fontSize: 20),
             const SizedBox(height: 4),
             Text(answer.gloss,
