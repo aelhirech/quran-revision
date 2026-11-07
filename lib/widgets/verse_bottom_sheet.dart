@@ -45,8 +45,48 @@ class VerseBottomSheet extends StatefulWidget {
     );
   }
 
+  @visibleForTesting
+  static ScrollPhysics keepOffsetPhysics() => const _KeepOffsetPhysics();
+
   @override
   State<VerseBottomSheet> createState() => _VerseBottomSheetState();
+}
+
+// Narrowing the portion shortens the list, and pulling the offset back into
+// range would slide the slider away from the finger: keep it until the next
+// drag. Not ClampingScrollPhysics: iOS keeps its bounce.
+class _KeepOffsetPhysics extends ScrollPhysics {
+  const _KeepOffsetPhysics({super.parent});
+
+  @override
+  _KeepOffsetPhysics applyTo(ScrollPhysics? ancestor) =>
+      _KeepOffsetPhysics(parent: buildParent(ancestor));
+
+  @override
+  double adjustPositionForNewDimensions({
+    required ScrollMetrics oldPosition,
+    required ScrollMetrics newPosition,
+    required bool isScrolling,
+    required double velocity,
+  }) {
+    // newPosition, not oldPosition: oldPosition is the last recorded metrics
+    // and may predate a scroll that had no layout yet.
+    if (!isScrolling) return newPosition.pixels;
+    return super.adjustPositionForNewDimensions(
+      oldPosition: oldPosition,
+      newPosition: newPosition,
+      isScrolling: isScrolling,
+      velocity: velocity,
+    );
+  }
+
+  @override
+  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
+    // An idle position springs back on new dimensions; at the end of a drag it
+    // is still scrolling, so that spring stays.
+    if (position is ScrollPosition && !position.isScrollingNotifier.value) return null;
+    return super.createBallisticSimulation(position, velocity);
+  }
 }
 
 class _VerseBottomSheetState extends State<VerseBottomSheet> {
@@ -96,6 +136,7 @@ class _VerseBottomSheetState extends State<VerseBottomSheet> {
             Expanded(
               child: CustomScrollView(
                 controller: scrollController,
+                physics: const _KeepOffsetPhysics(),
                 slivers: [
                   // Header and audio bar scroll with the text but must stay
                   // SliverToBoxAdapters: a lazy list would dispose the bar once

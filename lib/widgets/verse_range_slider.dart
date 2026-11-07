@@ -55,7 +55,13 @@ class VerseRangeSlider extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _step(Icons.remove, start ? S.debutMoinsUn : S.finMoinsUn, start: start, delta: -1),
-        Text('v.$value', style: TextStyle(fontWeight: FontWeight.w700, color: cs.primary)),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('v.$value',
+                style: TextStyle(fontWeight: FontWeight.w700, color: cs.primary)),
+          ),
+        ),
         _step(Icons.add, start ? S.debutPlusUn : S.finPlusUn, start: start, delta: 1),
       ],
     );
@@ -68,12 +74,12 @@ class VerseRangeSlider extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        Text(S.versetsCount(count), style: const TextStyle(fontWeight: FontWeight.w600)),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _bound(cs, start: true),
-            Text('$count ${S.versetsLabel}', style: const TextStyle(fontWeight: FontWeight.w600)),
-            _bound(cs, start: false),
+            Flexible(child: _bound(cs, start: true)),
+            Flexible(child: _bound(cs, start: false)),
           ],
         ),
         RangeSlider(

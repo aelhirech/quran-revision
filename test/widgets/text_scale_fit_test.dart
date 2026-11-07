@@ -6,14 +6,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:quran_revision/core/app_theme.dart';
 import 'package:quran_revision/core/freshness_engine.dart';
 import 'package:quran_revision/core/strings.dart';
+import 'package:quran_revision/models/sourate.dart';
+import 'package:quran_revision/models/sourate_selection.dart';
+import 'package:quran_revision/models/user_config.dart';
 import 'package:quran_revision/widgets/freshness_badge.dart';
 import 'package:quran_revision/widgets/index_badge.dart';
-import 'package:quran_revision/models/user_config.dart';
 import 'package:quran_revision/widgets/outlined_action_button.dart';
 import 'package:quran_revision/widgets/pill_chip.dart';
 import 'package:quran_revision/widgets/profile_info_card.dart';
 import 'package:quran_revision/widgets/primary_cta_button.dart';
 import 'package:quran_revision/widgets/unit_range_label.dart';
+import 'package:quran_revision/widgets/verse_range_picker.dart';
+import 'package:quran_revision/widgets/verse_range_slider.dart';
 
 import '../services/test_helpers.dart';
 
@@ -172,6 +176,29 @@ void main() {
             ),
           ),
         ]));
+  });
+
+  testWidgets('VerseRangeSlider with three-digit bounds', (tester) async {
+    await pumpSmall(
+        tester,
+        VerseRangeSlider(
+            min: 1, max: 286, values: const RangeValues(282, 283), onChanged: (_) {}));
+    expectOneLine(tester, 'v.282');
+    expectOneLine(tester, 'v.283');
+  });
+
+  testWidgets('VerseRangePicker on Al-Baqara', (tester) async {
+    const baqara =
+        Sourate(id: 2, nameAr: 'البقرة', nameFr: 'Al-Baqara', verses: 286, words: 6144);
+    await pumpSmall(
+        tester,
+        const SingleChildScrollView(
+          child: VerseRangePicker(
+              sourate: baqara,
+              current: SourateSelection(sourate: baqara, verseStart: 282, verseEnd: 286)),
+        ));
+    expectOneLine(tester, 'v.282');
+    expectOneLine(tester, SOnboarding.toutSelectionner);
   });
 
   test('blocRange never breaks around the dash', () {

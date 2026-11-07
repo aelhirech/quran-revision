@@ -145,42 +145,14 @@ chargent `AppState` ne l'ont jamais été vus avec un texte ×1,5.
 - **Corriger** ce qui déborde, avec le même motif (`Flexible` autour du `FittedBox` dans une `Row`).
 - **Doc** : rien. Supprimer cet item une fois la vérification faite.
 
-### [P2] US-31 Sprint C — Vue Coran : la barre de réglage reste sous le doigt, bornes lisibles à trois chiffres
-Indépendant du Sprint B. Il suit le Sprint A, qui règle la pastille à trois chiffres de `verse_row.dart`.
-
-Cause lue dans le SDK : `VerseBottomSheet` met un `CustomScrollView` dans un
-`DraggableScrollableSheet`. Quand la portion se resserre, `maxScrollExtent` baisse, et
-`ScrollPosition.correctForNewDimensions` (`scroll_position.dart` l.698) appelle
-`ClampingScrollPhysics.adjustPositionForNewDimensions` (`scroll_physics.dart` l.356, l.577), qui
-recale la position. La barre, fixe dans le contenu, descend sous le doigt.
-- **`lib/widgets/verse_bottom_sheet.dart`** : ajouter une classe privée `_KeepOffsetPhysics extends
-  ClampingScrollPhysics`, qui surcharge deux méthodes :
-  - `applyTo` : `_KeepOffsetPhysics(parent: buildParent(ancestor))` ;
-  - `adjustPositionForNewDimensions` : `oldPosition.pixels` quand `isScrolling` est faux, l'appel
-    au parent sinon.
-  Passer `physics: const _KeepOffsetPhysics()` au `CustomScrollView` (l.97). Commentaire WHY en
-  anglais : garder la position pendant un réglage, laisser le recalage au premier glissé.
-- **Coût accepté par l'utilisateur (2026-10-23)** : une zone vide en bas, de la taille de la
-  réduction, jusqu'au premier glissé, qui recale la position comme aujourd'hui.
-- **`lib/widgets/verse_range_slider.dart`** (`_bound`, l.54-79) : « N versets » sort de la `Row` des
-  bornes, sur sa propre ligne. Chaque borne va en `Flexible`, et le texte `v.N` dans
-  `FittedBox(fit: BoxFit.scaleDown)`.
-- **Réutilisé tel quel** : `ClampingScrollPhysics`, `VerseRangeSlider`, `nudgeRange`.
-- **Tests** :
-  - `test/widgets/verse_list_offset_test.dart`, nouveau (piège d'état, admis par `test/CLAUDE.md`) :
-    `CustomScrollView` de 300 éléments avec `_KeepOffsetPhysics` (la rendre testable via une
-    fabrique `@visibleForTesting`), défilé à 2000 px puis reconstruit avec 10 éléments : `pixels`
-    reste à 2000. Un glissé ramène ensuite à `maxScrollExtent`, sans assertion en debug.
-  - Étendre `text_scale_fit_test.dart` à `VerseRangeSlider` avec les bornes 282 et 283, puis au
-    `VerseRangePicker` entier (sourate de 286 versets, dans un `SingleChildScrollView`). Ce cas était
-    prévu au Sprint A, qui l'a sorti du test : les bornes du curseur débordent de 66 px dès une sourate
-    de 7 versets, au-dessus de la rangée « Tout sélectionner » / « Confirmer ».
-  - Sous Windows : resserrer la portion après un défilement, la barre ne bouge pas, et un ±1
-    répété reste sur le bouton.
-- **Exclus** : pas de retour en haut ; rien ne change dans la portion ni dans le rendu des versets.
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §8.6 (vue Coran : physique de défilement). Une fois les
-  sprints A à C livrés, fondre dans `docs/SPEC_PRODUIT.md` § Registre visuel la partie livrée
-  d'US-31. US-31 reste dans `docs/USER_STORIES.md` pour le Récap et la barre d'onglets.
+### [P3] « 1 versets » dans la carte des sourates du Récap
+Vu au Sprint C d'US-31 (2026-11-07), qui l'a corrigé dans le curseur de plage : une plage d'un
+seul verset affiche « (1 versets) ». `S.versetsCount(n)` accorde déjà le pluriel.
+- **`lib/widgets/sourates_recap_card.dart`** (plage partielle) : `(${sel.verseCount}
+  ${S.versetsLabel})` devient `(${S.versetsCount(sel.verseCount)})`.
+- Les libellés « x/y versets » et « x / y versets » (`sourate_list.dart`, `history_card.dart`)
+  restent : le pluriel s'y accorde à y.
+- **Tests** : aucun nouveau ; `flutter test` vert.
 
 ### [P3] Test qui interdit un `fontSize:` littéral hors `app_theme.dart`
 Relevé au Sprint B1 d'US-25 (2026-10-22) : rien n'empêche un futur écran de réécrire un

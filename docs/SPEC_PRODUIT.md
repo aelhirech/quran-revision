@@ -578,6 +578,10 @@ une phrase qui l'explique au moment où elle compte.
   check-in, le libellé passe à la ligne et la valeur ou le badge rétrécit : « Rythme » reste entier.
   Le nom d'une sourate et sa plage partielle se placent l'un sous l'autre quand ils ne tiennent pas.
   Une plage de versets (« v.1–10 ») ne se coupe jamais au tiret.
+  Dans la vue Coran, le nombre de versets de la portion passe au-dessus des bornes du curseur, et
+  une borne à trois chiffres rétrécit pour tenir. Resserrer la portion après avoir défilé laisse
+  la barre de réglage sous le doigt : une zone vide reste en bas jusqu'au glissé suivant, qui
+  recale la liste.
 - **Aucun italique** : la police n'en a pas, et des lettres penchées artificiellement se lisent
   mal. Citations, indications et légendes s'affichent droites.
 - **Une couleur, un sens.** Les badges de date de révision du plan du jour et du Récap sont
