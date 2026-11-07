@@ -197,7 +197,7 @@ extension AppStateCheckOut on AppState {
     ]);
     // Only after sealing: a surah whose last verse was just confirmed
     // learned joins revision (see [handOffLearnedSurahs]).
-    final memorized = await handOffLearnedSurahs(notify: false);
+    final memorized = await handOffLearnedSurahs(date: date, notify: false);
     _notify(); // the only notify of the whole operation
     return SealOutcome(cycleWrapped: cycleWraps, memorized: memorized);
   }

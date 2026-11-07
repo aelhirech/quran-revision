@@ -135,7 +135,7 @@ void main() {
     // Check-out : les 3 versets sont confirmés acquis.
     await state.markLearnVerses(today, 108, [1, 2, 3], true);
 
-    final handed = await state.handOffLearnedSurahs();
+    final handed = await state.handOffLearnedSurahs(date: today);
 
     expect(handed.map((s) => s.id), [108]);
     expect(state.config!.selections.map((s) => s.sourate.id), contains(108));
@@ -150,7 +150,7 @@ void main() {
             'mémorisation de la sourate');
     expect(await state.learningInProgress(), isNull,
         reason: 'une sourate terminée ne compte plus comme "en cours"');
-    expect(await state.handOffLearnedSurahs(), isEmpty,
+    expect(await state.handOffLearnedSurahs(date: today), isEmpty,
         reason: 'la bascule est idempotente : rien à re-signaler');
 
     await AyahFactsLearning.deleteLearnFacts(108, Riwaya.hafs);
@@ -271,7 +271,7 @@ void main() {
 
     final plan = await AyahFactsLearning.learnPlanFor(today, Riwaya.hafs);
     expect(plan!.reachedVerses, {1, 2});
-    final handed = await state.handOffLearnedSurahs();
+    final handed = await state.handOffLearnedSurahs(date: today);
     expect(handed, isEmpty,
         reason: 'sourate incomplète : pas de bascule en révision');
 
@@ -321,7 +321,7 @@ void main() {
 
     // Same order as `CheckOutScreen._close`: withdraw, then hand off.
     await state.unlearnVerses(108, [2]);
-    expect(await state.handOffLearnedSurahs(), isEmpty,
+    expect(await state.handOffLearnedSurahs(date: today), isEmpty,
         reason: 'le verset 2 ne tient plus : la sourate reste en apprentissage');
     expect(state.config!.selections.any((s) => s.sourate.id == 108), isFalse);
 

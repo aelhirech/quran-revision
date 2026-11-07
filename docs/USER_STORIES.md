@@ -220,8 +220,8 @@ bas.
   journée (US-14).
 - Pas de date d'apprentissage au Récap : une projection se lit à la fin de journée, pas ici
   (règle « derrière au check-in, devant au check-out » de `docs/SPEC_PRODUIT.md`).
-- Pas de nouvel indicateur, pas de carte d'activité (l'Idée produit « Timeline d'activité » reste
-  ouverte).
+- Pas de nouvel indicateur, pas de carte d'activité (calendrier d'activité écarté le 2026-10-23,
+  voir « Écartées »).
 - Pas de liste des questions ratées au Récap : elles reviennent dans les séries de l'onglet
   Renforcement (US-21 crit. 4).
 
@@ -331,4 +331,271 @@ de côté par un changement de sélection, peut attendre un tour entier de plus.
 **Point de vigilance** : la « Règle du plan quotidien » du `docs/SPEC_PRODUIT.md` fait foi sur le code. Ce
 changement demande de réécrire sa partie A et de verrouiller le nouveau comportement par test,
 invariants de la partie E compris.
+
+### US-28 — Le plan du jour sans prière ne parle pas de prières (extension d'US-27)
+**État** : scopée — blueprint du 2026-10-23, scoping du 2026-10-23. Prolonge US-27 (livrée, voir `docs/SPEC_PRODUIT.md`
+§ Pendant la journée). Reprend l'Idée produit « Plan du jour sans prière : trois textes parlent
+encore de prières ».
+
+**Moment de l'histoire** : le milieu de journée. Ce que l'écran y prouve : voici ce qu'il y a à
+réviser et à apprendre aujourd'hui, rien de plus.
+
+**Statement** : En tant qu'utilisateur qui n'a choisi aucune prière pour la journée, je veux un
+plan qui ne me parle ni de prières ni de rakaas, afin de lire ce que j'ai à faire sans texte qui
+me contredit.
+
+**Diagnostic (état actuel)** : les données sont justes, mais trois textes parlent encore de
+prières. Le bloc de révision dit « il ne rentrait pas dans les prières que tu as choisies » alors
+qu'aucune ne l'est. Le résumé affiche « 0 rakaas », et le compteur du bas « 0 / 0 rakaas », avec
+une barre déjà pleine à l'ouverture.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given aucune prière choisie, When j'ouvre le plan du jour, Then le bloc de révision a sa propre
+   phrase, qui ne parle pas de prières (choix utilisateur du 2026-10-23).
+2. Given aucune prière choisie, Then ni le résumé ni le bas de l'écran n'affichent de nombre de
+   rakaas ni de barre de progression (choix utilisateur du 2026-10-23).
+3. Given au moins une prière choisie, Then le plan est inchangé : textes, compteur et barre.
+4. Given une journée sans prière, Then elle se termine comme les autres, à la fin de journée.
+
+**Exclusions explicites** :
+- Pas de compteur de remplacement (versets, pages) : sans prière, il n'y a rien à cocher pendant
+  la journée, et la fin de journée valide déjà ce qui a été fait.
+- Aucun changement du contenu du plan ni de ce qui est validé : seul l'affichage change.
+
+**Scoping technique** (2026-10-23) :
+- **Fichiers UI** : `plan_screen.dart` (354 lignes, au-dessus du plafond : sa barre du bas est
+  d'abord extraite dans `widgets/plan_bottom_bar.dart`), `outside_prayers_block.dart`,
+  `plan_summary_bar.dart`, et pour le check-in les textes seuls (`strings_check_in.dart`,
+  `strings_guide.dart`, `strings.dart`).
+- **Variables / champs** : nouveau getter `DailySession.hasPrayers` (`prayersAlone` non vide).
+  Aucun champ persistant, aucun getter `AppState`.
+- **`ayah_facts`** : aucune lecture ni écriture.
+- **Décision data model** : état d'affichage dérivé de la session du jour déjà construite.
+- **Réutilisation** : `OutsidePrayersBlock` reçoit un paramètre au lieu d'être copié ;
+  `S.pagesRakaas` délègue à un nouveau `S.pagesCount`.
+- **Risques / dépendances** : aucun avec US-29 (fichiers distincts). Le texte du check-in reste
+  fixe, voir l'ajustement du crit. 1.
+- **Tests** : `hasPrayers` en Dart pur (test existant du check-in sans prière). L'affichage se vérifie
+  visuellement sous Windows, avec et sans prière.
+- **Item Backlog** : « [P2] US-28 — Plan du jour sans prière : ni rakaas, ni barre, ni texte de
+  prières ».
+
+**Ajustement au scoping** (2026-10-23) — crit. 1 précisé, sens inchangé : le titre du bloc
+(« À réviser en dehors des prières ») change aussi, en « À réviser aujourd'hui », ainsi que l'étape
+guidée du plan, qui dit « sur chaque rakaa ». Validé par l'utilisateur : oui (2026-10-23).
+
+**Ajustement au scoping** (2026-10-23) — crit. 2 précisé, sens inchangé : la barre du tour en cours
+reste dans le résumé, car elle compte des pages, pas des rakaas. Validé par l'utilisateur : oui
+(2026-10-23).
+
+**Ajustement au scoping** (2026-10-23) — crit. 3 précisé : « au moins une prière choisie » se lit sur
+les prières choisies, pas sur le contenu. Une journée avec prière mais sans contenu garde son
+« 0 / 0 rakaas ».
+
+**Ajout au scoping** (2026-10-23) — le check-in, étape Apprentissage, disait « Ces versets seront
+récités dans ta dernière rakaa », même sans prière (ajouté à la story par l'utilisateur le
+2026-10-23). Cette étape passe avant l'étape Prières : le choix n'est pas encore connu à ce moment,
+et la phrase ne peut pas en dépendre. Elle devient conditionnelle à l'écrit : « Si tu choisis des
+prières, ces versets iront dans ta dernière rakaa. » L'étape guidée du check-in suit la même règle.
+
+### US-30 — Le Quiz reste juste et fluide, quelle que soit la sélection (extension d'US-20 et US-22)
+**État** : scopée — blueprint du 2026-10-23, scoping du 2026-10-28. Prolonge US-20 et US-22 (livrées, voir
+`docs/SPEC_PRODUIT.md` § Renforcement). Reprend les Idées produit « Message « sélection trop
+petite » parfois faux », « Composer une série fige l'interface sur une très grande sélection » et
+« Questions de mots : trois points d'affichage ». Le cadre commun d'US-20 à US-22 s'applique.
+
+**Moment de l'histoire** : le milieu de journée, à un moment choisi. Ce que l'onglet y prouve :
+ce que je connais tient quand on me le demande dans le désordre. Un message faux ou un écran figé
+casse cette preuve avant la première question.
+
+**Statement** : En tant qu'utilisateur qui lance des questions, je veux qu'elles démarrent sans
+attente, sur n'importe quelle sourate proposée, et que chaque réponse dise d'où vient le mot,
+afin de m'éprouver sans être freiné ni trompé par l'écran.
+
+**Diagnostic (état actuel)** :
+- « Choisir une sourate » peut proposer une sourate qui n'offre aucune question (un seul passage
+  connu, un seul mot posable en « Traduction »). L'onglet dit alors « Ta sélection est trop
+  petite… » alors que la sélection entière suffirait. Le message reste aussi affiché après un ajout
+  de sourates, jusqu'au lancement suivant (déduit du code, non reproduit).
+- Composer une série fige l'écran (debug sous Windows, 113 sourates) : 395 à 460 ms en « Versets »,
+  365 à 420 ms en « Traduction », 710 à 810 ms en « Mélange », plus environ 100 ms à la première
+  série de mots. Sur une seule sourate, encore 310 à 400 ms en « Mélange ». Pas encore mesuré sur
+  iPhone.
+- En « sens vers arabe », la sourate et le verset du mot ne sont affichés nulle part, même après la
+  réponse. Le mot posé n'est signalé que par l'or, qu'un lecteur d'écran ne dit pas. Sous un
+  mauvais choix, le mot arabe de la ligne « mot : sens » est dans la police du système.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given « Choisir une sourate », Then la liste ne propose que les sourates qui offrent au moins
+   une question dans le mode choisi ; une sourate listée ne mène jamais à « sélection trop
+   petite » (choix utilisateur du 2026-10-23).
+2. Given le message « sélection trop petite », Then il reflète toujours la sélection actuelle :
+   il disparaît dès qu'elle suffit, sans attendre un nouveau lancement.
+3. Given la plus grande sélection (114 sourates) ou une seule sourate, When je lance une série
+   dans n'importe quel mode, Then l'écran ne se fige pas de façon perceptible, mesuré sur iPhone.
+4. Given une question « sens vers arabe », When j'ai répondu, Then la sourate et le verset du mot
+   s'affichent avec la bonne réponse, pas avant (choix utilisateur du 2026-10-23).
+5. Given une question qui montre un mot dans son verset, Then le mot est en or et souligné, et un
+   lecteur d'écran l'annonce comme le mot demandé (choix utilisateur du 2026-10-23).
+6. Given un mauvais choix, Then le mot arabe de la ligne « mot : sens » s'affiche dans la police
+   arabe des mots de l'onglet, pas dans celle du système.
+
+**Exclusions explicites** :
+- Pas de second message pour « cette sourate n'offre pas de question » : le filtre du crit. 1 rend
+  ce cas impossible.
+- La qualité des mauvais choix reste une Idée produit à part, à régler sur de vraies séries.
+- Rien ne change dans ce qui est validé ni dans le tour (cadre US-20).
+
+**Point à lever au scoping** : le seuil de « pas perceptible » et la mesure sur iPhone, qui
+décident de la technique. Si l'iPhone tient déjà le seuil, le crit. 3 se vérifie sans code.
+_Tranché au scoping du 2026-10-28, voir l'ajustement du crit. 3._
+
+**Scoping technique** (2026-10-28) :
+- **Fichiers UI** : `reinforcement_tab.dart` (231 lignes), `series_word_question.dart`,
+  `widgets/passage_choice.dart`, `widgets/arabic_verse_text.dart`, `strings_reinforcement.dart`.
+- **Variables / champs** : état `_offered` de l'onglet (sourates offrant une question dans le mode) ;
+  `_tooSmall` devient `_offered.isEmpty` ; mémo `ReinforcementCorpus` tenu par l'onglet pour la
+  session. Rien de persistant.
+- **`ayah_facts`** : aucune lecture ni écriture (vérifié : l'onglet n'écrit rien).
+- **Décision data model** : état d'écran dérivé et mémo de calcul en mémoire, vidé au changement de
+  riwaya.
+- **Réutilisation** : la condition d'offre est celle que `_question` applique déjà, verrouillée par un
+  test de parité ; `FittedBox`, `SouratePickerSheet`, `WordGlossService` inchangés.
+- **Risques / dépendances** :
+  - Le moteur analyse toute la sélection à chaque série, même pour une seule sourate : c'est la
+    cause du temps mesuré.
+  - Le tirage accéléré change la suite aléatoire des tests à graine fixe.
+  - US-21 et US-31 touchent les mêmes fichiers de l'onglet : faire US-30 avant.
+- **Tests** : parité offre ⇔ série non vide sur la sélection réelle, parité avec et sans mémo, mémo
+  vidé au changement de riwaya ; mesure en profile sous Windows ; affichage vérifié sous Windows ;
+  lecteur d'écran sur iPhone.
+- **Item Backlog** : « [P2] US-30 Sprint A — Quiz : sourates proposées exactes, message à jour,
+  composition sans calcul répété, mots lisibles » ; « [P3] US-30 Sprint B — Composer les questions
+  hors du fil de l'interface (seulement si déclenché par le Sprint A) ».
+
+**Ajustement au scoping** (2026-10-28) — crit. 2 précisé, sens inchangé : le message suit aussi le
+changement de mode, car les sourates qui offrent une question dépendent du mode.
+
+**Ajustement au scoping** (2026-10-28) — crit. 3 précisé, sens inchangé : « pas perceptible » =
+100 ms au plus par cas, mesuré en mode profile sous Windows (trois modes, sélection entière et une
+sourate, première série et suivantes, ouverture de « Choisir une sourate » comprise). S'y ajoute le
+ressenti de l'utilisateur sur iPhone via TestFlight. Un dépassement de l'un ou l'autre déclenche le
+Sprint B. Une mesure chiffrée sur iPhone demanderait un build TestFlight hors de `main`, que
+Codemagic ne produit pas. Validé par l'utilisateur : oui (2026-10-23).
+
+### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
+**État** : scopée (sprints A à C ; Récap et barre d'onglets après US-23 et US-24) — blueprint du
+2026-10-23, scoping du 2026-10-28. Prolonge US-25 (livrée, voir `docs/SPEC_PRODUIT.md`
+§ Registre visuel). Reprend tout le bloc « Affichage et texte agrandi » des Idées produit.
+
+**Moment de l'histoire** : tous. Ce que la story y prouve : rien de nouveau. Elle garantit qu'un
+utilisateur qui lit en grand voit la même app que les autres, et non une app cassée.
+
+**Statement** : En tant qu'utilisateur qui agrandit le texte de son téléphone, je veux que chaque
+écran reste entier et lisible, afin de ne jamais deviner un mot coupé ni chercher un bouton qui
+saute.
+
+**Diagnostic (relevé sous Windows, à jour au 2026-10-23)** :
+- À 375×667 avec texte ×1,5 (plus petit iPhone pris en charge) : la rangée « Sélection rapide » de
+  l'onboarding déborde ; l'en-tête du mode édition des Réglages déborde de 110 px ; l'en-tête des
+  étapes d'onboarding ne laisse que deux sourates visibles dans la liste.
+- À 320×568 avec texte ×1,5 (marge) : au plan du jour, la ligne d'une rakaa d'apprentissage
+  déborde, le badge « Jamais » est coupé, la plage « (v.1–10) » se coupe après le tiret ; au
+  check-in, la ligne « Mes prières du jour » débordait ; aux Réglages, « Rythme » s'écrit une
+  lettre par ligne et « Révision en cours » est tronqué ; au Récap, un texte se coupe au milieu des
+  mots ; dans la vue Coran, la barre de plage déborde avec des numéros à trois chiffres, et un
+  numéro de verset à trois chiffres est coupé (« 282 » affiché « 28 »).
+- Barre d'onglets et sélecteur de mode du Quiz : des libellés passent sur deux lignes, et les modes
+  rétrécissent chacun pour soi. Sélecteur de plage : « Tout sélectionner » sur deux lignes à côté
+  d'un « Confirmer » sur une. Rien ne déborde.
+- Vue Coran : quand on resserre la portion après avoir défilé, la barre descend sous le doigt, et
+  un ±1 répété peut tomber à côté du bouton.
+- Italique : la police de l'app n'en a pas, le téléphone penche les lettres (hadith du jour, plage
+  du check-out, textes de l'onboarding…). Non vérifié sur iPhone.
+
+**Critères d'acceptation** (haut niveau) :
+1. Given 375×667 avec texte ×1,5, et 320×568 avec texte ×1,5 en marge, Then sur aucun écran, vue
+   Coran comprise, un texte ne déborde, n'est coupé ni ne s'écrit lettre par lettre.
+2. Given un texte qui ne tient pas sur une ligne, Then il passe à la ligne entre deux mots, jamais
+   au milieu d'un mot ni d'une plage de versets. Given un libellé qui doit rester sur une ligne
+   (bouton, onglet, badge, numéro), Then il rétrécit pour tenir, comme le bouton principal ; des
+   libellés côte à côte rétrécissent ensemble (choix utilisateur du 2026-10-23, contre un
+   plafond et contre des textes raccourcis).
+3. Given un écran dont l'en-tête est haut, Then l'en-tête défile avec le contenu, comme au check-in
+   et au check-out, pour que la liste garde sa place.
+4. Given la vue Coran, When je resserre la portion après avoir défilé, Then la barre de réglage
+   reste sous mon doigt (choix utilisateur du 2026-10-23, contre un retour en haut).
+5. Given un texte affiché en italique aujourd'hui, Then il s'affiche droit : l'app n'affiche plus de
+   lettres penchées artificiellement (choix utilisateur du 2026-10-23).
+
+**Exclusions explicites** :
+- L'app ne plafonne pas l'agrandissement choisi par l'utilisateur (la barre d'onglets du système
+  garde le sien).
+- Pas de réglage de taille dans l'app : elle suit celui du téléphone, comme le thème.
+- Pas de textes raccourcis pour tenir : les mots sont le sujet d'US-24.
+- Le Récap se vérifie après sa reconstruction (US-23), et la barre d'onglets après le renommage
+  « Quiz » (US-24) : à séquencer au scoping.
+
+**Scoping technique** (2026-10-28) :
+- **Fichiers UI** :
+  - Sprint A : `strings.dart` (`S.blocRange`) et six sites de plage, douze sites d'italique,
+    `index_badge.dart`, `freshness_badge.dart`, `reinforcement_tab.dart` (sélecteur de mode),
+    `verse_range_picker.dart`.
+  - Sprint B : `onboarding/steps/selection_page.dart`, `profile_screen.dart` (360 lignes, extraction
+    préalable de `_editBody`), `profile_info_card.dart`, `plan_screen.dart` (après US-28),
+    `check_in_sections.dart`, `prayer_plan_card.dart`.
+  - Sprint C : `verse_bottom_sheet.dart`, `verse_range_slider.dart`.
+- **Variables / champs** : aucun.
+- **`ayah_facts`** : aucune lecture ni écriture.
+- **Décision data model** : sans objet, affichage seul.
+- **Réutilisation** : `FittedBox(fit: BoxFit.scaleDown)`, déjà utilisé par `PrimaryCtaButton` et
+  `OutlinedActionButton`. L'en-tête qui défile du check-in. `S.blocRange` devient le seul
+  formateur de plage.
+- **Risques / dépendances** :
+  - Les plages se coupent après le tiret (« – » autorise une coupure) : un WORD JOINER de chaque
+    côté du tiret l'interdit.
+  - La barre de la vue Coran saute parce que la physique de défilement recale la position quand la
+    liste rétrécit (lu dans le SDK).
+  - Ordre : A, puis B après US-28 ; C après A, indépendant de B.
+- **Tests** :
+  - Un test qui échoue si un petit widget déborde à 320 px avec texte ×1,5, polices réelles chargées
+    (exception à `test/CLAUDE.md`).
+  - Un test de la position de défilement de la vue Coran.
+  - Le reste se vérifie sous Windows, à 320×568 et 375×667.
+- **Item Backlog** : « [P2] US-31 Sprint A — Texte agrandi : plages insécables, libellés qui
+  rétrécissent, italique retiré, test de débordement », « [P2] US-31 Sprint B — … en-têtes qui
+  défilent, lignes qui rétrécissent », « [P2] US-31 Sprint C — Vue Coran : la barre de réglage reste
+  sous le doigt… ».
+
+**Ajustement au scoping** (2026-10-28) — crit. 4 précisé, sens inchangé : pendant le réglage, la liste
+garde sa position. Une zone vide de la taille de la réduction reste en bas jusqu'au premier glissé,
+qui recale la position. Validé par l'utilisateur : oui (2026-10-23).
+
+**Ajustement au scoping** (2026-10-28) — diagnostic corrigé : « Révision en cours » est le titre du
+plan du jour, pas des Réglages (seul usage dans le code).
+
+**Ajout au scoping** (2026-10-28) — un test automatique vérifie l'absence de débordement des petits
+widgets à 320 px avec texte ×1,5. C'est une exception écrite à `test/CLAUDE.md` : le test vérifie un
+invariant de mise en page, pas une apparence. Validé par l'utilisateur : oui (2026-10-23).
+
+**Reste ouvert, hors Backlog** (choix utilisateur du 2026-10-23) :
+- **Barre d'onglets** : à 320 px avec texte ×1,5, « Plan du jour » ne tient pas sur une ligne, et la
+  barre système n'offre aucun moyen de rétrécir un libellé. À remesurer après le renommage « Quiz »
+  d'US-24. On tranchera sur ces mesures : rétrécir, accepter deux lignes, ou raccourcir.
+- **Récap** : « Aucune session enregistrée » se coupe au milieu des mots, sans cause identifiée à la
+  lecture, et la zone de fin d'une ligne de sourate prend la largeur. Le Récap est reconstruit par
+  US-23 : à remesurer après.
+Ces deux points se scopent après US-23 et US-24, et US-31 ne passe à « terminée » qu'à ce moment.
+
+## Écartées
+
+- **Calendrier d'activité au Récap** (Idée produit « Calendrier d'activité (heatmap) », alias
+  « Timeline d'activité ») — écarté le 2026-10-23 (choix utilisateur). Il contredit US-23 (le Récap
+  ne garde que la mosaïque et les sourates à risque d'oublier) et le test des 3 secondes, et
+  ajoute une statistique là où les jours de suite existent déjà (`docs/SPEC_PRODUIT.md` § Réglages,
+  « Ne fait pas »). Que la donnée soit disponible ne dit rien de sa valeur pour l'utilisateur.
+- **Case de hizb de l'onboarding dont toutes les sourates ont une plage partielle** — écarté le
+  2026-10-23. Elle s'affiche cochée, et un appui retire ces sourates, plages comprises. C'est
+  conforme à la règle (une plage partielle compte comme sélectionnée), et rien ne demande de la
+  changer. À rouvrir seulement si un retour d'usage le signale.
 

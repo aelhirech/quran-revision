@@ -329,7 +329,10 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
 ### E. Invariants — à vérifier par test, pas par relecture
 
 1. **Aucune page sautée.** Une sourate de N pages est couverte en N entrées consécutives : page 1
-   aujourd'hui, page 2 demain, jusqu'à la fin. C'était le bug principal du 2026-09-08.
+   aujourd'hui, page 2 demain, jusqu'à la fin. C'était le bug principal du 2026-09-08. Seule
+   exception : une sourate apprise qui entre ou s'élargit en révision garde le curseur sur son
+   verset, donc ses pages placées avant lui attendent le tour suivant (reculer répéterait des
+   pages, invariant 2).
 2. **Aucune répétition avant bouclage.** Tant que `cycleTotal` entrées n'ont pas été parcourues,
    aucune page n'est reproposée.
 3. **Jamais hors de la plage choisie.** Si l'utilisateur ne sélectionne que les versets 255–260
@@ -351,7 +354,7 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
 | Page partagée dont une seule sourate est sélectionnée | Entrée normale ; la sourate non sélectionnée n'y entre jamais. |
 | Portion retirée au check-in | Ni comptée ni bloquante à la clôture. |
 | Changement de rythme en cours de sourate | Le curseur ne bouge pas : seul le nombre d'entrées prises par jour change. |
-| Changement de sélection | Le cycle est reconstruit ; la progression repart de 0 (`saveConfig` le fait déjà). |
+| Changement de sélection | Le cycle est reconstruit ; la progression repart de 0 (`saveConfig` le fait déjà). Exception : une sourate apprise en entier qui entre ou s'élargit en révision ne remet pas à 0, le curseur reste sur le verset qu'il pointait. |
 | Changement de riwaya | Cycle et curseur sont scopés par riwaya, indépendants. |
 | Journée sautée | Le curseur n'avance pas ; rien n'est perdu, le contenu revient le lendemain. |
 | Bouton « Illuminer ma journée avec le Coran » jamais pressé (ou check-in quitté sans valider) | Aucune ligne n'est écrite dans `ayah_facts` pour ce jour : pas de jour en attente, pas de rattrapage le lendemain. Le plan du jour n'est écrit que par `AppState.commitCheckIn`. |
@@ -424,8 +427,16 @@ pression) ; pas de son, pas de trophées ni de collection de jalons ; pas de mod
   récités dans la **toute dernière rakaa** du jour (dans le bloc « À apprendre » quand aucune
   prière n'est choisie), et ils ne sont crédités **qu'au check-out**.
 - Démarrer une sourate en garde la trace même avant qu'aucun verset ne soit appris.
-- Quand le dernier verset est confirmé, la sourate **bascule automatiquement en révision** sans
-  remettre le tour à zéro.
+- Quand la fin de journée confirme le dernier verset d'une sourate, la sourate **passe en
+  révision en entier**, sans geste de l'utilisateur : une plage partielle déjà sélectionnée devient
+  la sourate entière. Rattraper la fin de journée d'un jour passé fait de même. La fin de journée
+  annonce la sourate apprise, que la sourate ait été ajoutée ou élargie.
+- Tous ses versets entrent alors dans le tour et dans les questions. Le tour continue sur le verset
+  où il en était, sans repartir de zéro : les pages de la sourate placées avant ce point sont
+  revues au tour suivant.
+- Cela n'a lieu qu'une fois, au jour où la sourate est complétée. Ensuite le réglage de
+  l'utilisateur fait foi : une plage resserrée n'est plus élargie, une sourate retirée n'est plus
+  remise. Seule la riwaya où la sourate a été apprise est touchée.
 - Revenir en arrière sur un verset le remet « à apprendre » sans jamais perdre le fait que la
   sourate est en cours.
 - **L'échéance d'apprentissage est toujours conditionnelle** (« si tu tiens ce rythme »),
@@ -434,7 +445,11 @@ pression) ; pas de son, pas de trophées ni de collection de jalons ; pas de mod
   vers la vue Coran, glisser pour l'abandonner. La toucher n'ouvre rien.
 
 **Ne fait pas** : aucun second écran d'apprentissage ni de feuille équivalente ; aucun crédit
-de verset en dehors du check-out ; aucun verset de contexte grisé en tête de la plage apprise.
+de verset en dehors du check-out ; aucun verset de contexte grisé en tête de la plage apprise ;
+aucune modification de sélection pour une sourate pas encore apprise en entier ; aucun
+élargissement rétroactif à l'ouverture de l'app (une sourate déjà apprise et restée partielle
+reste telle quelle). Cas rare accepté : resserrer la plage puis refaire la fin de journée du jour
+même de la complétion la réélargit.
 
 ## Vue Coran et écoute
 

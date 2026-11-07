@@ -92,6 +92,29 @@ class AyahFactsLearning {
     );
   }
 
+  /// `surahId → number of acquired verses`, for the surahs whose most
+  /// recently acquired verse was FIRST acquired exactly on [date]. Whether
+  /// that count covers the whole surah is the caller's call.
+  ///
+  /// First acquisition (`MIN(date)` over `reach = 1` rows), not latest: a
+  /// verse re-confirmed on a later day must not move the completion date,
+  /// otherwise re-sealing that later day would widen the surah again.
+  static Future<Map<int, int>> surahsCompletedOn(
+      String date, Riwaya riwaya) async {
+    final db = await AyahFactsService._open();
+    final rows = await db.rawQuery(
+      'SELECT surah_id, COUNT(*) AS learned FROM ('
+      'SELECT surah_id, ayah_id, MIN(date) AS first_date FROM ayah_facts '
+      'WHERE riwaya = ? AND type = ? AND reach = 1 '
+      'GROUP BY surah_id, ayah_id) '
+      'GROUP BY surah_id HAVING MAX(first_date) = ?',
+      [riwaya.name, AyahFactType.learn.name, date],
+    );
+    return {
+      for (final row in rows) row['surah_id'] as int: row['learned'] as int,
+    };
+  }
+
   /// Date de première ligne `learn` par sourate (`MIN(date)` groupé) — sert
   /// de `startDate` approximatif pour `LearningProgress`.
   static Future<Map<int, DateTime>> learnStartDatesBySourate(
