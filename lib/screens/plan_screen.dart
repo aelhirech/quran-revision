@@ -226,7 +226,11 @@ class _PlanScreenState extends State<PlanScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            title: Text(S.revisionEnCours),
+            title: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(S.revisionEnCours),
+            ),
             backgroundColor: cs.surface,
             foregroundColor: cs.onSurface,
             pinned: true,

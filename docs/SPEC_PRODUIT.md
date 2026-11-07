@@ -569,10 +569,14 @@ une phrase qui l'explique au moment où elle compte.
   capitales), titre de carte, texte, légende, grand chiffre. Tous les écrans n'emploient que
   ceux-là, sauf le Récap et l'onglet Quiz, qui gardent encore leurs tailles propres. Avec un texte
   système agrandi, l'en-tête du check-in et du check-out défile avec le contenu, les pages
-  d'accueil et de choix de la riwaya de l'onboarding défilent quand elles ne tiennent plus, et un
+  d'accueil et de choix de la riwaya de l'onboarding défilent quand elles ne tiennent plus, l'en-tête
+  de la sélection des sourates défile avec la liste pour lui laisser la place, et un
   libellé de bouton trop long rétrécit plutôt que d'être coupé. Les pastilles de numéro et de
   date de révision rétrécissent aussi pour tenir (« 282 » reste entier). Des libellés côte à côte
-  (modes du Quiz, « Tout sélectionner » / « Confirmer ») rétrécissent ensemble, à la même taille.
+  (modes du Quiz, « Tout sélectionner » / « Confirmer », pastilles de sélection rapide)
+  rétrécissent ensemble, à la même taille. Dans les lignes des Réglages, du plan du jour et du
+  check-in, le libellé passe à la ligne et la valeur ou le badge rétrécit : « Rythme » reste entier.
+  Le nom d'une sourate et sa plage partielle se placent l'un sous l'autre quand ils ne tiennent pas.
   Une plage de versets (« v.1–10 ») ne se coupe jamais au tiret.
 - **Aucun italique** : la police n'en a pas, et des lettres penchées artificiellement se lisent
   mal. Citations, indications et légendes s'affichent droites.

@@ -132,53 +132,18 @@ supprimer cet item en notant la mesure dans §5.6. Le Sprint A doit être livré
   isolate). Fondre US-30 dans `docs/SPEC_PRODUIT.md` § Renforcement, puis la retirer de
   `docs/USER_STORIES.md`.
 
-### [P2] US-31 Sprint B — Texte agrandi : en-têtes qui défilent, lignes qui rétrécissent (onboarding, Réglages, check-in, plan)
-Le Sprint A est livré : la ligne de rakaa réutilise `FreshnessBadge` et `S.blocRange`. US-28 est
-livrée : la barre du bas de `plan_screen.dart` est dans `widgets/plan_bottom_bar.dart`.
-- **Préalable** : `lib/screens/profile_screen.dart` fait 360 lignes. Extraire `_editBody` (l.266)
-  dans `lib/screens/profile_edit_body.dart` avant toute autre modification, sans changer le
-  comportement.
-- **`screens/onboarding/steps/selection_page.dart`** :
-  - `_StepHeader` (l.40), les pastilles (l.47) et le champ de recherche (l.86) sortent de la
-    `Column` fixe. Ils deviennent les premiers `SliverToBoxAdapter` du `CustomScrollView` de
-    `_SourateList` (l.116), dont le `Expanded` disparaît. L'en-tête collant des hizb reste.
-    Précédent : `check_in_screen.dart` l.229.
-  - La rangée des pastilles « Sélection rapide » (l.55) va dans `SizedBox(width: double.infinity)`
-    puis `FittedBox(fit: BoxFit.scaleDown)`, sans `Expanded` à l'intérieur.
-- **`screens/onboarding/widgets/sourate_list.dart`** (`_tile`, `title:`) : la `Row` du nom et de
-  la pastille de plage devient un `Wrap(spacing: 6, crossAxisAlignment: WrapCrossAlignment.center)`.
-  La pastille passe sous le nom au lieu de déborder. Relevé au Sprint A sous Windows : « Al-Baqara »
-  suivi de « v.101–200 » déborde de 93 px à 320×568 avec un texte ×1,5. La plage, désormais
-  insécable, reste entière.
-- **`screens/profile_edit_body.dart`** (extrait, l.274-300) : les deux textes « Réviser en N
-  pages / jour » deviennent un seul `Text.rich` dans `Expanded`. Retirer le `Spacer`. Le libellé du
-  `TextButton.icon` « Tout sélectionner » va dans `FittedBox(fit: BoxFit.scaleDown)`.
-- **`widgets/profile_info_card.dart`** (`_row`, l.54-72) : la valeur sort du `trailing` du
-  `ListTile`. La ligne devient une `Row` : l'icône, `Expanded(Text(label))`, puis
-  `Flexible(FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerRight, child: Row(valeur,
-  chevron)))`. C'est la cause de « Rythme » écrit lettre par lettre.
-- **`screens/plan_screen.dart`** l.231 : `title: FittedBox(fit: BoxFit.scaleDown, alignment:
-  Alignment.centerLeft, child: Text(S.revisionEnCours))`. « Révision en cours » est le titre du
-  plan du jour, son seul usage.
-- **`screens/check_in_sections.dart`** l.121-135 : `_sectionLabel` va dans `Expanded` (retour à la
-  ligne), et le libellé du `TextButton.icon` « Dernières prières » dans
-  `FittedBox(fit: BoxFit.scaleDown)`.
-- **`widgets/prayer_plan_card.dart`** `_subtitle` (l.156-186) : le tag « Apprentissage » et le badge
-  de fraîcheur vont dans `FittedBox(fit: BoxFit.scaleDown)`, `Text(S.versetsCount)` dans
-  `Flexible`.
-- **Réutilisé tel quel** : `FittedBox`, `Expanded`/`Flexible`, l'en-tête qui défile du check-in.
-- **Tests** :
-  - Étendre `test/widgets/text_scale_fit_test.dart` à `ProfileInfoCard` et à la rangée de
-    `PillChip`.
-  - Les écrans qui chargent `AppState` se vérifient sous Windows, à 320×568 et 375×667, texte ×1,5 :
-    - onboarding : sélection, l'en-tête défile, plus de deux sourates visibles ;
-    - Réglages : mode édition, ligne Rythme ;
-    - check-in : section prières ;
-    - plan du jour : titre et rakaa d'apprentissage.
-- **Exclus** : aucun texte raccourci ; aucun déplacement de l'en-tête du mode édition des Réglages
-  (il n'est pas haut).
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §8.2 (onboarding : l'en-tête défile avec la liste),
-  §8.4 (Réglages : extraction de `profile_edit_body.dart`).
+### [P2] US-31 Sprint B — vérification sous Windows (onboarding, Réglages, check-in, plan)
+Le Sprint B est livré sans les captures Windows prévues (choix utilisateur, 2026-11-07). Seuls les
+widgets recopiés dans `test/widgets/text_scale_fit_test.dart` sont verrouillés ; les écrans qui
+chargent `AppState` ne l'ont jamais été vus avec un texte ×1,5.
+- **À faire** : `flutter run -d windows`, 320×568 et 375×667, texte ×1,5, en clair et en sombre.
+  - Onboarding, sélection : l'en-tête défile, plus de deux sourates visibles, les en-têtes de hizb
+    restent collés, « Al-Baqara » suivi de sa plage ne déborde pas.
+  - Réglages : ligne « Rythme » entière ; mode édition, « Tout sélectionner » sur une ligne.
+  - Check-in : section prières, libellé et « Dernières prières » côte à côte.
+  - Plan du jour : titre « Révision en cours », ligne d'une rakaa d'apprentissage avec badge.
+- **Corriger** ce qui déborde, avec le même motif (`Flexible` autour du `FittedBox` dans une `Row`).
+- **Doc** : rien. Supprimer cet item une fois la vérification faite.
 
 ### [P2] US-31 Sprint C — Vue Coran : la barre de réglage reste sous le doigt, bornes lisibles à trois chiffres
 Indépendant du Sprint B. Il suit le Sprint A, qui règle la pastille à trois chiffres de `verse_row.dart`.

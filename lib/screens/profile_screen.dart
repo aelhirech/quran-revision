@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/app_theme.dart';
 import '../core/strings.dart';
-import '../models/sourate.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
 import '../state/app_state.dart';
@@ -14,6 +13,7 @@ import '../widgets/offline_audio_card.dart';
 import '../widgets/pages_per_day_dropdown.dart';
 import '../widgets/profile_info_card.dart';
 import '../widgets/settings_card.dart';
+import 'profile_edit_body.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -39,11 +39,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  List<Sourate> get _filtered => context
-      .read<AppState>()
-      .sourates
-      .where((s) => s.matchesSearch(_search))
-      .toList();
+  void _toggleAll() {
+    final all = context.read<AppState>().sourates;
+    setState(() {
+      if (_selectedIds.length == all.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds.addAll(all.map((s) => s.id));
+      }
+    });
+  }
 
   Future<void> _save() async {
     final state = context.read<AppState>();
@@ -169,7 +174,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onAction: () => state.markGuideDone('settings_seen'),
               ),
             ),
-          if (!_editing) _viewBody(cs, state) else _editBody(cs),
+          if (!_editing) _viewBody(cs, state) else
+            ProfileEditBody(
+              pagesPerDay: _pagesPerDay,
+              selectedIds: _selectedIds,
+              search: _search,
+              onToggleAll: _toggleAll,
+              onToggleSourate: (id) => setState(() {
+                _selectedIds.contains(id)
+                    ? _selectedIds.remove(id)
+                    : _selectedIds.add(id);
+              }),
+              onSearchChanged: (v) => setState(() => _search = v),
+            ),
         ],
       ),
     );
@@ -261,100 +278,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (!mounted || !confirmed) return;
     await state.clearConfig();
-  }
-
-  Widget _editBody(ColorScheme cs) {
-    final totalSourates = context.watch<AppState>().sourates.length;
-    return SliverFillRemaining(
-      child: Column(
-        children: [
-          Container(
-            color: cs.primaryContainer,
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Text(S.reviserEn,
-                    style: TextStyle(color: cs.onPrimaryContainer)),
-                const SizedBox(width: 8),
-                // Non-interactif : le rythme s'édite depuis la ligne
-                // « Rythme » de la carte parcours — deux façons d'éditer le
-                // même réglage sur cette page créait une redondance non
-                // harmonisée (retour TestFlight 2026-09-01).
-                Text(
-                  S.pagesParJour(_pagesPerDay),
-                  style: TextStyle(
-                      color: cs.onPrimaryContainer, fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () => setState(() {
-                    if (_selectedIds.length == totalSourates) {
-                      _selectedIds.clear();
-                    } else {
-                      _selectedIds.addAll(
-                          context.read<AppState>().sourates.map((s) => s.id));
-                    }
-                  }),
-                  icon: Icon(
-                    _selectedIds.length == totalSourates
-                        ? Icons.deselect
-                        : Icons.select_all,
-                    color: cs.onPrimaryContainer,
-                    size: 16,
-                  ),
-                  label: Text(
-                    _selectedIds.length == totalSourates
-                        ? SOnboarding.toutDeselectionner
-                        : SOnboarding.toutSelectionner,
-                    style: AppText.caption.copyWith(
-                        color: cs.onPrimaryContainer, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: S.rechercher,
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              onChanged: (v) => setState(() => _search = v),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _filtered.length,
-              itemBuilder: (_, i) {
-                final s = _filtered[i];
-                final selected = _selectedIds.contains(s.id);
-                return CheckboxListTile(
-                  value: selected,
-                  onChanged: (_) => setState(() {
-                    selected ? _selectedIds.remove(s.id) : _selectedIds.add(s.id);
-                  }),
-                  title: Text(s.nameFr),
-                  subtitle: Text(
-                      '${s.nameAr}  ·  ${s.verses} ${S.versetsLabel}'),
-                  secondary: CircleAvatar(
-                    backgroundColor:
-                        selected ? cs.primary : cs.surfaceContainerHighest,
-                    foregroundColor:
-                        selected ? cs.onPrimary : cs.onSurfaceVariant,
-                    radius: 18,
-                    child: Text('${s.id}',
-                        style: AppText.caption),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

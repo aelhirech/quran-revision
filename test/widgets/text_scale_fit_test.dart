@@ -8,7 +8,10 @@ import 'package:quran_revision/core/freshness_engine.dart';
 import 'package:quran_revision/core/strings.dart';
 import 'package:quran_revision/widgets/freshness_badge.dart';
 import 'package:quran_revision/widgets/index_badge.dart';
+import 'package:quran_revision/models/user_config.dart';
 import 'package:quran_revision/widgets/outlined_action_button.dart';
+import 'package:quran_revision/widgets/pill_chip.dart';
+import 'package:quran_revision/widgets/profile_info_card.dart';
 import 'package:quran_revision/widgets/primary_cta_button.dart';
 import 'package:quran_revision/widgets/unit_range_label.dart';
 
@@ -83,6 +86,92 @@ void main() {
   testWidgets('UnitRangeLabel', (tester) async {
     await pumpSmall(tester,
         UnitRangeLabel(unit: testUnit(2, 255, 286), nameColor: Colors.black));
+  });
+
+  testWidgets('ProfileInfoCard keeps the value readable', (tester) async {
+    await pumpSmall(
+        tester,
+        ProfileInfoCard(
+          config: UserConfig(
+              selections: const [],
+              pagesPerDay: 10,
+              startDate: DateTime(2026, 1, 1)),
+          elapsed: 120,
+          onEditRythme: () {},
+          onEditSourates: () {},
+        ));
+    await tester.pump(const Duration(seconds: 1));
+    // The value used to be written one letter per line.
+    expectOneLine(tester, S.pagesParJour(10));
+    expectOneLine(tester, S.rythmeLabelCourt);
+  });
+
+  testWidgets('quick-select PillChip row', (tester) async {
+    // Same wrapping as selection_page.dart, kept here to lock the invariant.
+    await pumpSmall(
+        tester,
+        SizedBox(
+          width: double.infinity,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(children: [
+              PillChip(label: SOnboarding.toutLeCoran, onTap: () {}, selected: false),
+              const SizedBox(width: 6),
+              PillChip(label: SOnboarding.fractionTroisQuarts, onTap: () {}, selected: false),
+              const SizedBox(width: 6),
+              PillChip(label: SOnboarding.fractionMoitie, onTap: () {}, selected: false),
+              const SizedBox(width: 6),
+              PillChip(label: SOnboarding.fractionQuart, onTap: () {}, selected: false),
+            ]),
+          ),
+        ));
+    expectOneLine(tester, SOnboarding.toutLeCoran);
+  });
+
+  // Mirror the Row layouts of check_in_sections.dart and prayer_plan_card.dart:
+  // a FittedBox in a non-flex Row child gets unbounded width and shrinks nothing.
+  testWidgets('label and shrinking button side by side', (tester) async {
+    await pumpSmall(
+        tester,
+        Row(children: [
+          Expanded(child: Text(SCheckIn.checkInPrieres)),
+          Flexible(
+            child: TextButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.history, size: 16),
+              label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(S.derniereSelection, style: AppText.caption)),
+            ),
+          ),
+        ]));
+  });
+
+  testWidgets('learning rakaa subtitle row', (tester) async {
+    await pumpSmall(
+        tester,
+        Row(children: [
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(S.rakaaApprentissage, style: AppText.caption)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(child: Text(S.versetsCount(10), style: AppText.caption)),
+          const SizedBox(width: 8),
+          const Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: FreshnessBadge(level: FreshnessLevel.neverRevised),
+            ),
+          ),
+        ]));
   });
 
   test('blocRange never breaks around the dash', () {
