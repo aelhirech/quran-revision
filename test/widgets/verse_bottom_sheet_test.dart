@@ -67,6 +67,13 @@ void main() {
   // US-16 regression: header and audio bar now scroll with the verses. If they
   // were lazy list items, the bar's state would be disposed off-screen and the
   // US-11 portion reset to the full range on scrolling back up.
+  // The offset behaviour itself is locked in verse_list_offset_test.dart.
+  testWidgets('la liste des versets garde sa position au resserrement', (tester) async {
+    await pumpSheet(tester);
+    expect(tester.widget<CustomScrollView>(find.byType(CustomScrollView)).physics.runtimeType,
+        VerseBottomSheet.keepOffsetPhysics().runtimeType);
+  });
+
   testWidgets('la portion audio survit à un défilement aller-retour', (tester) async {
     await pumpSheet(tester);
 

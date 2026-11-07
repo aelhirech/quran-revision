@@ -418,10 +418,9 @@ Sprint B. Une mesure chiffrée sur iPhone demanderait un build TestFlight hors d
 Codemagic ne produit pas. Validé par l'utilisateur : oui (2026-10-23).
 
 ### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
-**État** : en cours — Sprints A et B livrés le 2026-11-07 (fondus dans `docs/SPEC_PRODUIT.md`
-§ Registre visuel ; le B attend sa vérification sous Windows, voir `docs/CHANGELOG.md`) ; reste le sprint C, puis le Récap et la barre d'onglets après US-23
-et US-24 — blueprint du 2026-10-23, scoping du 2026-10-28. Prolonge US-25 (livrée, voir `docs/SPEC_PRODUIT.md`
-§ Registre visuel). Reprend tout le bloc « Affichage et texte agrandi » des Idées produit.
+**État** : en cours — Sprints A, B et C livrés (fondus dans `docs/SPEC_PRODUIT.md` § Registre
+visuel ; le B attend sa vérification sous Windows, voir `docs/CHANGELOG.md`). Reste le Récap et la
+barre d'onglets, à scoper après US-23 et US-24 — blueprint du 2026-10-23, scoping du 2026-10-28.
 
 **Moment de l'histoire** : tous. Ce que la story y prouve : rien de nouveau. Elle garantit qu'un
 utilisateur qui lit en grand voit la même app que les autres, et non une app cassée.
@@ -430,88 +429,18 @@ utilisateur qui lit en grand voit la même app que les autres, et non une app ca
 écran reste entier et lisible, afin de ne jamais deviner un mot coupé ni chercher un bouton qui
 saute.
 
-**Diagnostic (relevé sous Windows, à jour au 2026-10-23)** :
-- À 375×667 avec texte ×1,5 (plus petit iPhone pris en charge) : la rangée « Sélection rapide » de
-  l'onboarding déborde ; l'en-tête du mode édition des Réglages déborde de 110 px ; l'en-tête des
-  étapes d'onboarding ne laisse que deux sourates visibles dans la liste.
-- À 320×568 avec texte ×1,5 (marge) : au plan du jour, la ligne d'une rakaa d'apprentissage
-  déborde, le badge « Jamais » est coupé, la plage « (v.1–10) » se coupe après le tiret ; au
-  check-in, la ligne « Mes prières du jour » débordait ; aux Réglages, « Rythme » s'écrit une
-  lettre par ligne et « Révision en cours » est tronqué ; au Récap, un texte se coupe au milieu des
-  mots ; dans la vue Coran, la barre de plage déborde avec des numéros à trois chiffres, et un
-  numéro de verset à trois chiffres est coupé (« 282 » affiché « 28 »).
-- Barre d'onglets et sélecteur de mode du Quiz : des libellés passent sur deux lignes, et les modes
-  rétrécissent chacun pour soi. Sélecteur de plage : « Tout sélectionner » sur deux lignes à côté
-  d'un « Confirmer » sur une. Rien ne déborde.
-- Vue Coran : quand on resserre la portion après avoir défilé, la barre descend sous le doigt, et
-  un ±1 répété peut tomber à côté du bouton.
-- Italique : la police de l'app n'en a pas, le téléphone penche les lettres (hadith du jour, plage
-  du check-out, textes de l'onboarding…). Non vérifié sur iPhone.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given 375×667 avec texte ×1,5, et 320×568 avec texte ×1,5 en marge, Then sur aucun écran, vue
-   Coran comprise, un texte ne déborde, n'est coupé ni ne s'écrit lettre par lettre.
+**Critères d'acceptation restants** (Récap et barre d'onglets) :
+1. Given 375×667 avec texte ×1,5, et 320×568 avec texte ×1,5 en marge, Then au Récap et dans la
+   barre d'onglets, un texte ne déborde pas, n'est pas coupé et ne s'écrit pas lettre par lettre.
 2. Given un texte qui ne tient pas sur une ligne, Then il passe à la ligne entre deux mots, jamais
-   au milieu d'un mot ni d'une plage de versets. Given un libellé qui doit rester sur une ligne
-   (bouton, onglet, badge, numéro), Then il rétrécit pour tenir, comme le bouton principal ; des
-   libellés côte à côte rétrécissent ensemble (choix utilisateur du 2026-10-23, contre un
-   plafond et contre des textes raccourcis).
-3. Given un écran dont l'en-tête est haut, Then l'en-tête défile avec le contenu, comme au check-in
-   et au check-out, pour que la liste garde sa place.
-4. Given la vue Coran, When je resserre la portion après avoir défilé, Then la barre de réglage
-   reste sous mon doigt (choix utilisateur du 2026-10-23, contre un retour en haut).
-5. Given un texte affiché en italique aujourd'hui, Then il s'affiche droit : l'app n'affiche plus de
-   lettres penchées artificiellement (choix utilisateur du 2026-10-23).
+   au milieu d'un mot. Given un libellé qui doit rester sur une ligne, Then il rétrécit pour tenir ;
+   des libellés côte à côte rétrécissent ensemble (choix utilisateur du 2026-10-23).
 
 **Exclusions explicites** :
 - L'app ne plafonne pas l'agrandissement choisi par l'utilisateur (la barre d'onglets du système
   garde le sien).
 - Pas de réglage de taille dans l'app : elle suit celui du téléphone, comme le thème.
 - Pas de textes raccourcis pour tenir : les mots sont le sujet d'US-24.
-- Le Récap se vérifie après sa reconstruction (US-23), et la barre d'onglets après le renommage
-  « Quiz » (US-24) : à séquencer au scoping.
-
-**Scoping technique** (2026-10-28) :
-- **Fichiers UI** :
-  - Sprint A : `strings.dart` (`S.blocRange`) et six sites de plage, douze sites d'italique,
-    `index_badge.dart`, `freshness_badge.dart`, `reinforcement_tab.dart` (sélecteur de mode),
-    `verse_range_picker.dart`.
-  - Sprint B : `onboarding/steps/selection_page.dart`, `profile_screen.dart` (360 lignes, extraction
-    préalable de `_editBody`), `profile_info_card.dart`, `plan_screen.dart` (après US-28),
-    `check_in_sections.dart`, `prayer_plan_card.dart`.
-  - Sprint C : `verse_bottom_sheet.dart`, `verse_range_slider.dart`.
-- **Variables / champs** : aucun.
-- **`ayah_facts`** : aucune lecture ni écriture.
-- **Décision data model** : sans objet, affichage seul.
-- **Réutilisation** : `FittedBox(fit: BoxFit.scaleDown)`, déjà utilisé par `PrimaryCtaButton` et
-  `OutlinedActionButton`. L'en-tête qui défile du check-in. `S.blocRange` devient le seul
-  formateur de plage.
-- **Risques / dépendances** :
-  - Les plages se coupent après le tiret (« – » autorise une coupure) : un WORD JOINER de chaque
-    côté du tiret l'interdit.
-  - La barre de la vue Coran saute parce que la physique de défilement recale la position quand la
-    liste rétrécit (lu dans le SDK).
-  - Ordre : A, puis B après US-28 ; C après A, indépendant de B.
-- **Tests** :
-  - Un test qui échoue si un petit widget déborde à 320 px avec texte ×1,5, polices réelles chargées
-    (exception à `test/CLAUDE.md`).
-  - Un test de la position de défilement de la vue Coran.
-  - Le reste se vérifie sous Windows, à 320×568 et 375×667.
-- **Item Backlog** : « [P2] US-31 Sprint A — Texte agrandi : plages insécables, libellés qui
-  rétrécissent, italique retiré, test de débordement », « [P2] US-31 Sprint B — … en-têtes qui
-  défilent, lignes qui rétrécissent », « [P2] US-31 Sprint C — Vue Coran : la barre de réglage reste
-  sous le doigt… ».
-
-**Ajustement au scoping** (2026-10-28) — crit. 4 précisé, sens inchangé : pendant le réglage, la liste
-garde sa position. Une zone vide de la taille de la réduction reste en bas jusqu'au premier glissé,
-qui recale la position. Validé par l'utilisateur : oui (2026-10-23).
-
-**Ajustement au scoping** (2026-10-28) — diagnostic corrigé : « Révision en cours » est le titre du
-plan du jour, pas des Réglages (seul usage dans le code).
-
-**Ajout au scoping** (2026-10-28) — un test automatique vérifie l'absence de débordement des petits
-widgets à 320 px avec texte ×1,5. C'est une exception écrite à `test/CLAUDE.md` : le test vérifie un
-invariant de mise en page, pas une apparence. Validé par l'utilisateur : oui (2026-10-23).
 
 **Reste ouvert, hors Backlog** (choix utilisateur du 2026-10-23) :
 - **Barre d'onglets** : à 320 px avec texte ×1,5, « Plan du jour » ne tient pas sur une ligne, et la
