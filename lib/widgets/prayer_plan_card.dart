@@ -160,25 +160,40 @@ class PrayerPlanCard extends StatelessWidget {
             // même ligne) plutôt qu'une pilule de plus : les deux ne
             // coexistent jamais, mais ils occupent la même place et doivent
             // se ressembler.
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
-                borderRadius: BorderRadius.circular(6),
+            // Flexible: a FittedBox in a Row only shrinks with a bounded width.
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(S.rakaaApprentissage,
+                      style: AppText.caption.copyWith(color: palette.goldDark)),
+                ),
               ),
-              child: Text(S.rakaaApprentissage,
-                  style: AppText.caption.copyWith(color: palette.goldDark)),
             ),
             const SizedBox(width: 8),
           ],
           if (showCount)
-            Text(
-              S.versetsCount(unit.verseCount),
-              style: AppText.caption
-                  .copyWith(color: palette.textMuted),
+            Flexible(
+              child: Text(
+                S.versetsCount(unit.verseCount),
+                style: AppText.caption.copyWith(color: palette.textMuted),
+              ),
             ),
           if (showCount && showBadge) const SizedBox(width: 8),
-          if (showBadge) FreshnessBadge(level: freshness),
+          if (showBadge)
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: FreshnessBadge(level: freshness),
+              ),
+            ),
         ],
       ),
     );

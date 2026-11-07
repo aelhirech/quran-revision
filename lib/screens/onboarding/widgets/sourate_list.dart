@@ -43,6 +43,9 @@ class _SourateList extends StatelessWidget {
   final void Function(Sourate) onToggle;
   final void Function(List<Sourate>) onToggleGroup;
   final Future<void> Function(Sourate) onLongPress;
+  // Shown above the list and scrolled with it, so a tall header (large text)
+  // does not eat the room left for the sourates.
+  final List<Widget> leading;
 
   const _SourateList({
     required this.items,
@@ -50,6 +53,7 @@ class _SourateList extends StatelessWidget {
     required this.onToggle,
     required this.onToggleGroup,
     required this.onLongPress,
+    this.leading = const [],
   });
 
   @override
@@ -58,6 +62,8 @@ class _SourateList extends StatelessWidget {
     final sections = _sectionize(items);
     return CustomScrollView(
       slivers: [
+        if (leading.isNotEmpty)
+          SliverToBoxAdapter(child: Column(children: leading)),
         for (final section in sections)
           if (section.header != null)
             SliverStickyHeader(
@@ -133,12 +139,13 @@ class _SourateList extends StatelessWidget {
           onToggle(s);
         },
         dense: true,
-        title: Row(
+        title: Wrap(
+          spacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(s.nameFr,
                 style: AppText.body.copyWith(color: palette.textPrimary)),
             if (sel != null && !sel.isWhole) ...[
-              const SizedBox(width: 6),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

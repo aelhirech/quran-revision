@@ -51,20 +51,42 @@ class ProfileInfoCard extends StatelessWidget {
   Widget _row(ColorScheme cs, IconData icon, String label, String value,
       int delayMs,
       {VoidCallback? onTap}) {
-    return ListTile(
-      leading: Icon(icon, color: cs.primary),
-      title: Text(label),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(value,
-              style: AppText.body
-                  .copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
-          if (onTap != null)
-            Icon(Icons.chevron_right, size: 20, color: cs.onSurfaceVariant),
-        ],
-      ),
+    // A plain Row instead of ListTile's trailing: the trailing gets only a
+    // sliver of width, so a long label squeezed the value into one letter
+    // per line with large text.
+    return InkWell(
       onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Icon(icon, color: cs.primary),
+              const SizedBox(width: 16),
+              Expanded(child: Text(label, style: AppText.body)),
+              const SizedBox(width: 8),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    children: [
+                      Text(value,
+                          style: AppText.body.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: cs.onSurface)),
+                      if (onTap != null)
+                        Icon(Icons.chevron_right,
+                            size: 20, color: cs.onSurfaceVariant),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     )
         .animate()
         .fadeIn(delay: Duration(milliseconds: delayMs))

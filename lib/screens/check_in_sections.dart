@@ -121,17 +121,22 @@ extension _CheckInSections on _CheckInScreenState {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _sectionLabel(palette, SCheckIn.checkInPrieres),
+              Expanded(child: _sectionLabel(palette, SCheckIn.checkInPrieres)),
               if (_lastPrayers != null)
-                TextButton.icon(
-                  onPressed: _applyLastPrayers,
-                  icon: const Icon(Icons.history, size: 16),
-                  label: Text(_isYesterday ? S.commeHier : S.derniereSelection,
-                      style: AppText.caption),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
+                Flexible(
+                  child: TextButton.icon(
+                    onPressed: _applyLastPrayers,
+                    icon: const Icon(Icons.history, size: 16),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(_isYesterday ? S.commeHier : S.derniereSelection,
+                          style: AppText.caption),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
             ],

@@ -37,81 +37,7 @@ class _SelectionPage extends StatelessWidget {
     return SafeArea(
       child: Column(
         children: [
-          _StepHeader(
-            step: 1,
-            total: _kOnboardingSteps,
-            title: SOnboarding.etapeSelection,
-            subtitle: S.souratesCount(selections.length, totalVerses),
-          ),
-          // Boutons de sélection rapide
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(SOnboarding.selectionRapide.toUpperCase(),
-                    style: AppText.sectionTitle.copyWith(color: cs.onSurfaceVariant)),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    PillChip(
-                      label: SOnboarding.toutLeCoran,
-                      onTap: () => onQuickSelect(1.0),
-                      selected: lastQuickFraction == 1.0,
-                    ),
-                    const SizedBox(width: 6),
-                    PillChip(
-                      label: SOnboarding.fractionTroisQuarts,
-                      onTap: () => onQuickSelect(0.75),
-                      selected: lastQuickFraction == 0.75,
-                    ),
-                    const SizedBox(width: 6),
-                    PillChip(
-                      label: SOnboarding.fractionMoitie,
-                      onTap: () => onQuickSelect(0.5),
-                      selected: lastQuickFraction == 0.5,
-                    ),
-                    const SizedBox(width: 6),
-                    PillChip(
-                      label: SOnboarding.fractionQuart,
-                      onTap: () => onQuickSelect(0.25),
-                      selected: lastQuickFraction == 0.25,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.08),
-          // Recherche + groupement
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: SOnboarding.rechercherSourate,
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12),
-                      isDense: true,
-                    ),
-                    onChanged: onSearchChanged,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _GroupToggle(
-                  icon: Icons.menu_book_outlined,
-                  label: SOnboarding.hizbCourt,
-                  value: groupByHizb,
-                  onChanged: onGroupByHizbChanged,
-                ),
-              ],
-            ),
-          ),
-          // Liste (sticky headers Hizb)
+          // Hizb sticky headers; the step header scrolls with the list
           Expanded(
             child: _SourateList(
               items: listItems,
@@ -119,6 +45,95 @@ class _SelectionPage extends StatelessWidget {
               onToggle: onToggleSourate,
               onToggleGroup: onToggleGroup,
               onLongPress: onLongPress,
+              leading: [
+                _StepHeader(
+                  step: 1,
+                  total: _kOnboardingSteps,
+                  title: SOnboarding.etapeSelection,
+                  subtitle: S.souratesCount(selections.length, totalVerses),
+                ),
+                // Boutons de sélection rapide
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        SOnboarding.selectionRapide.toUpperCase(),
+                        style: AppText.sectionTitle.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            children: [
+                              PillChip(
+                                label: SOnboarding.toutLeCoran,
+                                onTap: () => onQuickSelect(1.0),
+                                selected: lastQuickFraction == 1.0,
+                              ),
+                              const SizedBox(width: 6),
+                              PillChip(
+                                label: SOnboarding.fractionTroisQuarts,
+                                onTap: () => onQuickSelect(0.75),
+                                selected: lastQuickFraction == 0.75,
+                              ),
+                              const SizedBox(width: 6),
+                              PillChip(
+                                label: SOnboarding.fractionMoitie,
+                                onTap: () => onQuickSelect(0.5),
+                                selected: lastQuickFraction == 0.5,
+                              ),
+                              const SizedBox(width: 6),
+                              PillChip(
+                                label: SOnboarding.fractionQuart,
+                                onTap: () => onQuickSelect(0.25),
+                                selected: lastQuickFraction == 0.25,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.08),
+                // Recherche + groupement
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: SOnboarding.rechercherSourate,
+                            prefixIcon: const Icon(Icons.search, size: 18),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
+                            isDense: true,
+                          ),
+                          onChanged: onSearchChanged,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _GroupToggle(
+                        icon: Icons.menu_book_outlined,
+                        label: SOnboarding.hizbCourt,
+                        value: groupByHizb,
+                        onChanged: onGroupByHizbChanged,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ).animate().fadeIn(duration: 300.ms),
           ),
           // Bouton suivant
@@ -129,7 +144,9 @@ class _SelectionPage extends StatelessWidget {
               height: 52,
               child: FilledButton(
                 onPressed: onNext,
-                child: Text(onNext == null ? SOnboarding.selectSourates : S.continuer),
+                child: Text(
+                  onNext == null ? SOnboarding.selectSourates : S.continuer,
+                ),
               ),
             ),
           ),
