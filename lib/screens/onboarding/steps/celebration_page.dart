@@ -56,7 +56,6 @@ class _CelebrationPageState extends State<_CelebrationPage> {
                   SOnboarding.bienvenueSubtitle,
                   textAlign: TextAlign.center,
                   style: AppText.body.copyWith(
-                      fontStyle: FontStyle.italic,
                       color: palette.textPrimary.withValues(alpha: 0.7),
                       height: 1.6),
                 ).animate().fadeIn(delay: 300.ms, duration: 400.ms),

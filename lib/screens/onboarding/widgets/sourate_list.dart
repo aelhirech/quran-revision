@@ -145,7 +145,7 @@ class _SourateList extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: Border.all(color: palette.gold.withValues(alpha: 0.6)),
                 ),
-                child: Text('v.${sel.verseStart}–${sel.verseEnd}',
+                child: Text(S.blocRange(sel.verseStart, sel.verseEnd),
                     style: AppText.caption.copyWith(color: palette.goldDark)),
               ),
             ],

@@ -60,7 +60,7 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ActionChip(
-              label: Text('v.${c.start}–${c.end}',
+              label: Text(S.blocRange(c.start, c.end),
                   style: AppText.caption.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isActive ? Theme.of(context).colorScheme.primary : null)),
@@ -117,29 +117,32 @@ class _VerseRangePickerState extends State<VerseRangePicker> {
             _chunkRow(),
           ],
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(
-                      context, SourateSelection.whole(widget.sourate)),
-                  child: Text(SOnboarding.toutSelectionner),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(
-                    context,
-                    SourateSelection(
-                        sourate: widget.sourate,
-                        verseStart: start,
-                        verseEnd: end),
+          // Both buttons shrink together rather than each label wrapping.
+          SizedBox(
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(
+                        context, SourateSelection.whole(widget.sourate)),
+                    child: Text(SOnboarding.toutSelectionner),
                   ),
-                  child: Text(S.confirmer),
-                ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(
+                      context,
+                      SourateSelection(
+                          sourate: widget.sourate,
+                          verseStart: start,
+                          verseEnd: end),
+                    ),
+                    child: Text(S.confirmer),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),

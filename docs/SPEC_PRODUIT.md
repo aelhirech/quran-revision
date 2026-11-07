@@ -570,7 +570,12 @@ une phrase qui l'explique au moment où elle compte.
   ceux-là, sauf le Récap et l'onglet Quiz, qui gardent encore leurs tailles propres. Avec un texte
   système agrandi, l'en-tête du check-in et du check-out défile avec le contenu, les pages
   d'accueil et de choix de la riwaya de l'onboarding défilent quand elles ne tiennent plus, et un
-  libellé de bouton trop long rétrécit plutôt que d'être coupé.
+  libellé de bouton trop long rétrécit plutôt que d'être coupé. Les pastilles de numéro et de
+  date de révision rétrécissent aussi pour tenir (« 282 » reste entier). Des libellés côte à côte
+  (modes du Quiz, « Tout sélectionner » / « Confirmer ») rétrécissent ensemble, à la même taille.
+  Une plage de versets (« v.1–10 ») ne se coupe jamais au tiret.
+- **Aucun italique** : la police n'en a pas, et des lettres penchées artificiellement se lisent
+  mal. Citations, indications et légendes s'affichent droites.
 - **Une couleur, un sens.** Les badges de date de révision du plan du jour et du Récap sont
   neutres (texte secondaire, sans couleur) quel que soit le niveau. Seuls les niveaux de jeu
   (quatre teintes froides du vert au bleu nuit, un gris pour « pas encore jouée ») et le risque

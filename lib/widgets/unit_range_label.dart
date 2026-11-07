@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/app_theme.dart';
+import '../core/strings.dart';
 import '../models/revision_unit.dart';
 
 /// Texte "Sourate · v.X–Y" partagé entre les lignes de check-in et
@@ -21,9 +22,8 @@ class UnitRangeLabel extends StatelessWidget {
         children: [
           TextSpan(text: unit.sourate.nameFr),
           TextSpan(
-            text: '  ·  v.${unit.verseStart}–${unit.verseEnd}',
-            style: AppText.caption
-                .copyWith(fontStyle: FontStyle.italic, color: palette.textMuted),
+            text: '  ·  ${S.blocRange(unit.verseStart, unit.verseEnd)}',
+            style: AppText.caption.copyWith(color: palette.textMuted),
           ),
         ],
       ),

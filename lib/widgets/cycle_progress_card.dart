@@ -99,7 +99,7 @@ class CycleProgressCard extends StatelessWidget {
             child: Text(
               pagesText,
               style: AppText.caption.copyWith(
-                  color: onPrimary.withValues(alpha: 0.75), fontStyle: FontStyle.italic),
+                  color: onPrimary.withValues(alpha: 0.75)),
             ),
           ),
           const SizedBox(height: 14),

@@ -41,7 +41,7 @@ class _CheckInDetailScreenState extends State<CheckInDetailScreen> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     return VerseChipsScaffold(
-      title: '${_unit.sourate.nameFr} · v.${_unit.verseStart}–${_unit.verseEnd}',
+      title: '${_unit.sourate.nameFr} · ${S.blocRange(_unit.verseStart, _unit.verseEnd)}',
       headerLabel: SCheckIn.checkInVersetsInclus,
       chips: [
         for (int v = _unit.verseStart; v <= _unit.verseEnd; v++)
@@ -57,7 +57,7 @@ class _CheckInDetailScreenState extends State<CheckInDetailScreen> {
           ),
       ],
       footer: Text(SCheckIn.checkInExtendHint,
-          style: AppText.caption.copyWith(fontStyle: FontStyle.italic, color: palette.textMuted)),
+          style: AppText.caption.copyWith(color: palette.textMuted)),
     );
   }
 }

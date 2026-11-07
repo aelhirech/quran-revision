@@ -56,7 +56,6 @@ class _MethodPage extends StatelessWidget {
                   Text(
                     SOnboarding.methodLegitimacy,
                     style: AppText.caption.copyWith(
-                      fontStyle: FontStyle.italic,
                       color: palette.goldDark,
                       height: 1.6,
                     ),

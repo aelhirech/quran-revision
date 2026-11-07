@@ -97,7 +97,7 @@ extension _CheckOutSections on _CheckOutScreenState {
       style: AppText.sectionTitle.copyWith(color: palette.textMuted));
 
   Widget _hint(AppPalette palette, String text) => Text(text,
-      style: AppText.caption.copyWith(fontStyle: FontStyle.italic, color: palette.textMuted));
+      style: AppText.caption.copyWith(color: palette.textMuted));
 
   /// Checked by default; tapping a verse toggles it in [unchecked].
   Widget _goldToggleChips(AppPalette palette, List<int> verses, Set<int> unchecked,

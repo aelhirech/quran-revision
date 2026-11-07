@@ -52,7 +52,10 @@ class IndexBadge extends StatelessWidget {
       alignment: Alignment.center,
       child: state == IndexBadgeState.done && doneIcon != null
           ? Icon(doneIcon, size: size * 0.45, color: fg)
-          : Text(text, style: TextStyle(fontSize: size * 0.37, color: fg)),
+          : FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(text, style: TextStyle(fontSize: size * 0.37, color: fg)),
+            ),
     );
   }
 }
