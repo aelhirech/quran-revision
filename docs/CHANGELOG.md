@@ -34,19 +34,6 @@ Les deux étapes sont donc à faire, dans l'ordre, avec la mesure après chacune
   isolate). Fondre US-30 dans `docs/SPEC_PRODUIT.md` § Renforcement, puis la retirer de
   `docs/USER_STORIES.md`.
 
-### [P2] US-31 Sprint B — vérification sous Windows (onboarding, Réglages, check-in, plan)
-Le Sprint B est livré sans les captures Windows prévues (choix utilisateur, 2026-11-07). Seuls les
-widgets recopiés dans `test/widgets/text_scale_fit_test.dart` sont verrouillés ; les écrans qui
-chargent `AppState` ne l'ont jamais été vus avec un texte ×1,5.
-- **À faire** : `flutter run -d windows`, 320×568 et 375×667, texte ×1,5, en clair et en sombre.
-  - Onboarding, sélection : l'en-tête défile, plus de deux sourates visibles, les en-têtes de hizb
-    restent collés, « Al-Baqara » suivi de sa plage ne déborde pas.
-  - Réglages : ligne « Rythme » entière ; mode édition, « Tout sélectionner » sur une ligne.
-  - Check-in : section prières, libellé et « Dernières prières » côte à côte.
-  - Plan du jour : titre « Révision en cours », ligne d'une rakaa d'apprentissage avec badge.
-- **Corriger** ce qui déborde, avec le même motif (`Flexible` autour du `FittedBox` dans une `Row`).
-- **Doc** : rien. Supprimer cet item une fois la vérification faite.
-
 ### [P3] « 1 versets » dans la carte des sourates du Récap
 Vu au Sprint C d'US-31 (2026-11-07), qui l'a corrigé dans le curseur de plage : une plage d'un
 seul verset affiche « (1 versets) ». `S.versetsCount(n)` accorde déjà le pluriel.
@@ -55,6 +42,19 @@ seul verset affiche « (1 versets) ». `S.versetsCount(n)` accorde déjà le plu
 - Les libellés « x/y versets » et « x / y versets » (`sourate_list.dart`, `history_card.dart`)
   restent : le pluriel s'y accorde à y.
 - **Tests** : aucun nouveau ; `flutter test` vert.
+
+### [P3] Réglages, mode édition : « 286 · البقرة versets » au lieu de « البقرة · 286 versets »
+Vu à la vérification Windows d'US-31 Sprint B (2026-11-07), à toutes les tailles. Dans
+`lib/screens/profile_edit_body.dart` l.112, le sous-titre `'${s.nameAr}  ·  ${s.verses} …'` met un
+nombre juste après du texte arabe : l'algorithme bidirectionnel range le nombre dans le bloc arabe
+et l'affiche à sa gauche.
+- **Correctif** : isoler le nom arabe entre U+2068 (FIRST STRONG ISOLATE) et U+2069 (POP
+  DIRECTIONAL ISOLATE), écrits en échappements `⁨`/`⁩` dans la chaîne. Rien d'autre ne
+  change.
+- Les trois autres chaînes qui mêlent `nameAr` et texte latin (`revision_unit.dart` l.38,
+  `check_out_sections.dart` l.64, `sourate_picker_sheet.dart` l.93) s'affichent dans le bon ordre :
+  le nom arabe n'y est pas suivi d'un chiffre.
+- **Tests** : aucun nouveau ; `flutter test` vert, contrôle à l'œil sous Windows.
 
 ### [P3] Test qui interdit un `fontSize:` littéral hors `app_theme.dart`
 Relevé au Sprint B1 d'US-25 (2026-10-22) : rien n'empêche un futur écran de réécrire un
@@ -139,6 +139,16 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   rétrécissent en bloc avec un texte agrandi, zone tactile comprise. À 320 px et ×1,5, les boutons
   descendent sous 48 px de haut. Reste à choisir : accepter, ou empiler les boutons sur deux
   lignes au-delà d'un seuil (lequel ?).
+- **Pied du check-in et du check-out : les deux boutons ne rétrécissent pas ensemble** (vérification
+  Windows d'US-31 Sprint B, 2026-11-07) : `StepFooter` partage la largeur 1/3 – 2/3. À 320 px avec
+  texte ×1,5, « Retour » garde presque sa taille, et « Voir mon plan du jour » descend à environ
+  deux tiers de la sienne. Rien ne déborde. Reste à choisir : accepter, faire rétrécir les deux à la
+  même échelle, ou changer le partage.
+- **Noms de sourate coupés au trait d'union** (même vérification) : à 320 px avec texte ×1,5,
+  « Al-Kawthar », « Al-Kafirun » et « Al-Ikhlas » (sélection de l'onboarding), ou « Al-Imran » (carte
+  de rakaa), passent à la ligne après « Al- ». Rien ne déborde. Reste à choisir : accepter (le trait
+  d'union est un point de coupure normal), ou interdire la coupure (trait d'union insécable U+2011,
+  à vérifier dans Outfit), au risque de rétrécir ou de pousser la ligne.
 
 ### Renforcement (onglet « Quiz » après US-24)
 

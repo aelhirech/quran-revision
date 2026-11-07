@@ -361,7 +361,7 @@ série « Mélange ». Pas encore ressenti sur iPhone.
 
 ### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
 **État** : en cours — Sprints A, B et C livrés (fondus dans `docs/SPEC_PRODUIT.md` § Registre
-visuel ; le B attend sa vérification sous Windows, voir `docs/CHANGELOG.md`). Reste le Récap et la
+visuel). Reste le Récap et la
 barre d'onglets, à scoper après US-23 et US-24 — blueprint du 2026-10-23, scoping du 2026-10-28.
 
 **Moment de l'histoire** : tous. Ce que la story y prouve : rien de nouveau. Elle garantit qu'un
