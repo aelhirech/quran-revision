@@ -79,6 +79,11 @@ flutter:
     - assets/quran/metadata/quran-metadata-page-hafs.json
     - assets/quran/metadata/quran-metadata-page-warsh.json
     - assets/quran/metadata/quran-metadata-surah-name.json
+    # Listed as assets, not under `fonts:`: google_fonts looks them up in the
+    # asset manifest by file name, so the names must stay `<Family>-Regular.ttf`.
+    # Only the Regular weight is used; another weight needs its own file here.
+    - assets/fonts/Amiri-Regular.ttf
+    - assets/fonts/ScheherazadeNew-Regular.ttf
 
   # Outfit is bundled (not fetched by google_fonts) so the Latin UI renders the
   # same offline on first launch. Static instances only: variable fonts render
