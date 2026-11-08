@@ -524,6 +524,9 @@ KSU.
   d'autres.
 - Après chaque réponse : la bonne réponse en entier, un accès au texte, et sous un mauvais choix
   l'endroit d'où il vient — jamais un « faux ». En fin de série, un score factuel.
+- **Sans attente** : ouvrir l'onglet, lancer une série dans n'importe quel mode ou ouvrir
+  « Choisir une sourate » ne fige pas l'écran de façon perceptible, du Coran entier à une seule
+  sourate (au plus 100 ms de gel, mesuré sous Windows).
 - Sélection trop petite : l'onglet le dit dès qu'aucune sourate n'offre de question dans le mode
   choisi, et le message disparaît dès que la sélection ou le mode suffit, sans attendre un
   lancement. Jamais de série vide ni de verset pris hors sélection.

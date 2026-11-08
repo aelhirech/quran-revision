@@ -8,32 +8,6 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-30 Sprint B — Composer les questions hors du fil de l'interface
-Déclencheur atteint à la clôture du Sprint A (2026-11-07, profile sous Windows, 113 sourates, pire
-de trois essais, `docs/DOCUMENTATION_TECHNIQUE.md` §5.6) :
-- à froid, 439 ms à la première ouverture de l'onglet (calcul de l'offre :
-  `surahsOfferingPassages` analyse toute la sélection) et 575 ms à la première série « Mélange »
-  (mots de toute la sélection) ;
-- à chaud, 104 à 129 ms pour une série « Mélange » sur toute la sélection et 85 à 106 ms en
-  « Versets ». « Traduction » (73 à 93 ms), une seule sourate (45 à 79 ms) et « Choisir une
-  sourate » (environ 27 ms) tiennent déjà.
-Les deux étapes sont donc à faire, dans l'ordre, avec la mesure après chacune.
-- **Étape 1, froid** : `ReinforcementCorpus.warm(carried, textOf, glosses)` remplit le mémo par
-  tranches de 10 sourates (passages, puis mots si `WordGlossService.availableFor`), avec `await
-  Future<void>.delayed(Duration.zero)` entre deux tranches. Lancé par l'onglet quand il devient
-  affiché (`shown`, `didUpdateWidget`), **avant** `_computeOffer`, qui attend sa fin. Aucun isolate.
-- **Étape 2, chaud** (si un cas dépasse encore 100 ms après l'étape 1) : composer dans un isolate avec `Isolate.run` (`dart:isolate`), appelé
-  depuis `reinforcement_tab.dart`. En entrée : textes et sens des versets connus, graine, mode,
-  `surahId`. En sortie : la liste de questions. `lib/core/` reste sans import Flutter. Les objets
-  renvoyés sont des copies : les écrans comparent déjà par `id`, jamais par `identical`.
-- **Tests** : parité, même graine avec et sans isolate, mêmes `id`. Même protocole de mesure que le
-  Sprint A, après chaque étape.
-- **Exclus** : normalisation sans expression régulière (à reconsidérer seulement si l'étape 1 ne
-  suffit pas à froid) ; aucun changement d'affichage.
-- **Doc** : `docs/DOCUMENTATION_TECHNIQUE.md` §5.6 (mesures avant et après), §13bis (préchauffage,
-  isolate). Fondre US-30 dans `docs/SPEC_PRODUIT.md` § Renforcement, puis la retirer de
-  `docs/USER_STORIES.md`.
-
 ### [P3] « 1 versets » dans la carte des sourates du Récap
 Vu au Sprint C d'US-31 (2026-11-07), qui l'a corrigé dans le curseur de plage : une plage d'un
 seul verset affiche « (1 versets) ». `S.versetsCount(n)` accorde déjà le pluriel.
@@ -162,6 +136,12 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   garder le hasard, prendre toujours le plus proche (le même piège reviendrait), ou déplacer un
   seuil.
 - **Mode « versets à retravailler » en jeu à part** : mécanique de jeu à définir avant tout code.
+- **Quiz « sans attente » : quelle mesure fait foi** (sprint 36, 2026-11-08) : en profile sous Windows,
+  113 sourates, l'écran ne gèle jamais plus de 83 ms. Mais de l'appui à la première image de la
+  série (la mesure du Sprint A), la première série « Mélange » prend 126 à 152 ms, et les
+  suivantes 98 à 107 ms : le reste est le temps de construire l'écran de série, pendant lequel
+  l'interface répond. À choisir : le gel (critère atteint), ou l'appui-à-l'image (alors chercher
+  du côté de la construction de l'écran de série, pas du moteur).
 - **« Choisir une sourate » quand aucune sourate n'offre de question** (US-30 Sprint A,
   2026-11-07) : le bouton reste affiché sous le message « sélection trop petite » et ouvre une
   feuille vide. À choisir : masquer le bouton, le désactiver, ou garder la feuille vide.

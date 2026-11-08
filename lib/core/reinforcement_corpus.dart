@@ -1,5 +1,8 @@
 part of 'reinforcement_engine.dart';
 
+// About 40 ms of work per slice on Windows in profile (measured).
+const _warmSlice = 300;
+
 /// The carried passages, surah by surah, and what the engine derives from
 /// them without a seed.
 class _Chains {
@@ -9,8 +12,33 @@ class _Chains {
   ];
   late final int keyCount = {for (final passage in all) passage._key}.length;
   final _links = <int, List<_Link>>{};
+  late final Map<String, List<Passage>> _byWord = _indexByWord(all);
+  final _similars = <(int, int, int), List<Passage>>{};
 
   _Chains._(this.bySurah);
+
+  static Map<String, List<Passage>> _indexByWord(List<Passage> passages) {
+    final byWord = <String, List<Passage>>{};
+    for (final passage in passages) {
+      for (final word in passage._wordSet) {
+        (byWord[word] ??= []).add(passage);
+      }
+    }
+    return byWord;
+  }
+
+  /// The carried passages similar to [answer]: those that filtering [all]
+  /// would keep, looked for only among the ones sharing a word with it.
+  /// Filtering [all] took most of a series' time (measured).
+  List<Passage> similarTo(Passage answer) =>
+      _similars.putIfAbsent(answer.id, () {
+        final sharingAWord = {
+          for (final word in answer._wordSet) ...?_byWord[word],
+        };
+        return sharingAWord
+            .where((candidate) => ReinforcementEngine._similar(candidate, answer))
+            .toList();
+      });
 
   factory _Chains.of(Map<int, Set<int>> carried,
       List<Passage> Function(int surahId, int ayahId) versePassages) {
@@ -47,13 +75,45 @@ class ReinforcementCorpus {
   Map<int, Set<int>>? _carried;
   _Chains? _chains;
   List<WordChoice>? _allWords;
+  // Bumped by [clear]: a warm-up still running holds the old riwaya's text.
+  int _epoch = 0;
 
   void clear() {
+    _epoch++;
     _passages.clear();
     _words.clear();
     _carried = null;
     _chains = null;
     _allWords = null;
+  }
+
+  /// Analyses the carried verses ahead of any series, [_warmSlice] verses at
+  /// a time, letting frames through between slices: a large selection never
+  /// freezes the screen in one block. Words only when [glossesOf] is given.
+  Future<void> warm(
+      Map<int, Set<int>> carried,
+      String Function(int surahId, int ayahId) textOf,
+      List<String>? Function(int surahId, int ayahId)? glossesOf) async {
+    final epoch = _epoch;
+    var sliced = 0;
+    for (final MapEntry(key: id, value: ayahs) in carried.entries) {
+      for (final ayah in ayahs) {
+        // Before the first slice too: the caller may have just done a long
+        // block of its own (reading the meanings, 80 ms).
+        if (sliced++ % _warmSlice == 0) {
+          await Future<void>.delayed(Duration.zero);
+          if (epoch != _epoch) return;
+        }
+        final text = textOf(id, ayah);
+        for (final passage in passagesOf(id, ayah, text)) {
+          // Lazy fields: left unread, the offer would compute them all in
+          // one block (150 ms on the whole Quran, measured).
+          passage._key;
+          passage._wordSet;
+        }
+        if (glossesOf != null) wordsOf(id, ayah, text, glossesOf(id, ayah));
+      }
+    }
   }
 
   List<Passage> passagesOf(int surahId, int ayahId, String text) =>
