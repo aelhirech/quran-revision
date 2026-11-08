@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// The small rounded bar at the top of a draggable bottom sheet, signalling
-/// it can be dragged/dismissed. Shared by `VerseBottomSheet` and
-/// `ReciterPickerSheet` — the two newest sheets to need it.
+/// it can be dragged/dismissed. Shared by `VerseBottomSheet`,
+/// `ReciterPickerSheet` and `MosaicTileSheet`.
 class DraggableHandle extends StatelessWidget {
   const DraggableHandle({super.key});
 

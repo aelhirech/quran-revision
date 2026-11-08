@@ -8,53 +8,6 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P2] US-21 Sprint B — la mosaïque et la feuille du carreau
-Le Sprint A est livré : ce sprint réutilise `Mosaic.build`/`AppState.mosaicTiles()` (§5.6bis de
-la doc technique), le journal et les retours, et ajoute l'écran. Les widgets vivent dans
-`lib/widgets/` : US-23 les reprend tels quels. `series_screen.dart` (≈ 320 lignes) et
-`reinforcement_tab.dart` (343) sont au plafond : rien ne s'y ajoute sans extraction préalable.
-- **Extraction d'abord** : `reinforcement_tab.dart` → `part 'reinforcement_tab_offer.dart'`
-  (`_computeOffer`, `_corpusFor`, `_warm`) avant d'ajouter la mosaïque, pour rester ≤ 350 lignes.
-- **`lib/widgets/mosaic_tile_shape.dart`** : `CustomPainter` par carreau : niveau 0 petit losange,
-  1 losange, 2 étoile à 8 pointes, 3 étoile évidée au centre, 4 étoile à cœur `palette.gold` ;
-  couleur `palette.levelTints[level]`. Un carreau à risque remplace sa forme par une étoile
-  `palette.risk` dans un anneau, quel que soit son niveau (choix utilisateur du 2026-11-08).
-  `Semantics` : « <nom>, niveau n » ou « pas encore jouée », + « risque d'oublier ».
-- **`lib/widgets/mosaic.dart`** : `Mosaic({tiles, onTap})`. En tête, « N sourates à risque
-  d'oublier » (ou une phrase calme s'il n'y en a aucune), puis la grille en ordre du mushaf.
-  `LayoutBuilder` : côté de carreau le plus grand entre 20 et 44 px tel que la grille tienne dans
-  240 px de haut ; au-delà, 20 px et la grille s'allonge. Le calcul du côté est une fonction pure
-  testable. Texte via `AppText`, couleurs via `AppPalette`, chaînes via `SReinforcement`.
-- **`lib/widgets/mosaic_tile_sheet.dart`** : feuille modale : nom FR + AR, niveau (« pas encore
-  jouée » ou « niveau n »), dernière révision (`freshnessDiscreetLabel(state.freshnessFor(...))`),
-  plage si partielle (`S.blocRange`), « Voir le texte » → `VerseBottomSheet.show(context, sourate,
-  verseStart, verseEnd)`, et « Lancer une série sur cette sourate » via un `onStartSeries` optionnel,
-  affiché seulement s'il est non nul. Dans l'onglet, `onStartSeries` n'est passé que si la sourate
-  est dans `_offered`, et appelle `_start(sourate: …)` (dans `_once`).
-- **`reinforcement_tab.dart`** : état local `_tiles` rechargé (`mosaicTiles()`, garde
-  `_generation` ; `quizLevels()` relit tout le journal : un seul appel par rechargement) à l'initialisation, à l'affichage de l'onglet, à chaque notification d'`AppState`
-  quand l'onglet est affiché, et au retour de `SeriesScreen`. Ordre des cartes : mosaïque, puis
-  questions du jour (Commencer), puis « Choisir une sourate » (gardé tel quel ; choix utilisateur du
-  2026-11-08). Le chargement de la mosaïque ne passe pas par `reinforcementInputs()`.
-- **Migration `AppText`** : les `fontSize:` littéraux de `lib/screens/reinforcement/` passent aux
-  styles d'`AppText` ; retirer `'lib/screens/reinforcement/'` de `_notYetMigrated`
-  (`test/core/app_text_usage_test.dart`).
-- **Réutilisé tel quel** : `VerseBottomSheet`, `SouratePickerSheet`, `SeriesMarks`,
-  `PrimaryCtaButton`, `OutlinedActionButton`, `freshnessDiscreetLabel`.
-- **Tests** : Dart pur : côté de carreau pour 1, 20 et 114 carreaux (≥ 20 px, tient dans 240 px
-  quand c'est possible) ; `app_text_usage_test` vert après retrait de l'exclusion ; `test/CLAUDE.md`.
-  Visuel sous Windows, captures obligatoires : les 6 formes en clair et en sombre ; 1 puis 114
-  carreaux à 375×667 et à 320×568 texte ×1,5 (rien ne déborde) ; test des 3 secondes ; Commencer
-  atteignable sans long défilement ; feuille avec et sans « Lancer une série » ; plage partielle ;
-  Warsh (mosaïque propre à la riwaya).
-- **Exclus** : mosaïque au Récap, liste « Risque d'oublier », retrait des autres blocs du Récap
-  (US-23) ; renommage « Quiz » (US-24) ; pas de niveau global, d'historique, de jalon ni d'écran de
-  collection.
-- **Doc** : DOC §8.7 + widgets mosaïque (§8), §9 (formes et couleurs enfin affichées), §13bis ;
-  SPEC § Registre visuel (les teintes de niveau et l'orange sont désormais affichés, formes). Fondre
-  US-21 dans SPEC § Renforcement, puis la retirer de `docs/USER_STORIES.md` (et le bloc « Reçu
-  d'US-25 »).
-
 ### [P3] Exclusion obsolète du test `app_text_usage_test.dart`
 Relevé au sprint 38 (2026-11-08) : la liste `_notYetMigrated` du test ne se vide que si quelqu'un
 y pense. Si US-23 ou US-21 reconstruit un écran exclu sans retirer son entrée, un futur `fontSize`
@@ -151,6 +104,12 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   de tout le carreau. Règle posée au scoping ; cas rare (deux plages partielles d'une sourate). À
   choisir après usage : la garder, un carreau par plage, ou le risque pris sur la plage la plus
   ancienne.
+- **Mosaïque d'une grande sélection sur un petit écran** (US-21 Sprint B, vérification Windows du
+  2026-11-08) : avec 113 sourates, les carreaux descendent à 20 px. À 375 px, « Commencer » est à
+  un court défilement. À 320 px avec texte ×1,5, la grille fait 12 rangées et pousse « Commencer »
+  à environ un écran et demi. Un carreau de 20 px est aussi une petite zone à toucher (48 px
+  conseillés). Rien ne déborde. À choisir : accepter, replier la grille au-delà d'un seuil (lequel ?),
+  ou relever le côté minimal.
 - **« Choisir une sourate » quand aucune sourate n'offre de question** (US-30 Sprint A,
   2026-11-07) : le bouton reste affiché sous le message « sélection trop petite » et ouvre une
   feuille vide. À choisir : masquer le bouton, le désactiver, ou garder la feuille vide.

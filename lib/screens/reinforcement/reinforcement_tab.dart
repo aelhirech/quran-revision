@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_theme.dart';
+import '../../core/mosaic.dart' show MosaicTile;
 import '../../core/reinforcement_engine.dart';
 import '../../core/strings.dart';
 import '../../models/riwaya.dart';
@@ -9,11 +11,14 @@ import '../../models/sourate.dart';
 import '../../services/verse_service.dart';
 import '../../services/word_gloss_service.dart';
 import '../../state/app_state.dart';
+import '../../widgets/mosaic.dart';
+import '../../widgets/mosaic_tile_sheet.dart';
 import '../../widgets/outlined_action_button.dart';
 import '../../widgets/primary_cta_button.dart';
 import '../../widgets/sourate_picker_sheet.dart';
 import 'series_screen.dart';
 
+part 'reinforcement_tab_offer.dart';
 part 'reinforcement_tab_series.dart';
 
 enum SeriesMode { mix, passages, words }
@@ -48,93 +53,64 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
   // A newer computation makes an older one's result stale.
   int _generation = 0;
 
+  List<MosaicTile>? _tiles;
+  int _tilesGeneration = 0;
+
   bool get _tooSmall => _offered?.isEmpty ?? false;
 
   @override
   void initState() {
     super.initState();
-    _state = context.read<AppState>()..addListener(_refreshOffer);
-    _refreshOffer();
+    _state = context.read<AppState>()..addListener(_refresh);
+    _refresh();
   }
 
   @override
   void didUpdateWidget(ReinforcementTab old) {
     super.didUpdateWidget(old);
     // Notifications seen while hidden are caught up on showing.
-    if (widget.shown && !old.shown) _refreshOffer();
+    if (widget.shown && !old.shown) _refresh();
   }
 
   @override
   void dispose() {
-    _state.removeListener(_refreshOffer);
+    _state.removeListener(_refresh);
     super.dispose();
   }
 
   SeriesMode _modeFor(AppState state) =>
       _withWords(state) ? _mode : SeriesMode.passages;
 
-  // The memo holds one riwaya's text.
-  ReinforcementCorpus _corpusFor(Riwaya riwaya) {
-    if (riwaya != _corpusRiwaya) {
-      _corpus.clear();
-      _corpusRiwaya = riwaya;
-    }
-    return _corpus;
+  // setState is protected: the part-file extensions cannot call it directly.
+  void _update(VoidCallback change) => setState(change);
+
+  void _refresh() {
+    if (!widget.shown) return;
+    _computeOffer();
+    _loadTiles();
   }
 
-  Future<void> _warm(ReinforcementCorpus corpus, Map<int, Set<int>> carried,
-          SeriesMode mode, String Function(int, int) textOf) =>
-      corpus.warm(carried, textOf,
-          mode == SeriesMode.passages ? null : WordGlossService.glosses);
+  Future<void> _loadTiles() async {
+    final generation = ++_tilesGeneration;
+    final tiles = await _state.mosaicTiles();
+    if (!mounted || generation != _tilesGeneration) return;
+    setState(() => _tiles = tiles);
+  }
+
+  Future<void> _openTile(MosaicTile tile) async {
+    // Unknown offer (mode just changed): the button would be hidden wrongly.
+    if (_offered == null) await _computeOffer();
+    // A riwaya switch can drop the surah before the tiles reload.
+    final sourate = _state.sourateById(tile.surahId);
+    if (!mounted || sourate == null) return;
+    await MosaicTileSheet.show(context, tile, sourate,
+        onStartSeries: (_offered?.contains(tile.surahId) ?? false)
+            ? () => _once(() => _start(sourate: sourate))
+            : null);
+  }
 
   void _refreshOffer() {
     if (widget.shown) _computeOffer();
-  }
-
-  Future<void> _computeOffer() async {
-    final generation = ++_generation;
-    final mode = _modeFor(_state);
-    final riwaya = _state.riwaya;
-    final inputs = await _state.reinforcementInputs();
-    if (!mounted || generation != _generation) return;
-    final last = _offeredFor;
-    if (last != null &&
-        _offered != null &&
-        last.mode == mode &&
-        last.riwaya == riwaya &&
-        sameCarried(last.carried, inputs.carried)) {
-      return;
-    }
-    if (mode != SeriesMode.passages) {
-      await WordGlossService.load();
-      if (!mounted || generation != _generation) return;
-    }
-    final corpus = _corpusFor(riwaya);
-    String textOf(int surahId, int ayahId) =>
-        VerseService.getVerse(surahId, ayahId, riwaya: riwaya);
-    await _warm(corpus, inputs.carried, mode, textOf);
-    if (!mounted || generation != _generation) return;
-    final fromPassages = mode == SeriesMode.words
-        ? const <int>{}
-        : ReinforcementEngine.surahsOfferingPassages(
-            carried: inputs.carried, textOf: textOf, corpus: corpus);
-    final offered = mode == SeriesMode.passages
-        ? fromPassages
-        : {
-            ...fromPassages,
-            // Reading every word of a large selection is the costly part: a
-            // surah that already offers passages needs no word to be offered.
-            ...ReinforcementWords.surahsOfferingWords(
-                carried: inputs.carried,
-                textOf: textOf,
-                glossesOf: WordGlossService.glosses,
-                corpus: corpus,
-                except: fromPassages),
-          };
-    setState(() {
-      _offered = offered;
-      _offeredFor = (mode: mode, riwaya: riwaya, carried: inputs.carried);
-    });
   }
 
   // Composing a series blocks for a few hundred ms: a second tap in that
@@ -216,6 +192,8 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
             : SReinforcement.serieSur(sourate.nameFr),
       ),
     ));
+    // The answers just given may have moved a level.
+    if (mounted) _loadTiles();
   }
 
   Future<void> _pickSourate() async {
@@ -296,6 +274,10 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                if (_tiles case final tiles? when tiles.isNotEmpty) ...[
+                  Mosaic(tiles: tiles, onTap: _openTile),
+                  const SizedBox(height: 12),
+                ],
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -303,12 +285,11 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(SReinforcement.serieDuJour,
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.w600)),
+                            style: AppText.cardTitle),
                         const SizedBox(height: 6),
                         Text(SReinforcement.serieDuJourDesc,
-                            style: TextStyle(
-                                fontSize: 14, color: palette.textMuted)),
+                            style: AppText.body
+                                .copyWith(color: palette.textMuted)),
                         if (_withWords(state)) ...[
                           const SizedBox(height: 14),
                           _modePicker(),
@@ -320,8 +301,8 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
                         if (_tooSmall) ...[
                           const SizedBox(height: 12),
                           Text(SReinforcement.selectionTropPetite,
-                              style: TextStyle(
-                                  fontSize: 13, color: palette.textMuted)),
+                              style: AppText.caption
+                                  .copyWith(color: palette.textMuted)),
                         ],
                       ],
                     ),

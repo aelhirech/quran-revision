@@ -493,7 +493,7 @@ Même modèle que la révision : la portion à apprendre est un ensemble de lign
   `dayUnits()` ne lit que les lignes `revise`, et `carriedVerses` que les versets acquis.
 - **US-21 Sprint A** : `reinforcementSeriesInputs()` (`QuizSeriesInputs` : `levels`, `atRisk`,
   `retryPassages`, `retryWords`), lue seulement au lancement d'une série, pas par l'offre ;
-  `quizLevels()` (§5.6bis) ; `mosaicTiles()` (pour le Sprint B) ; `recordQuizAnswer(answer)`,
+  `quizLevels()` (§5.6bis) ; `mosaicTiles()` (lue par l'onglet, §8.7) ; `recordQuizAnswer(answer)`,
   sans `_notify()`. Les écritures s'enchaînent sur le champ `_quizWrites` (dans le corps
   d'`AppState`, une extension ne porte pas de champ) ; `quizLevels()` et les retours l'attendent,
   donc une lecture voit toujours la dernière réponse. Une écriture qui échoue est journalisée
@@ -809,16 +809,28 @@ le chargement réussit mais que la lecture échoue ensuite. Pas de croix de ferm
 d'US-1) : l'étape reste pour qui n'utilise pas l'audio, elle défile avec le texte. **Non vérifié
 sur appareil réel** (l'étape ne s'affiche pas sous Windows ni en test).
 
-### 8.7 Onglet Renforcement et écran de série (`screens/reinforcement/`, US-20 Sprint B et US-22 Sprint C, 2026-10-13)
+### 8.7 Onglet Renforcement et écran de série (`screens/reinforcement/`, US-20 Sprint B et US-22 Sprint C, 2026-10-13 ; mosaïque US-21 Sprint B, 2026-11-08)
 
 Dossier dédié, parce que le flux a plusieurs étapes : `reinforcement_tab.dart` (l'onglet au
 repos), `series_screen.dart` (questions, retour après la réponse, score),
 `widgets/series_marks.dart` et `widgets/passage_choice.dart`. Rien n'est écrit dans
 `ayah_facts` : seules les réponses sont gardées, dans `quiz_answers` (§6). Ces écrans lisent
 `AppState.reinforcementInputs()` et `reinforcementSeriesInputs()` (§7) ; la composition selon le
-mode (`_composeSeries`) vit dans `reinforcement_tab_series.dart`, `part of` de l'onglet.
+mode (`_composeSeries`) vit dans `reinforcement_tab_series.dart`, `part of` de l'onglet, et
+l'offre (`_computeOffer`, `_corpusFor`, `_warm`) dans `reinforcement_tab_offer.dart`, autre
+`part of`. `setState` étant protégé, ces extensions passent par `_update(change)` du `State`.
 
-**`ReinforcementTab`** : une carte « Série du jour » et un bouton « Choisir une sourate ».
+**`ReinforcementTab`** : la mosaïque, une carte « Série du jour » et un bouton « Choisir une
+sourate », dans cet ordre.
+- **Mosaïque (US-21)** : état local `_tiles`, rempli par `_loadTiles()` (`AppState.mosaicTiles()`,
+  garde `_tilesGeneration`, à part de `_generation` pour qu'un calcul d'offre n'annule pas un
+  chargement de carreaux). `_refresh()` lance l'offre et les carreaux ensemble ; c'est l'écouteur
+  d'`AppState` et l'appel d'`initState`/`didUpdateWidget`, sous la même garde `shown` que l'offre.
+  `_start` recharge les carreaux au retour de `SeriesScreen` (une réponse a pu changer un niveau).
+  Liste vide (aucune sourate en révision) : pas de mosaïque. `_openTile` attend l'offre si elle
+  est inconnue (changement de mode en cours), sinon le bouton « Lancer une série » serait caché
+  à tort, et ne passe `onStartSeries` que pour une sourate de `_offered`. Une sourate que
+  `sourateById` ne trouve plus (changement de riwaya avant le rechargement) n'ouvre rien.
 - `_start({sourate})` lit les entrées, compose la série (`random: Random()`,
   `avoid: _lastPrompts`, `surahId`), puis pousse `SeriesScreen` comme le check-in
   (`rootNavigator`, `fullscreenDialog`). Elle passe le mémo `_corpus` (§5.6) aux composeurs ;
@@ -828,7 +840,8 @@ mode (`_composeSeries`) vit dans `reinforcement_tab_series.dart`, `part of` de l
 - **Offre (US-30)** : `_offered`, les sourates qui offrent une question dans le mode en cours
   (`surahsOfferingPassages`, `surahsOfferingWords`, union des deux en « Mélange » avec `except`
   pour ne pas relire les mots d'une sourate déjà offerte). `_computeOffer` tourne à
-  l'initialisation, au changement de mode et à chaque notification d'`AppState` ; il relit
+  l'initialisation, au changement de mode et à chaque notification d'`AppState` (par
+  `_refresh`) ; il relit
   `reinforcementInputs()` puis ne recalcule que si (mode, riwaya, sélection) a changé
   (`_offeredFor`, `sameCarried`). Un compteur `_generation` écarte un résultat périmé. Le
   calcul n'a lieu que si l'onglet est affiché : `ShellScreen` passe `shown` (son
@@ -887,7 +900,7 @@ changé de niveau (`QuizLevels.changes`) ; une lecture qui échoue retire seulem
 extension sur son `State`, pour garder `series_screen.dart` sous le plafond de taille) :
 - **Arabe vers sens** : sourate et verset, le passage dans une `Card` avec le mot posé en
   `palette.gold`, « Que veut dire le mot en or ? », puis les sens en choix, tels quels.
-- **Sens vers arabe** : le sens en 20 px, « Quel mot porte ce sens ? », puis les mots arabes en
+- **Sens vers arabe** : le sens en `AppText.cardTitle` sans gras, « Quel mot porte ce sens ? », puis les mots arabes en
   choix. Le passage, la sourate et le verset n'apparaissent qu'après la réponse.
 - Après un appui : les mêmes états que pour un passage. Sous un mauvais choix, un `Text.rich` :
   le mot arabe en Amiri 15 px `textMuted`, `SReinforcement.motSensSep`, puis le sens (la note
@@ -907,6 +920,24 @@ extension sur son `State`, pour garder `series_screen.dart` sous le plafond de t
   collé au mot mis en couleur reste dans le premier `TextSpan`, de la couleur du texte
   (`withoutHizbSign`, §5.6).
 
+**Widgets de la mosaïque** (`lib/widgets/`, pour qu'US-23 les reprenne au Récap) :
+- **`MosaicTileShape({level, atRisk, size})`** : `CustomPainter`. Niveau 0 petit losange, 1 losange,
+  2 étoile à 8 pointes (rayon intérieur `R·cos(π/4)/cos(π/8)`), 3 étoile évidée (`evenOdd`),
+  4 étoile à cœur `palette.gold` ; couleur `palette.levelTints[level]`. À risque : anneau et
+  étoile `palette.risk`, quel que soit le niveau.
+- **`Mosaic({tiles, onTap})`** : une `Card`, en tête la forme à risque et
+  `SReinforcement.aRisque(n)` (ou `aucuneARisque`), puis un `Wrap` de carreaux. Chaque carreau est
+  un `Semantics(button, label: « nom, niveau[, risque d'oublier] »)` autour d'un `InkWell`
+  circulaire. `mosaicTileSide({count, width})`, fonction pure : le plus grand côté de 44 à 21 px
+  tel que `mosaicGridHeight` tienne dans 240 px, sinon 20 px et la grille s'allonge (testée par
+  `test/widgets/mosaic_tile_side_test.dart`).
+- **`MosaicTileSheet.show(context, tile, sourate, {onStartSeries})`** : feuille modale avec
+  `DraggableHandle`. Nom FR et AR, `S.blocRange` si la plage est partielle, la forme du niveau
+  (toujours `atRisk: false` : le carreau orange la cache, c'est ici qu'elle se lit),
+  « Risque d'oublier », `freshnessDiscreetLabel(state.freshnessFor(…))`, puis « Lancer une série
+  sur cette sourate » (si `onStartSeries`) et « Voir le texte » (`VerseBottomSheet.show` sur la
+  plage). Chaque action ferme la feuille puis agit depuis le contexte de l'appelant.
+
 **`SeriesMarks`** : un losange par question. Plein or : tenue. Bordure or : ratée. Bordure
 `cardBorder` : à venir. Cerclé : en cours. `PassageChoice` le réutilise avec `total: 1` pour sa
 propre marque.
@@ -919,7 +950,10 @@ la forme de la carte par `customBorder`. La bordure d'état part de `cardShape(p
 
 **Limites connues** (`docs/CHANGELOG.md`) : la composition et l'offre tournent sur le fil de
 l'interface, au-dessus de 100 ms à froid et sur toute la sélection (§5.6, Sprint B d'US-30) ;
-« Choisir une sourate » ouvre une feuille vide quand rien n'est offert (Idée produit) ; les
+« Choisir une sourate » ouvre une feuille vide quand rien n'est offert (Idée produit) ; avec
+une grande sélection sur un petit écran, les carreaux descendent à 20 px et la grille repousse
+« Commencer » (Idée produit) ; `quizLevels()` relit tout le journal à chaque rechargement de la
+mosaïque (coût non mesuré) ; les
 libellés du sélecteur rétrécissent chacun pour soi quand le texte système est agrandi ; dans la
 barre, « Renforcement » se coupe en deux lignes dès que le texte système est agrandi. Aucun test
 automatisé sur ces écrans : ils sont vérifiés sous Windows.
@@ -930,12 +964,12 @@ automatisé sur ces écrans : ils sont vérifiés sous Windows.
 
 Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Tahajjud** (sombre), suivis automatiquement via `ThemeMode.system` (`main.dart`) — pas de sélecteur manuel dans l'app.
 
-- `AppPalette` (`lib/core/app_colors.dart`) : `ThemeExtension` définissant les tokens sémantiques (`cream`, `primary`, `gold`, `textPrimary`, `textMuted`, `danger`, `ctaShadow`, `isDark`, etc.), avec deux instances constantes `AppPalette.light`/`AppPalette.dark`. Accès via l'extension `context.palette`. Depuis US-25 Sprint A (2026-10-22) : `primaryContainer`, `onSurfaceVariant`, `onDanger`, `dangerContainer` (repris des littéraux de `buildAppTheme`, qui les branche sur le `ColorScheme`), `levelTints` (5 couleurs : pas jouée, niveaux 1 à 4) et `risk` (réservé au risque d'oublier) — ces deux derniers ne sont lus par aucun écran avant US-21/US-23. Chaque nouveau champ passe par `copyWith` et `lerp` (`levelTints` s'interpole indice par indice : les deux palettes doivent garder la même longueur). Contrastes verrouillés par `test/core/app_palette_contrast_test.dart` (§11) : changer une valeur de la palette, c'est relancer ce test.
+- `AppPalette` (`lib/core/app_colors.dart`) : `ThemeExtension` définissant les tokens sémantiques (`cream`, `primary`, `gold`, `textPrimary`, `textMuted`, `danger`, `ctaShadow`, `isDark`, etc.), avec deux instances constantes `AppPalette.light`/`AppPalette.dark`. Accès via l'extension `context.palette`. Depuis US-25 Sprint A (2026-10-22) : `primaryContainer`, `onSurfaceVariant`, `onDanger`, `dangerContainer` (repris des littéraux de `buildAppTheme`, qui les branche sur le `ColorScheme`), `levelTints` (5 couleurs : pas jouée, niveaux 1 à 4) et `risk` (réservé au risque d'oublier) — ces deux derniers ne sont lus que par `MosaicTileShape` (§8.7). Chaque nouveau champ passe par `copyWith` et `lerp` (`levelTints` s'interpole indice par indice : les deux palettes doivent garder la même longueur). Contrastes verrouillés par `test/core/app_palette_contrast_test.dart` (§11) : changer une valeur de la palette, c'est relancer ce test.
 - `buildAppTheme(Brightness)` (`lib/core/app_theme.dart`) construit le `ThemeData` complet (police Outfit, `CardTheme`, `NavigationBarTheme`, `FilledButtonTheme`, `SwitchTheme`, `ChipTheme`) à partir de la palette choisie.
 - `cardShape(palette)` (même fichier, 2026-10-13) est la forme de toutes les `Card`. Le `cardTheme` l'utilise, et une carte dont la bordure change d'état en dérive par `copyWith(side: …)` au lieu de réécrire le rayon (`PassageChoice`, §8.7).
 - **Règle absolue (CLAUDE.md)** : toute couleur dans un widget doit passer par `context.palette.*`, jamais de `Color(0x...)` en dur. Des dérogations existent déjà dans le code (voir §8.5 point 3) — ne pas en ajouter de nouvelles, et corriger celles rencontrées si l'écran concerné est de toute façon retouché.
 - **Police latine : Outfit**, embarquée (`assets/fonts/`, trois fichiers fixes 400/600/700 + `OFL.txt`, section `fonts:` de `pubspec.yaml`), jamais téléchargée. Pas de fonte variable (graisses rendues inégalement selon la plateforme) ni de fichier italique : un `FontStyle.italic` serait penché par Flutter, d'où **aucun `FontStyle.italic` dans `lib/`** (US-31 Sprint A, 12 sites retirés). Une graisse 500 ou 800 retombe sur le fichier le plus proche.
-- **`AppText`** (`app_theme.dart`) : les six styles d'US-25, en `static const TextStyle` sans couleur — `screenTitle` 28/600 (interligne 40, lettres −0,4), `sectionTitle` 11/600 lettres +2 (capitales par `.toUpperCase()` à l'appel), `cardTitle` 17/600, `body` 15/400, `caption` 13/400, `bigNumber` 56/700. La couleur s'ajoute par `copyWith(color: context.palette.…)`. `AppText.family` est le nom de famille à utiliser partout au lieu du littéral `'Outfit'`. Le `textTheme` relie chaque rôle Material à son style : `headlineMedium` titre d'écran, `labelSmall` titre de section, `titleMedium` titre de carte, `bodyLarge`/`bodyMedium` texte, `bodySmall` légende, `displayMedium` grand chiffre — un `Text` sans style hérite donc de `body` (15 px, et non plus 14). Tous les écrans les prennent (US-25 Sprints B1 et B2), sauf le Récap et l'onglet Quiz, que US-23/US-21 reconstruiront directement avec. Seuls gardent une taille littérale les appels `GoogleFonts.*(fontSize: …)` (texte arabe) ; `IndexBadge` calcule la sienne d'après la taille de la pastille. `test/core/app_text_usage_test.dart` verrouille cette règle : toute ligne de `lib/` où `fontSize:` est suivi d'un nombre échoue, hors `app_theme.dart`, lignes `GoogleFonts.` et écrans encore exclus (Récap et ses trois cartes, `screens/reinforcement/`, à retirer de `_notYetMigrated` quand US-23/US-21 les reconstruisent). Les pages d'onboarding à `Spacer` qui doivent défiler avec un texte agrandi (intro, riwaya) passent par `_FillOrScroll` (`onboarding/widgets/fill_or_scroll.dart` : `minHeight` + `IntrinsicHeight`, donc réservé à un contenu sans `ListView` ni `LayoutBuilder`).
+- **`AppText`** (`app_theme.dart`) : les six styles d'US-25, en `static const TextStyle` sans couleur — `screenTitle` 28/600 (interligne 40, lettres −0,4), `sectionTitle` 11/600 lettres +2 (capitales par `.toUpperCase()` à l'appel), `cardTitle` 17/600, `body` 15/400, `caption` 13/400, `bigNumber` 56/700. La couleur s'ajoute par `copyWith(color: context.palette.…)`. `AppText.family` est le nom de famille à utiliser partout au lieu du littéral `'Outfit'`. Le `textTheme` relie chaque rôle Material à son style : `headlineMedium` titre d'écran, `labelSmall` titre de section, `titleMedium` titre de carte, `bodyLarge`/`bodyMedium` texte, `bodySmall` légende, `displayMedium` grand chiffre — un `Text` sans style hérite donc de `body` (15 px, et non plus 14). Tous les écrans les prennent (US-25 Sprints B1 et B2), sauf le Récap, qu'US-23 reconstruira directement avec. La taille du texte arabe des écrans de série est la constante `quizArabicSize` (`widgets/passage_choice.dart`), hors `AppText` (police Amiri). Seuls gardent une taille littérale les appels `GoogleFonts.*(fontSize: …)` (texte arabe) ; `IndexBadge` calcule la sienne d'après la taille de la pastille. `test/core/app_text_usage_test.dart` verrouille cette règle : toute ligne de `lib/` où `fontSize:` est suivi d'un nombre échoue, hors `app_theme.dart`, lignes `GoogleFonts.` et écrans encore exclus (Récap et ses trois cartes, à retirer de `_notYetMigrated` quand US-23 les reconstruit). Le test lit ligne par ligne : un appel `GoogleFonts.amiri(fontSize: …)` que le formateur coupe sur plusieurs lignes échoue, d'où des styles arabes tenus sur une ligne (variable locale courte au besoin). Les pages d'onboarding à `Spacer` qui doivent défiler avec un texte agrandi (intro, riwaya) passent par `_FillOrScroll` (`onboarding/widgets/fill_or_scroll.dart` : `minHeight` + `IntrinsicHeight`, donc réservé à un contenu sans `ListView` ni `LayoutBuilder`).
 - **Texte agrandi (US-31)** : une plage de versets passe toujours par `S.blocRange` (`strings.dart`), qui met un WORD JOINER (`\u2060`, écrit en échappement dans le source) de chaque côté du tiret pour interdire la coupure ; les modèles (`RevisionUnit.label`, `SourateSelection.rangeLabel`) l'appellent aussi. Le mécanisme de rétrécissement est `FittedBox(fit: BoxFit.scaleDown)` autour d'un libellé (`PrimaryCtaButton`, `OutlinedActionButton`, `IndexBadge`, `FreshnessBadge`) ; des libellés côte à côte qui doivent garder la même taille sont mis ensemble dans `SizedBox(width: double.infinity)` puis `FittedBox`, sans `Expanded` (`_modePicker` du Quiz, rangée de boutons de `VerseRangePicker`) — ils sont alors centrés à leur largeur naturelle. Un `FittedBox` ne rétrécit que si un parent borne la largeur. Invariant verrouillé par `test/widgets/text_scale_fit_test.dart` (§11).
 - **Polices arabes : Amiri et Scheherazade New**, embarquées (`assets/fonts/Amiri-Regular.ttf`, `ScheherazadeNew-Regular.ttf`, licences `Amiri-OFL.txt`/`ScheherazadeNew-OFL.txt`), jamais téléchargées : `lib/main.dart` met `GoogleFonts.config.allowRuntimeFetching = false`. Les appels restent `GoogleFonts.amiri(…)`/`GoogleFonts.scheherazadeNew(…)` : le package cherche dans le manifeste des assets un fichier dont le nom finit par `<Famille>-<Variante>.ttf`. D'où trois pièges : les fichiers sont déclarés sous `assets:` (pas sous `fonts:`), leur nom ne se change pas, et seule la graisse Regular existe — un `fontWeight` passé à l'appel, ou une nouvelle famille `GoogleFonts.*`, ne trouve pas de fichier et retombe sur la police système (erreur dans la console). Ce sont les fichiers exacts que le package téléchargeait (même SHA-256) : le rendu n'a pas changé et ne suit plus les mises à jour de `google_fonts`. Verrouillé par `test/widgets/bundled_fonts_test.dart` (§11).
 - **Licences OFL livrées avec l'app** : `OFL.txt` (Outfit), `Amiri-OFL.txt` et `ScheherazadeNew-OFL.txt` sont déclarés sous `assets:` de `pubspec.yaml`, car la licence OFL demande que chaque copie d'une police l'accompagne. Aucun écran ne les affiche. Une nouvelle police embarquée ajoute sa licence au même endroit.
@@ -969,6 +1003,7 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 - **US-21 Sprint A** : `test/core/quiz_levels_test.dart` (repli des niveaux, `changes`), `test/core/mosaic_test.dart` (seuil de 90 jours, tour plus long, jamais révisée, plage partielle, plages fusionnées), `test/services/quiz_answers_test.dart` (ordre, dernière réponse qui décide, riwayas et types séparés, aucune requête de révision touchée), `ayah_facts_migration_v5_test.dart` ; tests 19 à 25 de `reinforcement_engine_test.dart` (mauvais choix par niveau, retours, sourates à risque) et 10 bis de `reinforcement_words_test.dart`.
 - **`test/core/reinforcement_words_test.dart`** (US-22 Sprint C, 14 tests, vrai texte Hafs et vrais sens, `Random` à graine fixe) : mot posé d'au moins 3 lettres, 2 à 4 choix, mots arabes et sens tous différents, aucun sens voisin du bon, mot retrouvé à sa place dans le passage, verset sans un sens par mot jamais interrogé (37:130), les deux sens de question, mots non reposés d'une série à l'autre, part du plan du jour, série sur une sourate (mauvais choix de la sourate d'abord, d'ailleurs ensuite, plan du jour ignoré), série mêlée à 5 et 5 et ses deux replis. Ses règles sur les sens sont réécrites dans le test, pas empruntées au moteur. Depuis le sprint 19 (15 tests) : le mot du passage est le mot posé, ou ce mot précédé de « ۞ » et de l'espace insécable, rien d'autre ; et sur la sourate 100 seule, aucun choix ne contient « ۞ » alors que le premier mot de 100:9 est bien proposé.
 - **`test/core/app_palette_contrast_test.dart`** (US-25 Sprint A, 15 tests, Dart pur sur les deux palettes) : contraste WCAG écrit en clair dans le test (pas `computeLuminance`), un jeton translucide composé sur son fond d'abord. Texte (`textPrimary`, `textMuted`, `primary`, `danger`, `goldDark`, `onSurfaceVariant`) à 4,5:1, `risk` et les 5 `levelTints` à 3:1, chacun sur le fond **et** sur la carte (`surfaceCard` composée sur `cream` par `Color.alphaBlend`), clair et sombre ; plus `buildAppTheme` qui porte Outfit sur les sept rôles du `textTheme`.
+- **`test/widgets/mosaic_tile_side_test.dart`** (US-21 Sprint B) : Dart pur, `mosaicTileSide` : 1 carreau → 44 px ; 20 carreaux tiennent dans 240 px ; 114 carreaux sur un téléphone → 20 px et la grille s'allonge ; propriété sur 1 à 114 carreaux × trois largeurs : côté entre 20 et 44, la grille tient au-dessus de 20, et un pixel de plus ne tiendrait pas sous 44. Les formes, la feuille et l'onglet sont vérifiés sous Windows, sans test automatisé.
 - **`test/widgets/text_scale_fit_test.dart`** (US-31 Sprint A) : invariant de mise en page à 320×568, texte ×1,5, vraies polices Outfit (`FontLoader`) : aucun débordement, et les libellés des boutons et de la pastille à trois chiffres tiennent sur une ligne (largeur après mise en page ≥ largeur naturelle). Plus `S.blocRange` en Dart pur. Depuis le Sprint C : `VerseRangeSlider` aux bornes 282-283 et le `VerseRangePicker` entier sur une sourate de 286 versets.
 - **`test/widgets/bundled_fonts_test.dart`** (sprint 34) : avec `allowRuntimeFetching = false`, `GoogleFonts.pendingFonts([amiri(), scheherazadeNew()])` se termine. Échoue si un fichier de `assets/fonts/` manque, est renommé ou n'est plus déclaré sous `assets:` (vérifié en retirant la ligne Scheherazade du `pubspec.yaml`).
 - **`test/widgets/verse_list_offset_test.dart`** (US-31 Sprint C, 1 test sur Android et iOS) : un `CustomScrollView` de 300 éléments avec `keepOffsetPhysics()`, défilé à 2000 px puis reconstruit à 10 éléments, garde 2000 après `pumpAndSettle` ; un glissé le ramène à `maxScrollExtent`. Chaque surcharge, retirée seule, fait échouer le test. `verse_bottom_sheet_test.dart` vérifie que la feuille porte bien cette physique.
@@ -1220,6 +1255,15 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     condition, verrouillée par deux tests de parité : changer la règle d'un mauvais choix dans
     `_passageQuestion` sans changer l'offre ferait échouer ces tests, pas proposer en silence une
     sourate sans question.
+- **Mosaïque (US-21 Sprint B, 2026-11-08)** :
+  - Deux classes `Mosaic` : la règle (`lib/core/mosaic.dart`, `Mosaic.build`) et le widget
+    (`lib/widgets/mosaic.dart`). Les widgets importent le cœur avec `show MosaicTile` ; un fichier
+    qui a besoin des deux doit préfixer l'un des imports.
+  - L'orange (`atRisk`) se calcule dans `Mosaic.build` seulement ; le widget et la feuille le
+    lisent, ne le recalculent jamais.
+  - Les carreaux se rechargent à chaque notification d'`AppState` quand l'onglet est affiché :
+    ils dépendent aussi de la sélection et de la dernière révision, pas seulement des réponses.
+    Ne pas réduire au seul retour de série.
 
 - **Ajout de sourate au plan (sprint 21, 2026-10-13)** : « Ajouter une sourate » (check-in) et
   « J'ai révisé une sourate en plus » (check-out) ne proposent que `UserConfig.selections`
@@ -1279,7 +1323,8 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 | Modifier l'édition de la configuration (sourates, rythme, reset) | `lib/screens/profile_screen.dart` |
 | Modifier le dashboard de statistiques | `lib/screens/recap_screen.dart` |
 | Modifier la navigation globale (4 onglets) | `lib/screens/shell_screen.dart` |
-| Modifier l'onglet Renforcement (série du jour, sélecteur de mode, choix d'une sourate) | `lib/screens/reinforcement/reinforcement_tab.dart` |
+| Modifier l'onglet Renforcement (série du jour, sélecteur de mode, choix d'une sourate) | `lib/screens/reinforcement/reinforcement_tab.dart` (+ `reinforcement_tab_offer.dart`, `reinforcement_tab_series.dart`) |
+| Modifier la mosaïque (formes des carreaux, grille, feuille du carreau) | `lib/widgets/mosaic.dart`, `mosaic_tile_shape.dart`, `mosaic_tile_sheet.dart` |
 | Modifier l'écran de série (question, retour après la réponse, score) | `lib/screens/reinforcement/series_screen.dart`, `series_word_question.dart` (vue d'une question de mot), `widgets/passage_choice.dart`, `widgets/series_marks.dart` |
 | Modifier la carte de progression du cycle (Accueil + Récap) | `lib/widgets/cycle_progress_card.dart` |
 | Modifier le moment de jalon (sourate mémorisée, tour complet) | `lib/widgets/milestone_moment.dart` + `SealOutcome` (`lib/models/day_close.dart`) |
