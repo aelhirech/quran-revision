@@ -342,6 +342,33 @@ void main() {
       }
     });
 
+    test('10 bis. chaque moitié reprend ses questions ratées (US-21)', () {
+      final carried = _whole(78, 114);
+      for (var seed = 0; seed < 10; seed++) {
+        final first = mixed(carried, seed);
+        final passages = [
+          for (final q in first.whereType<PassageQuestion>()) q.prompt.id,
+        ];
+        final asked = [
+          for (final q in first.whereType<WordQuestion>()) q.answer.id,
+        ];
+        final second = ReinforcementWords.buildMixedSeries(
+          carried: carried,
+          textOf: HafsService.getVerse,
+          glossesOf: WordGlossService.glosses,
+          random: Random(seed + 100),
+          avoidPassages: passages.toSet(),
+          avoidWords: asked.toSet(),
+          retryPassages: passages.take(2).toList(),
+          retryWords: asked.take(2).toList(),
+        );
+        expect(second.whereType<PassageQuestion>().map((q) => q.prompt.id),
+            containsAll(passages.take(2)));
+        expect(second.whereType<WordQuestion>().map((q) => q.answer.id),
+            containsAll(asked.take(2)));
+      }
+    });
+
     test('11. sans données de mots, dix passages', () {
       final series = mixed(_whole(78, 114), 1, glossesOf: (_, _) => null);
       expect(series.whereType<PassageQuestion>(), hasLength(10));

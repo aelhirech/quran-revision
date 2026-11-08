@@ -79,9 +79,11 @@ est livrée (2026-10-13, voir `docs/SPEC_PRODUIT.md` § Renforcement), US-22 la 
   mettent en avant ; le chrono est reproché.
 
 ### US-21 — Ma mosaïque : mes niveaux, mes questions ratées, ce que je risque d'oublier
-**État** : à scoper — blueprint du 2026-10-13, réécrit au blueprint Zellige du 2026-10-17 (voir le
+**État** : en sprint — Sprint A livré le 2026-11-08 (niveaux, difficulté, questions qui
+reviennent, priorité des sourates à risque : crit. 2, 3, 4 et dernière phrase du crit. 5, fondus
+dans `docs/SPEC_PRODUIT.md` § Renforcement). Reste le Sprint B : la mosaïque (crit. 1, 5, 6). Scopée le 2026-11-08 — blueprint du 2026-10-13, réécrit au blueprint Zellige du 2026-10-17 (voir le
 cadre commun plus bas), validé par l'utilisateur le 2026-10-22. S'appuie sur US-20. Reprend les Idées produit « Mode "versets à
-retravailler" en jeu à part » et « Gamification narrative [H] » de `docs/CHANGELOG.md`, à retirer
+retravailler" en jeu à part » et « Gamification narrative [H] » de `docs/CHANGELOG.md`, retirées
 de ce fichier au scoping.
 
 **Statement** : En tant qu'utilisateur qui s'éprouve régulièrement, je veux voir mes sourates en
@@ -99,22 +101,13 @@ par ligne, au bas de l'écran.
    nombre de sourates à risque d'oublier passe avant tout le reste. Test des 3 secondes : montré
    3 secondes à quelqu'un qui ne connaît pas l'app, l'écran lui permet de dire quelles sourates
    sont à risque. La mosaïque reste lisible de 1 à 114 sourates, plages partielles comprises.
-2. Given une sourate, Then elle porte un niveau, de « pas encore jouée » à 4, qui règle la
-   difficulté de ses questions : 1, mauvaises réponses tirées d'autres sourates ; 2, de la même
-   sourate ; 3, des versets voisins ; 4, des versets qui se ressemblent. L'utilisateur ne choisit
-   jamais le niveau. Seules les questions de versets le font bouger (US-22 crit. 6).
-3. Given une sourate réussie de façon répétée à son niveau, Then elle monte d'un niveau. Given une
-   sourate ratée de façon répétée, Then elle redescend d'un niveau (choix utilisateur du
-   2026-10-13, reconfirmé le 2026-10-17). Dans les deux sens, l'annonce est courte et sans
-   reproche.
-4. Given une question ratée (verset ou mot), Then elle revient dans une série suivante jusqu'à ce
-   qu'elle soit réussie. La fin de série dit combien reviendront, sans reproche.
+2. à 4. Livrés au Sprint A (niveaux, difficulté, questions ratées qui reviennent) : voir
+   `docs/SPEC_PRODUIT.md` § Renforcement. Le carreau montre le niveau (« pas encore jouée » à 4).
 5. Given une sourate pas révisée depuis plus de 3 mois, ou depuis plus d'un tour quand le tour
    dure plus de 3 mois (choix utilisateur du 2026-10-17), Then son carreau est orange, avec un
    anneau, partout où la mosaïque apparaît. Il redevient normal dès qu'elle est révisée, c'est-à-
    dire récitée et validée en fin de journée : les questions ne l'effacent jamais. L'orange ne veut
-   rien dire d'autre dans l'app. Les questions du jour font passer ces sourates avant les autres,
-   après la part du plan du jour.
+   rien dire d'autre dans l'app. (La priorité de ces sourates dans les questions est livrée.)
 6. Given un carreau, When l'utilisateur le touche, Then il voit le nom de la sourate, son niveau et
    sa dernière révision, et peut lancer une série sur elle (US-20 crit. 5) ou ouvrir son texte.
    Given des niveaux, des retours et des sourates à risque, Then rien ne change dans le tour, les
@@ -153,6 +146,70 @@ pointes ; niveau 3, étoile évidée au centre ; niveau 4, étoile à cœur dor�
 risque d'oublier, étoile orange dans un anneau. Les couleurs viennent des tokens d'US-25
 (`AppPalette.levelTints`, `risk`, livrés). La mosaïque et l'onglet Quiz prennent directement les
 six styles d'`AppText` (livrés).
+
+**Scoping technique** (2026-11-08) :
+- **Fichiers UI** : `lib/screens/reinforcement/reinforcement_tab.dart` (357 lignes, déjà au-dessus
+  du plafond : extraction avant tout ajout), `series_screen.dart` (251) ; nouveaux
+  `lib/widgets/mosaic.dart`, `mosaic_tile_shape.dart`, `mosaic_tile_sheet.dart` (dans `widgets/`
+  pour qu'US-23 les reprenne tels quels).
+- **Variables / champs** : aucun champ d'`AppState`, aucune clé SharedPreferences, `UserConfig`
+  inchangé. Nouveaux modèles `QuizAnswer`/`QuizKind` (`lib/models/`) et `MosaicTile` (`lib/core/`).
+  Méthodes dans l'extension `app_state_reinforcement.dart` : `recordQuizAnswer`, `quizLevels`,
+  `mosaicTiles`, `reinforcementSeriesInputs`. Durée du tour : `roundDaysOf(daySelection)`
+  (existant).
+- **`ayah_facts`** : lecture seule, via `_lastRevisionByAyah` (`lastRevisionDatesPerVerse`,
+  `type='revise' AND reach=1`, la même donnée que les badges du Récap). Aucune écriture.
+- **Décision data model** : nouvelle table `quiz_answers` dans `history.db` (v5 → v6), journal
+  ajouté seulement. `ayah_facts` avec un `type='quiz'` a été écarté : l'unicité
+  `date+riwaya+surah_id+ayah_id+type` interdit deux réponses au même verset le même jour et ne porte
+  ni le rang du mot ni l'ordre des réponses ; il faudrait des colonnes propres au quiz et donner un
+  second sens à `reach` ; et l'invariant « une question ne vaut jamais une révision » reposerait sur
+  chaque requête présente et future qui filtre `type = ?`, alors qu'une table séparée le rend
+  structurel. Reconnaître un verset n'est ni « visé » ni « atteint » (même raisonnement que l'écoute,
+  US-9). Niveau, questions à rejouer et sourates à risque se **reconstruisent** par requête sur ce
+  journal et sur `ayah_facts` : rien d'autre n'est stocké (pas de table de niveaux, pas de compteur).
+- **Réutilisation** : `_draw` et `_question` du moteur (étendus), `FreshnessEngine` (étendu),
+  `roundDaysOf`, `VerseBottomSheet.show` (« ouvrir le texte »), `SouratePickerSheet`,
+  `freshnessDiscreetLabel`, `AppPalette.levelTints/risk/gold`, `AppText`. Rien de comparable pour une
+  grille de carreaux (grep).
+- **Points levés** : (1) le niveau se reconstruit des réponses de versets dans l'ordre : la première
+  met la sourate au niveau 1 ; 3 réussites de suite à ce niveau la font monter (max 4), 2 ratés de
+  suite descendre (min 1, jamais retour à « pas encore jouée ») ; une réponse posée à un autre niveau
+  que le courant ne compte pas. (2) Niveau 4 : le tirage des 3 mauvais choix change de priorité selon
+  le niveau (1 autres sourates, 2 même sourate, 3 voisins ±3 passages, 4 passages similaires déjà
+  mesurés), chacun complétant par les niveaux inférieurs : aucune question perdue. (3) Le niveau
+  survit au retrait/remise d'une sourate et à un changement de plage (le journal n'est jamais purgé).
+  (4) Une plage partielle a un seul carreau ; l'orange se calcule sur la plage ; la plage s'écrit
+  dans la feuille, pas sur le carreau. (5) Mosaïque en ordre du mushaf ; aucun ordre entre sourates à
+  risque dans les questions (l'ordre « plus ancienne d'abord » est celui d'US-23). (6) Onglet :
+  mosaïque, puis questions du jour, puis « Choisir une sourate » (choix utilisateur du 2026-11-08).
+- **Risques / dépendances** : extraction du moteur et de l'onglet (plafond) ; test de migration v6 ;
+  US-23 reprend les widgets ; US-24 indépendante (les nouvelles chaînes emploient déjà son lexique) ;
+  une sourate change d'au plus un niveau par série (les réponses encore posées à l'ancien niveau ne
+  comptent pas ; corrigé au Sprint A, le scoping disait l'inverse) ; « révisée » inclut une rakaa
+  cochée au plan avant la fin de journée, comme les badges actuels.
+- **Tests** : Dart pur : repli de niveau, retours, orange, tirage par niveau, composition de série,
+  journal sans effet sur les requêtes de révision, migration. Visuel (Windows) : formes, 1 à 114
+  carreaux, ordre de l'onglet, feuille du carreau.
+- **Item Backlog** : « US-21 Sprint A — niveaux, questions ratées et sourates à risque dans les
+  questions » puis « US-21 Sprint B — la mosaïque et la feuille du carreau ».
+
+**Ajustement au scoping** (2026-11-08) — sens inchangé :
+- crit. 1 : « un carreau par sourate révisée » = un carreau par sourate de la sélection en révision,
+  jamais révisée comprise (sourates en apprentissage toujours exclues).
+- crit. 2 : la difficulté par niveau ne s'applique qu'aux questions de versets ; les questions de mots
+  gardent leur tirage.
+- crit. 4 : « combien reviendront » = les questions ratées dans cette série. Une question ratée revient
+  même si elle était dans la série précédente (la règle « pas reposée pendant la session » de
+  `docs/SPEC_PRODUIT.md` § Renforcement cède devant ce critère).
+- crit. 5 : orange = plus de max(90 jours, durée du tour en jours) depuis la plus récente révision de
+  la plage. Une sourate **jamais révisée n'est jamais orange**, ni une sourate dont un verset a été
+  révisé récemment. Le carreau orange remplace la forme de niveau par l'étoile orange dans un anneau ;
+  le niveau se lit dans la feuille.
+- crit. 6 : « lancer une série » n'apparaît pas pour une sourate qui n'offre aucune question ;
+  « ouvrir son texte » ouvre la plage sélectionnée.
+Validé par l'utilisateur le 2026-11-08 : jamais révisée jamais orange, forme du carreau à risque,
+ordre de l'onglet. Le reste précise sans changer le sens.
 
 ### Cadre commun du blueprint Zellige (2026-10-17) : US-21, US-23, US-24, US-25 et US-26
 

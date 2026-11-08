@@ -3,8 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_theme.dart';
+import '../../core/quiz_levels.dart';
 import '../../core/reinforcement_engine.dart';
 import '../../core/strings.dart';
+import '../../models/quiz_answer.dart';
 import '../../models/sourate.dart';
 import '../../state/app_state.dart';
 import '../../widgets/arabic_verse_text.dart';
@@ -30,13 +32,21 @@ String _shown(List<Passage> run, {bool lead = true}) {
   return '$before${run.map((passage) => passage.text).join(' ')}$after';
 }
 
-/// One series, from the first question to the score. Nothing is stored:
-/// leaving it, at any point, only pops the route.
+/// One series, from the first question to the score. Each answer is kept as
+/// soon as it is given (US-21); leaving, at any point, only pops the route.
 class SeriesScreen extends StatefulWidget {
   final List<SeriesQuestion> questions;
   final String title;
 
-  const SeriesScreen({super.key, required this.questions, required this.title});
+  /// The levels the series was composed at, to announce what changed.
+  final Map<int, int> levelsBefore;
+
+  const SeriesScreen({
+    super.key,
+    required this.questions,
+    required this.title,
+    required this.levelsBefore,
+  });
 
   @override
   State<SeriesScreen> createState() => _SeriesScreenState();
@@ -47,6 +57,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
   // Rank of the tapped choice among those of the current question.
   int? _picked;
   final List<bool> _held = [];
+  List<String>? _levelChanges;
 
   int get _total => widget.questions.length;
 
@@ -55,15 +66,59 @@ class _SeriesScreenState extends State<SeriesScreen> {
   Widget _eyebrow(String text, AppPalette palette) => Text(text.toUpperCase(),
       style: AppText.sectionTitle.copyWith(color: palette.textMuted));
 
-  void _pick(SeriesQuestion question, int choice) => setState(() {
-        _picked = choice;
-        _held.add(choice == question.answerIndex);
-      });
+  void _pick(SeriesQuestion question, int choice) {
+    final held = choice == question.answerIndex;
+    setState(() {
+      _picked = choice;
+      _held.add(held);
+    });
+    context.read<AppState>().recordQuizAnswer(_answerOf(question, held));
+  }
 
-  void _next() => setState(() {
-        _index++;
-        _picked = null;
-      });
+  QuizAnswer _answerOf(SeriesQuestion question, bool held) =>
+      switch (question) {
+        PassageQuestion(:final prompt, :final level) => QuizAnswer(
+            kind: QuizKind.passage,
+            surahId: prompt.surahId,
+            ayahId: prompt.ayahId,
+            rank: prompt.index,
+            level: level,
+            held: held),
+        WordQuestion(:final answer) => QuizAnswer(
+            kind: QuizKind.word,
+            surahId: answer.surahId,
+            ayahId: answer.ayahId,
+            rank: answer.rank,
+            level: 0,
+            held: held),
+      };
+
+  void _next() {
+    setState(() {
+      _index++;
+      _picked = null;
+    });
+    if (_index == _total) _loadLevelChanges();
+  }
+
+  Future<void> _loadLevelChanges() async {
+    final Map<int, int> after;
+    try {
+      after = await context.read<AppState>().quizLevels();
+    } catch (e) {
+      // The score stands without them: only the level lines are missing.
+      debugPrint('[Quiz] levels not read: $e');
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _levelChanges = [
+          for (final MapEntry(key: id, value: (:from, :to))
+              in QuizLevels.changes(widget.levelsBefore, after).entries)
+            to > from
+                ? SReinforcement.passeAuNiveau(_sourate(id).nameFr, to)
+                : SReinforcement.revientAuNiveau(_sourate(id).nameFr, to),
+        ]);
+  }
 
   ChoiceState _stateOf(SeriesQuestion question, int choice) {
     final picked = _picked;
@@ -242,6 +297,14 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   fontSize: 34, fontWeight: FontWeight.w600, height: 1.1)),
           const SizedBox(height: 18),
           SeriesMarks(held: _held, total: _total),
+          for (final line in [
+            if (_held.contains(false))
+              SReinforcement.reviendront(_held.where((h) => !h).length),
+            ...?_levelChanges,
+          ]) ...[
+            const SizedBox(height: 12),
+            Text(line, textAlign: TextAlign.center, style: AppText.body),
+          ],
           const SizedBox(height: 24),
           Text(SReinforcement.finSerieNote,
               textAlign: TextAlign.center,

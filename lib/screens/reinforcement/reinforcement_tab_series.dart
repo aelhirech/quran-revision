@@ -1,0 +1,56 @@
+part of 'reinforcement_tab.dart';
+
+List<SeriesQuestion> _composeSeries({
+  required SeriesMode mode,
+  required Map<int, Set<int>> carried,
+  required Set<(int, int)> today,
+  required String Function(int surahId, int ayahId) textOf,
+  required Random random,
+  required Set<(int, int, int)> avoidPassages,
+  required Set<(int, int, int)> avoidWords,
+  required int? surahId,
+  required ReinforcementCorpus corpus,
+  required QuizSeriesInputs quiz,
+}) {
+  return switch (mode) {
+    SeriesMode.passages => ReinforcementEngine.buildSeries(
+      carried: carried,
+      today: today,
+      textOf: textOf,
+      random: random,
+      avoid: avoidPassages,
+      surahId: surahId,
+      corpus: corpus,
+      levels: quiz.levels,
+      retry: quiz.retryPassages,
+      atRisk: quiz.atRisk,
+    ),
+    SeriesMode.words => ReinforcementWords.buildWordQuestions(
+      carried: carried,
+      today: today,
+      textOf: textOf,
+      glossesOf: WordGlossService.glosses,
+      random: random,
+      avoid: avoidWords,
+      surahId: surahId,
+      corpus: corpus,
+      retry: quiz.retryWords,
+      atRisk: quiz.atRisk,
+    ),
+    SeriesMode.mix => ReinforcementWords.buildMixedSeries(
+      carried: carried,
+      today: today,
+      textOf: textOf,
+      glossesOf: WordGlossService.glosses,
+      random: random,
+      avoidPassages: avoidPassages,
+      avoidWords: avoidWords,
+      surahId: surahId,
+      corpus: corpus,
+      levels: quiz.levels,
+      retryPassages: quiz.retryPassages,
+      retryWords: quiz.retryWords,
+      atRisk: quiz.atRisk,
+    ),
+  };
+}

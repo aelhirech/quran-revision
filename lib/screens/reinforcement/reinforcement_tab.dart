@@ -14,6 +14,8 @@ import '../../widgets/primary_cta_button.dart';
 import '../../widgets/sourate_picker_sheet.dart';
 import 'series_screen.dart';
 
+part 'reinforcement_tab_series.dart';
+
 enum SeriesMode { mix, passages, words }
 
 class ReinforcementTab extends StatefulWidget {
@@ -150,7 +152,10 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
   Future<void> _start({Sourate? sourate}) async {
     final state = context.read<AppState>();
     final mode = _modeFor(state);
-    final inputs = await state.reinforcementInputs();
+    final (inputs, quiz) = await (
+      state.reinforcementInputs(),
+      state.reinforcementSeriesInputs()
+    ).wait;
     if (!mounted) return;
     if (mode != SeriesMode.passages) {
       await WordGlossService.load();
@@ -166,38 +171,18 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
     // Another riwaya meanwhile: the memo now holds its text, not this one's.
     if (!mounted || state.riwaya != riwaya) return;
     final random = Random();
-    final List<SeriesQuestion> questions = switch (mode) {
-      SeriesMode.passages => ReinforcementEngine.buildSeries(
-          carried: inputs.carried,
-          today: inputs.today,
-          textOf: textOf,
-          random: random,
-          avoid: _lastPrompts,
-          surahId: sourate?.id,
-          corpus: corpus,
-        ),
-      SeriesMode.words => ReinforcementWords.buildWordQuestions(
-          carried: inputs.carried,
-          today: inputs.today,
-          textOf: textOf,
-          glossesOf: WordGlossService.glosses,
-          random: random,
-          avoid: _lastWords,
-          surahId: sourate?.id,
-          corpus: corpus,
-        ),
-      SeriesMode.mix => ReinforcementWords.buildMixedSeries(
-          carried: inputs.carried,
-          today: inputs.today,
-          textOf: textOf,
-          glossesOf: WordGlossService.glosses,
-          random: random,
-          avoidPassages: _lastPrompts,
-          avoidWords: _lastWords,
-          surahId: sourate?.id,
-          corpus: corpus,
-        ),
-    };
+    final questions = _composeSeries(
+      mode: mode,
+      carried: inputs.carried,
+      today: inputs.today,
+      textOf: textOf,
+      random: random,
+      avoidPassages: _lastPrompts,
+      avoidWords: _lastWords,
+      surahId: sourate?.id,
+      corpus: corpus,
+      quiz: quiz,
+    );
     // Fallback only: the offer and the composers share their condition.
     if (questions.isEmpty) {
       final surahId = sourate?.id;
@@ -225,6 +210,7 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
       fullscreenDialog: true,
       builder: (_) => SeriesScreen(
         questions: questions,
+        levelsBefore: quiz.levels,
         title: sourate == null
             ? SReinforcement.serieDuJour
             : SReinforcement.serieSur(sourate.nameFr),

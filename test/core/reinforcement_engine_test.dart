@@ -55,6 +55,9 @@ void main() {
     Set<(int, int)> today = const {},
     Set<(int, int, int)> avoid = const {},
     int? surahId,
+    Map<int, int> levels = const {},
+    List<(int, int, int)> retry = const [],
+    Set<int> atRisk = const {},
   }) =>
       ReinforcementEngine.buildSeries(
         carried: carried,
@@ -63,6 +66,9 @@ void main() {
         today: today,
         avoid: avoid,
         surahId: surahId,
+        levels: levels,
+        retry: retry,
+        atRisk: atRisk,
       );
 
   group('passagesOf', () {
@@ -141,10 +147,10 @@ void main() {
       }
     });
 
-    test('6. le passage similaire à la bonne suite est proposé', () {
+    test('6. niveau 4 : le passage similaire à la bonne suite est proposé', () {
       final carried = wholeSurahs(93, 95, HafsService.verseCounts);
       for (var seed = 0; seed < 20; seed++) {
-        final question = hafsSeries(carried, seed, surahId: 94)
+        final question = hafsSeries(carried, seed, surahId: 94, levels: {94: 4})
             .singleWhere((q) => q.prompt.ayahId == 4);
         expect(question.answer.ayahId, 5);
         expect(question.choices.map(_id), contains((94, 6, 0)));
@@ -152,7 +158,7 @@ void main() {
     });
 
     test(
-        '6 bis. sur tout le Coran, un passage similaire est proposé dès qu\'il '
+        '6 bis. sur tout le Coran au niveau 4, un passage similaire est proposé dès qu\'il '
         'en existe un', () {
       final carried = wholeSurahs(1, 114, HafsService.verseCounts);
       final all = [
@@ -169,7 +175,8 @@ void main() {
 
       var checked = 0;
       for (var seed = 0; seed < 5; seed++) {
-        for (final q in hafsSeries(carried, seed)) {
+        for (final q in hafsSeries(carried, seed,
+            levels: {for (final id in carried.keys) id: 4})) {
           final taken = {_key(q.prompt.words), _key(q.answer.words)};
           final exists = all.any(
               (c) => !taken.contains(_key(c.words)) && similar(c, q.answer));
@@ -410,6 +417,107 @@ void main() {
       corpus.clear();
       await warming;
       expect(corpus.passagesOf(112, 1, 'نص').single.text, 'نص');
+    });
+  });
+
+  group('niveaux, retours et sourates à risque (US-21)', () {
+    List<Passage> chainOf(int surah) => [
+          for (var ayah = 1; ayah <= HafsService.verseCounts[surah]!; ayah++)
+            ...ReinforcementEngine.passagesOf(
+                surah, ayah, HafsService.getVerse(surah, ayah)),
+        ];
+
+    Iterable<Passage> wrongOf(PassageQuestion q) =>
+        q.choices.where((c) => c.id != q.answer.id);
+
+    test('19. sourate pas encore jouée : niveau 1, mauvais choix d\'ailleurs',
+        () {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      for (var seed = 0; seed < 10; seed++) {
+        for (final q in hafsSeries(carried, seed)) {
+          expect(q.level, 1);
+          expect(wrongOf(q).every((c) => c.surahId != q.answer.surahId), isTrue,
+              reason: 'choix de la même sourate pour ${_id(q.answer)}');
+        }
+      }
+    });
+
+    test('20. niveau 2 : mauvais choix de la même sourate', () {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      for (var seed = 0; seed < 10; seed++) {
+        for (final q in hafsSeries(carried, seed, surahId: 78, levels: {78: 2})) {
+          expect(q.level, 2);
+          expect(wrongOf(q).every((c) => c.surahId == 78), isTrue,
+              reason: 'choix d\'une autre sourate pour ${_id(q.answer)}');
+        }
+      }
+    });
+
+    test('21. niveau 3 : mauvais choix parmi les passages voisins', () {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      final position = {
+        for (final (i, p) in chainOf(78).indexed) _id(p): i,
+      };
+      for (var seed = 0; seed < 10; seed++) {
+        for (final q in hafsSeries(carried, seed, surahId: 78, levels: {78: 3})) {
+          final at = position[_id(q.answer)]!;
+          for (final c in wrongOf(q)) {
+            expect((position[_id(c)]! - at).abs(), lessThanOrEqualTo(3),
+                reason: '${_id(c)} loin de ${_id(q.answer)}');
+          }
+        }
+      }
+    });
+
+    test('22. une question ratée revient, même posée à la série précédente',
+        () {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      for (var seed = 0; seed < 10; seed++) {
+        final first = hafsSeries(carried, seed).map((q) => _id(q.prompt));
+        final missed = first.take(3).toList();
+        final second = hafsSeries(carried, seed + 100,
+                avoid: first.toSet(), retry: missed)
+            .map((q) => _id(q.prompt));
+        expect(second, containsAll(missed));
+      }
+    });
+
+    test('23. les questions ratées prennent au plus la moitié de la série', () {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      final missed = hafsSeries(carried, 1).map((q) => _id(q.prompt)).toList();
+      final second = hafsSeries(carried, 2, retry: missed);
+      expect(second, hasLength(10));
+      expect(second.where((q) => missed.contains(_id(q.prompt))), hasLength(5));
+    });
+
+    test('23 bis. sans autre matière, les questions ratées complètent la série',
+        () {
+      final carried = wholeSurahs(94, 94, HafsService.verseCounts);
+      final missed = hafsSeries(carried, 1).map((q) => _id(q.prompt)).toList();
+      // Over half a series, or the test would not reach the last fill.
+      expect(missed.length, greaterThan(5));
+      final series = hafsSeries(carried, 2, retry: missed);
+      expect(series.map((q) => _id(q.prompt)), unorderedEquals(missed));
+    });
+
+    test('24. les sourates à risque passent juste après le plan du jour', () {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      final today = {for (final v in carried[78]!) (78, v)};
+      for (var seed = 0; seed < 10; seed++) {
+        final series =
+            hafsSeries(carried, seed, today: today, atRisk: {100});
+        expect(series.where((q) => q.prompt.surahId == 78), hasLength(5));
+        expect(series.where((q) => q.prompt.surahId == 100), hasLength(5));
+      }
+    });
+
+    test('25. une série sur une sourate ne reprend que ses questions ratées',
+        () {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      final missed =
+          hafsSeries(carried, 1, surahId: 78).map((q) => _id(q.prompt)).toList();
+      final series = hafsSeries(carried, 2, surahId: 93, retry: missed);
+      expect(series.every((q) => q.prompt.surahId == 93), isTrue);
     });
   });
 

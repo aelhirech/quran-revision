@@ -36,7 +36,7 @@ class _Chains {
           for (final word in answer._wordSet) ...?_byWord[word],
         };
         return sharingAWord
-            .where((candidate) => ReinforcementEngine._similar(candidate, answer))
+            .where((candidate) => _similar(candidate, answer))
             .toList();
       });
 
@@ -53,7 +53,7 @@ class _Chains {
   }
 
   List<_Link> linksOf(int surahId) => _links.putIfAbsent(
-      surahId, () => ReinforcementEngine._askableLinks(bySurah[surahId]!));
+      surahId, () => _askableLinks(bySurah[surahId]!));
 }
 
 /// Whether two carried selections hold the same verses.

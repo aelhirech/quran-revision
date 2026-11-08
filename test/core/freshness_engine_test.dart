@@ -128,4 +128,32 @@ void main() {
       expect(level, FreshnessLevel.recent);
     });
   });
+
+  group('FreshnessEngine.daysSinceLastRevision', () {
+    test('jours depuis la plus récente révision de la plage', () {
+      expect(
+          FreshnessEngine.daysSinceLastRevision(
+            lastRevisionByAyah: {
+              1: today.subtract(const Duration(days: 3)),
+              2: today.subtract(const Duration(days: 40)),
+              9: today.subtract(const Duration(days: 1)),
+            },
+            verseStart: 1,
+            verseEnd: 5,
+            today: today,
+          ),
+          3);
+    });
+
+    test('aucun verset révisé dans la plage → null', () {
+      expect(
+          FreshnessEngine.daysSinceLastRevision(
+            lastRevisionByAyah: {9: today},
+            verseStart: 1,
+            verseEnd: 5,
+            today: today,
+          ),
+          isNull);
+    });
+  });
 }

@@ -4,12 +4,14 @@ import '../core/day_dates.dart';
 import '../core/streak_engine.dart';
 import '../models/ayah_fact.dart';
 import '../models/learning_progress.dart';
+import '../models/quiz_answer.dart';
 import '../models/revision_unit.dart';
 import '../models/riwaya.dart';
 import '../models/sourate.dart';
 
 part 'ayah_facts_learning.dart';
 part 'ayah_facts_ritual.dart';
+part 'quiz_answers.dart';
 
 /// Table de faits par verset (Phase 6) — remplace l'ancien HistoryService
 /// (`sessions`/`sourate_sessions`, granularité sourate) et le rôle "profil
@@ -30,9 +32,10 @@ class AyahFactsService {
   static Future<Database> _open() async {
     _db ??= await openDatabase(
       p.join(await getDatabasesPath(), 'history.db'),
-      version: 5,
+      version: 6,
       onCreate: (db, _) async {
         await _createAyahFacts(db);
+        await QuizAnswers._create(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 4) {
@@ -66,6 +69,7 @@ class AyahFactsService {
               'ALTER TABLE ayah_facts ADD COLUMN needs_work INTEGER NOT NULL DEFAULT 0');
           await db.execute('UPDATE ayah_facts SET needs_work = cold');
         }
+        if (oldVersion < 6) await QuizAnswers._create(db);
       },
     );
     return _db!;
