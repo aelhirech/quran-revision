@@ -8,18 +8,11 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P3] Test qui interdit un `fontSize:` littéral hors `app_theme.dart`
-Relevé au Sprint B1 d'US-25 (2026-10-22) : rien n'empêche un futur écran de réécrire un
-`TextStyle(fontSize: …)` à côté des six styles d'`AppText`. Un test (`test/core/
-app_text_usage_test.dart`) lit chaque fichier `.dart` de `lib/` et échoue sur toute ligne où
-`fontSize:` est suivi d'un nombre (`fontSize:\s*\d`), sauf dans `lib/core/app_theme.dart` et sauf
-les lignes `GoogleFonts.` (texte arabe). Le nombre et pas le simple `fontSize:` (relevé au Sprint
-B2) : deux lignes légitimes restent, `IndexBadge` (`fontSize: size * 0.37`, chiffre proportionnel
-à la pastille) et `VerseRow` (`ArabicVerseText(fontSize: fontSize)`, paramètre de la police
-arabe). Exclus tant qu'US-23 et US-21 n'ont pas reconstruit le Récap et l'onglet Quiz :
-`recap_screen.dart`, les trois widgets qu'il est seul à afficher (`history_card.dart`,
-`sourates_recap_card.dart`, `learning_progress_card.dart`) et `lib/screens/reinforcement/`, listés
-en dur dans le test et retirés au fil des livraisons.
+### [P3] Exclusion obsolète du test `app_text_usage_test.dart`
+Relevé au sprint 38 (2026-11-08) : la liste `_notYetMigrated` du test ne se vide que si quelqu'un
+y pense. Si US-23 ou US-21 reconstruit un écran exclu sans retirer son entrée, un futur `fontSize`
+en dur y passe sans bruit. Correctif : dans le même test, échouer si une entrée de
+`_notYetMigrated` ne contient plus aucune ligne qui matche (`exclusion obsolète, la retirer`).
 
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
