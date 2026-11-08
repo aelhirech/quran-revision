@@ -4,6 +4,9 @@ import '../../../core/app_theme.dart';
 import '../../../widgets/arabic_verse_text.dart';
 import 'series_marks.dart';
 
+/// Arabic text size of the Quiz screens. Amiri, so outside AppText (Outfit).
+const quizArabicSize = 20.0;
+
 enum ChoiceState { idle, correct, pickedWrong, dimmed }
 
 /// One proposed passage of a question. [note] is the line shown under a wrong
@@ -66,8 +69,8 @@ class PassageChoice extends StatelessWidget {
                     Expanded(
                       child: latin
                           ? Text(text,
-                              style: const TextStyle(fontSize: 15, height: 1.4))
-                          : ArabicVerseText(text: text, fontSize: 20),
+                              style: AppText.body.copyWith(height: 1.4))
+                          : ArabicVerseText(text: text, fontSize: quizArabicSize),
                     ),
                   ],
                 ),

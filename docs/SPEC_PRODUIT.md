@@ -502,6 +502,18 @@ KSU.
   lancée en un geste ; un second geste lance une série sur une sourate choisie dans la sélection.
   « Choisir une sourate » ne liste que les sourates qui offrent au moins une question dans le
   mode choisi : une sourate listée mène toujours à une série.
+- **Mosaïque**, en tête de l'onglet, avant la série du jour puis « Choisir une sourate » : un
+  carreau par sourate de la sélection en révision (jamais une sourate en apprentissage), dans
+  l'ordre du mushaf ; une plage partielle a un seul carreau. Au-dessus de la grille, le nombre de
+  sourates à risque d'oublier passe avant tout le reste, ou une phrase calme s'il n'y en a aucune.
+  La forme et la couleur du carreau disent son niveau ; un carreau à risque devient une étoile
+  orange dans un anneau, quel que soit son niveau. Les carreaux font de 20 à 44 px : la grille tient
+  dans 240 px de haut quand c'est possible, sinon elle s'allonge plutôt que de rapetisser encore.
+  Sans sourate en révision, pas de mosaïque. Elle se met à jour au retour d'une série.
+- **Toucher un carreau** ouvre sa feuille : nom en français et en arabe, plage si elle est
+  partielle, niveau (avec sa forme, même pour un carreau à risque), « Risque d'oublier » s'il y a
+  lieu, dernière révision, « Voir le texte » (la plage sélectionnée) et « Lancer une série sur
+  cette sourate », absent pour une sourate qui n'offre aucune question dans le mode choisi.
 - **Question de suite** : un passage est affiché (avec sourate et numéro) et l'utilisateur
   retrouve celui qui le suit parmi quatre au plus. Un verset de plus de 12 mots est coupé aux
   signes de pause du mushaf ; « … » marque un passage qui ne commence ou ne termine pas son
@@ -547,7 +559,8 @@ KSU.
   choisi, et le message disparaît dès que la sélection ou le mode suffit, sans attendre un
   lancement. Jamais de série vide ni de verset pris hors sélection.
 
-**Ne fait pas** : rien n'est crédité (reconnaître un passage n'est pas le réciter) : les
+**Ne fait pas** : aucun choix fabriqué, recomposé ou altéré (chaque choix est un vrai passage ou
+un vrai mot de la riwaya active) ; rien n'est crédité (reconnaître un passage n'est pas le réciter) : les
 réponses sont gardées pour les niveaux et les questions à reprendre, à part du journal de
 révision, et ne touchent ni le tour, ni les jours de suite, ni la dernière révision, ni ce que la
 fin de journée valide ; le plan ne lit rien de l'onglet ; pas de niveau global, pas de niveau
@@ -556,7 +569,8 @@ choisies et les versets déjà appris ; jamais un verset pas encore appris, jama
 plage ; pas de question sur le verset précédent, de remise en ordre, de sourate à nommer, ni par
 l'écoute ; pas de rappel pour jouer ; une série quittée repart du début ; pas de cours de mots
 fréquents, de grammaire ni de racines ; pas de second message pour une sourate sans question
-(elle n'est simplement pas proposée).
+(elle n'est simplement pas proposée) ; la mosaïque n'apparaît ni au plan du jour ni au check-in,
+pas de moment de jalon pour un niveau atteint, pas d'écran de collection.
 
 ## Récap
 
@@ -597,7 +611,8 @@ une phrase qui l'explique au moment où elle compte.
   elles aussi : hors connexion au premier lancement, il ne s'affiche jamais dans la police du système.
 - **Six styles de texte**, chacun choisi selon son rôle : titre d'écran, titre de section (en
   capitales), titre de carte, texte, légende, grand chiffre. Tous les écrans n'emploient que
-  ceux-là, sauf le Récap et l'onglet Quiz, qui gardent encore leurs tailles propres. Avec un texte
+  ceux-là, sauf le Récap, qui garde encore ses tailles propres (le texte arabe a ses tailles à
+  part, dans sa propre police). Avec un texte
   système agrandi, l'en-tête du check-in et du check-out défile avec le contenu, les pages
   d'accueil et de choix de la riwaya de l'onboarding défilent quand elles ne tiennent plus, l'en-tête
   de la sélection des sourates défile avec la liste pour lui laisser la place, et un
@@ -615,10 +630,13 @@ une phrase qui l'explique au moment où elle compte.
 - **Aucun italique** : la police n'en a pas, et des lettres penchées artificiellement se lisent
   mal. Citations, indications et légendes s'affichent droites.
 - **Une couleur, un sens.** Les badges de date de révision du plan du jour et du Récap sont
-  neutres (texte secondaire, sans couleur) quel que soit le niveau. Seuls les niveaux de jeu
-  (quatre teintes froides du vert au bleu nuit, un gris pour « pas encore jouée ») et le risque
-  d'oublier (orange, qui lui est réservé) porteront un sens par la couleur ; ces couleurs sont
-  définies une fois, en clair et en sombre, et ne sont pas encore affichées.
+  neutres (texte secondaire, sans couleur) quel que soit le niveau. Seuls les carreaux de la
+  mosaïque portent un sens par la couleur : les niveaux (quatre teintes froides du vert au bleu
+  nuit, un gris pour « pas encore jouée ») et le risque d'oublier (orange, qui lui est réservé),
+  définis une fois, en clair et en sombre.
+- **Formes de carreau** : pas encore jouée, petit losange ; niveau 1, losange ; 2, étoile à huit
+  pointes ; 3, étoile évidée au centre ; 4, étoile à cœur doré ; risque d'oublier, étoile orange
+  dans un anneau. La forme double la couleur : un niveau se lit sans distinguer les teintes.
 - **Lisibilité** : en clair comme en sombre, le texte atteint un contraste de 4,5:1 sur le fond et
   sur les cartes, les teintes de niveau et l'orange 3:1.
 - **Aucun emoji** comme illustration, y compris dans les titres de notification.

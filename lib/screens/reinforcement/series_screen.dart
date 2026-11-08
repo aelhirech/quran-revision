@@ -204,12 +204,12 @@ class _SeriesScreenState extends State<SeriesScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(SReinforcement.sourateVerset(surah.nameFr, prompt.ayahId),
-            style: TextStyle(fontSize: 13, color: palette.textMuted)),
+            style: AppText.caption.copyWith(color: palette.textMuted)),
         const SizedBox(height: 8),
         _promptCard(ArabicVerseText(text: _shown([prompt]))),
         const SizedBox(height: 18),
         Text(SReinforcement.quelleSuite,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            style: AppText.cardTitle),
         const SizedBox(height: 10),
         for (final (index, choice) in question.choices.indexed)
           _choice(
@@ -219,7 +219,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
             wrongNote: Text(
                 SReinforcement.passageDans(
                     _sourate(choice.surahId).nameFr, choice.ayahId),
-                style: TextStyle(fontSize: 12, color: palette.textMuted)),
+                style: AppText.caption.copyWith(color: palette.textMuted)),
           ),
         if (_picked != null) _followUp(palette, question, surah),
       ],
@@ -273,12 +273,12 @@ class _SeriesScreenState extends State<SeriesScreen> {
               VerseRow(
                   number: prompt.ayahId,
                   text: _shown([prompt, answer]),
-                  fontSize: 20)
+                  fontSize: quizArabicSize)
             else ...[
               VerseRow(
-                  number: prompt.ayahId, text: _shown([prompt]), fontSize: 20),
+                  number: prompt.ayahId, text: _shown([prompt]), fontSize: quizArabicSize),
               VerseRow(
-                  number: answer.ayahId, text: _shown([answer]), fontSize: 20),
+                  number: answer.ayahId, text: _shown([answer]), fontSize: quizArabicSize),
             ],
             _seeText(surah, prompt.ayahId, answer.ayahId),
           ],
@@ -293,8 +293,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
           Text(
               SReinforcement.progression(
                   _held.where((held) => held).length, _total),
-              style: const TextStyle(
-                  fontSize: 34, fontWeight: FontWeight.w600, height: 1.1)),
+              style: AppText.screenTitle),
           const SizedBox(height: 18),
           SeriesMarks(held: _held, total: _total),
           for (final line in [
@@ -308,7 +307,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
           const SizedBox(height: 24),
           Text(SReinforcement.finSerieNote,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: palette.textMuted)),
+              style: AppText.caption.copyWith(color: palette.textMuted)),
         ],
       );
 }

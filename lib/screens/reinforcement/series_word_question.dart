@@ -24,20 +24,22 @@ extension _WordQuestionView on _SeriesScreenState {
   Widget _wordQuestion(AppPalette palette, WordQuestion question) {
     final answer = question.answer;
     final surah = _sourate(answer.surahId);
-    const asked = TextStyle(fontSize: 16, fontWeight: FontWeight.w600);
+    const asked = AppText.cardTitle;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (question.arabicToMeaning) ...[
           Text(SReinforcement.sourateVerset(surah.nameFr, answer.ayahId),
-              style: TextStyle(fontSize: 13, color: palette.textMuted)),
+              style: AppText.caption.copyWith(color: palette.textMuted)),
           const SizedBox(height: 8),
           _promptCard(_passageWithWord(palette, question)),
           const SizedBox(height: 18),
           Text(SReinforcement.queVeutDire, style: asked),
         ] else ...[
           const SizedBox(height: 8),
-          Text(answer.gloss, style: const TextStyle(fontSize: 20, height: 1.4)),
+          Text(answer.gloss,
+              style: AppText.cardTitle
+                  .copyWith(fontWeight: FontWeight.w400, height: 1.4)),
           const SizedBox(height: 18),
           Text(SReinforcement.quelMot, style: asked),
         ],
@@ -52,12 +54,11 @@ extension _WordQuestionView on _SeriesScreenState {
               TextSpan(children: [
                 TextSpan(
                     text: choice.arabic,
-                    style: GoogleFonts.amiri(
-                        fontSize: 15, color: palette.textMuted)),
+                    style: GoogleFonts.amiri(fontSize: 15, color: palette.textMuted)),
                 TextSpan(text: SReinforcement.motSensSep),
                 TextSpan(text: choice.gloss),
               ]),
-              style: TextStyle(fontSize: 12, color: palette.textMuted),
+              style: AppText.caption.copyWith(color: palette.textMuted),
             ),
           ),
         if (_picked != null) _wordFollowUp(palette, question, surah),
@@ -79,15 +80,15 @@ extension _WordQuestionView on _SeriesScreenState {
             if (!question.arabicToMeaning) ...[
               const SizedBox(height: 8),
               Text(SReinforcement.sourateVerset(surah.nameFr, answer.ayahId),
-                  style: TextStyle(fontSize: 13, color: palette.textMuted)),
+                  style: AppText.caption.copyWith(color: palette.textMuted)),
             ],
-            _passageWithWord(palette, question, fontSize: 20),
+            _passageWithWord(palette, question, fontSize: quizArabicSize),
             const SizedBox(height: 4),
             Text(answer.gloss,
-                style: const TextStyle(fontSize: 15, height: 1.4)),
+                style: AppText.body.copyWith(height: 1.4)),
             const SizedBox(height: 8),
             Text(SReinforcement.sourceMots,
-                style: TextStyle(fontSize: 12, color: palette.textMuted)),
+                style: AppText.caption.copyWith(color: palette.textMuted)),
             _seeText(surah, answer.ayahId, answer.ayahId),
           ],
         ),

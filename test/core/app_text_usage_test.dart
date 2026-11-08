@@ -9,13 +9,12 @@ final _literalFontSize = RegExp(r'fontSize:\s*\d');
 const _themeFile = 'lib/core/app_theme.dart';
 
 // Screens not yet rebuilt on AppText. Remove each entry when its story ships:
-// US-23 (Recap and the three cards only it shows), US-21 (Quiz tab).
+// US-23 (Recap and the three cards only it shows).
 const _notYetMigrated = [
   'lib/screens/recap_screen.dart',
   'lib/widgets/history_card.dart',
   'lib/widgets/sourates_recap_card.dart',
   'lib/widgets/learning_progress_card.dart',
-  'lib/screens/reinforcement/',
 ];
 
 void main() {

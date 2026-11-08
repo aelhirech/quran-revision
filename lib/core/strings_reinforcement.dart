@@ -48,6 +48,21 @@ class SReinforcement {
   static String get sourceMots => S._t(
       'Sens : Dr Usama Nonnenmacher, CoranMot',
       'Meanings: Dr Usama Nonnenmacher, CoranMot');
+  static String aRisque(int n) => n == 1
+      ? S._t("1 sourate à risque d'oublier", '1 surah at risk of being forgotten')
+      : S._t("$n sourates à risque d'oublier",
+          '$n surahs at risk of being forgotten');
+  static String get aucuneARisque => S._t("Aucune sourate à risque d'oublier.",
+      'No surah at risk of being forgotten.');
+  static String niveau(int level) => level == 0
+      ? S._t('Pas encore jouée', 'Not played yet')
+      : S._t('Niveau $level', 'Level $level');
+  static String get risqueOublier =>
+      S._t("Risque d'oublier", 'At risk of being forgotten');
+  static String get derniereRevision =>
+      S._t('Dernière révision', 'Last revision');
+  static String get lancerSerieSur => S._t(
+      'Lancer une série sur cette sourate', 'Start a series on this surah');
   static String get selectionTropPetite => S._t(
       'Ta sélection est trop petite pour composer une série. Ajoute une sourate dans les Réglages.',
       'Your selection is too small to build a series. Add a surah in Settings.');
