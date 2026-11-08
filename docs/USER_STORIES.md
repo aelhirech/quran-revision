@@ -332,33 +332,6 @@ de côté par un changement de sélection, peut attendre un tour entier de plus.
 changement demande de réécrire sa partie A et de verrouiller le nouveau comportement par test,
 invariants de la partie E compris.
 
-### US-30 — Le Quiz reste juste et fluide, quelle que soit la sélection (extension d'US-20 et US-22)
-**État** : en cours — Sprint A livré (critères 1, 2, 4, 5 et 6 fondus dans `docs/SPEC_PRODUIT.md`
-§ Renforcement). Reste le critère 3 : item « [P2] US-30 Sprint B » de `docs/CHANGELOG.md`, dont
-le déclencheur est atteint.
-
-**Moment de l'histoire** : le milieu de journée, à un moment choisi. Ce que l'onglet y prouve :
-ce que je connais tient quand on me le demande dans le désordre. Un écran figé casse cette preuve
-avant la première question.
-
-**Statement** : En tant qu'utilisateur qui lance des questions, je veux qu'elles démarrent sans
-attente, sur n'importe quelle sourate proposée, afin de m'éprouver sans être freiné par l'écran.
-
-**Diagnostic (après le Sprint A)** : mesuré en profile sous Windows, 113 sourates, pire de trois
-essais (`docs/DOCUMENTATION_TECHNIQUE.md` §5.6). À chaud : 104 à 129 ms pour une série
-« Mélange » sur toute la sélection, 85 à 106 ms en « Versets ». À froid : 439 ms à la première
-ouverture de l'onglet, 575 ms à la première série « Mélange ». Avant le Sprint A : 931 ms par
-série « Mélange ». Pas encore ressenti sur iPhone.
-
-**Critère d'acceptation restant** :
-3. Given la plus grande sélection (114 sourates) ou une seule sourate, When je lance une série
-   dans n'importe quel mode, Then l'écran ne se fige pas de façon perceptible : 100 ms au plus par
-   cas, mesuré en profile sous Windows (trois modes, sélection entière et une sourate, première
-   série et suivantes, ouverture de l'onglet et de « Choisir une sourate » comprises), plus le
-   ressenti de l'utilisateur sur iPhone via TestFlight.
-
-**Exclusions explicites** : aucun changement d'affichage ; rien n'est crédité ni écrit.
-
 ### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
 **État** : en cours — Sprints A, B et C livrés (fondus dans `docs/SPEC_PRODUIT.md` § Registre
 visuel). Reste le Récap et la

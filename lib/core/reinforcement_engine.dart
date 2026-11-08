@@ -207,10 +207,18 @@ class ReinforcementEngine {
   }) {
     final shuffled = candidates.toList()..shuffle(random);
 
-    // A series on one surah ignores today's plan.
-    bool isToday(C candidate) {
-      final (surah, ayah, _) = idOf(candidate);
-      return surahId == null && today.contains((surah, ayah));
+    // Sorted in one pass, shuffled order kept: filtering lazily read each id
+    // up to eight times, most of a word series on a large selection
+    // (measured).
+    final fresh = (today: Queue<C>(), others: Queue<C>());
+    final avoided = (today: Queue<C>(), others: Queue<C>());
+    for (final candidate in shuffled) {
+      final id = idOf(candidate);
+      final group = avoid.contains(id) ? avoided : fresh;
+      final (surah, ayah, _) = id;
+      // A series on one surah ignores today's plan.
+      final ofToday = surahId == null && today.contains((surah, ayah));
+      (ofToday ? group.today : group.others).add(candidate);
     }
 
     final drawn = <Q>[];
@@ -225,18 +233,13 @@ class ReinforcementEngine {
 
     var fromToday = 0;
     // Avoided questions come second: they only fill what the rest left open.
-    for (final avoided in [false, true]) {
-      final pool = shuffled.where(
-          (candidate) => avoid.contains(idOf(candidate)) == avoided);
-      final ofToday = Queue.of(pool.where(isToday));
-      final others =
-          Queue.of(pool.where((candidate) => !isToday(candidate)));
+    for (final group in [fresh, avoided]) {
       // Today's plan gets half the series at most while other material is
       // left, so that it does not crowd out the rest of what is carried.
-      fromToday +=
-          fill(ofToday, min(count, drawn.length + count ~/ 2 - fromToday));
-      fill(others, count);
-      fromToday += fill(ofToday, count);
+      fromToday += fill(
+          group.today, min(count, drawn.length + count ~/ 2 - fromToday));
+      fill(group.others, count);
+      fromToday += fill(group.today, count);
     }
     return drawn..shuffle(random);
   }
@@ -299,7 +302,7 @@ class ReinforcementEngine {
     // The surah's chain holds the same passages, in the same order, as
     // [all] filtered on the surah.
     final sameSurah = chains.bySurah[answer.surahId]!;
-    pick(all, (c) => _similar(c, answer));
+    pick(chains.similarTo(answer));
     pick(link.neighbours);
     pick(all, (c) => c.surahId != answer.surahId);
     while (pick(sameSurah)) {}

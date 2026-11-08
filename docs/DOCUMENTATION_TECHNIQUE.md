@@ -213,7 +213,9 @@ Depuis US-22, une série peut aussi poser des questions de mots : elles vivent d
   `surahId`, seules les questions de cette sourate sont posées et `today` est ignoré.
   Ce tirage vit dans `_draw`, fonction privée partagée avec les questions de mots : elle reçoit
   les candidats déjà restreints à la sourate demandée, et `count` (10 par défaut) dit combien en
-  tirer, ce dont la série mêlée a besoin.
+  tirer, ce dont la série mêlée a besoin. Les candidats sont rangés en un seul passage dans quatre
+  files (évités ou non, plan du jour ou non), dans l'ordre du mélange : à graine égale, même
+  résultat qu'un filtrage par groupe, sans relire huit fois l'identifiant de chaque candidat.
 - **Mauvais choix**, 3 au plus, tous de clé différente, entre eux comme du passage posé et de sa
   suite : un passage similaire à la bonne suite
   (au moins la moitié des mots en commun, rapportés au plus grand des deux), un voisin (à 3 rangs
@@ -223,7 +225,11 @@ Depuis US-22, une série peut aussi poser des questions de mots : elles vivent d
   sans aucun mauvais choix est écartée ; une sélection trop petite donne une liste vide.
   Chaque mauvais choix est tiré par `_sampleFit` (partagé avec les mots) : jusqu'à 20 tirages au
   hasard dans le pool, puis, s'ils échouent tous, le filtre sur le pool entier. Chaque choix qui
-  convient reste également probable ; seule la suite aléatoire diffère d'avant US-30.
+  convient reste également probable ; seule la suite aléatoire diffère d'avant US-30. Le pool du
+  passage similaire est `_Chains.similarTo(answer)` : les passages qui partagent au moins un mot
+  avec la bonne suite (index mot → passages `_byWord`), filtrés par la même règle de similarité,
+  gardés en cache par réponse. Mêmes candidats que le filtre sur tous les passages portés, qui
+  prenait l'essentiel d'une série ; la suite aléatoire diffère à graine égale.
 - **Seuils** : 10 questions, 5 du plan du jour, 12 mots, 0,5 de similarité, 3 rangs, 3 mauvais
   choix. Constantes privées du fichier, pas d'`AppRules` : un seul lecteur. Les deux seuils de
   qualité (12 mots, 0,5) sont posés sur mesure, à ajuster sur retour d'usage.
@@ -234,18 +240,31 @@ Depuis US-22, une série peut aussi poser des questions de mots : elles vivent d
   valeur). Il tient le texte d'**une** riwaya : `clear()` au changement de riwaya, fait par
   l'onglet (§8.7). Chaque composeur accepte `corpus` en paramètre optionnel ; sans lui, il en
   crée un jetable : mêmes questions, un seul chemin de code (verrouillé par test, §11).
+  `warm(carried, textOf, glossesOf)` le remplit par tranches de 300 versets (passages, leurs
+  champs `_key` et `_wordSet`, puis les mots si `glossesOf` est donné), en rendant la main à
+  l'écran **avant** chaque tranche, première comprise. Un `clear()` pendant le préchauffage
+  l'arrête (compteur `_epoch`).
 - **Offre** (`surahsOfferingPassages`) : les sourates sur lesquelles `buildSeries` trouve au moins
   une question. C'est la condition de `_question` : un lien posable, et au moins une clé de passage
   porté hors de celles du passage montré et de sa suite. Verrouillée par un test de parité.
-- **Coût** (profile, Windows, 113 sourates, 2026-11-07, pire de trois essais, de l'appui à la
-  première image de la série) : avant US-30, chaque série relisait toute la sélection : 931 ms en
+- **Coût avant le Sprint B** (profile, Windows, 113 sourates, 2026-11-07, pire de trois essais,
+  de l'appui à la première image de la série) : avant US-30, chaque série relisait toute la sélection : 931 ms en
   « Mélange », 407 ms en « Versets », 444 ms en « Traduction », encore 368 à 397 ms sur une seule
   sourate. Avec le mémo : 104 à 129 ms en « Mélange », 85 à 106 ms en « Versets », 73 à 93 ms en
   « Traduction » sur toute la sélection ; 45 à 79 ms sur une sourate ; environ 27 ms pour ouvrir
   « Choisir une sourate ». À froid, le coût a seulement changé de place : 439 ms à la première
   ouverture de l'onglet (calcul de l'offre, passages de toute la sélection), 575 ms à la première
   série « Mélange » (mots de toute la sélection). Le seuil de 100 ms est dépassé à froid et à
-  chaud : le Sprint B d'US-30 (`docs/CHANGELOG.md`) est déclenché. Non mesuré sur iPhone.
+  chaud, d'où le Sprint B.
+- **Coût après le Sprint B** (même machine, 113 sourates, 2026-11-08, pire de trois essais). On
+  mesure le **gel** : le plus long moment où la boucle d'événements ne tourne pas (un minuteur de
+  1 ms qui ne se déclenche plus). Ouverture de l'onglet à froid 79 à 83 ms (avant : 438 ms ; le
+  reste est la lecture des sens, `WordGlossService.load`, environ 80 ms d'un bloc). Première série
+  « Mélange » 66 à 77 ms (avant : 509 ms), suivantes 50 à 60 ms ; « Versets » 38 à 57 ms ;
+  « Traduction » 19 à 39 ms ; une sourate et « Choisir une sourate » 27 ms au plus. De l'appui à
+  la première image, la première série « Mélange » prend encore 126 à 152 ms, les suivantes 98 à
+  107 ms (quelle mesure fait foi : Idée produit de `docs/CHANGELOG.md`). Non mesuré sur iPhone.
+  Un isolate a été mesuré et écarté (§13bis).
 
 ### 5.7 Questions de mots (`lib/core/reinforcement_words.dart`, US-22 Sprint C, 2026-10-13)
 
@@ -753,7 +772,9 @@ repos), `series_screen.dart` (questions, retour après la réponse, score),
 - `_start({sourate})` lit les entrées, compose la série (`random: Random()`,
   `avoid: _lastPrompts`, `surahId`), puis pousse `SeriesScreen` comme le check-in
   (`rootNavigator`, `fullscreenDialog`). Elle passe le mémo `_corpus` (§5.6) aux composeurs ;
-  `_corpusFor(riwaya)` le vide quand la riwaya change.
+  `_corpusFor(riwaya)` le vide quand la riwaya change. `_computeOffer` puis `_start` attendent
+  `_warm` (le préchauffage du mémo, §5.6) avant de calculer : sur un mémo déjà rempli, il ne
+  réanalyse rien.
 - **Offre (US-30)** : `_offered`, les sourates qui offrent une question dans le mode en cours
   (`surahsOfferingPassages`, `surahsOfferingWords`, union des deux en « Mélange » avec `except`
   pour ne pas relire les mots d'une sourate déjà offerte). `_computeOffer` tourne à
@@ -1119,6 +1140,18 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     `_corpusFor` dans l'onglet), sinon un verset Hafs serait servi en Warsh. Il ne doit pas non
     plus servir avant `WordGlossService.load()` : sa liste plate de mots garderait des versets
     vides jusqu'au prochain changement de sélection.
+  - Le préchauffage (`ReinforcementCorpus.warm`) lit `passage._key` et `passage._wordSet` sans
+    rien en faire : ce sont des champs `late`, et laissés à l'offre ils se calculaient d'un bloc
+    (150 ms sur le Coran entier). Aucun test ne le dirait si ces deux lignes disparaissaient :
+    seule la mesure le montre.
+  - L'onglet préchauffe avant l'offre **et** avant une série (un appui pendant le préchauffage
+    de l'offre). Après cette attente, `_start` vérifie que la riwaya n'a pas changé : sinon le mémo
+    tient déjà l'autre texte et la série y écrirait l'ancien.
+  - **Pas d'isolate** pour composer une série (mesuré le 2026-11-08) : envoyer les textes bruts
+    à `Isolate.run` supprimait le gel mais faisait attendre 0,9 à 1,9 s, car tout est réanalysé
+    à froid ; envoyer le mémo gelait l'écran environ 200 ms, car la copie du message se fait sur
+    le fil de l'interface. Le coût a été réduit dans le moteur (index des mots, tirage en un
+    passage).
   - L'offre (`surahsOfferingPassages`, `surahsOfferingWords`) et les composeurs partagent leur
     condition, verrouillée par deux tests de parité : changer la règle d'un mauvais choix dans
     `_question` sans changer l'offre ferait échouer ces tests, pas proposer en silence une

@@ -309,6 +309,26 @@ void main() {
         }
       }
     });
+
+    test('16. préchauffer le mémo avec les sens ne change pas les questions',
+        () async {
+      final carried = _whole(78, 114);
+      final warmed = ReinforcementCorpus();
+      await warmed.warm(carried, HafsService.getVerse, WordGlossService.glosses);
+      for (var seed = 0; seed < 10; seed++) {
+        List<(int, int, int)> ids(ReinforcementCorpus? corpus) => [
+              for (final question in ReinforcementWords.buildWordQuestions(
+                carried: carried,
+                textOf: HafsService.getVerse,
+                glossesOf: WordGlossService.glosses,
+                random: Random(seed),
+                corpus: corpus,
+              ))
+                for (final choice in question.choices) choice.id,
+            ];
+        expect(ids(warmed), ids(null), reason: 'graine $seed');
+      }
+    });
   });
 
   group('buildMixedSeries', () {

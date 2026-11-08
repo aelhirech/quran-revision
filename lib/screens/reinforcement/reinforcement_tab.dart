@@ -80,6 +80,11 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
     return _corpus;
   }
 
+  Future<void> _warm(ReinforcementCorpus corpus, Map<int, Set<int>> carried,
+          SeriesMode mode, String Function(int, int) textOf) =>
+      corpus.warm(carried, textOf,
+          mode == SeriesMode.passages ? null : WordGlossService.glosses);
+
   void _refreshOffer() {
     if (widget.shown) _computeOffer();
   }
@@ -105,6 +110,8 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
     final corpus = _corpusFor(riwaya);
     String textOf(int surahId, int ayahId) =>
         VerseService.getVerse(surahId, ayahId, riwaya: riwaya);
+    await _warm(corpus, inputs.carried, mode, textOf);
+    if (!mounted || generation != _generation) return;
     final fromPassages = mode == SeriesMode.words
         ? const <int>{}
         : ReinforcementEngine.surahsOfferingPassages(
@@ -149,9 +156,15 @@ class _ReinforcementTabState extends State<ReinforcementTab> {
       await WordGlossService.load();
       if (!mounted) return;
     }
+    final riwaya = state.riwaya;
     String textOf(int surahId, int ayahId) =>
-        VerseService.getVerse(surahId, ayahId, riwaya: state.riwaya);
-    final corpus = _corpusFor(state.riwaya);
+        VerseService.getVerse(surahId, ayahId, riwaya: riwaya);
+    final corpus = _corpusFor(riwaya);
+    // A tap during the offer's warm-up: finish it in slices rather than in
+    // one block below. On a warm memo nothing is analysed again.
+    await _warm(corpus, inputs.carried, mode, textOf);
+    // Another riwaya meanwhile: the memo now holds its text, not this one's.
+    if (!mounted || state.riwaya != riwaya) return;
     final random = Random();
     final List<SeriesQuestion> questions = switch (mode) {
       SeriesMode.passages => ReinforcementEngine.buildSeries(

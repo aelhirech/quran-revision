@@ -151,6 +151,40 @@ void main() {
       }
     });
 
+    test(
+        '6 bis. sur tout le Coran, un passage similaire est proposé dès qu\'il '
+        'en existe un', () {
+      final carried = wholeSurahs(1, 114, HafsService.verseCounts);
+      final all = [
+        for (final MapEntry(key: surah, value: ayahs) in carried.entries)
+          for (final ayah in ayahs)
+            ...ReinforcementEngine.passagesOf(
+                surah, ayah, HafsService.getVerse(surah, ayah)),
+      ];
+      Set<String> wordsOf(Passage p) => _key(p.words).split(' ').toSet();
+      bool similar(Passage a, Passage b) {
+        final (wa, wb) = (wordsOf(a), wordsOf(b));
+        return wa.intersection(wb).length / max(wa.length, wb.length) >= 0.5;
+      }
+
+      var checked = 0;
+      for (var seed = 0; seed < 5; seed++) {
+        for (final q in hafsSeries(carried, seed)) {
+          final taken = {_key(q.prompt.words), _key(q.answer.words)};
+          final exists = all.any(
+              (c) => !taken.contains(_key(c.words)) && similar(c, q.answer));
+          if (!exists) continue;
+          checked++;
+          expect(
+              q.choices.any((c) => c != q.answer && similar(c, q.answer)),
+              isTrue,
+              reason: 'aucun choix similaire à ${_id(q.answer)}');
+        }
+      }
+      // Without a single similar passage the test would prove nothing.
+      expect(checked, greaterThan(0));
+    });
+
     test('7. cinq questions viennent du plan du jour', () {
       final carried = wholeSurahs(78, 114, HafsService.verseCounts);
       final today = {for (final v in carried[78]!) (78, v)};
@@ -345,6 +379,37 @@ void main() {
       expect(sameCarried({1: {1, 2}}, {1: {1}}), isFalse);
       expect(sameCarried({1: {1}}, {2: {1}}), isFalse);
       expect(sameCarried({1: {1}}, {1: {1}, 2: {1}}), isFalse);
+    });
+
+    test('18. préchauffer le mémo ne change pas les questions', () async {
+      final carried = wholeSurahs(78, 114, HafsService.verseCounts);
+      final warmed = ReinforcementCorpus();
+      await warmed.warm(carried, HafsService.getVerse, null);
+      for (var seed = 0; seed < 10; seed++) {
+        List<List<(int, int, int)>> ids(ReinforcementCorpus? corpus) => [
+              for (final q in ReinforcementEngine.buildSeries(
+                carried: carried,
+                textOf: HafsService.getVerse,
+                random: Random(seed),
+                corpus: corpus,
+              ))
+                [_id(q.prompt), for (final c in q.choices) _id(c)],
+            ];
+        expect(ids(warmed), ids(null), reason: 'graine $seed');
+      }
+    });
+
+    test(
+        '19. clear() pendant le préchauffage l\'arrête : aucun verset de '
+        'l\'ancienne riwaya ne reste', () async {
+      final corpus = ReinforcementCorpus();
+      final warming = corpus.warm(
+          wholeSurahs(1, 114, HafsService.verseCounts), HafsService.getVerse, null);
+      // Lets the first slice run, far from the last surahs.
+      await Future<void>.delayed(Duration.zero);
+      corpus.clear();
+      await warming;
+      expect(corpus.passagesOf(112, 1, 'نص').single.text, 'نص');
     });
   });
 
