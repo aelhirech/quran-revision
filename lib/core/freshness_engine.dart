@@ -33,13 +33,12 @@ class FreshnessEngine {
     assert(verseEnd >= verseStart);
     final total = verseEnd - verseStart + 1;
     var recentCount = 0;
-    DateTime? mostRecent;
     for (var ayah = verseStart; ayah <= verseEnd; ayah++) {
       final date = lastRevisionByAyah[ayah];
       if (date == null) continue;
-      if (mostRecent == null || date.isAfter(mostRecent)) mostRecent = date;
       if (today.difference(date).inDays <= _recentAfterDays) recentCount++;
     }
+    final mostRecent = _mostRecent(lastRevisionByAyah, verseStart, verseEnd);
 
     if (mostRecent == null) return FreshnessLevel.neverRevised;
     if (recentCount == total) return FreshnessLevel.recent;
@@ -53,5 +52,29 @@ class FreshnessEngine {
     if (days > _sixMonthsAfterDays) return FreshnessLevel.sixMonths;
     if (days > _threeMonthsAfterDays) return FreshnessLevel.threeMonths;
     return FreshnessLevel.oneMonth;
+  }
+
+  /// Whole days since the most recent revision of any verse of
+  /// [verseStart]..[verseEnd], or null if none was ever revised.
+  static int? daysSinceLastRevision({
+    required Map<int, DateTime> lastRevisionByAyah,
+    required int verseStart,
+    required int verseEnd,
+    required DateTime today,
+  }) {
+    final mostRecent = _mostRecent(lastRevisionByAyah, verseStart, verseEnd);
+    return mostRecent == null ? null : today.difference(mostRecent).inDays;
+  }
+
+  static DateTime? _mostRecent(
+      Map<int, DateTime> lastRevisionByAyah, int verseStart, int verseEnd) {
+    DateTime? mostRecent;
+    for (var ayah = verseStart; ayah <= verseEnd; ayah++) {
+      final date = lastRevisionByAyah[ayah];
+      if (date != null && (mostRecent == null || date.isAfter(mostRecent))) {
+        mostRecent = date;
+      }
+    }
+    return mostRecent;
   }
 }

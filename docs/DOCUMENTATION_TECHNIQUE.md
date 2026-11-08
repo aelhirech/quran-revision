@@ -144,6 +144,8 @@ Module pur et minimal — SRS léger indépendant de `RevisionEngine`. Remplace 
 3. Tous les versets révisés il y a ≤30j → `recent`.
 4. Sinon (aucun verset révisé il y a ≤30j, mais au moins un déjà révisé) → palier basé sur la date la **plus récente** parmi les versets déjà révisés (le moins pire, pas le pire) : >30j → `oneMonth`, >90j → `threeMonths`, >180j → `sixMonths`, >365j → `oneYear`. Paliers en jours, pas mois calendaires.
 
+**`daysSinceLastRevision({lastRevisionByAyah, verseStart, verseEnd, today})`** (US-21 Sprint A) : jours entiers depuis la révision la plus récente de la plage, `null` si aucun verset n'a été révisé. Même recherche que l'étape 4 (`_mostRecent`, partagée par les deux). Lue par `Mosaic.build` (§5.6bis).
+
 `today` est toujours injecté (jamais `DateTime.now()` en interne) pour rester testable — respecter ce pattern si vous étendez ce module. Couvert par `test/core/freshness_engine_test.dart` (réécrit avant la refonte, règle `test/CLAUDE.md`, pour verrouiller les nouveaux paliers).
 
 `lib/widgets/freshness_badge.dart` porte le mapping `FreshnessLevel` → UI : `freshnessLabel` (badge pilule `FreshnessBadge`, neutre depuis US-25 : texte `textMuted`, bordure `cardBorder`, quel que soit le niveau — `freshnessColor` supprimée, une couleur ne porte un sens que pour les niveaux et le risque d'oublier), `freshnessDiscreetLabel` (texte discret check-in/check-out — même donnée, rendu différent, décision maquette Sprint 1 conservée) et `freshnessShowsBadge` (sous-titre de rakaa dans `PrayerPlanCard` : tout sauf `recent`). **`freshnessNeedsAttention` supprimée (Phase 11 Sprint 3, 2026-09-13)** avec la section "À prioriser" du check-in qui en était l'unique appelante.
@@ -184,7 +186,10 @@ aucune lecture ni écriture : le texte arrive par le paramètre `textOf`, le has
 (graine fixe en test). L'onglet et l'écran qui les affichent sont décrits en §8.7.
 Depuis US-22, une série peut aussi poser des questions de mots : elles vivent dans un fichier
 `part of` de ce moteur, décrit en §5.7. Une question est une `SeriesQuestion`, classe scellée :
-`PassageQuestion` ici (`prompt`, `answer`, `choices`), `WordQuestion` en §5.7.
+`PassageQuestion` ici (`prompt`, `answer`, `choices`, `level` : la difficulté de ses mauvais
+choix, 1 à 4), `WordQuestion` en §5.7. Le fichier est découpé en `part` : le tirage partagé
+(`_draw`, `_classify`, `_sampleFit`) dans `reinforcement_draw.dart`, la question de suite
+(`_askableLinks`, `_similar`, `_passageQuestion`) dans `reinforcement_choices.dart`.
 
 - **Passage** (`passagesOf`) : l'unité d'une question. Un verset de 12 mots au plus est un seul
   passage. Un verset plus long est coupé après chaque token portant un signe de pause (U+06D6,
@@ -213,14 +218,20 @@ Depuis US-22, une série peut aussi poser des questions de mots : elles vivent d
   `surahId`, seules les questions de cette sourate sont posées et `today` est ignoré.
   Ce tirage vit dans `_draw`, fonction privée partagée avec les questions de mots : elle reçoit
   les candidats déjà restreints à la sourate demandée, et `count` (10 par défaut) dit combien en
-  tirer, ce dont la série mêlée a besoin. Les candidats sont rangés en un seul passage dans quatre
-  files (évités ou non, plan du jour ou non), dans l'ordre du mélange : à graine égale, même
-  résultat qu'un filtrage par groupe, sans relire huit fois l'identifiant de chaque candidat.
+  tirer, ce dont la série mêlée a besoin. `_classify` range les candidats en un seul passage,
+  dans l'ordre du mélange : les questions à reprendre (`retry`, plus ancienne erreur d'abord),
+  puis, évités ou non, trois files (plan du jour, sourate à risque `atRisk`, le reste). `_draw`
+  remplit ensuite dans cet ordre (US-21) : questions à reprendre jusqu'à la moitié de la série,
+  même posées à la série précédente ; plan du jour jusqu'à la moitié ; sourates à risque ; le
+  reste ; plan du jour pour compléter ; enfin les questions à reprendre restantes si rien d'autre
+  ne reste. Une question à reprendre hors de ce qui est porté n'est simplement pas candidate.
 - **Mauvais choix**, 3 au plus, tous de clé différente, entre eux comme du passage posé et de sa
-  suite : un passage similaire à la bonne suite
-  (au moins la moitié des mots en commun, rapportés au plus grand des deux), un voisin (à 3 rangs
-  au plus dans la sourate), un passage d'une autre sourate, puis la même sourate et enfin
-  n'importe où pour compléter. À chaque tirage, un passage de même nature que la bonne suite
+  suite. Leur source dépend du niveau de la sourate (`levels`, 0 traité comme 1, US-21) : au
+  niveau 1, d'autres sourates ; au niveau 2, la même sourate ; au niveau 3, les voisins (à 3 rangs
+  au plus dans la chaîne) ; au niveau 4, les passages similaires à la bonne suite (au moins la
+  moitié des mots en commun, rapportés au plus grand des deux). Chaque niveau complète par les
+  sources des niveaux inférieurs, puis n'importe où : aucune question n'est perdue à un niveau,
+  et l'offre ne dépend pas des niveaux. À chaque tirage, un passage de même nature que la bonne suite
   (début de verset ou non) est préféré : sinon la forme seule désignerait la réponse. Une question
   sans aucun mauvais choix est écartée ; une sélection trop petite donne une liste vide.
   Chaque mauvais choix est tiré par `_sampleFit` (partagé avec les mots) : jusqu'à 20 tirages au
@@ -245,7 +256,7 @@ Depuis US-22, une série peut aussi poser des questions de mots : elles vivent d
   l'écran **avant** chaque tranche, première comprise. Un `clear()` pendant le préchauffage
   l'arrête (compteur `_epoch`).
 - **Offre** (`surahsOfferingPassages`) : les sourates sur lesquelles `buildSeries` trouve au moins
-  une question. C'est la condition de `_question` : un lien posable, et au moins une clé de passage
+  une question. C'est la condition de `_passageQuestion` : un lien posable, et au moins une clé de passage
   porté hors de celles du passage montré et de sa suite. Verrouillée par un test de parité.
 - **Coût avant le Sprint B** (profile, Windows, 113 sourates, 2026-11-07, pire de trois essais,
   de l'appui à la première image de la série) : avant US-30, chaque série relisait toute la sélection : 931 ms en
@@ -266,10 +277,31 @@ Depuis US-22, une série peut aussi poser des questions de mots : elles vivent d
   107 ms (quelle mesure fait foi : Idée produit de `docs/CHANGELOG.md`). Non mesuré sur iPhone.
   Un isolate a été mesuré et écarté (§13bis).
 
+### 5.6bis Niveaux et sourates à risque (`quiz_levels.dart`, `mosaic.dart`, US-21 Sprint A)
+
+Dart pur. Rien n'est stocké : tout se reconstruit depuis le journal `quiz_answers` (§6) et la
+dernière révision par verset d'`ayah_facts`.
+- **`QuizLevels.fold(answers)`** : niveau par sourate, en rejouant les réponses de passages dans
+  l'ordre (les mots ne comptent pas). La première réponse met la sourate au niveau 1 et compte.
+  3 réussites de suite au niveau courant → +1 (max 4, `maxQuizLevel`) ; 2 erreurs de suite → −1
+  (min 1). Les compteurs repartent de zéro à chaque changement. Une réponse posée à un autre
+  niveau que le courant (série composée avant le changement) ne compte pas : une sourate change
+  donc d'au plus un niveau par série. Sourate absente du résultat = « pas encore jouée ».
+- **`QuizLevels.changes(before, after)`** : les sourates dont le niveau a bougé, pour la fin de
+  série. Une sourate absente de `before` part du niveau 1 sans annonce ; la dépasser dans la même
+  série s'annonce.
+- **`Mosaic.build({selections, levels, lastRevisionByAyah, today, tourDays})`** → `MosaicTile`
+  (sourate, plage, niveau 0 à 4, jours depuis la dernière révision, `atRisk`) : un carreau par
+  sourate de `UserConfig.selections`, dans l'ordre du mushaf ; une sourate en apprentissage n'en a
+  pas. Plusieurs plages d'une sourate font un carreau de min à max. `atRisk` : plus de
+  max(90 jours, durée du tour) depuis la révision la plus récente de la plage. Jamais révisée
+  n'est jamais à risque. Seul lieu de cette règle : le tirage lit l'ensemble `atRisk` qui en sort.
+
 ### 5.7 Questions de mots (`lib/core/reinforcement_words.dart`, US-22 Sprint C, 2026-10-13)
 
 Fichier `part of` du moteur des séries : même bibliothèque, donc mêmes constantes, même
-normalisation et même tirage (`ReinforcementEngine._draw`). Dart pur : les sens arrivent par le
+normalisation et même tirage (`_draw`, questions à reprendre et sourates à risque comprises ;
+le niveau ne change pas les mots). Dart pur : les sens arrivent par le
 paramètre `glossesOf`, comme le texte par `textOf`. Français et Hafs seulement (§6,
 `WordGlossService`). Ses deux fonctions publiques sont portées par la classe `ReinforcementWords`.
 
@@ -330,7 +362,7 @@ Tous stateless, méthodes `static`, aucun `notifyListeners`. C'est la seule couc
 | Service | Support | Rôle |
 |---|---|---|
 | `StorageService` | SharedPreferences | Persiste `UserConfig`, `cyclePosition`, `pauseDates`, `checkedRakaas`, `lastSessionPrayers`, `activePrayers` (Phase 6 Sprint 2, voir §7/§8.1) — ces 6 clés sont préfixées par riwaya (`_track(base, riwaya)`, factorisé dans `riwaya_key.dart`). `locale`, `notifEnabled`, `riwaya` (la riwaya *active*, pas les données d'un parcours), `tourSeen`, **`loadGuideDone()`/`saveGuideDone(Set<String>)`** (US-1 Sprint B, 2026-09-20 — clé unique `guide_done` en `StringList`, remplace l'ancien `hasSeenHook`/`setHookSeen` à une clé par hook) et **`loadMorningTime()`/`saveMorningTime`/`loadEveningTime()`/`saveEveningTime`** (US-1 Sprint B — heures de rappel configurables, `{hour, minute}`) restent des préférences globales non préfixées. **`previewSession`/`todaySession` supprimés au Sprint 2** — le plan du jour n'est plus un objet `DailySession` persisté en JSON, voir §7. `migrateLegacyTrackData()` — migration one-shot des installations pré-Sprint 8 : renomme les anciennes clés non préfixées vers le parcours Hafs (elles étaient déjà implicitement numérotées en Hafs). |
-| `AyahFactsService` (Phase 6) | sqflite (`history.db`, v5) | **Remplace entièrement `HistoryService` et le rôle "profil principal" de `LearningService`** (tous deux supprimés Sprint 1 de la Phase 6). Une seule table `ayah_facts`, granularité verset — voir "Base de données SQLite" ci-dessous pour le schéma complet et les requêtes. Toutes les méthodes prennent `riwaya` en paramètre requis et filtrent dessus. Les élèves (`StudentService`) ne passent pas par ce service. **Sprint 2** ajoute le rituel check-in/check-out : `pendingDate` (jour non scellé le plus ancien, `date < aujourd'hui`), `proposeUnits` (écrit `reach=0, checked_out=0`), `setReach`/`setReachForUnits`/`setReachForVerses`, `isRangeReached`/`rangeExists`, `sealDay`, `dayFacts` (reconstruit le plan groupé par sourate). **US-3 (2026-09-21)** : `setNeedsWork`/`lastRevisionFlags` supprimées (retrait complet de `needs_work` du code applicatif, colonne orpheline conservée en base) ; nouvelle `returningVerses` (versets laissés `reach=0` à un check-out scellé, redevenus candidats du jour — US-3 crit. 4). |
+| `AyahFactsService` (Phase 6) | sqflite (`history.db`, v6) | **Remplace entièrement `HistoryService` et le rôle "profil principal" de `LearningService`** (tous deux supprimés Sprint 1 de la Phase 6). Une seule table `ayah_facts`, granularité verset — voir "Base de données SQLite" ci-dessous pour le schéma complet et les requêtes. Toutes les méthodes prennent `riwaya` en paramètre requis et filtrent dessus. Les élèves (`StudentService`) ne passent pas par ce service. **Sprint 2** ajoute le rituel check-in/check-out : `pendingDate` (jour non scellé le plus ancien, `date < aujourd'hui`), `proposeUnits` (écrit `reach=0, checked_out=0`), `setReach`/`setReachForUnits`/`setReachForVerses`, `isRangeReached`/`rangeExists`, `sealDay`, `dayFacts` (reconstruit le plan groupé par sourate). **US-3 (2026-09-21)** : `setNeedsWork`/`lastRevisionFlags` supprimées (retrait complet de `needs_work` du code applicatif, colonne orpheline conservée en base) ; nouvelle `returningVerses` (versets laissés `reach=0` à un check-out scellé, redevenus candidats du jour — US-3 crit. 4). |
 | `NotificationService` | `flutter_local_notifications` + `timezone`/`flutter_timezone` (US-3) | Trois notifs quotidiennes récurrentes : rappel matin (id 1), bilan soir (id 2), invitation à clôturer à minuit (id 3, US-3 crit. 6, heure fixe non configurable). **Planifiées via `zonedSchedule` + `matchDateTimeComponents: time` depuis US-3 (2026-09-21)**, plus `periodicallyShow` : ce dernier ignorait purement `hour`/`minute` (il ne fait que répéter toutes les 24h à partir de l'appel), donc les heures configurées au sprint B d'US-1 n'étaient en réalité jamais respectées — bug invisible faute de test sur ce service, corrigé au passage. `_initializeTimeZone()` (appelée depuis `initialize()`) charge la base IANA et détecte le fuseau réel de l'appareil (`flutter_timezone`), avec repli explicite sur `tz.UTC` si la détection échoue — `tz.local` est un champ `late` du package `timezone`, sans filet : le laisser non initialisé casserait silencieusement les 3 rappels pour toujours, pas juste celui du jour. Toutes les erreurs sont catch+debugPrint, jamais propagées — une notif qui échoue à se programmer ne doit pas crasher l'app (Sprint 3 : `requestPermission()` a rejoint ce pattern, alignée sur `_scheduleDaily`/`cancelAll`). **`enable()`/`disable()`** (Sprint 3) : point d'entrée unique partagé par `SettingsCard` et l'onboarding (`_NotificationsPage`) — `enable()` demande la permission puis persiste le résultat **réel** via `StorageService.saveNotifEnabled(granted)` (pas un `true` optimiste) et appelle **`rescheduleAll()`** (nouveau, US-1 Sprint B) si accordée. **`rescheduleAll()`** recharge les heures configurées (`StorageService.loadMorningTime`/`loadEveningTime`) et replanifie les trois — point d'entrée unique partagé par `enable()`, les pickers d'heure de `SettingsCard`, et `AppState.setLocale` (le texte d'une notif déjà planifiée reste figé dans sa langue d'origine, un changement de langue doit donc replanifier). `enable()` retourne `granted` pour que l'appelant réconcilie son état UI (ex. `SettingsCard` remet son switch à `false` si refusé). Dépend de `StorageService` — seule dépendance service→service du projet, justifiée car `NotificationService` orchestre elle-même la persistance de sa propre préférence plutôt que de la laisser à la charge de chaque appelant. |
 | `VerseService` | `HafsService` + `WarshService` | **Point d'entrée unique** pour le texte arabe affiché, `verseCount`/`wordCount` riwaya-aware — arbitre Hafs/Warsh selon le `Riwaya` passé en paramètre. Ne jamais appeler `HafsService`/`WarshService` directement depuis un écran. Formate elle-même le chiffre arabe-indien de fin de verset (`verseEndSymbol`, défaut `true`) — plus de dépendance à `package:quran` (retiré Sprint 8). |
 | `HafsService` / `WarshService` | assets `assets/quran/hafs.json` / `warsh.json` | Chargent le texte + calculent `verseCounts`/`wordCounts` par sourate (une fois, en cache statique). Implémentation partagée dans `QuranTextAsset` (`quran_text_asset.dart`) — les deux classes ne sont que de fines façades statiques paramétrées par le chemin d'asset. Source Sprint 8 : QUL (Tarteel AI) — Hafs explicitement crédité King Fahd Complex sur la page de la ressource ; Warsh moins explicitement sourcé (piste ouverte au backlog) mais plateforme bien mieux maintenue que l'ancien dataset communautaire. **Hafs et Warsh ont chacun leur propre numérotation native** (6236 vs 6214 versets au total, frontières de versets différentes sur ~50 sourates) — ce n'est pas juste un texte différent sur la même grille. |
@@ -345,6 +377,16 @@ Tous stateless, méthodes `static`, aucun `notifyListeners`. C'est la seule couc
 **`AyahFactsService.isDaySealed(date, riwaya)` (Phase 9 Sprint 2)** — prédicat **monotone** : « il existe une ligne scellée ce jour-là », pas « toutes le sont ». Une journée peut redevenir mixte après son scellement (une ligne fraîche `checked_out = 0`), et un `MIN(checked_out)` répondrait alors « pas scellée », désarmant le garde-fou anti-double-comptage de `AppState.checkOut` exactement quand il sert. À ne pas confondre avec `pendingDate`, qui pose la question inverse (« reste-t-il quelque chose à clôturer ? ») et doit, elle, rester sensible à ces lignes fraîches.
 
 ### Base de données SQLite (`AyahFactsService`, Phase 6 — remplace `HistoryService`)
+
+**Journal du Quiz (`QuizAnswers`, `lib/services/quiz_answers.dart`, `part of` du service, US-21
+Sprint A, v6)** : table `quiz_answers` (`id` autoincrément, `user_id`, `date`, `riwaya`, `kind`
+`passage`|`word`, `surah_id`, `ayah_id`, `rank_in_verse`, `level`, `held`), index
+`(riwaya, kind, surah_id, ayah_id, rank_in_verse, id)`. Lignes seulement ajoutées, jamais
+modifiées ni supprimées. Une question s'identifie par (sourate, verset, rang) : `Passage.id` du
+passage posé, `WordChoice.id` du mot. `record`, `passageAnswers(riwaya)` (dans l'ordre des `id`),
+`pendingReturns(riwaya, kind)` (questions dont la **dernière** réponse est fausse, plus ancienne
+d'abord). Migration v5→v6 : `CREATE TABLE IF NOT EXISTS` dans `onCreate` et dans `onUpgrade`
+(`oldVersion < 6`), sans toucher `ayah_facts` ; testée depuis v3, v4 et v5.
 
 ```sql
 CREATE TABLE ayah_facts (
@@ -449,6 +491,13 @@ Même modèle que la révision : la portion à apprendre est un ensemble de lign
   Lecture seule : aucune écriture dans `ayah_facts`, aucun `_notify()`. Deux collections vides
   sans configuration. Un verset proposé à l'apprentissage mais pas encore appris n'y figure pas :
   `dayUnits()` ne lit que les lignes `revise`, et `carriedVerses` que les versets acquis.
+- **US-21 Sprint A** : `reinforcementSeriesInputs()` (`QuizSeriesInputs` : `levels`, `atRisk`,
+  `retryPassages`, `retryWords`), lue seulement au lancement d'une série, pas par l'offre ;
+  `quizLevels()` (§5.6bis) ; `mosaicTiles()` (pour le Sprint B) ; `recordQuizAnswer(answer)`,
+  sans `_notify()`. Les écritures s'enchaînent sur le champ `_quizWrites` (dans le corps
+  d'`AppState`, une extension ne porte pas de champ) ; `quizLevels()` et les retours l'attendent,
+  donc une lecture voit toujours la dernière réponse. Une écriture qui échoue est journalisée
+  (`debugPrint`) et ne bloque pas les suivantes.
 
 ### Autres méthodes notables
 
@@ -764,9 +813,10 @@ sur appareil réel** (l'étape ne s'affiche pas sous Windows ni en test).
 
 Dossier dédié, parce que le flux a plusieurs étapes : `reinforcement_tab.dart` (l'onglet au
 repos), `series_screen.dart` (questions, retour après la réponse, score),
-`widgets/series_marks.dart` et `widgets/passage_choice.dart`. Rien n'est persisté et rien n'est
-écrit dans `ayah_facts` : ces écrans lisent `AppState.reinforcementInputs()` (§7) et appellent
-`ReinforcementEngine.buildSeries` (§5.6).
+`widgets/series_marks.dart` et `widgets/passage_choice.dart`. Rien n'est écrit dans
+`ayah_facts` : seules les réponses sont gardées, dans `quiz_answers` (§6). Ces écrans lisent
+`AppState.reinforcementInputs()` et `reinforcementSeriesInputs()` (§7) ; la composition selon le
+mode (`_composeSeries`) vit dans `reinforcement_tab_series.dart`, `part of` de l'onglet.
 
 **`ReinforcementTab`** : une carte « Série du jour » et un bouton « Choisir une sourate ».
 - `_start({sourate})` lit les entrées, compose la série (`random: Random()`,
@@ -809,7 +859,11 @@ repos), `series_screen.dart` (questions, retour après la réponse, score),
   et chaque libellé est dans un `FittedBox` : il rétrécit au lieu de se couper au milieu d'un
   mot (« Traducti / on » avec les réglages par défaut).
 
-**`SeriesScreen`** reçoit `questions` et `title`. État local : `_index`, `_picked`, `_held`.
+**`SeriesScreen`** reçoit `questions`, `title` et `levelsBefore` (les niveaux au moment de
+composer). État local : `_index`, `_picked`, `_held`, `_levelChanges`. Chaque réponse appelle
+`recordQuizAnswer` sans l'attendre. À l'écran de score, sous les losanges : « N questions
+reviendront dans une prochaine série » (ratées de la série) puis une ligne par sourate qui a
+changé de niveau (`QuizLevels.changes`) ; une lecture qui échoue retire seulement ces lignes.
 - En-tête : fermer, titre et « n sur total » en capitales (`_eyebrow`), puis `SeriesMarks`.
 - Question, dans `StepTransition` : sourate et verset du passage posé, le passage dans une
   `Card`, puis une `PassageChoice` par choix. `_shown` pose les « … » : devant le passage posé
@@ -911,7 +965,8 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 - **`test/services/ayah_facts_migration_test.dart` / `ayah_facts_migration_v4_test.dart`** (Phase 8 Sprint 1) — couvrent `AyahFactsService._open()`/`onUpgrade` directement (angle jusqu'ici non testé, voir §14 "priorités" : Sprint 8/Phase 6 le signalait déjà pour la logique riwaya). Chaque scénario dans son propre fichier : `AyahFactsService._db` est un singleton process-wide, `flutter test` isole chaque fichier dans son propre process, seule façon fiable de contrôler l'état de la base AVANT le premier `_open()`. Verrouille le bug de migration chaînée `oldVersion < 4`/`oldVersion < 5` documenté ci-dessus (§6).
 - **`test/state/app_state_checkin_test.dart`** (Phase 6 Sprint 2, 3 tests initiaux ; **8 tests après Phase 9 Sprint 2**, dont « clôturer deux fois la même journée ne fait avancer le cycle qu'une fois ») — première suite sur `AppState` (nécessite `TestWidgetsFlutterBinding.ensureInitialized()` + `HafsService.initialize()`/`PageMetadataService.initialize()` réels via `rootBundle`, `AppState` construit `_sourates` dès son constructeur). Couvre le gating du moteur quotidien de bout en bout, `checkOut` (avancée du cycle par **groupe** depuis Sprint 3, unité retirée au check-in ignorée plutôt que bloquante, groupe entièrement retiré ignoré) et le regroupement par page partagée (`cyclePosition` avance par groupe complété, pas par unité — sourates réelles 106/107/108, page 602, l'exemple même du cadrage). Les sourates de test sont choisies avec de vrais ids (`PageMetadataService` charge la vraie pagination, pas de mock) délibérément isolées les unes des autres — sauf pour le test de regroupement, qui choisit délibérément des voisines.
 - **`test/core/reinforcement_engine_test.dart`** (US-20 Sprint A, 15 tests, vrais textes Hafs et Warsh, `Random` à graine fixe) : découpe sans perte sur tous les versets des deux riwayas, questions répétées écartées, plage partielle jamais dépassée, passage similaire proposé, part du plan du jour, questions non reposées, sélection trop petite, `carriedVerses`. Sa normalisation du texte est réécrite dans le test, pas empruntée au moteur.
-- **`test/state/app_state_reinforcement_test.dart`** (3 tests) : `reinforcementInputs` sans configuration, avec un plan du jour, et avec un verset proposé à l'apprentissage mais pas encore appris.
+- **`test/state/app_state_reinforcement_test.dart`** (5 tests) : `reinforcementInputs` sans configuration, avec un plan du jour, et avec un verset proposé à l'apprentissage mais pas encore appris ; US-21 : niveaux, questions à reprendre et carreaux depuis les réponses, et lecture des niveaux qui attend les réponses encore en écriture.
+- **US-21 Sprint A** : `test/core/quiz_levels_test.dart` (repli des niveaux, `changes`), `test/core/mosaic_test.dart` (seuil de 90 jours, tour plus long, jamais révisée, plage partielle, plages fusionnées), `test/services/quiz_answers_test.dart` (ordre, dernière réponse qui décide, riwayas et types séparés, aucune requête de révision touchée), `ayah_facts_migration_v5_test.dart` ; tests 19 à 25 de `reinforcement_engine_test.dart` (mauvais choix par niveau, retours, sourates à risque) et 10 bis de `reinforcement_words_test.dart`.
 - **`test/core/reinforcement_words_test.dart`** (US-22 Sprint C, 14 tests, vrai texte Hafs et vrais sens, `Random` à graine fixe) : mot posé d'au moins 3 lettres, 2 à 4 choix, mots arabes et sens tous différents, aucun sens voisin du bon, mot retrouvé à sa place dans le passage, verset sans un sens par mot jamais interrogé (37:130), les deux sens de question, mots non reposés d'une série à l'autre, part du plan du jour, série sur une sourate (mauvais choix de la sourate d'abord, d'ailleurs ensuite, plan du jour ignoré), série mêlée à 5 et 5 et ses deux replis. Ses règles sur les sens sont réécrites dans le test, pas empruntées au moteur. Depuis le sprint 19 (15 tests) : le mot du passage est le mot posé, ou ce mot précédé de « ۞ » et de l'espace insécable, rien d'autre ; et sur la sourate 100 seule, aucun choix ne contient « ۞ » alors que le premier mot de 100:9 est bien proposé.
 - **`test/core/app_palette_contrast_test.dart`** (US-25 Sprint A, 15 tests, Dart pur sur les deux palettes) : contraste WCAG écrit en clair dans le test (pas `computeLuminance`), un jeton translucide composé sur son fond d'abord. Texte (`textPrimary`, `textMuted`, `primary`, `danger`, `goldDark`, `onSurfaceVariant`) à 4,5:1, `risk` et les 5 `levelTints` à 3:1, chacun sur le fond **et** sur la carte (`surfaceCard` composée sur `cream` par `Color.alphaBlend`), clair et sombre ; plus `buildAppTheme` qui porte Outfit sur les sept rôles du `textTheme`.
 - **`test/widgets/text_scale_fit_test.dart`** (US-31 Sprint A) : invariant de mise en page à 320×568, texte ×1,5, vraies polices Outfit (`FontLoader`) : aucun débordement, et les libellés des boutons et de la pastille à trois chiffres tiennent sur une ligne (largeur après mise en page ≥ largeur naturelle). Plus `S.blocRange` en Dart pur. Depuis le Sprint C : `VerseRangeSlider` aux bornes 282-283 et le `VerseRangePicker` entier sur une sourate de 286 versets.
@@ -1134,7 +1189,14 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     mot : `withoutHizbSign` (`core/reinforcement_engine.dart`) le retire, et c'est la seule règle,
     lue par le moteur (`WordChoice.arabic`) et par `ArabicVerseText` (le mot en or). Ne pas la
     réécrire ailleurs : le mot proposé et le mot doré ne diraient plus la même chose.
-  - Le tirage partagé (`ReinforcementEngine._draw`) reçoit des candidats **déjà restreints** à la
+  - **Les réponses du Quiz vivent dans `quiz_answers`, jamais dans `ayah_facts`** (US-21). Un
+    `type='quiz'` a été écarté : l'unicité `date+riwaya+surah_id+ayah_id+type` interdit deux
+    réponses au même verset le même jour, `reach` y prendrait un second sens, et la règle « une
+    question ne vaut jamais une révision » dépendrait de chaque requête qui filtre `type`. Ne
+    jamais lire ce journal depuis le plan, le tour, les jours de suite ou la fraîcheur.
+  - Le niveau, les questions à reprendre et les sourates à risque se **reconstruisent** à chaque
+    lecture. Ne pas ajouter de table de niveaux ni de compteur : même erreur que `_checkedRakaas`.
+  - Le tirage partagé (`_draw`) reçoit des candidats **déjà restreints** à la
     sourate demandée : c'est chaque appelant qui restreint, pour ne pas analyser toute la
     sélection quand la série porte sur une sourate.
   - Le mémo `ReinforcementCorpus` (US-30) est indexé par (sourate, verset), pas par texte : il
@@ -1156,7 +1218,7 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     passage).
   - L'offre (`surahsOfferingPassages`, `surahsOfferingWords`) et les composeurs partagent leur
     condition, verrouillée par deux tests de parité : changer la règle d'un mauvais choix dans
-    `_question` sans changer l'offre ferait échouer ces tests, pas proposer en silence une
+    `_passageQuestion` sans changer l'offre ferait échouer ces tests, pas proposer en silence une
     sourate sans question.
 
 - **Ajout de sourate au plan (sprint 21, 2026-10-13)** : « Ajouter une sourate » (check-in) et
@@ -1188,7 +1250,8 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 | Comprendre/modifier la répartition en rakaas | `lib/core/rakaa_distributor.dart` |
 | Comprendre le calcul de fraîcheur (SRS léger) | `lib/core/freshness_engine.dart` |
 | Comprendre le calcul de streak | `lib/core/streak_engine.dart` |
-| Comprendre/modifier la composition d'une série de l'onglet Renforcement (passages, questions, mauvais choix) | `lib/core/reinforcement_engine.dart`, `lib/state/app_state_reinforcement.dart` (`reinforcementInputs`) |
+| Comprendre/modifier la composition d'une série de l'onglet Renforcement (passages, questions, mauvais choix) | `lib/core/reinforcement_engine.dart`, `reinforcement_draw.dart` (tirage), `reinforcement_choices.dart` (mauvais choix par niveau), `lib/state/app_state_reinforcement.dart` (`reinforcementInputs`, `reinforcementSeriesInputs`) |
+| Modifier les niveaux, les questions à reprendre ou la règle « risque d'oublier » | `lib/core/quiz_levels.dart`, `lib/core/mosaic.dart`, `lib/services/quiz_answers.dart` |
 | Comprendre/modifier les questions de mots et la série mêlée | `lib/core/reinforcement_words.dart` (`part of` du moteur), `lib/services/word_gloss_service.dart`, `assets/quran/wbw/fr.coranmot.tsv` |
 | Ajouter/modifier une chaîne affichée à l'utilisateur | `lib/core/strings.dart` |
 | Modifier les couleurs/thème (Mus'haf/Tahajjud) | `lib/core/app_colors.dart`, `lib/core/app_theme.dart` |
@@ -1226,7 +1289,7 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
 | Modifier les tests de fraîcheur / streak | `test/core/freshness_engine_test.dart`, `test/core/streak_engine_test.dart` |
 | Modifier les tests du rituel check-in/check-out | `test/services/ayah_facts_service_test.dart`, `test/state/app_state_checkin_test.dart` |
 | Modifier les tests de l'apprentissage quotidien (Phase 9) | `test/state/app_state_learning_test.dart`, `test/state/app_state_learning_widen_test.dart` (hand-off daté, élargissement, curseur) |
-| Modifier les tests des séries de l'onglet Renforcement | `test/core/reinforcement_engine_test.dart`, `test/core/reinforcement_words_test.dart`, `test/services/word_gloss_service_test.dart`, `test/state/app_state_reinforcement_test.dart` |
+| Modifier les tests des séries de l'onglet Renforcement | `test/core/reinforcement_engine_test.dart`, `test/core/reinforcement_words_test.dart`, `test/services/word_gloss_service_test.dart`, `test/state/app_state_reinforcement_test.dart`, `test/core/quiz_levels_test.dart`, `test/core/mosaic_test.dart`, `test/services/quiz_answers_test.dart` |
 | Builder/distribuer l'app iOS | Xcode (`ios/Runner.xcworkspace`) — Archive → Distribute App, manuel |
 
 ---

@@ -31,7 +31,7 @@ Future<Directory> initFfiTestDb(String tempDirPrefix) async {
   return tempDir;
 }
 
-/// Vide `ayah_facts` entre deux tests d'un même fichier. `initFfiTestDb`
+/// Vide `ayah_facts` et `quiz_answers` entre deux tests d'un même fichier. `initFfiTestDb`
 /// isole les fichiers de test les uns des autres, pas les tests d'un même
 /// fichier : ils partagent une seule `history.db` pour tout le process, et
 /// plusieurs réutilisent les mêmes dates relatives (J-1, J-3…). Sans ce
@@ -46,6 +46,7 @@ Future<void> clearFactsBetweenTests() async {
   // supprime les lignes et on laisse la connexion ouverte.
   final db = await databaseFactory.openDatabase(path);
   await db.delete('ayah_facts');
+  await db.delete('quiz_answers');
 }
 
 // Written apart from the engine's private normalization, on purpose: the

@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import '../core/cycle_anchor.dart';
 import '../core/day_dates.dart';
 import '../core/freshness_engine.dart';
+import '../core/mosaic.dart';
+import '../core/quiz_levels.dart';
 import '../core/quran_data.dart';
 import '../core/rakaa_distributor.dart';
 import '../core/reinforcement_engine.dart';
@@ -13,6 +15,7 @@ import '../models/daily_session.dart';
 import '../models/day_close.dart';
 import '../models/learning_progress.dart';
 import '../models/prayer.dart';
+import '../models/quiz_answer.dart';
 import '../models/revision_unit.dart';
 import '../models/riwaya.dart';
 import '../models/sourate.dart';
@@ -62,6 +65,10 @@ class AppState extends ChangeNotifier {
   // varies by caller (RecapCard = selection, PlanScreen/check-in = today's
   // unit, possibly subdivided).
   Map<int, Map<int, DateTime>> _lastRevisionByAyah = {};
+  // Quiz answers written one after the other: a read of the levels or of the
+  // questions to ask again waits for them (US-21). In the class body, since
+  // an extension cannot carry a field.
+  Future<void> _quizWrites = Future.value();
 
   AppState(
     this._config, {

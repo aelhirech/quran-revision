@@ -505,8 +505,10 @@ KSU.
 - **Question de suite** : un passage est affiché (avec sourate et numéro) et l'utilisateur
   retrouve celui qui le suit parmi quatre au plus. Un verset de plus de 12 mots est coupé aux
   signes de pause du mushaf ; « … » marque un passage qui ne commence ou ne termine pas son
-  verset, jamais devant un choix. Les mauvais choix viennent de ce que l'utilisateur porte (autres
-  sourates, même sourate, voisins, passages similaires : au moins la moitié des mots en commun).
+  verset, jamais devant un choix. Les mauvais choix viennent de ce que l'utilisateur porte, et
+  leur source suit le niveau de la sourate : niveau 1, d'autres sourates ; 2, la même sourate ;
+  3, les versets voisins ; 4, les passages qui se ressemblent (au moins la moitié des mots en
+  commun). Quand une source manque, les sources plus faciles complètent.
   Jamais deux bonnes réponses : un passage qui se répète à l'identique dans la sourate, ou dont la
   suite se répète, n'est pas posé.
 - **Questions de mots** (français, Hafs) : un mot montré en or et souligné dans son verset,
@@ -519,11 +521,25 @@ KSU.
 - **Trois modes** quand les questions de mots existent : « Mélange » (présélectionné, 5 + 5),
   « Versets », « Traduction ». En Warsh ou en anglais, pas de sélecteur : questions de suite
   seulement.
-- Au plus la moitié des questions vient du plan du jour quand il existe. Les questions de la
-  série précédente ne sont pas reposées pendant la session tant que la sélection en offre
-  d'autres.
+- **Niveau par sourate**, de « pas encore jouée » à 4, jamais choisi par l'utilisateur. La
+  première réponse met la sourate au niveau 1 ; 3 réussites de suite la font monter d'un niveau,
+  2 erreurs de suite la font descendre d'un niveau, jamais sous 1. Une sourate change d'au plus
+  un niveau par série. Seules les questions de versets comptent, pas les mots. Le niveau survit à
+  une sourate retirée puis remise, ou dont la plage change. Chaque riwaya a ses niveaux.
+- **Une question ratée revient** (verset ou mot) dans les séries suivantes, même dans celle qui
+  suit, jusqu'à ce qu'elle soit réussie.
+- **Risque d'oublier** : une sourate de la sélection dont la révision la plus récente remonte à
+  plus de 3 mois, ou à plus d'un tour quand le tour dure plus de 3 mois. Une sourate jamais
+  révisée n'est pas à risque. Seule une récitation validée en fin de journée la fait sortir de ce
+  risque, jamais les questions.
+- **Ordre d'une série** : d'abord les questions ratées (la moitié au plus, les plus anciennes
+  d'abord), puis le plan du jour (la moitié au plus), puis les sourates à risque d'oublier, puis
+  le reste. Les autres questions de la série précédente ne sont pas reposées pendant la session
+  tant que la sélection en offre d'autres.
 - Après chaque réponse : la bonne réponse en entier, un accès au texte, et sous un mauvais choix
-  l'endroit d'où il vient — jamais un « faux ». En fin de série, un score factuel.
+  l'endroit d'où il vient — jamais un « faux ». En fin de série, un score factuel, puis combien
+  de questions reviendront et les sourates qui changent de niveau (« … passe au niveau 3 »,
+  « … revient au niveau 2 »), sans reproche. Atteindre le niveau 1 n'est pas annoncé.
 - **Sans attente** : ouvrir l'onglet, lancer une série dans n'importe quel mode ou ouvrir
   « Choisir une sourate » ne fige pas l'écran de façon perceptible, du Coran entier à une seule
   sourate (au plus 100 ms de gel, mesuré sous Windows).
@@ -531,8 +547,11 @@ KSU.
   choisi, et le message disparaît dès que la sélection ou le mode suffit, sans attendre un
   lancement. Jamais de série vide ni de verset pris hors sélection.
 
-**Ne fait pas** : rien n'est crédité ni enregistré (reconnaître un passage n'est pas le
-réciter) ; aucun verset hors de ce que l'utilisateur porte — sa sélection dans les plages
+**Ne fait pas** : rien n'est crédité (reconnaître un passage n'est pas le réciter) : les
+réponses sont gardées pour les niveaux et les questions à reprendre, à part du journal de
+révision, et ne touchent ni le tour, ni les jours de suite, ni la dernière révision, ni ce que la
+fin de journée valide ; le plan ne lit rien de l'onglet ; pas de niveau global, pas de niveau
+au-delà de 4, pas d'historique ni de courbe des scores ; aucun verset hors de ce que l'utilisateur porte — sa sélection dans les plages
 choisies et les versets déjà appris ; jamais un verset pas encore appris, jamais une suite hors
 plage ; pas de question sur le verset précédent, de remise en ordre, de sourate à nommer, ni par
 l'écoute ; pas de rappel pour jouer ; une série quittée repart du début ; pas de cours de mots

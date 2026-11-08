@@ -26,6 +26,15 @@ class SReinforcement {
       'Ton tour de révision ne change pas : seule ta récitation le fait avancer.',
       'Your revision round does not change: only your recitation moves it forward.');
   static String get fermer => S._t('Fermer', 'Close');
+  static String reviendront(int n) => n == 1
+      ? S._t('1 question reviendra dans une prochaine série.',
+          '1 question will come back in a later series.')
+      : S._t('$n questions reviendront dans une prochaine série.',
+          '$n questions will come back in a later series.');
+  static String passeAuNiveau(String nom, int niveau) =>
+      S._t('$nom passe au niveau $niveau.', '$nom moves up to level $niveau.');
+  static String revientAuNiveau(String nom, int niveau) => S._t(
+      '$nom revient au niveau $niveau.', '$nom goes back to level $niveau.');
   static String get modeMelange => S._t('Mélange', 'Mix');
   static String get modeVersets => S._t('Versets', 'Verses');
   static String get modeTraduction => S._t('Traduction', 'Meaning');

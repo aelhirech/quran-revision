@@ -66,5 +66,7 @@ void main() {
     final row = await db.query('ayah_facts', columns: ['needs_work'], limit: 1);
     expect(row.first['needs_work'], 1,
         reason: 'le backfill `needs_work = cold` doit reporter la valeur existante');
+    // The same upgrade also creates the Quiz answers table (schema 6, US-21).
+    expect(await QuizAnswers.passageAnswers(Riwaya.hafs), isEmpty);
   });
 }

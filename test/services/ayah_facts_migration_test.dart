@@ -38,7 +38,7 @@ void main() {
     await seed.close();
   });
 
-  test('appareil pré-ayah_facts (version < 4) : upgrade direct vers 5 ne plante pas', () async {
+  test('appareil pré-ayah_facts (version < 4) : upgrade direct vers la version courante ne plante pas', () async {
     // N'importe quel appel public déclenche `_open()` — ne doit pas lever.
     await AyahFactsRitual.proposeUnits(
         '2020-01-01', Riwaya.hafs, [testUnit(1, 1, 3)]);
@@ -51,5 +51,7 @@ void main() {
         p.join((await databaseFactory.getDatabasesPath()), 'history.db'));
     final row = await db.query('ayah_facts', columns: ['needs_work'], limit: 1);
     expect(row.first['needs_work'], 0);
+    // The same upgrade also creates the Quiz answers table (schema 6, US-21).
+    expect(await QuizAnswers.passageAnswers(Riwaya.hafs), isEmpty);
   });
 }

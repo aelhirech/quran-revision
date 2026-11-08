@@ -75,6 +75,8 @@ class ReinforcementWords {
     int? surahId,
     int count = _seriesLength,
     ReinforcementCorpus? corpus,
+    List<(int, int, int)> retry = const [],
+    Set<int> atRisk = const {},
   }) {
     // Without a memo, a throwaway one: same questions, a single code path.
     final memo = corpus ?? ReinforcementCorpus();
@@ -100,7 +102,7 @@ class ReinforcementWords {
     late final all = memo._allWordsOf(carried, allWords);
     final asked = <String>{};
 
-    return ReinforcementEngine._draw(
+    return _draw(
       candidates: surahId == null ? all : wordsOf(surahId),
       idOf: (word) => word.id,
       build: (word) {
@@ -115,6 +117,8 @@ class ReinforcementWords {
       avoid: avoid,
       surahId: surahId,
       count: count,
+      retry: retry,
+      atRisk: atRisk,
     );
   }
 
@@ -158,6 +162,10 @@ class ReinforcementWords {
     Set<(int, int, int)> avoidWords = const {},
     int? surahId,
     ReinforcementCorpus? corpus,
+    Map<int, int> levels = const {},
+    List<(int, int, int)> retryPassages = const [],
+    List<(int, int, int)> retryWords = const [],
+    Set<int> atRisk = const {},
   }) {
     // Shared by both kinds: each verse is read once.
     corpus ??= ReinforcementCorpus();
@@ -171,6 +179,8 @@ class ReinforcementWords {
           surahId: surahId,
           count: count,
           corpus: corpus,
+          retry: retryWords,
+          atRisk: atRisk,
         );
 
     const half = _seriesLength ~/ 2;
@@ -184,6 +194,9 @@ class ReinforcementWords {
       surahId: surahId,
       count: _seriesLength - words.length,
       corpus: corpus,
+      levels: levels,
+      retry: retryPassages,
+      atRisk: atRisk,
     );
     // Words are drawn again only when passages fell short, which takes a
     // selection small enough for a second draw to cost nothing.
