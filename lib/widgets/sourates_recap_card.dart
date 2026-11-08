@@ -66,7 +66,7 @@ class SouratesRecapCard extends StatelessWidget {
                     Text(
                       sel.isWhole
                           ? '${s.verses} ${S.versetsLabel}'
-                          : '${sel.verseStart}–${sel.verseEnd} (${sel.verseCount} ${S.versetsLabel})',
+                          : '${sel.verseStart}–${sel.verseEnd} (${S.versetsCount(sel.verseCount)})',
                       style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
                     ),
                     IconButton(

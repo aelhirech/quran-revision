@@ -168,7 +168,7 @@ void main() {
     );
     final state = AppState(config, riwaya: Riwaya.hafs);
 
-    final units = await RevisionEngine.buildDayUnits(
+    final units = RevisionEngine.buildDayUnits(
       config: config,
       cyclePosition: 0,
       pageMetadata: _hafsPages,
@@ -301,7 +301,7 @@ void main() {
     // pour ne pas mélanger des lignes ayah_facts d'un autre scénario.
     final day = dayKey(DateTime.now().subtract(const Duration(days: 20)));
 
-    final selection = await RevisionEngine.buildDayUnits(
+    final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: _hafsPages,
@@ -348,7 +348,7 @@ void main() {
     final state = AppState(config, riwaya: Riwaya.hafs);
     final day = dayKey(DateTime.now().subtract(const Duration(days: 25)));
 
-    final selection = await RevisionEngine.buildDayUnits(
+    final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: _hafsPages,
@@ -411,7 +411,7 @@ void main() {
     final state = AppState(config, riwaya: Riwaya.hafs);
     final day = dayKey(DateTime.now().subtract(const Duration(days: 30)));
 
-    final selection = await RevisionEngine.buildDayUnits(
+    final selection = RevisionEngine.buildDayUnits(
       config: config,
       cyclePosition: 0,
       pageMetadata: _hafsPages,
@@ -460,7 +460,7 @@ void main() {
     final state = AppState(config, riwaya: Riwaya.hafs);
     final today = dayKey(DateTime.now());
 
-    final selection = await RevisionEngine.buildDayUnits(
+    final selection = RevisionEngine.buildDayUnits(
       config: config,
       cyclePosition: state.cyclePosition,
       pageMetadata: _hafsPages,

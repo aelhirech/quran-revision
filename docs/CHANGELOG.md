@@ -8,28 +8,6 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P3] « 1 versets » dans la carte des sourates du Récap
-Vu au Sprint C d'US-31 (2026-11-07), qui l'a corrigé dans le curseur de plage : une plage d'un
-seul verset affiche « (1 versets) ». `S.versetsCount(n)` accorde déjà le pluriel.
-- **`lib/widgets/sourates_recap_card.dart`** (plage partielle) : `(${sel.verseCount}
-  ${S.versetsLabel})` devient `(${S.versetsCount(sel.verseCount)})`.
-- Les libellés « x/y versets » et « x / y versets » (`sourate_list.dart`, `history_card.dart`)
-  restent : le pluriel s'y accorde à y.
-- **Tests** : aucun nouveau ; `flutter test` vert.
-
-### [P3] Réglages, mode édition : « 286 · البقرة versets » au lieu de « البقرة · 286 versets »
-Vu à la vérification Windows d'US-31 Sprint B (2026-11-07), à toutes les tailles. Dans
-`lib/screens/profile_edit_body.dart` l.112, le sous-titre `'${s.nameAr}  ·  ${s.verses} …'` met un
-nombre juste après du texte arabe : l'algorithme bidirectionnel range le nombre dans le bloc arabe
-et l'affiche à sa gauche.
-- **Correctif** : isoler le nom arabe entre U+2068 (FIRST STRONG ISOLATE) et U+2069 (POP
-  DIRECTIONAL ISOLATE), écrits en échappements `⁨`/`⁩` dans la chaîne. Rien d'autre ne
-  change.
-- Les trois autres chaînes qui mêlent `nameAr` et texte latin (`revision_unit.dart` l.38,
-  `check_out_sections.dart` l.64, `sourate_picker_sheet.dart` l.93) s'affichent dans le bon ordre :
-  le nom arabe n'y est pas suivi d'un chiffre.
-- **Tests** : aucun nouveau ; `flutter test` vert, contrôle à l'œil sous Windows.
-
 ### [P3] Test qui interdit un `fontSize:` littéral hors `app_theme.dart`
 Relevé au Sprint B1 d'US-25 (2026-10-22) : rien n'empêche un futur écran de réécrire un
 `TextStyle(fontSize: …)` à côté des six styles d'`AppText`. Un test (`test/core/
@@ -50,22 +28,6 @@ qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) — et dep
 futur écran racine qui ne descendrait pas de `ShellScreen` devrait dupliquer ce hook. Différé :
 un seul écran racine existe aujourd'hui, centraliser dans `AppState` maintenant serait de la
 généralisation anticipée pour un cas qui n'existe pas encore.
-
-### [P3] Retirer les `await` sur `DaySelection` dans deux fichiers de test
-Relevé à la clôture du sprint 23 (2026-10-22) : `flutter analyze lib test` remonte 26 infos
-`await_only_futures` — 21 dans `test/core/revision_engine_test.dart`, 5 dans
-`test/state/app_state_checkin_test.dart` — sur des `await` devant une expression `DaySelection`
-synchrone. Retirer ces `await`, sans autre changement ; `flutter analyze lib test` doit revenir à
-zéro. Pur bruit d'analyse, aucun comportement touché.
-
-### [P3] Livrer les licences OFL des polices dans l'app
-Relevé au sprint 34 (2026-11-07, polices embarquées). La licence OFL demande que chaque copie d'une
-police l'accompagne. `assets/fonts/OFL.txt` (Outfit), `Amiri-OFL.txt` et `ScheherazadeNew-OFL.txt`
-sont dans le dépôt mais pas dans l'app installée : aucun n'est déclaré dans `pubspec.yaml`.
-- **`pubspec.yaml`** : ajouter les trois fichiers sous `assets:`, sans renommer `OFL.txt`.
-- **Tests** : `flutter test` vert ; `flutter build windows` puis vérifier que les trois fichiers
-  sont présents dans `build/windows/x64/runner/Release/data/flutter_assets/assets/fonts/`.
-- **Exclus** : pas d'écran de licences dans l'app.
 
 ## Idées produit (non scopées)
 
@@ -123,6 +85,9 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   de rakaa), passent à la ligne après « Al- ». Rien ne déborde. Reste à choisir : accepter (le trait
   d'union est un point de coupure normal), ou interdire la coupure (trait d'union insécable U+2011,
   à vérifier dans Outfit), au risque de rétrécir ou de pousser la ligne.
+- **Plage d'un seul verset écrite « 5–5 (1 verset) »** (sprint 37, 2026-11-08, carte des sourates
+  du Récap) : le pluriel est corrigé, mais la plage répète le même numéro. Reste à choisir :
+  « verset 5 », « 5 (1 verset) », ou garder tel quel (même format que les autres plages).
 
 ### Renforcement (onglet « Quiz » après US-24)
 
