@@ -84,6 +84,10 @@ flutter:
     # Only the Regular weight is used; another weight needs its own file here.
     - assets/fonts/Amiri-Regular.ttf
     - assets/fonts/ScheherazadeNew-Regular.ttf
+    # OFL requires the license to ship with every copy of the fonts.
+    - assets/fonts/OFL.txt
+    - assets/fonts/Amiri-OFL.txt
+    - assets/fonts/ScheherazadeNew-OFL.txt
 
   # Outfit is bundled (not fetched by google_fonts) so the Latin UI renders the
   # same offline on first launch. Static instances only: variable fonts render

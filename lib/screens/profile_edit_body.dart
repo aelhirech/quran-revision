@@ -109,7 +109,9 @@ class ProfileEditBody extends StatelessWidget {
                   onChanged: (_) => onToggleSourate(s.id),
                   title: Text(s.nameFr),
                   subtitle: Text(
-                    '${s.nameAr}  ·  ${s.verses} ${S.versetsLabel}',
+                    // Isolate the Arabic name so the bidi algorithm doesn't pull the
+                    // following number into the RTL run (shown as "286 · البقرة").
+                    '\u2068${s.nameAr}\u2069  ·  ${s.verses} ${S.versetsLabel}',
                   ),
                   secondary: CircleAvatar(
                     backgroundColor: selected

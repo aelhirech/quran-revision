@@ -32,7 +32,7 @@ void main() {
         1: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1}
       };
 
-      final selection = await RevisionEngine.buildDayUnits(
+      final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: mockPageMetadata,
@@ -71,7 +71,7 @@ void main() {
         2: {1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2}
       };
 
-      final selection = await RevisionEngine.buildDayUnits(
+      final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: mockPageMetadata,
@@ -109,7 +109,7 @@ void main() {
         1: {1: 1, 2: 1, 3: 1, 4: 1, 5: 2, 6: 2, 7: 2}
       };
 
-      final selection = await RevisionEngine.buildDayUnits(
+      final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: mockPageMetadata,
@@ -226,21 +226,21 @@ void main() {
       };
 
       // Position 0 : doit prendre la sourate 1
-      final selection0 = await RevisionEngine.buildDayUnits(
+      final selection0 = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: mockPageMetadata,
       );
 
       // Position 1 : doit prendre la sourate 2
-      final selection1 = await RevisionEngine.buildDayUnits(
+      final selection1 = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 1,
         pageMetadata: mockPageMetadata,
       );
 
       // Position 2 : doit prendre la sourate 3
-      final selection2 = await RevisionEngine.buildDayUnits(
+      final selection2 = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 2,
         pageMetadata: mockPageMetadata,
@@ -278,21 +278,21 @@ void main() {
       };
 
       // Position 0 : sourate 1
-      final selection0 = await RevisionEngine.buildDayUnits(
+      final selection0 = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: mockPageMetadata,
       );
 
       // Position 1 : sourate 2
-      final selection1 = await RevisionEngine.buildDayUnits(
+      final selection1 = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 1,
         pageMetadata: mockPageMetadata,
       );
 
       // Position 2 : doit boucler à la sourate 0 (2 % 2 = 0)
-      final selection2 = await RevisionEngine.buildDayUnits(
+      final selection2 = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 2,
         pageMetadata: mockPageMetadata,
@@ -315,7 +315,7 @@ void main() {
         riwaya: Riwaya.hafs,
         shuffleEnabled: false,
       );
-      final selection = await RevisionEngine.buildDayUnits(
+      final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: const {},
@@ -354,7 +354,7 @@ void main() {
         2: {1: 3, 2: 3, 3: 4, 4: 4, 5: 4},
       };
 
-      final selection = await RevisionEngine.buildDayUnits(
+      final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: mockPageMetadata,
@@ -371,7 +371,7 @@ void main() {
               'courtes sourates, plus les 2 pages de la sourate 2');
 
       // Position 1 (après le groupe) : doit prendre la sourate 2, seule.
-      final next = await RevisionEngine.buildDayUnits(
+      final next = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 1,
         pageMetadata: mockPageMetadata,
@@ -401,7 +401,7 @@ void main() {
         108: {1: 602, 2: 602, 3: 602},
       };
 
-      final selection = await RevisionEngine.buildDayUnits(
+      final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: mockPageMetadata,
@@ -438,7 +438,7 @@ void main() {
         2: {1: 3, 2: 3, 3: 4, 4: 4, 5: 4},
         3: {1: 5, 2: 5, 3: 6, 4: 6, 5: 6},
       };
-      final selection = await RevisionEngine.buildDayUnits(
+      final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: mockPageMetadata,
@@ -584,7 +584,7 @@ void main() {
         startDate: DateTime(2026, 1, 1),
         riwaya: Riwaya.hafs,
       );
-      final selection = await RevisionEngine.buildDayUnits(
+      final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: const {},
@@ -654,7 +654,7 @@ void main() {
     test(
         'cycleTotal/cyclePosition expriment le cycle dans la même unité que '
         'pagesPerDay — un groupe de page partagée coûte 1 page, pas 2', () async {
-      final atStart = await RevisionEngine.buildDayUnits(
+      final atStart = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: pageMetadata,
@@ -665,7 +665,7 @@ void main() {
       expect(atStart.cyclePosition, 0);
 
       // Un groupe consommé : la position en pages suit celle en groupes.
-      final afterFirst = await RevisionEngine.buildDayUnits(
+      final afterFirst = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 1,
         pageMetadata: pageMetadata,
@@ -701,7 +701,7 @@ void main() {
         riwaya: Riwaya.hafs,
         shuffleEnabled: false,
       );
-      final selection = await RevisionEngine.buildDayUnits(
+      final selection = RevisionEngine.buildDayUnits(
         config: config,
         cyclePosition: 0,
         pageMetadata: straddling,
@@ -789,7 +789,7 @@ void main() {
         riwaya: Riwaya.hafs,
         shuffleEnabled: false,
       );
-      final atStart = await RevisionEngine.buildDayUnits(
+      final atStart = RevisionEngine.buildDayUnits(
           config: config, cyclePosition: 0, pageMetadata: pageMeta);
       expect(atStart.cycleTotal, 3,
           reason: "3 entrées : (84,589) (84,590 privée) (85,590 réelle)");
@@ -804,7 +804,7 @@ void main() {
       // pas encore. Dédupliquer par simple numéro de page (bug trouvé en
       // revue) aurait compté la page 590 comme "faite" via le seul verset 25
       // d'Al-Inshiqaq, affichant 100 % avant qu'Al-Buruj ait été touchée.
-      final afterInshiqaq = await RevisionEngine.buildDayUnits(
+      final afterInshiqaq = RevisionEngine.buildDayUnits(
           config: config, cyclePosition: 2, pageMetadata: pageMeta);
       expect(afterInshiqaq.realPages(pageMeta).pos, 1,
           reason: "seule la page 589 (entièrement couverte par les 2 "
@@ -875,7 +875,7 @@ void main() {
     });
 
     test('sans sourate sélectionnée, le cycle en pages vaut 0/0', () async {
-      final empty = await RevisionEngine.buildDayUnits(
+      final empty = RevisionEngine.buildDayUnits(
         config: UserConfig(
           selections: const [],
           pagesPerDay: 1,
