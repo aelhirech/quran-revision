@@ -8,7 +8,7 @@ class SCheckIn {
   static String checkInVersesProposed(int n) => S._t(
       '$n verset${n > 1 ? 's' : ''} proposé${n > 1 ? 's' : ''} aujourd\'hui',
       '$n verse${n > 1 ? 's' : ''} proposed today');
-  static String get checkInVueDuJour => S._t('Vue du jour', 'Today\'s view');
+  static String get checkInVueDuJour => S._t('Plan du jour', "Today's plan");
   static String get checkInAjouterSourate => S._t('Ajouter une sourate', 'Add a surah');
   static String get suivant => S._t('Suivant', 'Next');
   static String get retour => S._t('Retour', 'Back');
@@ -37,12 +37,12 @@ class SCheckIn {
       "Celles où c'est toi qui récites — seul ou en imam. Facultatif.",
       "The ones where you recite — alone or leading as imam. Optional.");
   static String get checkInSansPriere => S._t(
-      'Sans prière, tout ton plan sera en dehors des prières',
-      'With no prayer, your whole plan goes outside prayers');
+      'Sans prière, tout ton plan du jour est dans une seule liste.',
+      'With no prayer, your whole plan for today is one list.');
   static String get checkInLancerPlan => S._t('Voir mon plan du jour', 'See my daily plan');
   static String get checkInVersetsInclus =>
       S._t('Versets inclus aujourd\'hui', 'Verses included today');
   static String get checkInExtendHint => S._t(
-      'Le "+" ajoute le prochain verset à la portée du jour.',
-      'The "+" adds the next verse to today\'s scope.');
+      'Le "+" ajoute le verset suivant à ton plan du jour.',
+      'The "+" adds the next verse to today\'s plan.');
 }

@@ -15,7 +15,7 @@ et `docs/DOCUMENTATION_TECHNIQUE.md` (**comment** c'est codé).
 
 **Sommaire** : Direction narrative · Vue d'ensemble · Premier contact · Check-in · Règle du plan
 quotidien · Pendant la journée · Check-out et clôture · Apprentissage · Vue Coran et écoute ·
-Renforcement · Récap · Réglages, régularité et rappels · Registre visuel
+Quiz · Récap · Réglages, régularité et rappels · Registre visuel
 
 ---
 
@@ -43,7 +43,8 @@ check-in, réglage de plus). La générosité, ici, c'est de décider à sa plac
 
 L'app automatise trois couches connues de toute mémorisation sérieuse — **le nouveau**, **le
 récent encore fragile**, **l'ancien qu'on fait tourner** (respectivement l'apprentissage,
-`FreshnessEngine`, `RevisionEngine`). Elles se nomment **en clair**, jamais par leurs termes
+`FreshnessEngine`, `RevisionEngine`). À l'écran, elles s'appellent « ce que tu apprends », « ce que
+tu viens d'apprendre », « ce que tu connais déjà ». Elles se nomment **en clair**, jamais par leurs termes
 traditionnels arabes : introduire du vocabulaire inconnu est exactement le mal qu'on soigne. La
 légitimité tient en une phrase — *la méthode des hafiz depuis des générations* — et ne se répète
 pas. **L'app n'est pas un enseignant** : elle ne corrige ni la récitation ni le tajwid et ne se
@@ -54,8 +55,8 @@ présente jamais comme remplaçant un cheikh. Elle tient le carnet, pas la chair
 | Moment | Ce qui s'y passe | Regard |
 |---|---|---|
 | **Début** — check-in | Prendre en considération l'objectif du jour et s'y engager | **Derrière** : l'acquis, la régularité déjà constituée |
-| **Milieu** — les prières | Réviser, apprendre. L'app est quasi absente : elle n'offre que l'accès au texte depuis chaque ligne du plan et, à un moment choisi, l'onglet Renforcement pour s'éprouver sur ce qu'on porte | — |
-| **Fin** — check-out | Confirmer ce qui a tenu ; ce qui n'a pas tenu revient demain | **Devant** : durée du tour, échéance d'apprentissage |
+| **Milieu** — les prières | Réviser, apprendre. L'app est quasi absente : elle n'offre que l'accès au texte depuis chaque ligne du plan et, à un moment choisi, l'onglet Quiz pour se tester sur ce qu'on connaît | — |
+| **Fin** — check-out | Confirmer ce qu'on a réussi ; un verset oublié revient demain | **Devant** : durée du tour, échéance d'apprentissage |
 
 Règle de placement des chiffres : **derrière au check-in, devant au check-out.** Le check-in doit
 rendre l'objectif du jour *léger* — y afficher une projection réintroduit le poids du total au
@@ -65,7 +66,7 @@ s'y lit comme une récompense.
 ### Ce qu'on a le droit de promettre
 
 - **L'apprentissage a une fin** → une date est légitime, mais toujours conditionnelle (« si tu
-  tiens ce rythme »), recalculée en silence après une absence, jamais opposée à l'utilisateur
+  gardes ce rythme »), recalculée en silence après une absence, jamais opposée à l'utilisateur
   (« tu as perdu X jours »).
 - **La révision n'a pas de fin, elle a un tour** → `cycleTotal ÷ pages par jour`. Ce nombre est
   stable (il ne bouge pas quand des jours sont sautés) et se lit de deux façons : une période, et
@@ -74,6 +75,24 @@ s'y lit comme une récompense.
   atteindre une ligne d'arrivée et voit le cycle reboucler vit une trahison.
 - Une sélection qui grandit allonge le tour : le présenter comme une **capacité**, jamais comme une
   régression — sinon l'app dissuade d'ajouter du Coran.
+
+### Les mots de l'app
+
+- **Des mots de tous les jours, un seul par idée, le même partout** (écrans, messages,
+  notifications), compris par un collégien sans infantiliser un adulte (public de 13 à 45 ans).
+  Le lexique (français et anglais) est dans `CLAUDE.md` § « Les mots de l'app » : tout nouveau
+  texte le suit.
+- **Ni métaphore à décoder** (« ce que tu portes », « journée scellée », « ce qui a tenu ») **ni
+  terme technique** (« onboarding », « configuration », « session »). Les mots religieux que
+  l'utilisateur emploie lui-même restent : rakaa, riwaya, hizb, imam, hafiz, Al-Fatiha, sunna.
+- **Textes longs en phrases courtes**. « Terminer ma journée » parle de la journée, jamais de la
+  révision.
+- Une plage d'un seul verset s'écrit « v.5 », jamais « v.5–5 ».
+
+**Ne fait pas** : ne retouche jamais le texte coranique, les traductions (Hamidullah, Saheeh
+International), les sens mot à mot (CoranMot, dont la source interdit toute modification) ni les
+hadiths du jour : ce sont des sources, pas des textes de l'app. « Illuminer ma journée avec le
+Coran » reste, c'est la phrase de l'utilisateur.
 
 ### Où entre une nouvelle fonctionnalité
 
@@ -91,7 +110,7 @@ signifie au moment où il compte.
 - App mobile (iOS/Android) **mono-utilisateur, entièrement locale** : aucun compte, aucune donnée
   hors de l'appareil. Profils multiples supprimés sur demande explicite : ne pas les réintroduire
   sans besoin confirmé.
-- **Quatre onglets** : Plan du jour, Renforcement, Récap, Réglages.
+- **Quatre onglets** : Plan du jour, Quiz, Récap, Réglages.
 - **Deux riwayas, Hafs et Warsh, comme deux parcours totalement indépendants** : sélection,
   cycle, curseur, apprentissage et historique propres à chacune, jamais mélangés ni traduits de
   l'une vers l'autre. Une riwaya indisponible sur l'appareil est signalée, jamais remplacée par un
@@ -104,9 +123,9 @@ signifie au moment où il compte.
 ## Premier contact
 
 ### Onboarding
-1. **Explique avant de configurer** : ce qu'on a mémorisé s'efface faute de **structure**, pas
-   de sincérité ; l'app décide la portion du jour selon trois couches (le nouveau, le récent
-   encore fragile, l'ancien qu'on fait tourner), présentées comme la méthode des hafiz depuis des
+1. **Explique avant de configurer** : si on oublie, c'est faute d'un **plan**, pas de
+   sincérité ; l'app décide le plan du jour selon trois couches (ce que tu apprends, ce que tu
+   viens d'apprendre, ce que tu connais déjà), présentées comme la méthode des hafiz depuis des
    générations.
 2. **Rythme** : quand l'utilisateur choisit ses pages par jour, l'app annonce la durée d'un tour
    complet de sa sélection, aussi formulée comme une garantie (« aucune de tes sourates ne restera
@@ -116,7 +135,7 @@ signifie au moment où il compte.
    de mélange). Il est précédé du **récit d'une journée en quatre moments** : le matin (bouton
    « Illuminer ma journée avec le Coran »), dans les prières (l'icône livre de chaque ligne du
    plan), avant de prier ou à un moment choisi (le bouton lecture de la vue Coran), le soir
-   (clôturer : ce qui a tenu est confirmé, le reste revient demain). Chaque moment montre le
+   (« Terminer ma journée » : ce qu'on a réussi est confirmé, le reste revient demain). Chaque moment montre le
    **vrai contrôle**, dans la langue et le thème en cours, mais inerte. Le matin y est décrit
    comme « l'app propose, tu confirmes ou ajustes », jamais comme des réglages à remplir.
 4. Une sélection sans aucune métadonnée de page est **signalée** sur cet écran, pas montrée comme
@@ -161,7 +180,7 @@ aucun chiffre de projection dans le récit ; pas de librairie de coach-marks ni 
   au-delà (voulu).
 - **« Prières où il récite »** = prières où c'est lui qui récite, seul ou en dirigeant. Ni filtre
   d'exclusion ni pondération. **Choisir une prière est facultatif** : le check-in se valide sans
-  aucune, et une phrase dit alors que tout le plan sera en dehors des prières.
+  aucune, et une phrase dit alors que tout le plan du jour est dans une seule liste.
 - Chaque ligne proposée porte un **libellé discret de fraîcheur** (depuis quand ces versets n'ont
   pas été revus, au grain verset).
 - **Ré-appui après « Refaire le plan »** : le brouillon repart de ce qui est déjà enregistré pour
@@ -382,7 +401,7 @@ au-delà du retour tactile de coche ;
 aucun lecteur de Coran libre (lire reste attaché à une ligne du plan — un mushaf libre
 redonnerait la décision que l'app existe pour retirer).
 
-## Check-out et clôture — « Clôturer ma journée »
+## Check-out et clôture — « Terminer ma journée »
 
 ### Confirmer
 - L'utilisateur confirme **verset par verset** ce qui a réellement été fait, révision et
@@ -407,7 +426,7 @@ redonnerait la décision que l'app existe pour retirer).
 
 ### Après la clôture
 - **Transition courte et sobre** (environ 4 s, sans geste à faire) qui nomme le jour clôturé —
-  « Hier est clôturé » pour un rattrapage. Pas de modale.
+  « Hier est terminé » pour un rattrapage. Pas de modale.
 - **Accueil d'une journée clôturée**, chaque jour : ce que la journée a apporté (versets revus,
   versets appris s'il y en a), sans reproche (« le reste reviendra demain », jamais « tu as raté
   X »), et en regard **devant** la durée du tour et l'échéance conditionnelle de l'apprentissage.
@@ -460,7 +479,7 @@ même de la complétion la réélargit.
 ## Vue Coran et écoute
 
 S'ouvre depuis le Plan du jour, le bloc hors prières, la carte d'apprentissage et la feuille
-d'un carreau de la mosaïque (Renforcement et Récap), toujours sur la plage de la ligne ou du carreau
+d'un carreau de la mosaïque (Quiz et Récap), toujours sur la plage de la ligne ou du carreau
 d'où elle est ouverte.
 
 ### Le texte
@@ -498,13 +517,13 @@ pas de mot à mot, de tafsir, de notes ni de translittération ; pas de choix de
 de mémorisation de la portion ni de l'affichage de la traduction ; pas de source audio autre que
 KSU.
 
-## Renforcement
+## Quiz
 
 - L'onglet propose une **série déjà composée** : une dizaine de questions, finie, sans chrono,
   lancée en un geste ; un second geste lance une série sur une sourate choisie dans la sélection.
   « Choisir une sourate » ne liste que les sourates qui offrent au moins une question dans le
   mode choisi : une sourate listée mène toujours à une série.
-- **Mosaïque**, en tête de l'onglet, avant la série du jour puis « Choisir une sourate » : un
+- **Mosaïque**, en tête de l'onglet, avant les « Questions du jour » puis « Choisir une sourate » : un
   carreau par sourate de la sélection en révision (jamais une sourate en apprentissage), dans
   l'ordre du mushaf ; une plage partielle a un seul carreau. Au-dessus de la grille, le nombre de
   sourates à risque d'oublier passe avant tout le reste, ou une phrase calme s'il n'y en a aucune.
@@ -514,8 +533,8 @@ KSU.
   Sans sourate en révision, pas de mosaïque. Elle se met à jour au retour d'une série.
 - **Toucher un carreau** ouvre sa feuille : nom en français et en arabe, plage si elle est
   partielle, niveau (avec sa forme, même pour un carreau à risque), « Risque d'oublier » s'il y a
-  lieu, dernière révision, « Voir le texte » (la plage sélectionnée) et « Lancer une série sur
-  cette sourate », absent pour une sourate qui n'offre aucune question dans le mode choisi.
+  lieu, dernière révision, « Voir le texte » (la plage sélectionnée) et « Questions sur cette
+  sourate », absent pour une sourate qui n'offre aucune question dans le mode choisi.
 - **Question de suite** : un passage est affiché (avec sourate et numéro) et l'utilisateur
   retrouve celui qui le suit parmi quatre au plus. Un verset de plus de 12 mots est coupé aux
   signes de pause du mushaf ; « … » marque un passage qui ne commence ou ne termine pas son
@@ -579,7 +598,7 @@ pas de moment de jalon pour un niveau atteint, pas d'écran de collection.
 Hors du fil de la journée, quand l'utilisateur se demande où il en est : en moins de 3 secondes,
 il voit ce qui tient et ce qui demande de l'attention. Il regarde en arrière, aucune projection.
 
-- **La mosaïque** de l'onglet Renforcement en tête : mêmes carreaux, mêmes couleurs, même règle, et
+- **La mosaïque** de l'onglet Quiz en tête : mêmes carreaux, mêmes couleurs, même règle, et
   au-dessus le nombre de sourates à risque d'oublier, ou une phrase calme s'il n'y en a aucune.
 - **« Risque d'oublier »** : les sourates à risque, de la révision la plus ancienne à la plus
   récente, chacune avec sa dernière révision (« Il y a plus de 3 mois », « de 6 mois »,
@@ -598,7 +617,7 @@ il voit ce qui tient et ce qui demande de l'attention. Il regarde en arrière, a
 jour au repos), ni durée du tour (fin de journée), ni rythme, ni historique jour par jour, ni
 répartition, ni liste de toutes les sourates ; pas de date d'apprentissage prévue ; pas de
 nouvel indicateur ni de calendrier d'activité ; pas de liste des questions ratées (elles
-reviennent dans les séries de l'onglet Renforcement) ; pas de série lancée depuis le Récap.
+reviennent dans les séries de l'onglet Quiz) ; pas de série lancée depuis le Récap.
 
 ## Réglages, régularité et rappels
 

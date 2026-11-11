@@ -50,10 +50,6 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   le dernier bloc appris d'une sourate déjà élargie la remet en apprentissage, mais sa sélection
   reste entière. Quand elle est finie à nouveau, la fin de journée ne l'annonce plus, car elle est
   déjà entière. À choisir : revenir à la plage d'avant, ou garder la sélection et refaire l'annonce.
-- **Check-in sans prière : la phrase annonce encore « en dehors des prières »** (US-28, 2026-11-07) :
-  `SCheckIn.checkInSansPriere` dit « tout ton plan sera en dehors des prières », alors que le plan
-  sans prière affiche désormais « À réviser aujourd'hui ». À choisir : la nouvelle phrase, ou la
-  garder (elle décrit le choix au moment où on le fait).
 
 ### Affichage et texte agrandi
 
@@ -77,12 +73,19 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   d'apprentissage au Récap) s'écrit « Supprimer l' / apprentissa / ge ». `confirmDialog` est
   partagé, le défaut existait avant US-23. À 375 px et ×1, il tient. Reste à choisir : un style de
   titre plus petit pour toutes les confirmations, ou faire rétrécir le titre (US-31 crit. 2).
-- **Plage d'un seul verset écrite « 5–5 »** (sprint 37, 2026-11-08 ; la carte des sourates du
-  Récap a disparu avec US-23) : `S.blocRange` répète le même numéro pour une plage d'un verset,
-  dans la feuille du carreau et l'onboarding. Reste à choisir : « verset 5 », « 5 », ou garder
-  tel quel (même format que les autres plages).
 
-### Renforcement (onglet « Quiz » après US-24)
+- **Onboarding, étapes Rythme et Rappels qui débordent avec un texte agrandi** (vérification Windows
+  d'US-24, 2026-11-11) : à 320 px avec texte ×1,5, l'étape Rythme écrit son libellé lettre par
+  lettre à côté du menu « 1 page / jour » et déborde (412 px avant US-24, 124 px après en
+  français, 28 px en anglais) ; l'étape Rappels déborde de 7 px (33 px en anglais). Déjà présent
+  sur `main` avant US-24, hors des écrans corrigés par US-31. Reste à choisir : empiler le libellé
+  au-dessus du menu, faire défiler l'étape, ou rétrécir (US-31 crit. 2).
+- **Premier check-in : « Tu en es à 0 pages, et 0 jours de suite »** (même vérification) : la
+  bannière guidée (`SGuide.guideCheckinStep0Body`) affiche des compteurs à zéro au premier jour,
+  sans pluriel géré (« 1 jours »). Reste à choisir : cacher la phrase tant que les deux sont à
+  zéro, ou la réécrire pour le premier jour.
+
+### Quiz
 
 - **Qualité des mauvais choix, à régler sur de vraies séries** (US-20, US-22) : le mauvais choix
   « similaire » est tiré au hasard parmi les passages similaires, pas le plus proche ; les seuils

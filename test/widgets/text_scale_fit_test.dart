@@ -201,6 +201,10 @@ void main() {
     expectOneLine(tester, SOnboarding.toutSelectionner);
   });
 
+  test('blocRange writes a one-verse range as a single number (US-24)', () {
+    expect(S.blocRange(5, 5), 'v.5');
+  });
+
   test('blocRange never breaks around the dash', () {
     expect(S.blocRange(1, 10), 'v.1\u2060–\u206010');
   });

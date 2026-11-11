@@ -2,15 +2,15 @@ part of 'strings.dart';
 
 /// Reinforcement tab strings.
 class SReinforcement {
-  static String get onglet => S._t('Renforcement', 'Strengthen');
-  static String get serieDuJour => S._t('Série du jour', "Today's series");
+  static String get onglet => S._t('Quiz', 'Quiz');
+  static String get serieDuJour => S._t('Questions du jour', "Today's questions");
   static String get serieDuJourDesc => S._t(
-      "Des questions sur ce que tu portes. L'app choisit, tu réponds.",
-      'Questions on what you carry. The app picks, you answer.');
+      "Des questions sur ce que tu connais. L'app choisit, tu réponds.",
+      'Questions on what you know. The app picks, you answer.');
   static String get commencer => S._t('Commencer', 'Start');
   static String get choisirSourate =>
       S._t('Choisir une sourate', 'Pick a surah');
-  static String serieSur(String nom) => S._t('Série sur $nom', 'Series on $nom');
+  static String serieSur(String nom) => S._t('Questions sur $nom', 'Questions on $nom');
   static String sourateVerset(String nom, int verset) =>
       S._t('$nom · verset $verset', '$nom · verse $verset');
   static String get quelleSuite =>
@@ -27,10 +27,10 @@ class SReinforcement {
       'Your revision round does not change: only your recitation moves it forward.');
   static String get fermer => S._t('Fermer', 'Close');
   static String reviendront(int n) => n == 1
-      ? S._t('1 question reviendra dans une prochaine série.',
-          '1 question will come back in a later series.')
-      : S._t('$n questions reviendront dans une prochaine série.',
-          '$n questions will come back in a later series.');
+      ? S._t('1 question reviendra plus tard.',
+          '1 question will come back later.')
+      : S._t('$n questions reviendront plus tard.',
+          '$n questions will come back later.');
   static String passeAuNiveau(String nom, int niveau) =>
       S._t('$nom passe au niveau $niveau.', '$nom moves up to level $niveau.');
   static String revientAuNiveau(String nom, int niveau) => S._t(
@@ -41,7 +41,7 @@ class SReinforcement {
   static String get queVeutDire => S._t(
       'Que veut dire le mot en or ?', 'What does the golden word mean?');
   static String get quelMot =>
-      S._t('Quel mot porte ce sens ?', 'Which word carries this meaning?');
+      S._t('Quel mot veut dire ça ?', 'Which word means this?');
   static String get motSensSep => S._t(' : ', ': ');
   static String motDemande(String mot) =>
       S._t('mot demandé : $mot', 'asked word: $mot');
@@ -49,21 +49,21 @@ class SReinforcement {
       'Sens : Dr Usama Nonnenmacher, CoranMot',
       'Meanings: Dr Usama Nonnenmacher, CoranMot');
   static String aRisque(int n) => n == 1
-      ? S._t("1 sourate à risque d'oublier", '1 surah at risk of being forgotten')
+      ? S._t("1 sourate à risque d'oublier", '1 surah at risk of forgetting')
       : S._t("$n sourates à risque d'oublier",
-          '$n surahs at risk of being forgotten');
+          '$n surahs at risk of forgetting');
   static String get aucuneARisque => S._t("Aucune sourate à risque d'oublier.",
-      'No surah at risk of being forgotten.');
+      'No surah at risk of forgetting.');
   static String niveau(int level) => level == 0
       ? S._t('Pas encore jouée', 'Not played yet')
       : S._t('Niveau $level', 'Level $level');
   static String get risqueOublier =>
-      S._t("Risque d'oublier", 'At risk of being forgotten');
+      S._t("Risque d'oublier", 'At risk of forgetting');
   static String get derniereRevision =>
       S._t('Dernière révision', 'Last revision');
   static String get lancerSerieSur => S._t(
-      'Lancer une série sur cette sourate', 'Start a series on this surah');
+      'Questions sur cette sourate', 'Questions on this surah');
   static String get selectionTropPetite => S._t(
-      'Ta sélection est trop petite pour composer une série. Ajoute une sourate dans les Réglages.',
-      'Your selection is too small to build a series. Add a surah in Settings.');
+      "Tu n'as pas encore assez de sourates pour des questions. Ajoute une sourate dans les Réglages.",
+      "You don't have enough surahs for questions yet. Add a surah in Settings.");
 }

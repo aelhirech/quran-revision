@@ -116,7 +116,7 @@ class NotificationService {
       hour: hour,
       minute: minute,
       channelId: 'morning',
-      channelName: 'Rappel matin',
+      channelName: S.rappelMatinLabel,
     );
   }
 
@@ -129,7 +129,7 @@ class NotificationService {
       hour: hour,
       minute: minute,
       channelId: 'evening',
-      channelName: 'Bilan soir',
+      channelName: S.rappelSoirLabel,
     );
   }
 
@@ -145,7 +145,7 @@ class NotificationService {
       hour: 0,
       minute: 0,
       channelId: 'midnight',
-      channelName: 'Rappel minuit',
+      channelName: S.rappelMinuitLabel,
     );
   }
 
