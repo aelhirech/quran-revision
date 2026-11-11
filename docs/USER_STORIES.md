@@ -17,13 +17,13 @@ Quran Revision est une app mobile (iOS/Android, + web pour prévisualisation uni
 
 Le cœur du produit est une boucle quotidienne : après que l'utilisateur est configuré  les sourates déjà apprises et à quel rythme il veut les réviser (rythme exprimé en pages, qui sert à pré-remplir une proposition par défaut bornée aux limites de sourate ou de page — le calcul interne fonctionne en versets). Chaque jour, via le bouton Illuminer ma journée avec le Coran, l'utilisateur confirme le rythme ou l'ajuste et confirme le nombre de versets qu'il souhaite apprendre aujourd'hui ainsi que les prières qu'il compte prier en tant qu'imam puis l'app propose les versets à réviser et les versets à apprendre et répartit automatiquement ce contenu dans les rakaas de ses prières individuelles du jour — la révision occupant les premières rakaas, l'apprentissage la dernière — pour transformer un temps déjà consacré à la prière en temps de révision actif. L'utilisateur confirme ce qui a réellement été fait il peut en avoir fait plus, ou moins dans ce cas il flag les versets à retravailler ou à continuer d'apprendre — c'est cette confirmation qui fait progresser son cycle de révision et d'apprentissage.
 
-Autour de cette boucle, l'app entretient la motivation (streak de régularité, vue d'ensemble de progression) et alerte discrètement sur ce qui commence à s'effriter dans la mémoire (fraîcheur par verset, pas juste par sourate). L'app fonctionne dans les deux riwayas les plus courantes (Hafs et Warsh) comme deux parcours de mémorisation totalement indépendants, permet à l'utilisateur de défini heure de rappel matin et heure de rappel soir et s'adapte à la langue de l'utilisateur. Il y a 4 pages : Plan du jour, Renforcement, Récap, Réglages
+Autour de cette boucle, l'app entretient la motivation (streak de régularité, vue d'ensemble de progression) et alerte discrètement sur ce qui commence à s'effriter dans la mémoire (fraîcheur par verset, pas juste par sourate). L'app fonctionne dans les deux riwayas les plus courantes (Hafs et Warsh) comme deux parcours de mémorisation totalement indépendants, permet à l'utilisateur de défini heure de rappel matin et heure de rappel soir et s'adapte à la langue de l'utilisateur. Il y a 4 pages : Plan du jour, Quiz, Récap, Réglages
 
 ---
 
 ## Stories actives
 
-### Cadre commun du blueprint Zellige (2026-10-17) : US-24 et US-26 (US-21, US-23 et US-25 livrées)
+### Cadre commun du blueprint Zellige (2026-10-17) : US-26 (US-21, US-23, US-24 et US-25 livrées)
 
 Ces stories sortent d'une phase de design sans code (2026-10-13 et 14), partie d'un constat de
 l'utilisateur : Renforcement et Récap n'avaient « ni DA, ni vraiment jeu, ni objectif, ni avancée
@@ -48,77 +48,12 @@ l'exploration). Les maquettes sont antérieures à ce blueprint : là où elles 
 - **Public : 13 à 45 ans** (précision utilisateur du 2026-10-13). Un collégien comprend chaque mot,
   un adulte ne se sent pas infantilisé.
 - **Ce qui ne change pas** : les questions ne valident jamais une révision (reconnaître n'est pas
-  réciter, `docs/SPEC_PRODUIT.md` § Renforcement). L'app décide à la place de l'utilisateur : ni niveau, ni seuil, ni
+  réciter, `docs/SPEC_PRODUIT.md` § Quiz). L'app décide à la place de l'utilisateur : ni niveau, ni seuil, ni
   pondération à régler.
 - **Ordre conseillé** : US-25 d'abord (police, styles, couleurs ; livrée, voir
-  `docs/SPEC_PRODUIT.md` § Registre visuel), puis US-21 (livrée, voir `docs/SPEC_PRODUIT.md` § Renforcement), puis US-23 (livrée,
-  voir `docs/SPEC_PRODUIT.md` § Récap). US-24 et US-26 sont indépendantes.
-
-### US-24 — L'app parle avec des mots de tous les jours
-**État** : à scoper — blueprint du 2026-10-17, validé par l'utilisateur le 2026-10-22.
-
-**Statement** : En tant qu'utilisateur de 13 à 45 ans, je veux que chaque écran, message et
-notification utilise des mots de tous les jours, un seul par idée, afin de tout comprendre du
-premier coup, sans vocabulaire à apprendre.
-
-**Diagnostic (état actuel)** : une cinquantaine de textes sont écrits dans un registre littéraire
-(« ce que tu portes », « pages en garde », « ce qui a tenu », « journée scellée », « à éprouver »).
-Deux mots désignent parfois la même chose (« cycle » et « tour », « portion » et « plan »), et des
-termes techniques s'affichent (« onboarding », « configuration », « session »). C'est le mal que la
-direction narrative du `docs/SPEC_PRODUIT.md` dit soigner : introduire du vocabulaire inconnu.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given n'importe quel texte de l'app (écrans, messages, notifications), Then chaque idée porte un
-   seul mot, le même partout, celui du lexique ci-dessous.
-2. Given n'importe quel texte, Then il ne reste ni métaphore à décoder ni terme technique. Les mots
-   religieux que l'utilisateur emploie lui-même restent : rakaa, riwaya, hizb, imam, Al-Fatiha,
-   sunna.
-3. Given les textes longs (introduction de l'onboarding, jalons, étapes guidées), Then ils sont
-   réécrits en phrases courtes, sans changer de sens. Les règles de la direction narrative
-   tiennent : jamais « fini » ni « terminé » à propos de la révision, jamais de reproche, un tour
-   plus long présenté comme une capacité.
-4. Given l'app en anglais, Then le même principe s'applique, en anglais de tous les jours.
-
-**Lexique** (proposé au blueprint du 2026-10-17, validé par l'utilisateur le 2026-10-22) :
-
-| Idée | Aujourd'hui | Mot retenu |
-|---|---|---|
-| Ce que je connais | « ce que tu portes », « pages en garde », « mémorisées » | « ce que tu connais », « pages apprises », « sourates apprises » |
-| Réussir, oublier | « ce qui a tenu », « un verset qui ne tient plus » | « ce que tu as réussi », « un verset oublié » |
-| La boucle de révision | « cycle » et « tour » | « tour » |
-| Finir la journée | « clôturer », « clôturée », « scellée » | « terminer ma journée », « journée terminée » |
-| Le programme du jour | « portion », « plan », « portée du jour » | « plan du jour » |
-| Hafs et Warsh | « parcours » | « lecture (riwaya) » |
-| Depuis quand pas révisée | « fraîcheur », « partiellement récente » | « dernière révision », « révisée en partie » |
-| Pas révisée depuis longtemps | (nouveau) | « risque d'oublier » |
-| Jours d'affilée | « série », « régularité » | « jours de suite » |
-| Les questions | « série du jour » | « questions du jour » |
-| La difficulté | « palier » | « niveau » |
-| Les trois couches | « le nouveau », « le récent encore fragile », « l'ancien qu'on fait tourner » | « ce que tu apprends », « ce que tu viens d'apprendre », « ce que tu connais déjà » |
-| Mots techniques | « onboarding », « configuration », « session », « sélection » | « premiers réglages », « réglages », « journée », « tes sourates » |
-| Les prières | « surérogatoires » | « sunna » |
-| Le livre | « mushaf » | « Coran » |
-| L'onglet des questions | « Renforcement » | « Quiz » (« Quiz » en anglais) |
-
-« Quiz » retenu le 2026-10-22 (choix laissé à Claude par l'utilisateur) : « Renforcement » est un mot
-abstrait, du registre que cette story retire ; « Quiz » est court, compris de 13 à 45 ans, identique
-en français et en anglais, et dit le registre de jeu ouvert par le cadre Zellige. « Questions » a
-été écarté : en nom d'onglet, il se lit comme une page d'aide. Pas de doublon avec « questions du
-jour » : le quiz est l'onglet, les questions sont ce qu'il pose.
-
-« Terminer ma journée » ne contredit pas la direction narrative : c'est la journée qui se termine,
-pas la révision.
-
-**Exclusions explicites** :
-- Aucun changement de fonctionnement : seuls les mots changent.
-- « Illuminer ma journée avec le Coran » reste : c'est la phrase de l'utilisateur.
-- Le texte coranique, les traductions (Hamidullah, Saheeh International) et les sens mot à mot
-  (CoranMot) ne sont jamais retouchés : ce ne sont pas des textes de l'app, et la source CoranMot
-  interdit toute modification.
-- Pas de nouvelle langue.
-
-**Livrable hors critères** : la règle et le lexique validé s'écrivent dans le `CLAUDE.md` du projet,
-à la clôture du sprint, pour que tout nouveau texte les suive.
+  `docs/SPEC_PRODUIT.md` § Registre visuel), puis US-21 (livrée, voir `docs/SPEC_PRODUIT.md` § Quiz), puis US-23 (livrée,
+  voir `docs/SPEC_PRODUIT.md` § Récap), puis US-24 (livrée, voir `docs/SPEC_PRODUIT.md` § Les mots de
+  l'app). US-26 est indépendante.
 
 ### US-26 — Le plan fait passer plus tôt ce que je n'ai pas révisé depuis longtemps (extension d'US-2)
 **État** : à scoper — blueprint du 2026-10-17. Prolonge US-2 (livrée, voir `docs/SPEC_PRODUIT.md` § Règle du plan quotidien). Touche la
@@ -148,7 +83,7 @@ de côté par un changement de sélection, peut attendre un tour entier de plus.
 5. Given deux riwayas, Then chaque tour est tiré avec l'historique de sa propre riwaya.
 
 **Exclusions explicites** :
-- Le plan ne lit jamais les questions de l'onglet Renforcement : seule la récitation validée en fin
+- Le plan ne lit jamais les questions de l'onglet Quiz : seule la récitation validée en fin
   de journée compte.
 - Pas de nouveau tirage en cours de tour : une sourate retirée au check-in attend la fin du tour.
 - Pas de réglage de la pondération.
@@ -164,7 +99,7 @@ invariants de la partie E compris.
 ### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
 **État** : en cours — Sprints A, B et C livrés (fondus dans `docs/SPEC_PRODUIT.md` § Registre
 visuel). Reste le Récap et la
-barre d'onglets, à scoper après US-24 (US-23 livrée) — blueprint du 2026-10-23, scoping du 2026-10-28.
+barre d'onglets, à scoper (US-23 et US-24 livrées) — blueprint du 2026-10-23, scoping du 2026-10-28.
 
 **Moment de l'histoire** : tous. Ce que la story y prouve : rien de nouveau. Elle garantit qu'un
 utilisateur qui lit en grand voit la même app que les autres, et non une app cassée.
@@ -184,17 +119,19 @@ saute.
 - L'app ne plafonne pas l'agrandissement choisi par l'utilisateur (la barre d'onglets du système
   garde le sien).
 - Pas de réglage de taille dans l'app : elle suit celui du téléphone, comme le thème.
-- Pas de textes raccourcis pour tenir : les mots sont le sujet d'US-24.
+- Pas de textes raccourcis pour tenir : les mots relèvent de `CLAUDE.md` § « Les mots de l'app ».
 
 **Reste ouvert, hors Backlog** (choix utilisateur du 2026-10-23) :
 - **Barre d'onglets** : à 320 px avec texte ×1,5, « Plan du jour » ne tient pas sur une ligne, et la
-  barre système n'offre aucun moyen de rétrécir un libellé. À remesurer après le renommage « Quiz »
-  d'US-24. On tranchera sur ces mesures : rétrécir, accepter deux lignes, ou raccourcir.
+  barre système n'offre aucun moyen de rétrécir un libellé. Remesuré le 2026-11-11 après le
+  renommage « Quiz » d'US-24 : « Quiz », « Récap » et « Réglages » tiennent, « Plan du jour » passe
+  sur deux lignes, entre deux mots, sans déborder. On tranchera : accepter deux lignes, ou
+  raccourcir.
 - **Récap** : reconstruit par US-23 (« Aucune session enregistrée » et la liste des sourates ont
   disparu). Mesuré le 2026-11-11 à 320 px avec texte ×1,5 : rien ne déborde ni ne se coupe au
   milieu d'un mot, sauf le titre de la fenêtre de confirmation d'abandon d'un apprentissage
   (Idée produit dans `docs/CHANGELOG.md`).
-Ces deux points se scopent après US-24, et US-31 ne passe à « terminée » qu'à ce moment.
+Ces deux points restent à scoper, et US-31 ne passe à « terminée » qu'à ce moment.
 
 ## Écartées
 

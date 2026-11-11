@@ -6,15 +6,15 @@ class SOnboarding {
   static String get bismillah => 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
   static String get homeEpigraph => 'وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا';
   static String get introTitle =>
-      S._t("Ce qui s'efface, ce n'est pas ta sincérité",
-          "What fades isn't your sincerity");
+      S._t("Si tu oublies, ce n'est pas un manque de sincérité",
+          "If you forget, it's not for lack of sincerity");
   static String get introLine1 => S._t(
-    "Tu portes déjà du Coran. Ce qui te manque n'est pas la volonté — c'est une structure qui décide, chaque jour, ce que tu dois revoir.",
-    "You already carry some of the Quran. What you lack isn't willpower — it's a structure that decides, every day, what you should go over.",
+    "Tu connais déjà une partie du Coran. Tu ne manques pas de volonté. Il te manque un plan qui décide, chaque jour, ce que tu dois revoir.",
+    "You already know part of the Quran. You don't lack willpower. You lack a plan that decides, every day, what to go over.",
   );
   static String get introLine2 => S._t(
-    "Sans elle, un jour de faible énergie suffit à faire sauter la révision. Puis un autre.",
-    "Without it, one low-energy day is enough to skip your revision. Then another.",
+    "Sans plan, un jour de fatigue suffit pour sauter ta révision. Puis un autre.",
+    "Without a plan, one tired day is enough to skip your revision. Then another.",
   );
   static String get introAction =>
       S._t("Comment l'app s'y prend", 'How the app handles it');
@@ -23,25 +23,26 @@ class SOnboarding {
   static String get methodTitle =>
       S._t('Tu ne choisis plus', 'You stop choosing');
   static String get methodSubtitle => S._t(
-      "Chaque jour, l'app décide à ta place la portion à réviser. Elle fait tourner trois choses en même temps.",
-      "Every day, the app decides your portion for you. It keeps three things moving at once.");
-  static String get methodLayerNewTitle => S._t('Le nouveau', 'The new');
+      "Chaque jour, l'app choisit pour toi ce que tu révises. Elle fait avancer trois choses en même temps.",
+      'Every day, the app picks what you revise. It moves three things forward at once.');
+  static String get methodLayerNewTitle =>
+      S._t('Ce que tu apprends', "What you're learning");
   static String get methodLayerNewBody => S._t(
-      "Ce que tu es en train d'apprendre, travaillé un peu chaque jour.",
-      'What you are currently memorizing, worked on a little every day.');
+      'Tu en travailles un peu chaque jour.',
+      'You work on a little of it every day.');
   static String get methodLayerFreshTitle =>
-      S._t('Le récent encore fragile', 'The recent, still fragile');
+      S._t("Ce que tu viens d'apprendre", 'What you just learned');
   static String get methodLayerFreshBody => S._t(
-      "Ce que tu viens de mémoriser et qui se perd vite si on n'y revient pas.",
-      'What you just memorized and lose quickly if you never come back to it.');
+      "Ça s'oublie vite si tu n'y reviens pas.",
+      "It's quickly forgotten if you don't come back to it.");
   static String get methodLayerOldTitle =>
-      S._t("L'ancien qu'on fait tourner", 'The old, kept in rotation');
+      S._t('Ce que tu connais déjà', 'What you already know');
   static String get methodLayerOldBody => S._t(
-      'Ce qui est acquis, revu par roulement pour qu\'aucune sourate ne reste de côté.',
-      'What you hold solidly, revised in rotation so no surah is left aside.');
+      "Revu régulièrement, pour qu'aucune sourate ne reste de côté.",
+      'Revised regularly, so no surah is left aside.');
   static String get methodLegitimacy => S._t(
-      "C'est la méthode des hafiz depuis des générations. L'app ne fait que la tenir à ta place.",
-      'This is how hafiz have worked for generations. The app just keeps track of it for you.');
+      "C'est la méthode des hafiz depuis des générations. L'app s'en occupe pour toi.",
+      'This is how hafiz have worked for generations. The app takes care of it for you.');
   static String get methodAction =>
       S._t('Choisir mes sourates', 'Choose my surahs');
 
@@ -49,8 +50,8 @@ class SOnboarding {
   // Never phrased as a date at which revision would be "done": revision
   // loops by nature, only memorization has a real end.
   static String tourDuree(int n) => S.locale == 'fr'
-      ? 'Un tour complet de ta sélection : ${S.joursDuration(n)}'
-      : 'One full round of your selection: ${S.joursDuration(n)}';
+      ? 'Un tour complet de tes sourates : ${S.joursDuration(n)}'
+      : 'One full round of your surahs: ${S.joursDuration(n)}';
   static String tourGarantie(int n) => S.locale == 'fr'
       ? 'Aucune de tes sourates ne restera plus de ${S.joursDuration(n)} sans être revue.'
       : 'None of your surahs will go more than ${S.joursDuration(n)} without being revised.';
@@ -58,30 +59,30 @@ class SOnboarding {
   // Onboarding — preview of the first day's plan (US-1)
   static String get previewTitle => S._t('Voici ton premier jour', "Here's your first day");
   static String get previewSubtitle => S._t(
-      "Ta journée avec l'app tient en quatre gestes.",
-      'Your day with the app comes down to four gestures.');
+      "Ta journée avec l'app, c'est quatre gestes.",
+      'Your day with the app is four gestures.');
 
   // Onboarding — the story of a day of use, on the last step (US-17)
   static String get recitMatinTitre => S._t('Le matin', 'In the morning');
   static String get recitMatinCorps => S._t(
-      "L'app a déjà préparé ta portion : les pages à réviser, les versets à apprendre. Tu confirmes, ou tu ajustes.",
-      'The app has already prepared your portion: the pages to revise, the verses to learn. You confirm, or you adjust.');
+      "L'app a déjà préparé ton plan du jour : les pages à réviser, les versets à apprendre. Tu confirmes, ou tu changes.",
+      "The app has already prepared today's plan: the pages to revise, the verses to learn. You confirm, or you adjust.");
   static String get recitPrieresTitre =>
       S._t('Dans tes prières', 'In your prayers');
   static String get recitPrieresCorps => S._t(
-      'Ta portion est répartie dans tes rakaas. Sur chaque ligne, ce bouton ouvre le texte à réciter.',
-      'Your portion is spread across your rakaas. On each line, this button opens the text to recite.');
+      'Ton plan est réparti dans tes rakaas. Sur chaque ligne, ce bouton ouvre le texte à réciter.',
+      'Your plan is spread across your rakaas. On each line, this button opens the text to recite.');
   static String get recitEcouteTitre => S._t(
       'Avant de prier, ou quand tu veux', 'Before praying, or whenever you like');
   static String get recitEcouteCorps => S._t(
-      "Écoute le passage en boucle et répète-le jusqu'à ce qu'il tienne.",
-      'Listen to the passage on a loop and repeat it until it holds.');
+      "Écoute le passage en boucle et répète-le jusqu'à le connaître.",
+      'Listen to the passage on a loop and repeat it until you know it.');
   static String get recitSoirTitre => S._t('Le soir', 'In the evening');
   static String get recitSoirCorps => S._t(
-      'Tu confirmes ce qui a tenu. Le reste revient demain, tout seul.',
-      'You confirm what held. The rest comes back tomorrow, on its own.');
+      'Tu confirmes ce que tu as réussi. Le reste revient demain, tout seul.',
+      'You confirm what you got right. The rest comes back tomorrow, on its own.');
   static String get planJour1Titre =>
-      S._t("Ta portion d'aujourd'hui", "Today's portion");
+      S._t('Ton plan du jour', "Today's plan");
   // Onboarding — config
   static String get rechercherSourate => S._t('Rechercher une sourate...', 'Search a surah...');
   static String get commencer => S._t('Commencer la révision', 'Start revision');
@@ -89,13 +90,13 @@ class SOnboarding {
   static String get toutSelectionner => S._t('Tout sélectionner', 'Select all');
   static String get toutDeselectionner => S._t('Tout désélectionner', 'Deselect all');
   static String get aleatoireLabel => S._t('Ordre aléatoire', 'Random order');
-  static String get aleatoireSubtitle => S._t('Mélange les sourates à chaque nouveau cycle', 'Shuffles surahs each new cycle');
+  static String get aleatoireSubtitle => S._t('Mélange tes sourates à chaque nouveau tour', 'Shuffles your surahs each new round');
   static String hizb(int n) => 'Hizb $n';
   // Onboarding wizard
   static String get selectionRapide => S._t('Sélection rapide', 'Quick select');
   static String get toutLeCoran => S._t('Tout le Coran', 'Full Quran');
   static String get etapeSelection => S._t('Mes sourates', 'My surahs');
-  static String get cycleObjectif => S._t('Objectif de cycle', 'Cycle goal');
+  static String get cycleObjectif => S._t('Rythme', 'Pace');
   static String etapeN(int n, int total) => '$n / $total';
   static String get fractionTroisQuarts => S._t('3/4', '3/4');
   static String get fractionMoitie => S._t('1/2', '1/2');
@@ -124,7 +125,7 @@ class SOnboarding {
 
   // Onboarding wizard — célébration
   static String get bienvenueTitre =>
-      S._t('Ton parcours commence', 'Your journey begins');
+      S._t('Ta révision commence', 'Your revision begins');
   static String get bienvenueSubtitle => S._t(
     "Qu'Allah facilite ta révision et bénisse chaque verset.",
     'May Allah ease your revision and bless every verse.',

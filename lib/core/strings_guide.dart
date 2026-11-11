@@ -6,10 +6,10 @@ class SGuide {
   // GuideStep, shown until the real gesture it names actually happens
   // (AppState.markGuideDone), never dismissed by tapping the banner itself.
   static String get guideCheckinStep0Title =>
-      S._t('Ta portion du jour, déjà décidée', "Today's portion, already decided");
+      S._t('Ton plan du jour, déjà prêt', "Today's plan, ready for you");
   static String guideCheckinStep0Body(int streak, int pagesDone) => S._t(
-      "Voici ce que l'app propose pour toi — le nouveau, le récent encore fragile, l'ancien qu'elle fait tourner. Tu regardes déjà $pagesDone pages, $streak jours de régularité.",
-      "Here's what the app proposes for you — the new, the recently learned still fragile, the old it keeps in rotation. You're already at $pagesDone pages, $streak days of consistency.");
+      "Voici ce que l'app te propose : ce que tu apprends, ce que tu viens d'apprendre et ce que tu connais déjà. Tu en es à $pagesDone pages, et $streak jours de suite.",
+      "Here's what the app proposes: what you're learning, what you just learned and what you already know. You're at $pagesDone pages, and $streak days in a row.");
   static String get guideCheckinStep1Title =>
       S._t("Ce que tu apprends aujourd'hui", "What you're learning today");
   static String get guideCheckinStep1Body => S._t(
@@ -33,20 +33,20 @@ class SGuide {
       'Le bouton lecture joue ce passage en boucle. Écoute-le avant de le réciter en prière.',
       'The play button loops this passage. Listen to it before reciting it in prayer.');
   static String get guideCheckoutTitle => S._t(
-      "C'est ce moment qui fait avancer ton cycle", "This is what moves your cycle forward");
+      "C'est ce moment qui fait avancer ton tour", 'This is what moves your round forward');
   // The look-ahead sentence itself is shared with the home screen's day
   // close (US-14): one wording, never two drifting copies.
   static String guideCheckoutCycleBody(int days) => S._t(
-      "Confirme ce que tu as réellement fait — c'est cette confirmation qui fait avancer ton cycle. ${SCheckOut.devantTour(days)}",
-      "Confirm what you actually did — this confirmation is what moves your cycle forward. ${SCheckOut.devantTour(days)}");
+      'Confirme ce que tu as vraiment fait. ${SCheckOut.devantTour(days)}',
+      'Confirm what you actually did. ${SCheckOut.devantTour(days)}');
   static String get guideCheckoutBody => S._t(
-      "Confirme ce que tu as réellement fait aujourd'hui — cette confirmation, pas la simple coche pendant la prière, fait progresser ta révision.",
-      "Confirm what you actually did today — this confirmation, not just ticking boxes during prayer, is what moves your revision forward.");
+      "Confirme ce que tu as vraiment fait aujourd'hui. C'est ça qui fait avancer ta révision, pas les coches pendant la prière.",
+      "Confirm what you actually did today. That's what moves your revision forward, not the ticks during prayer.");
   static String get guideNotFinishedTitle =>
-      S._t("Ta journée n'est pas encore finie", "Your day isn't over yet");
+      S._t("Ta journée n'est pas encore terminée", "Your day isn't finished yet");
   static String get guideNotFinishedBody => S._t(
-      'Le bouton « Clôturer ma journée » reste ouvert — reviens ce soir pour confirmer ce que tu as fait.',
-      'The "Close out my day" button stays open — come back tonight to confirm what you did.');
+      'Le bouton « Terminer ma journée » reste là. Reviens ce soir pour confirmer ce que tu as fait.',
+      'The "Finish my day" button stays here. Come back tonight to confirm what you did.');
   // US-1 sprint C — once-only banner proving a verse left unchecked at
   // check-out comes back on its own (crit. 7). Deliberately does not promise
   // a context verse: the plan UI does not display one yet.
@@ -62,12 +62,12 @@ class SGuide {
   }
   static String get guideRecapTitle => S._t('Ta vue d\'ensemble', 'Your overview');
   static String get guideRecapBody => S._t(
-      "Suis ta progression, ton apprentissage en cours, et la fraîcheur de chaque sourate — tout au même endroit.",
-      "Track your progress, your ongoing memorization, and how fresh each surah is — all in one place.");
+      "Toutes tes sourates d'un coup d'œil, ce que tu apprends, et celles à risque d'oublier : tout au même endroit.",
+      "All your surahs at a glance, what you're learning, and the ones at risk of forgetting: all in one place.");
   static String get guideContinuer => S._t('Continuer', 'Continue');
   static String get guideSettingsTitle => S._t('Ajuste à tout moment', 'Adjust anytime');
   static String get guideSettingsBody => S._t(
-      "Langue, riwaya, sourates, rythme, rappels : change tes réglages ici quand tu veux, sans repasser par l'onboarding.",
-      "Language, riwaya, surahs, pace, reminders: change your settings here whenever you want, no need to go through onboarding again.");
+      "Langue, riwaya, sourates, rythme, rappels : change tes réglages ici quand tu veux, sans refaire les premiers réglages.",
+      'Language, riwaya, surahs, pace, reminders: change your settings here whenever you want, no need to redo the first setup.');
   static String get guideTermine => S._t("J'ai compris", 'Got it');
 }

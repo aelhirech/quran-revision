@@ -98,6 +98,40 @@ réflexes à garder en tête même sans l'ouvrir :
   entre** et **ce qu'il y prouve** (détail : `docs/SPEC_PRODUIT.md` § « Où entre une nouvelle
   fonctionnalité »).
 
+## Les mots de l'app
+
+Tout texte affiché (écran, message, notification, nom de canal) suit cette règle, validée le
+2026-10-22 et livrée le 2026-11-11 (`docs/SPEC_PRODUIT.md` § « Les mots de l'app ») : des mots de
+tous les jours, **un seul par idée, le même partout**, compris de 13 à 45 ans. Ni métaphore
+(« porter », « en garde », « tenir », « sceller », « s'éprouver ») ni terme technique. Restent les
+mots religieux que l'utilisateur emploie : rakaa, riwaya, hizb, imam, hafiz, Al-Fatiha, sunna.
+Jamais « fini »/« terminé » à propos de la révision (la journée, oui). Ne s'applique pas aux
+sources : texte coranique, traductions, sens CoranMot, hadiths. Les noms de getters `S.*` et les
+identifiants de code (`journeeCloturee`, `SReinforcement`, `cyclePosition`) ne suivent pas ce
+lexique : ce sont des clés, ne pas les renommer pour autant.
+
+| Idée | Français | Anglais |
+|---|---|---|
+| Ce que je connais | ce que tu connais, pages apprises, sourates apprises | what you know, pages learned, learned |
+| Réussir, oublier | ce que tu as réussi, un verset oublié | what you got right, a forgotten verse |
+| La boucle de révision | tour | round |
+| Finir la journée | terminer ma journée, journée terminée | finish my day, day finished |
+| Le programme du jour | plan du jour | today's plan |
+| Hafs et Warsh | lecture (riwaya) | reading (riwaya) |
+| Depuis quand pas révisée | dernière révision, révisée en partie | last revision, partly revised |
+| Pas révisée depuis longtemps | risque d'oublier | at risk of forgetting |
+| Jours d'affilée | jours de suite | days in a row |
+| Les questions | questions du jour, questions (jamais « série ») | today's questions, questions |
+| La difficulté | niveau | level |
+| Les trois couches | ce que tu apprends, ce que tu viens d'apprendre, ce que tu connais déjà | what you're learning, what you just learned, what you already know |
+| Mots techniques | premiers réglages, réglages, journée, tes sourates | first setup, settings, day, your surahs |
+| Les prières | sunna | sunna |
+| Le livre | Coran | Quran |
+| L'onglet des questions | Quiz | Quiz |
+
+« Sélection » : seul le **nom** (« ta sélection ») devient « tes sourates » ; le verbe
+(« Tout sélectionner ») reste.
+
 ## Ne jamais sur-ingénierer
 Projet solo, un seul développeur, Provider comme unique gestion d'état.
 - Pas de nouvelle lib de state management, DI ou couche d'architecture supplémentaire tant que la taille du projet ne le justifie pas.

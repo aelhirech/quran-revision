@@ -14,18 +14,18 @@ class S {
   static String get reglages => _t('Réglages', 'Settings');
   static String get reviserAujourdhui => _t("Réviser aujourd'hui", "Today's revision");
   static String get recap => _t('Récap', 'Recap');
-  static String get recapitulatif => _t('Récapitulatif', 'Summary');
+  static String get recapitulatif => _t('Récap', 'Recap');
 
   // Home
   static String get priereObligatoires => _t('Obligatoires', 'Obligatory');
-  static String get priereSureratoires => _t('Surérogatoires', 'Supererogatory');
+  static String get priereSureratoires => _t('Sunna', 'Sunna');
   static String get priereMasjid => _t('Mosquée', 'Mosque');
   static String get tahiyyatCount => _t('Fois en mosquée', 'Mosque entries');
   static String get revisionEnCours => _t('Révision en cours', 'Revision in progress');
-  static String get cycleEnCours => _t('Cycle en cours', 'Current cycle');
+  static String get cycleEnCours => _t('Tour en cours', 'Current round');
   static String get nouveauTour => _t('Nouveau tour', 'New round');
-  static String pagesEnGarde(int n) =>
-      _t('$n ${_pages(n)} en garde', '$n ${_pages(n)} in your keeping');
+  static String pagesEnGarde(int n) => _t(
+      '$n ${_pages(n)} apprise${n > 1 ? 's' : ''}', '$n ${_pages(n)} learned');
 
   // Plan screen
   static String get horsPrieresTitre =>
@@ -40,7 +40,7 @@ class S {
       "This is everything to revise today. You'll confirm it at the end of the day.");
   static String get aApprendreTitre => _t('À apprendre', 'To learn');
   static String get cloturerMaJournee =>
-      _t('Clôturer ma journée', 'Close out my day');
+      _t('Terminer ma journée', 'Finish my day');
   static String get refairePlan => _t('Refaire le plan', 'Rebuild plan');
   static String get alFatihaSeul => _t('Al-Fatiha (pas de sourate)', 'Al-Fatiha (no surah)');
   static String get versets => _t('versets', 'verses');
@@ -58,11 +58,13 @@ class S {
 
   // Profile
   static String get joursEcoules => _t('Jours écoulés', 'Days elapsed');
-  static String get reinitialiser => _t('Réinitialiser la configuration', 'Reset configuration');
-  static String get reinitDesc => _t('Repart de zéro avec une nouvelle sélection', 'Start over with a new selection');
+  static String get reinitialiser => _t('Tout recommencer', 'Start over');
+  static String get reinitDesc => _t(
+      'Repars de zéro et choisis de nouveau tes sourates',
+      'Start from scratch and pick your surahs again');
   static String get configBloqueeJourEnAttente => _t(
-      'Une journée précédente attend encore sa clôture — termine-la avant de changer ta configuration.',
-      'A previous day is still waiting to be closed out — finish it before changing your setup.');
+      "Une journée d'avant n'est pas encore terminée. Termine-la avant de changer tes réglages.",
+      "A previous day isn't finished yet. Finish it before changing your settings.");
   static String get modifierDuree => _t('Modifier le rythme', 'Edit pace');
   static String get rythmeLabelCourt => _t('Rythme', 'Pace');
   static String get dureePersonnalisee => _t('Personnalisé…', 'Custom…');
@@ -74,30 +76,32 @@ class S {
   static String get sauver => _t('Sauver', 'Save');
   static String get langueLabel => _t('Langue', 'Language');
   static String get riwayaLabel => _t('Riwaya', 'Riwaya');
-  static String get riwayaSubtitle => _t('Parcours de révision actif', 'Active revision track');
-  static String get switchRiwayaTitle => _t('Changer de parcours ?', 'Switch track?');
+  static String get riwayaSubtitle => _t('La lecture que tu révises', 'The reading you revise');
+  static String get switchRiwayaTitle => _t('Changer de lecture ?', 'Switch reading?');
   static String get warshUnavailable => _t(
       "Le texte Warsh n'a pas pu être chargé sur cet appareil.",
       "Warsh text could not be loaded on this device.");
   static String get switchRiwayaConfirm => _t(
-      "Hafs et Warsh sont deux parcours séparés (sourates, cycle, progression). Tu vas basculer vers l'autre parcours — le parcours actuel n'est pas perdu, tu pourras y revenir.",
-      "Hafs and Warsh are two separate tracks (surahs, cycle, progress). You're about to switch to the other track — the current one isn't lost, you can come back to it.");
+      "Hafs et Warsh sont deux lectures séparées : chacune a ses sourates, son tour et ton avancée. Tu passes à l'autre lecture. Rien n'est perdu, tu pourras revenir.",
+      "Hafs and Warsh are two separate readings: each has its own surahs, round and progress. You're switching to the other one. Nothing is lost, you can come back.");
   static String get hafs => 'Hafs';
   static String get warsh => 'Warsh';
   static String get choisirRiwayaTitle => _t('Quelle riwaya veux-tu réviser ?', 'Which riwaya do you want to revise?');
   static String get choisirRiwayaSubtitle => _t(
-      'Hafs et Warsh sont deux parcours séparés — sourates, cycle et progression indépendants. Tu pourras basculer plus tard dans Réglages.',
-      'Hafs and Warsh are two separate tracks — independent surahs, cycle and progress. You can switch later in Settings.');
-  static String get hafsDescription => _t('La transmission la plus répandue dans le monde', 'The most widespread transmission worldwide');
-  static String get warshDescription => _t("La transmission de Nafi', répandue en Afrique du Nord et de l'Ouest", "Nafi's transmission, widespread in North and West Africa");
+      'Hafs et Warsh sont deux lectures séparées : chacune a ses sourates, son tour et ton avancée. Tu pourras changer plus tard dans les Réglages.',
+      'Hafs and Warsh are two separate readings: each has its own surahs, round and progress. You can switch later in Settings.');
+  static String get hafsDescription => _t('La lecture la plus répandue dans le monde', 'The most widespread reading worldwide');
+  static String get warshDescription => _t("La lecture de Nafi', répandue en Afrique du Nord et de l'Ouest", "Nafi's reading, widespread in North and West Africa");
   static String get notificationsLabel => _t('Notifications', 'Notifications');
   static String get notifSubtitle => _t('Rappel matin et bilan soir', 'Morning reminder and evening recap');
   static String get rappelMatinLabel => _t('Rappel du matin', 'Morning reminder');
   static String get rappelSoirLabel => _t('Rappel du soir', 'Evening reminder');
   static String get reviserEn => _t('Réviser en ', 'Revise in ');
   static String get rechercher => _t('Rechercher...', 'Search...');
-  static String get reinitDialog => _t('Réinitialiser ?', 'Reset?');
-  static String get reinitConfirm => _t('La progression du cycle sera perdue. Continue ?', 'Cycle progress will be lost. Continue?');
+  static String get reinitDialog => _t('Tout recommencer ?', 'Start over?');
+  static String get reinitConfirm => _t(
+      'Ton avancée dans le tour sera perdue. Continuer ?',
+      'Your progress in the round will be lost. Continue?');
 
 
 
@@ -106,10 +110,11 @@ class S {
   static String get notifMatinTitle => _t('Révision du Coran', 'Quran Revision');
   static String get notifMatinBody => _t('Planifie ta révision du jour', 'Plan your daily revision');
   static String get notifSoirTitle => _t('Bilan du jour', 'Daily recap');
-  static String get notifSoirBody => _t('As-tu complété ta révision ?', 'Did you complete your revision?');
-  static String get notifMinuitTitle => _t('Journée pas encore clôturée', 'Day not closed out yet');
+  static String get notifSoirBody => _t('As-tu fait ta révision du jour ?', "Did you do today's revision?");
+  static String get notifMinuitTitle => _t('Journée pas encore terminée', 'Day not finished yet');
   static String get notifMinuitBody =>
-      _t('Clôture ta journée pour faire avancer ton cycle.', 'Close out your day to keep your cycle moving.');
+      _t('Termine ta journée pour faire avancer ton tour.', 'Finish your day to move your round forward.');
+  static String get rappelMinuitLabel => _t('Rappel de minuit', 'Midnight reminder');
 
   // Versets
   static String get versetsDeRakaa => _t('Versets de la rakaa', 'Verses for this rakaa');
@@ -136,7 +141,7 @@ class S {
   static String get commencerSourate => _t('Commencer une sourate', 'Start a surah');
   static String supprimerApprentissageDe(String nom) =>
       _t("Supprimer l'apprentissage de $nom ?",
-          'Delete the memorization of $nom?');
+          'Remove $nom from your learning?');
   static String get supprimerApprentissage => _t("Supprimer l'apprentissage", 'Remove learning');
   static String versetsAppris(int n, int total) => _t('$n / $total versets appris', '$n / $total verses learned');
   static String get supprimer => _t('Supprimer', 'Delete');
@@ -145,8 +150,8 @@ class S {
   static String get pagesExplTitle =>
       _t('Pourquoi des pages ?', 'Why pages?');
   static String get pagesExplBody => _t(
-    "Ton cycle se mesure en pages réelles du mushaf — la même unité que ton rythme quotidien. Tu sais donc toujours combien de pages il te reste à revoir avant d'avoir couvert toute ta sélection.",
-    'Your cycle is measured in real mushaf pages — the same unit as your daily pace. So you always know how many pages are left before you have covered your whole selection.',
+    "Ton tour se compte en pages du Coran, comme ton rythme. Tu sais toujours combien de pages il te reste avant d'avoir revu toutes tes sourates.",
+    'Your round is counted in Quran pages, like your pace. You always know how many pages are left before you have gone over all your surahs.',
   );
 
   // Raccourci sélection prières
@@ -157,7 +162,7 @@ class S {
 
   // Fraîcheur (SRS léger, grain verset) — badge court (FreshnessBadge)
   static String get fraicheurJamais => _t('Jamais', 'Never');
-  static String get fraicheurPartielle => _t('Partielle', 'Partial');
+  static String get fraicheurPartielle => _t('En partie', 'Partly');
   static String get fraicheurRecente => _t('Récente', 'Recent');
   static String get fraicheur1Mois => _t('1 mois', '1 month');
   static String get fraicheur3Mois => _t('3 mois', '3 months');
@@ -168,7 +173,7 @@ class S {
   // ci-dessus, rendu différent — décision maquette Sprint 1 conservée)
   static String get fraicheurJamaisLabel => _t('Jamais révisée', 'Never revised');
   static String get fraicheurPartielleLabel =>
-      _t('Partiellement récente', 'Partially recent');
+      _t('Révisée en partie', 'Partly revised');
   static String get fraicheurRecenteLabel => _t('Révisée récemment', 'Recently revised');
   static String get fraicheur1MoisLabel => _t('Il y a plus d\'un mois', 'Over a month ago');
   static String get fraicheur3MoisLabel => _t('Il y a plus de 3 mois', 'Over 3 months ago');
@@ -176,37 +181,39 @@ class S {
   static String get fraicheur1AnLabel => _t('Il y a plus d\'un an', 'Over a year ago');
 
   // Apprentissage multi-versets
-  static String blocRange(int from, int to) => 'v.$from\u2060–\u2060$to';
+  static String blocRange(int from, int to) =>
+      from == to ? 'v.$from' : 'v.$from\u2060–\u2060$to';
 
   // Journée clôturée (état au repos de l'accueil)
   static String get paginationIndisponible => _t(
-      "Impossible de découper tes sourates en pages : les données du mushaf n'ont pas pu être chargées. Redémarre l'app ; si le problème persiste, réinstalle-la.",
-      'Your surahs cannot be split into pages: the mushaf data failed to load. Restart the app; if it persists, reinstall it.');
+      "Impossible de découper tes sourates en pages : les pages du Coran n'ont pas pu être chargées. Redémarre l'app. Si le problème continue, réinstalle-la.",
+      "Your surahs can't be split into pages: the Quran pages failed to load. Restart the app. If it keeps happening, reinstall it.");
   static String get journeeCloturee =>
-      _t('Journée clôturée', 'Day closed out');
+      _t('Journée terminée', 'Day finished');
   static String get journeeClotureeSousTitre => _t(
-      "Ta journée est scellée. Touche pour revenir dessus si besoin.",
-      'Your day is sealed. Tap to go back over it if needed.');
+      'Touche ici pour y revenir si besoin.',
+      'Tap here to go back to it if needed.');
 
   // Mode pause
   static String get pauseLabel => _t('Pause aujourd\'hui', 'Pause today');
-  static String get pauseDesc => _t('Ne compte pas comme un jour manqué dans la série', 'Won\'t count as a missed day in your streak');
+  static String get pauseDesc => _t('Ne casse pas tes jours de suite', "Won't break your days in a row");
   static String get pauseActive => _t('Pause activée pour aujourd\'hui', 'Pause active for today');
 
   // Rare milestones (US-13) — never "finished"/"complete": revision has no
   // end, only rounds (docs/SPEC_PRODUIT.md § Direction narrative).
   static String get jalonTourTitre => _t('Un tour complet', 'A full round');
   static String get jalonTourCorps => _t(
-    "Tout ce que tu portes a été revu, page après page. Un nouveau tour commence.",
-    'Everything you carry has been revised, page after page. A new round begins.',
+    "Tout ce que tu connais a été revu, page après page. Un nouveau tour commence.",
+    'Everything you know has been revised, page after page. A new round begins.',
   );
   static String jalonMemoriseeTitre(int n) => n > 1
-      ? _t('Sourates mémorisées', 'Surahs memorized')
-      : _t('Sourate mémorisée', 'Surah memorized');
-  static String jalonMemoriseeCorps(String noms, int n) => _t(
-    '$noms ${n > 1 ? 'rejoignent' : 'rejoint'} ta révision : du Coran de plus que tu portes, et que le tour gardera vivant.',
-    '$noms ${n > 1 ? 'join' : 'joins'} your revision: more Quran you carry, kept alive by the round.',
-  );
+      ? _t('Sourates apprises', 'Surahs learned')
+      : _t('Sourate apprise', 'Surah learned');
+  static String jalonMemoriseeCorps(String noms, int n) => n > 1
+      ? _t('$noms rejoignent ta révision. Le tour les fera revenir pour que tu ne les oublies pas.',
+          "$noms join your revision. The round will bring them back so you don't forget them.")
+      : _t("$noms rejoint ta révision. Le tour la fera revenir pour que tu ne l'oublies pas.",
+          "$noms joins your revision. The round will bring it back so you don't forget it.");
   static String get jalonDoubleTitre => _t('Une journée rare', 'A rare day');
   static String get continuer => _t('Continuer', 'Continue');
 
