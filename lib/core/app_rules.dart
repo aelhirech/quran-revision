@@ -9,10 +9,6 @@
 class AppRules {
   AppRules._();
 
-  /// Seuil "bonne journée" (`HistoryCard`) : au-delà de ce pourcentage
-  /// d'unités complétées, une journée est mise en avant visuellement.
-  static const double goodDayThreshold = 0.8;
-
   /// Nombre maximum d'entrées "Tahiyyat al-Masjid" sélectionnables
   /// (`PrayerSelector`) — au-delà, compter les passages n'a plus de sens.
   static const int maxTahiyyatCount = 5;

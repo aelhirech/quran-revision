@@ -46,8 +46,10 @@ class S {
   static String get versets => _t('versets', 'verses');
 
   // Recap
-  static String get cycleActuel => _t('CYCLE ACTUEL', 'CURRENT CYCLE');
-  static String get mesSourates => _t('Mes sourates', 'My surahs');
+  static String get recapVide => _t(
+    "Rien à afficher pour l'instant. Ajoute des sourates dans les Réglages.",
+    'Nothing to show yet. Add surahs in Settings.',
+  );
   static String get versetsLabel => _t('versets', 'verses');
   static String versetsCount(int n) =>
       locale == 'fr' ? '$n verset${n > 1 ? 's' : ''}' : '$n verse${n > 1 ? 's' : ''}';
@@ -132,12 +134,10 @@ class S {
   // Apprentissage
   static String get enCoursDApprentissage => _t("En cours d'apprentissage", 'In progress');
   static String get commencerSourate => _t('Commencer une sourate', 'Start a surah');
-  static String get complet => _t('✓ Complet', '✓ Complete');
   static String supprimerApprentissageDe(String nom) =>
       _t("Supprimer l'apprentissage de $nom ?",
           'Delete the memorization of $nom?');
   static String get supprimerApprentissage => _t("Supprimer l'apprentissage", 'Remove learning');
-  static String versetN(int n, int total) => _t('Verset $n / $total', 'Verse $n / $total');
   static String versetsAppris(int n, int total) => _t('$n / $total versets appris', '$n / $total verses learned');
   static String get supprimer => _t('Supprimer', 'Delete');
 
@@ -154,16 +154,6 @@ class S {
   static String get derniereSelection => _t('Dernière sélection', 'Last selection');
 
   static String get ok => _t('OK', 'OK');
-
-  // Récap différencié
-  static String get memoriseesEnEntier =>
-      _t('Mémorisées en entier', 'Memorized in full');
-  static String get rythmeRevision => _t('Rythme de révision', 'Revision pace');
-  static String get versets7DerniersJours =>
-      _t('versets, 7 derniers jours', 'verses, last 7 days');
-  static String get versetsParSemaine =>
-      _t('versets par semaine (moy.)', 'verses per week (avg.)');
-  static String get repartitionSourates => _t('Répartition', 'Breakdown');
 
   // Fraîcheur (SRS léger, grain verset) — badge court (FreshnessBadge)
   static String get fraicheurJamais => _t('Jamais', 'Never');
@@ -203,13 +193,6 @@ class S {
   static String get pauseDesc => _t('Ne compte pas comme un jour manqué dans la série', 'Won\'t count as a missed day in your streak');
   static String get pauseActive => _t('Pause activée pour aujourd\'hui', 'Pause active for today');
 
-  // Historique semaine
-  static List<String> get joursSemaine =>
-      locale == 'fr'
-          ? ['L', 'M', 'M', 'J', 'V', 'S', 'D']
-          : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  static String get semaineDerniereLabel => _t('7 derniers jours', 'Last 7 days');
-
   // Rare milestones (US-13) — never "finished"/"complete": revision has no
   // end, only rounds (docs/SPEC_PRODUIT.md § Direction narrative).
   static String get jalonTourTitre => _t('Un tour complet', 'A full round');
@@ -230,10 +213,6 @@ class S {
   // Streak / gamification
   static String streakJours(int n) =>
       locale == 'fr' ? '$n jour${n > 1 ? 's' : ''} de suite' : '$n day${n > 1 ? 's' : ''} in a row';
-  static String get totalJoursLabel => _t('jours de révision', 'revision days');
-  static String get streakLabel => _t('Série', 'Streak');
-  static String get historique => _t('Historique', 'History');
-  static String get aucuneSession => _t('Aucune session enregistrée', 'No sessions recorded yet');
 
   /// « page »/« pages » — identique en fr et en en, d'où le helper plutôt
   /// qu'un `_t` par forme.

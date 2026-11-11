@@ -8,12 +8,6 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
-### [P3] Exclusion obsolète du test `app_text_usage_test.dart`
-Relevé au sprint 38 (2026-11-08) : la liste `_notYetMigrated` du test ne se vide que si quelqu'un
-y pense. Si US-23 ou US-21 reconstruit un écran exclu sans retirer son entrée, un futur `fontSize`
-en dur y passe sans bruit. Correctif : dans le même test, échouer si une entrée de
-`_notYetMigrated` ne contient plus aucune ligne qui matche (`exclusion obsolète, la retirer`).
-
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
 qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) — et depuis US-10 Sprint B
@@ -78,9 +72,15 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   de rakaa), passent à la ligne après « Al- ». Rien ne déborde. Reste à choisir : accepter (le trait
   d'union est un point de coupure normal), ou interdire la coupure (trait d'union insécable U+2011,
   à vérifier dans Outfit), au risque de rétrécir ou de pousser la ligne.
-- **Plage d'un seul verset écrite « 5–5 (1 verset) »** (sprint 37, 2026-11-08, carte des sourates
-  du Récap) : le pluriel est corrigé, mais la plage répète le même numéro. Reste à choisir :
-  « verset 5 », « 5 (1 verset) », ou garder tel quel (même format que les autres plages).
+- **Titre de la fenêtre de confirmation coupé au milieu d'un mot** (vérification Windows d'US-23,
+  2026-11-11) : à 320 px avec texte ×1,5, « Supprimer l'apprentissage » (glisser une ligne
+  d'apprentissage au Récap) s'écrit « Supprimer l' / apprentissa / ge ». `confirmDialog` est
+  partagé, le défaut existait avant US-23. À 375 px et ×1, il tient. Reste à choisir : un style de
+  titre plus petit pour toutes les confirmations, ou faire rétrécir le titre (US-31 crit. 2).
+- **Plage d'un seul verset écrite « 5–5 »** (sprint 37, 2026-11-08 ; la carte des sourates du
+  Récap a disparu avec US-23) : `S.blocRange` répète le même numéro pour une plage d'un verset,
+  dans la feuille du carreau et l'onboarding. Reste à choisir : « verset 5 », « 5 », ou garder
+  tel quel (même format que les autres plages).
 
 ### Renforcement (onglet « Quiz » après US-24)
 
@@ -108,7 +108,8 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   2026-11-08) : avec 113 sourates, les carreaux descendent à 20 px. À 375 px, « Commencer » est à
   un court défilement. À 320 px avec texte ×1,5, la grille fait 12 rangées et pousse « Commencer »
   à environ un écran et demi. Un carreau de 20 px est aussi une petite zone à toucher (48 px
-  conseillés). Rien ne déborde. À choisir : accepter, replier la grille au-delà d'un seuil (lequel ?),
+  conseillés). Rien ne déborde. Le Récap reprend la même mosaïque (US-23) : la grille y repousse
+  la liste « Risque d'oublier », sans bouton à atteindre. À choisir : accepter, replier la grille au-delà d'un seuil (lequel ?),
   ou relever le côté minimal.
 - **« Choisir une sourate » quand aucune sourate n'offre de question** (US-30 Sprint A,
   2026-11-07) : le bouton reste affiché sous le message « sélection trop petite » et ouvre une

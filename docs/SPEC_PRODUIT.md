@@ -446,8 +446,9 @@ pression) ; pas de son, pas de trophées ni de collection de jalons ; pas de mod
   sourate est en cours.
 - **L'échéance d'apprentissage est toujours conditionnelle** (« si tu tiens ce rythme »),
   recalculée en silence après une absence, jamais opposée à l'utilisateur.
-- Au Récap, une sourate en cours est un **suivi** : nom, progression, prochain verset, icône livre
-  vers la vue Coran, glisser pour l'abandonner. La toucher n'ouvre rien.
+- Au Récap, une sourate en cours est un **suivi** : nom et versets appris, glisser pour
+  l'abandonner. La toucher n'ouvre rien ; son texte s'ouvre depuis la carte d'apprentissage du
+  plan du jour.
 
 **Ne fait pas** : aucun second écran d'apprentissage ni de feuille équivalente ; aucun crédit
 de verset en dehors du check-out ; aucun verset de contexte grisé en tête de la plage apprise ;
@@ -458,8 +459,9 @@ même de la complétion la réélargit.
 
 ## Vue Coran et écoute
 
-S'ouvre depuis le Plan du jour, le bloc hors prières, la carte d'apprentissage et le Récap,
-toujours sur la plage de la ligne d'où elle est ouverte.
+S'ouvre depuis le Plan du jour, le bloc hors prières, la carte d'apprentissage et la feuille
+d'un carreau de la mosaïque (Renforcement et Récap), toujours sur la plage de la ligne ou du carreau
+d'où elle est ouverte.
 
 ### Le texte
 - En-tête (nom de la sourate, plage, bismillah) et barre audio défilent avec le texte ; seule la
@@ -574,16 +576,29 @@ pas de moment de jalon pour un niveau atteint, pas d'écran de collection.
 
 ## Récap
 
-- La **position dans le tour** et l'étendue de la sélection, issues du même calcul que le plan du
-  jour. Au début d'un tour : « Nouveau tour » et « N pages en garde » plutôt qu'un 0 %.
-- **Mémorisées en entier** : sourates de la sélection couvertes du premier au dernier verset,
-  d'où qu'elles viennent (une portion n'y compte pas). **En cours d'apprentissage** : les cartes
-  de suivi.
-- **Rythme** : versets revus sur les 7 derniers jours, et moyenne par semaine sur 8 semaines.
-- La **fraîcheur** de chaque sourate, au grain verset : jamais revue, revue récemment en entier,
-  partiellement fraîche, ancienne — le même calcul que partout ailleurs.
-- Chaque sourate ouvre son texte.
-- Chaque chiffre a un sens unique : pas de doublon, pas deux chiffres qui semblent se contredire.
+Hors du fil de la journée, quand l'utilisateur se demande où il en est : en moins de 3 secondes,
+il voit ce qui tient et ce qui demande de l'attention. Il regarde en arrière, aucune projection.
+
+- **La mosaïque** de l'onglet Renforcement en tête : mêmes carreaux, mêmes couleurs, même règle, et
+  au-dessus le nombre de sourates à risque d'oublier, ou une phrase calme s'il n'y en a aucune.
+- **« Risque d'oublier »** : les sourates à risque, de la révision la plus ancienne à la plus
+  récente, chacune avec sa dernière révision (« Il y a plus de 3 mois », « de 6 mois »,
+  « d'un an »).
+- **En cours d'apprentissage** : une ligne par sourate, son nom et ses versets appris, avec une
+  barre. Glisser la ligne propose d'abandonner l'apprentissage, après confirmation. La toucher
+  n'ouvre rien.
+- Un carreau ou une ligne « Risque d'oublier » ouvre la feuille de la sourate (niveau, risque,
+  dernière révision, « Voir le texte »), sans bouton pour lancer une série.
+- Sans sourate en révision ni apprentissage, une phrase invite à ajouter des sourates dans les
+  Réglages.
+- L'écran se met à jour après une fin de journée, un abandon d'apprentissage ou un changement de
+  riwaya.
+
+**Ne fait pas** : ni jours de suite (plan du jour), ni pages, ni position dans le tour (plan du
+jour au repos), ni durée du tour (fin de journée), ni rythme, ni historique jour par jour, ni
+répartition, ni liste de toutes les sourates ; pas de date d'apprentissage prévue ; pas de
+nouvel indicateur ni de calendrier d'activité ; pas de liste des questions ratées (elles
+reviennent dans les séries de l'onglet Renforcement) ; pas de série lancée depuis le Récap.
 
 ## Réglages, régularité et rappels
 
@@ -611,8 +626,7 @@ une phrase qui l'explique au moment où elle compte.
   elles aussi : hors connexion au premier lancement, il ne s'affiche jamais dans la police du système.
 - **Six styles de texte**, chacun choisi selon son rôle : titre d'écran, titre de section (en
   capitales), titre de carte, texte, légende, grand chiffre. Tous les écrans n'emploient que
-  ceux-là, sauf le Récap, qui garde encore ses tailles propres (le texte arabe a ses tailles à
-  part, dans sa propre police). Avec un texte
+  ceux-là (le texte arabe a ses tailles à part, dans sa propre police). Avec un texte
   système agrandi, l'en-tête du check-in et du check-out défile avec le contenu, les pages
   d'accueil et de choix de la riwaya de l'onboarding défilent quand elles ne tiennent plus, l'en-tête
   de la sélection des sourates défile avec la liste pour lui laisser la place, et un
@@ -629,7 +643,7 @@ une phrase qui l'explique au moment où elle compte.
   recale la liste.
 - **Aucun italique** : la police n'en a pas, et des lettres penchées artificiellement se lisent
   mal. Citations, indications et légendes s'affichent droites.
-- **Une couleur, un sens.** Les badges de date de révision du plan du jour et du Récap sont
+- **Une couleur, un sens.** Les badges de date de révision du plan du jour sont
   neutres (texte secondaire, sans couleur) quel que soit le niveau. Seuls les carreaux de la
   mosaïque portent un sens par la couleur : les niveaux (quatre teintes froides du vert au bleu
   nuit, un gris pour « pas encore jouée ») et le risque d'oublier (orange, qui lui est réservé),

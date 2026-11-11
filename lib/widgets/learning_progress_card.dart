@@ -1,33 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/app_colors.dart';
 import '../core/app_theme.dart';
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
-import 'index_badge.dart';
-import 'verse_bottom_sheet.dart';
 
+/// One compact Recap line per surah being learned (US-23 crit. 3).
 class LearningProgressCard extends StatelessWidget {
   final LearningProgress progress;
-  final int index;
   final Future<void> Function() onDismiss;
 
   const LearningProgressCard({
     super.key,
     required this.progress,
-    required this.index,
     required this.onDismiss,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final palette = context.palette;
     final s = progress.sourate;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Dismissible(
         key: ValueKey(s.id),
         direction: DismissDirection.endToStart,
@@ -40,57 +34,25 @@ class LearningProgressCard extends StatelessWidget {
           ),
           child: Icon(Icons.delete_outline, color: palette.danger),
         ),
+        // The deletion is confirmed and done by the caller (US-12), which
+        // reloads the list: the tile itself never leaves on its own.
         confirmDismiss: (_) async {
           await onDismiss();
           return false;
         },
         child: Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    IndexBadge(text: '${s.id}', size: 34),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(s.nameFr,
-                              style: AppText.body.copyWith(
-                                  fontWeight: FontWeight.w600, color: palette.textPrimary)),
-                          Text(s.nameAr,
-                              style: GoogleFonts.amiri(
-                                  fontSize: 16, color: palette.textPrimary)),
-                        ],
-                      ),
-                    ),
-                    if (progress.isComplete)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: cs.primaryContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(S.complet,
-                            style: AppText.caption.copyWith(
-                                color: palette.primary, fontWeight: FontWeight.w700)),
-                      )
-                    else
-                      Text(S.versetN(progress.nextVerse, s.verses),
-                          style: AppText.caption.copyWith(color: palette.textMuted)),
-                    IconButton(
-                      icon: Icon(Icons.menu_book_outlined, color: palette.gold, size: 18),
-                      tooltip: S.voirLeTexte,
-                      onPressed: () =>
-                          VerseBottomSheet.show(context, s, 1, s.verses),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                Text(s.nameFr,
+                    style: AppText.body.copyWith(
+                        fontWeight: FontWeight.w600, color: palette.textPrimary)),
+                const SizedBox(height: 2),
+                Text(S.versetsAppris(progress.learnedCount, s.verses),
+                    style: AppText.caption.copyWith(color: palette.textMuted)),
+                const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: LinearProgressIndicator(
@@ -100,16 +62,10 @@ class LearningProgressCard extends StatelessWidget {
                     color: palette.gold,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(S.versetsAppris(progress.learnedCount, s.verses),
-                    style: AppText.caption
-                        .copyWith(color: palette.textMuted)),
               ],
             ),
           ),
-        ).animate()
-            .fadeIn(delay: Duration(milliseconds: 80 * index))
-            .slideY(begin: 0.06),
+        ),
       ),
     );
   }

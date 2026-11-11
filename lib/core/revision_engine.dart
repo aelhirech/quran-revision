@@ -71,7 +71,7 @@ class DaySelection {
   /// numerous than real pages (a surah straddling a page it shares with a
   /// fully-fitting neighbour costs 2 entries for 1 physical page, see
   /// [buildCycle]). Screens that literally promise a page count to the user
-  /// (`CycleProgressCard`, the Récap stat chip, `PlanScreen`'s summary bar)
+  /// (`CycleProgressCard`, `PlanScreen`'s summary bar)
   /// must use this instead of the raw fields.
   ///
   /// A real page counts as covered only once EVERY entry touching it has

@@ -70,7 +70,6 @@ void main() {
     expect(await AyahFactsService.lastRevisionDatesPerVerse(riwaya: Riwaya.hafs),
         isEmpty);
     expect(await AyahFactsService.currentStreak(riwaya: Riwaya.hafs), 0);
-    expect(await AyahFactsService.totalActiveDays(riwaya: Riwaya.hafs), 0);
     expect(await AyahFactsRitual.pendingDate(riwaya: Riwaya.hafs), isNull);
     expect(await AyahFactsRitual.isDaySealed(today, Riwaya.hafs), isFalse);
     expect(await AyahFactsRitual.dayFacts(today, Riwaya.hafs), isEmpty);

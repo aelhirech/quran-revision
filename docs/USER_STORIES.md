@@ -23,7 +23,7 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-### Cadre commun du blueprint Zellige (2026-10-17) : US-21, US-23, US-24, US-25 et US-26
+### Cadre commun du blueprint Zellige (2026-10-17) : US-24 et US-26 (US-21, US-23 et US-25 livrées)
 
 Ces stories sortent d'une phase de design sans code (2026-10-13 et 14), partie d'un constat de
 l'utilisateur : Renforcement et Récap n'avaient « ni DA, ni vraiment jeu, ni objectif, ni avancée
@@ -51,49 +51,8 @@ l'exploration). Les maquettes sont antérieures à ce blueprint : là où elles 
   réciter, `docs/SPEC_PRODUIT.md` § Renforcement). L'app décide à la place de l'utilisateur : ni niveau, ni seuil, ni
   pondération à régler.
 - **Ordre conseillé** : US-25 d'abord (police, styles, couleurs ; livrée, voir
-  `docs/SPEC_PRODUIT.md` § Registre visuel), puis US-21 (livrée, voir `docs/SPEC_PRODUIT.md` § Renforcement), puis US-23, qui reprend sa
-  mosaïque (`lib/widgets/mosaic.dart`, `mosaic_tile_sheet.dart`). US-24 et US-26 sont indépendantes. Le scoping tranche.
-
-### US-23 — Le Récap montre d'un coup d'œil ce qui tient et ce que je risque d'oublier (extension d'US-7)
-**État** : à scoper — blueprint du 2026-10-17. Prolonge US-7 (livrée, voir `docs/SPEC_PRODUIT.md` § Récap) et modifie
-ses critères 1 et 2 (voir les exclusions).
-
-**Moment de l'histoire** : hors du fil de la journée, quand l'utilisateur se demande où il en est.
-Ce que l'écran y prouve : ce qui tient, et ce qui demande de l'attention. Il regarde en arrière,
-comme le check-in : aucune projection n'y est ajoutée.
-
-**Statement** : En tant qu'utilisateur, je veux que le Récap me montre ma mosaïque et les sourates
-que je risque d'oublier, sans rien de superflu, afin de savoir en moins de 3 secondes où j'en suis.
-
-**Diagnostic (état actuel)** : huit blocs de même poids, onze chiffres avant l'historique, le total
-de pages affiché deux fois. La date de dernière révision n'apparaît qu'en badges, dans la liste du
-bas.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given le Récap ouvert, Then il commence par la mosaïque d'US-21 (mêmes carreaux, mêmes couleurs,
-   même règle), avec en tête le nombre de sourates à risque d'oublier, ou un message clair quand il
-   n'y en a aucune.
-2. Given des sourates à risque d'oublier, Then une section « Risque d'oublier » les nomme, de la
-   révision la plus ancienne à la plus récente, avec depuis combien de temps chacune n'a pas été
-   révisée.
-3. Given un apprentissage en cours, Then une ligne compacte le montre (la sourate, les versets déjà
-   appris), et permet toujours de supprimer un apprentissage (US-12).
-4. Given le Récap, Then rien d'autre n'y figure (choix utilisateur du 2026-10-17) : jours de suite,
-   pages, tour, rythme, historique jour par jour, répartition et liste « Mes sourates » le
-   quittent. Le texte d'une sourate s'ouvre depuis son carreau, comme dans l'onglet Renforcement.
-
-**Exclusions explicites** :
-- **Modifie US-7 (livrée, voir `docs/SPEC_PRODUIT.md` § Récap)** : la position dans le tour (crit. 1) quitte le Récap ; elle reste sur
-  le plan du jour au repos. La fraîcheur par sourate (crit. 2) prend la forme de l'orange et de la
-  section « Risque d'oublier », plus celle de badges.
-- Les jours de suite restent visibles sur le plan du jour (US-6), la durée du tour à la fin de
-  journée (US-14).
-- Pas de date d'apprentissage au Récap : une projection se lit à la fin de journée, pas ici
-  (règle « derrière au check-in, devant au check-out » de `docs/SPEC_PRODUIT.md`).
-- Pas de nouvel indicateur, pas de carte d'activité (calendrier d'activité écarté le 2026-10-23,
-  voir « Écartées »).
-- Pas de liste des questions ratées au Récap : elles reviennent dans les séries de l'onglet
-  Renforcement (`docs/SPEC_PRODUIT.md` § Renforcement).
+  `docs/SPEC_PRODUIT.md` § Registre visuel), puis US-21 (livrée, voir `docs/SPEC_PRODUIT.md` § Renforcement), puis US-23 (livrée,
+  voir `docs/SPEC_PRODUIT.md` § Récap). US-24 et US-26 sont indépendantes.
 
 ### US-24 — L'app parle avec des mots de tous les jours
 **État** : à scoper — blueprint du 2026-10-17, validé par l'utilisateur le 2026-10-22.
@@ -205,7 +164,7 @@ invariants de la partie E compris.
 ### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
 **État** : en cours — Sprints A, B et C livrés (fondus dans `docs/SPEC_PRODUIT.md` § Registre
 visuel). Reste le Récap et la
-barre d'onglets, à scoper après US-23 et US-24 — blueprint du 2026-10-23, scoping du 2026-10-28.
+barre d'onglets, à scoper après US-24 (US-23 livrée) — blueprint du 2026-10-23, scoping du 2026-10-28.
 
 **Moment de l'histoire** : tous. Ce que la story y prouve : rien de nouveau. Elle garantit qu'un
 utilisateur qui lit en grand voit la même app que les autres, et non une app cassée.
@@ -231,10 +190,11 @@ saute.
 - **Barre d'onglets** : à 320 px avec texte ×1,5, « Plan du jour » ne tient pas sur une ligne, et la
   barre système n'offre aucun moyen de rétrécir un libellé. À remesurer après le renommage « Quiz »
   d'US-24. On tranchera sur ces mesures : rétrécir, accepter deux lignes, ou raccourcir.
-- **Récap** : « Aucune session enregistrée » se coupe au milieu des mots, sans cause identifiée à la
-  lecture, et la zone de fin d'une ligne de sourate prend la largeur. Le Récap est reconstruit par
-  US-23 : à remesurer après.
-Ces deux points se scopent après US-23 et US-24, et US-31 ne passe à « terminée » qu'à ce moment.
+- **Récap** : reconstruit par US-23 (« Aucune session enregistrée » et la liste des sourates ont
+  disparu). Mesuré le 2026-11-11 à 320 px avec texte ×1,5 : rien ne déborde ni ne se coupe au
+  milieu d'un mot, sauf le titre de la fenêtre de confirmation d'abandon d'un apprentissage
+  (Idée produit dans `docs/CHANGELOG.md`).
+Ces deux points se scopent après US-24, et US-31 ne passe à « terminée » qu'à ce moment.
 
 ## Écartées
 
