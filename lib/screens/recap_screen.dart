@@ -1,92 +1,94 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_theme.dart';
+import '../core/mosaic.dart' show MosaicTile, atRiskOldestFirst;
 import '../core/strings.dart';
 import '../models/learning_progress.dart';
-import '../models/riwaya.dart';
-import '../models/session_record.dart';
-import '../services/ayah_facts_service.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
-import '../widgets/cycle_progress_card.dart';
+import '../widgets/freshness_badge.dart';
 import '../widgets/guide_step.dart';
-import '../widgets/history_card.dart';
 import '../widgets/learning_progress_card.dart';
+import '../widgets/mosaic.dart';
+import '../widgets/mosaic_tile_sheet.dart';
+import '../widgets/mosaic_tile_shape.dart';
 import '../widgets/ornamental_divider.dart';
-import '../widgets/sourates_recap_card.dart';
-import '../widgets/streak_card.dart';
 
+/// What holds and what risks being forgotten (US-23): the mosaic, the surahs
+/// at risk, the surahs being learned. Nothing else.
 class RecapScreen extends StatefulWidget {
-  const RecapScreen({super.key});
+  /// The shell keeps every tab mounted: reloads wait until this one shows.
+  final bool shown;
+
+  const RecapScreen({super.key, this.shown = true});
 
   @override
   State<RecapScreen> createState() => _RecapScreenState();
 }
 
 class _RecapScreenState extends State<RecapScreen> {
-  int _streak = 0;
-  int _totalDays = 0;
-  List<SessionRecord> _sessions = [];
-  List<LearningProgress> _learningProgress = [];
-  ({int last7Days, int weeklyAverage}) _pace = (last7Days: 0, weeklyAverage: 0);
-  Set<String> _lastPauseDates = {};
-  Riwaya? _lastRiwaya;
+  List<MosaicTile>? _tiles;
+  List<LearningProgress> _learning = const [];
+  // A newer load makes an older one's result stale.
+  int _generation = 0;
+  late final AppState _state;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Tourne une première fois juste après initState (couvre le chargement
-    // initial), puis à chaque notification d'AppState.
-    final pauseDates = context.read<AppState>().pauseDates;
-    final riwaya = context.read<AppState>().riwaya;
-    if (!setEquals(pauseDates, _lastPauseDates) || riwaya != _lastRiwaya) {
-      _lastPauseDates = Set.from(pauseDates);
-      _lastRiwaya = riwaya;
-      _load(pauseDates);
-    }
+  void initState() {
+    super.initState();
+    _state = context.read<AppState>()..addListener(_refresh);
+    _refresh();
   }
 
-  Future<void> _load(Set<String> pauseDates) async {
-    final state = context.read<AppState>();
-    final riwaya = state.riwaya;
-    // Démarrage en parallèle, await typé sur chacun — évite les casts dynamiques
-    final streakF = AyahFactsService.currentStreak(pauseDates: pauseDates, riwaya: riwaya);
-    final totalF = AyahFactsService.totalActiveDays(riwaya: riwaya);
-    final statsF = AyahFactsService.recentDayVerseStats(limit: 7, riwaya: riwaya);
-    final progressF = state.learningProgressList();
-    final paceF = AyahFactsService.revisionPace(DateTime.now(), riwaya);
-    // Assure les badges de fraîcheur même si l'utilisateur arrive sur Récap
-    // sans être passé par un plan du jour cette session.
-    final freshnessF = state.refreshFreshness(notify: false);
-    final streak = await streakF;
-    final total = await totalF;
-    final stats = await statsF;
-    final progress = await progressF;
-    final pace = await paceF;
-    await freshnessF;
+  @override
+  void didUpdateWidget(RecapScreen old) {
+    super.didUpdateWidget(old);
+    // Notifications seen while hidden are caught up on showing.
+    if (widget.shown && !old.shown) _refresh();
+  }
 
-    // totalUnits = versets proposés ce jour-là (pas le total du cycle) —
-    // sinon le % quotidien reste écrasé près de 0 (bug retour TestFlight).
-    final sessions = [
-      for (final entry in stats.entries)
-        SessionRecord(
-          date: DateTime.parse(entry.key),
-          unitsCompleted: entry.value.done,
-          totalUnits: entry.value.total,
-        ),
-    ]..sort((a, b) => b.date.compareTo(a.date));
+  @override
+  void dispose() {
+    _state.removeListener(_refresh);
+    super.dispose();
+  }
 
-    if (mounted) {
-      setState(() {
-        _streak = streak;
-        _totalDays = total;
-        _sessions = sessions;
-        _learningProgress = progress;
-        _pace = pace;
-      });
-    }
+  void _refresh() {
+    if (widget.shown) _load();
+  }
+
+  Future<void> _load() async {
+    final generation = ++_generation;
+    final (tiles, learning) =
+        await (_state.mosaicTiles(), _state.learningProgressList()).wait;
+    if (!mounted || generation != _generation) return;
+    setState(() {
+      _tiles = tiles;
+      _learning = learning.where((p) => !p.isComplete).toList();
+    });
+  }
+
+  Future<void> _openTile(MosaicTile tile) async {
+    // A riwaya switch can drop the surah before the tiles reload.
+    final sourate = _state.sourateById(tile.surahId);
+    if (sourate == null) return;
+    // No series from here: the Recap looks back, the Quiz tab plays.
+    await MosaicTileSheet.show(context, tile, sourate);
+  }
+
+  // Tracking only (US-12): verses are credited or withdrawn at check-out,
+  // never from here.
+  Future<void> _deleteLearning(LearningProgress p) async {
+    final confirmed = await confirmDialog(
+      context,
+      title: S.supprimerApprentissage,
+      message: S.supprimerApprentissageDe(p.sourate.nameFr),
+      confirmLabel: S.supprimer,
+      danger: true,
+    );
+    if (!mounted || !confirmed) return;
+    await _state.abandonLearning(p.sourate.id);
   }
 
   @override
@@ -98,12 +100,7 @@ class _RecapScreenState extends State<RecapScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Read straight from AppState: it is a pure computation, so caching it in
-    // a field only bought a full-screen spinner and a value that went stale
-    // after each check-out. In TRUE pages (`pagesProgress`), not cycle
-    // entries — this screen literally promises a page count to the user.
-    final pagesProgress = state.pagesProgress;
-
+    final tiles = _tiles;
     return Scaffold(
       backgroundColor: cs.surface,
       body: CustomScrollView(
@@ -132,30 +129,9 @@ class _RecapScreenState extends State<RecapScreen> {
                   padding: EdgeInsets.only(bottom: 16),
                   child: OrnamentalDivider(),
                 ),
-                StreakCard(streak: _streak, totalDays: _totalDays),
-                const SizedBox(height: 16),
-                CycleProgressCard(
-                  progress: pagesProgress.total > 0
-                      ? pagesProgress.pos / pagesProgress.total
-                      : 0.0,
-                  pos: pagesProgress.pos,
-                  total: pagesProgress.total,
-                  label: S.cycleActuel,
-                  topRadius: 150,
-                ),
-                const SizedBox(height: 16),
-                _repartitionCard(cs, state),
-                const SizedBox(height: 16),
-                _statsRow(cs, state, pagesProgress.total),
-                const SizedBox(height: 16),
-                ..._paceSection(cs),
-                HistoryCard(sessions: _sessions),
-                const SizedBox(height: 16),
-                ..._learningSection(cs),
-                SouratesRecapCard(
-                  selections: state.config!.selections,
-                  freshnessOf: state.freshnessFor,
-                ),
+                // Nothing until the first load: the empty sentence must not
+                // flash before the tiles arrive.
+                if (tiles != null) ..._sections(tiles),
               ]),
             ),
           ),
@@ -164,176 +140,76 @@ class _RecapScreenState extends State<RecapScreen> {
     );
   }
 
-  /// Sourates en cours de mémorisation (Phase 9 — reprend le contenu de
-  /// l'onglet « Apprendre », supprimé) : le Récap est désormais la vue
-  /// d'ensemble unique révision + apprentissage. Démarrer une sourate se
-  /// fait au check-in.
-  // Tracking only (US-12): verses are credited or withdrawn at check-out,
-  // never from here.
-  List<Widget> _learningSection(ColorScheme cs) {
-    final inProgress = _learningProgress.where((p) => !p.isComplete).toList();
-    if (inProgress.isEmpty) return const [];
+  List<Widget> _sections(List<MosaicTile> tiles) {
+    final atRisk = atRiskOldestFirst(tiles);
+    if (tiles.isEmpty && _learning.isEmpty) {
+      return [
+        Text(S.recapVide,
+            style: AppText.body.copyWith(color: context.palette.textMuted)),
+      ];
+    }
     return [
-      _sectionHeader(cs, S.enCoursDApprentissage),
-      const SizedBox(height: 12),
-      for (final (i, p) in inProgress.indexed)
-        LearningProgressCard(
-          progress: p,
-          index: i,
-          onDismiss: () => _deleteLearning(p),
-        ),
-      const SizedBox(height: 16),
-    ];
-  }
-
-  Future<void> _deleteLearning(LearningProgress p) async {
-    final state = context.read<AppState>();
-    final confirmed = await confirmDialog(
-      context,
-      title: S.supprimerApprentissage,
-      message: S.supprimerApprentissageDe(p.sourate.nameFr),
-      confirmLabel: S.supprimer,
-      danger: true,
-    );
-    if (!mounted || !confirmed) return;
-    await AyahFactsLearning.deleteLearnFacts(p.sourate.id, state.riwaya);
-    if (mounted) await _load(state.pauseDates);
-  }
-
-  Widget _repartitionCard(ColorScheme cs, AppState state) {
-    // Counts whole surahs held, whether brought at onboarding or learned in
-    // the app — a partial range (e.g. Al-Baqara 255-260) does not count.
-    final enEntier = state.config!.selections.where((s) => s.isWhole).length;
-    final enCours = _learningProgress.where((p) => !p.isComplete).length;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(S.repartitionSourates,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: cs.onSurface)),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _repartitionChip(cs, enEntier, S.memoriseesEnEntier,
-                    Icons.check_circle_outline, cs.primary),
-                const SizedBox(width: 8),
-                _repartitionChip(cs, enCours, S.enCoursDApprentissage,
-                    Icons.edit_note_outlined, context.palette.primary),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.08);
-  }
-
-  Widget _repartitionChip(ColorScheme cs, int count, String label,
-      IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 6),
-            Text('$count',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: color)),
-            const SizedBox(height: 2),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 10,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statsRow(ColorScheme cs, AppState state, int cycleTotal) {
-    final selections = state.config!.selections;
-    final totalVerses = selections.fold(0, (sum, s) => sum + s.verseCount);
-
-    return _chipPair(
-      _statChip(cs, '$totalVerses', S.versetsLabel,
-          Icons.format_list_numbered, 0),
-      _statChip(cs, '$cycleTotal', S.pagesLabel,
-          Icons.auto_stories_outlined, 100),
-    );
-  }
-
-  List<Widget> _paceSection(ColorScheme cs) {
-    return [
-      _sectionHeader(cs, S.rythmeRevision),
-      const SizedBox(height: 12),
-      _chipPair(
-        _statChip(cs, '${_pace.last7Days}', S.versets7DerniersJours,
-            Icons.date_range_outlined, 150),
-        _statChip(cs, '${_pace.weeklyAverage}', S.versetsParSemaine,
-            Icons.timeline_outlined, 250),
-      ),
-      const SizedBox(height: 16),
-    ];
-  }
-
-  Widget _sectionHeader(ColorScheme cs, String text) => Text(text,
-          style: TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 14, color: cs.onSurface))
-      .animate()
-      .fadeIn();
-
-  // Equal tile heights when only one of the two labels wraps (FR/EN lengths
-  // differ).
-  Widget _chipPair(Widget left, Widget right) => IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [left, const SizedBox(width: 12), right],
-        ),
-      );
-
-  Widget _statChip(
-      ColorScheme cs, String value, String label, IconData icon, int delayMs) {
-    return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+      if (tiles.isNotEmpty) ...[
+        Mosaic(tiles: tiles, onTap: _openTile),
+        const SizedBox(height: 24),
+      ],
+      if (atRisk.isNotEmpty) ...[
+        _sectionTitle(SReinforcement.risqueOublier),
+        Card(
           child: Column(
-            children: [
-              Icon(icon, color: cs.primary, size: 22),
-              const SizedBox(height: 8),
-              Text(value,
-                  style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: cs.onSurface)),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSurfaceVariant,
-                      fontWeight: FontWeight.w500)),
-            ],
+            children: [for (final tile in atRisk) _riskRow(tile)],
           ),
         ),
-      )
-          .animate()
-          .fadeIn(delay: Duration(milliseconds: delayMs))
-          .slideY(begin: 0.12),
+        const SizedBox(height: 24),
+      ],
+      if (_learning.isNotEmpty) ...[
+        _sectionTitle(S.enCoursDApprentissage),
+        for (final p in _learning)
+          LearningProgressCard(
+            progress: p,
+            onDismiss: () => _deleteLearning(p),
+          ),
+      ],
+    ];
+  }
+
+  Widget _sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 8),
+        child: Text(text.toUpperCase(),
+            style: AppText.sectionTitle
+                .copyWith(color: context.palette.textMuted)),
+      );
+
+  Widget _riskRow(MosaicTile tile) {
+    final palette = context.palette;
+    final name = _state.sourateById(tile.surahId)?.nameFr ?? '';
+    final lastRevision = freshnessDiscreetLabel(
+        _state.freshnessFor(tile.surahId, tile.verseStart, tile.verseEnd));
+    return InkWell(
+      onTap: () => _openTile(tile),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const MosaicTileShape(level: 0, atRisk: true, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                      style: AppText.body.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: palette.textPrimary)),
+                  Text(lastRevision,
+                      style: AppText.caption.copyWith(color: palette.textMuted)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: palette.textMuted),
+          ],
+        ),
+      ),
     );
   }
 }

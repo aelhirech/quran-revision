@@ -133,7 +133,7 @@ class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
         children: [
           const DayPlanTab(),
           ReinforcementTab(shown: _index == _reinforcementTab),
-          const RecapScreen(),
+          RecapScreen(shown: _index == _recapTab),
           const ProfileScreen(),
         ],
       ),

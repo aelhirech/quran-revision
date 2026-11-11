@@ -31,6 +31,16 @@ void main() {
     expect(tiles.map((t) => t.level), [0, 3, 0]);
   });
 
+  test("à risque : la plus longtemps sans révision d'abord, les autres écartées", () {
+    final tiles = build([whole(1), whole(2), whole(3), whole(4)], revisions: {
+      1: {1: daysAgo(100)},
+      2: {1: daysAgo(10)},
+      3: {1: daysAgo(300)},
+      4: {1: daysAgo(150)},
+    });
+    expect(atRiskOldestFirst(tiles).map((t) => t.surahId), [3, 4, 1]);
+  });
+
   test('à risque au-delà de 90 jours depuis la plus récente révision', () {
     final tiles = build([whole(1), whole(2)], revisions: {
       1: {1: daysAgo(91), 2: daysAgo(200)},

@@ -62,7 +62,7 @@ class AppState extends ChangeNotifier {
   // available — see `refreshFreshness`/`freshnessFor`. FreshnessEngine.
   // computeForRange buckets on demand over the exact requested range (whole
   // surah or partial selection), not a precomputed per-surah map: the range
-  // varies by caller (RecapCard = selection, PlanScreen/check-in = today's
+  // varies by caller (mosaic sheet = selection, PlanScreen/check-in = today's
   // unit, possibly subdivided).
   Map<int, Map<int, DateTime>> _lastRevisionByAyah = {};
   // Quiz answers written one after the other: a read of the levels or of the

@@ -6,28 +6,19 @@ import '../core/strings.dart';
 import 'dome_progress_card.dart';
 
 /// Carte de progression du cycle (dôme, pourcentage, « pos / total pages »,
-/// barre, streak optionnel). Partagée par l'Accueil et le Récap depuis la
-/// Phase 9 Sprint 2 — le Récap en tenait une copie quasi ligne à ligne, au
-/// point que le passage des KPI en pages a dû être fait deux fois et que
-/// l'explication « Pourquoi des pages ? » n'existait que côté Accueil.
+/// barre, streak optionnel).
 class CycleProgressCard extends StatelessWidget {
   final double progress;
   final int pos;
   final int total;
 
-  /// `0` = pas de badge (le Récap affiche déjà le streak dans sa propre carte).
+  /// `0` = no badge.
   final int streak;
-
-  /// Eyebrow de la carte : « Cycle en cours » sur l'Accueil, « Cycle actuel »
-  /// sur le Récap — seule vraie divergence entre les deux copies d'origine.
-  final String label;
-  final double topRadius;
 
   /// Hides the `/ total` (US-1 crit. 4) — the rule is by day STATE, not by
   /// screen: `HomeScreen` passes `false` at rest, before any engagement
   /// (the check-in must never show the weight of the remaining total),
-  /// `true` once the day is closed. `RecapScreen` never passes it, so it
-  /// always keeps its full display.
+  /// `true` once the day is closed.
   final bool showTotal;
 
   const CycleProgressCard({
@@ -36,8 +27,6 @@ class CycleProgressCard extends StatelessWidget {
     required this.pos,
     required this.total,
     this.streak = 0,
-    required this.label,
-    this.topRadius = 170,
     this.showTotal = true,
   });
 
@@ -62,15 +51,14 @@ class CycleProgressCard extends StatelessWidget {
     }
 
     return DomeProgressCard(
-      topRadius: topRadius,
+      topRadius: 170,
       bottomRadius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Uppercased here, not in the strings: `S.cycleEnCours` is also used
-          // mid-sentence (PlanSummaryBar). Home said "Cycle en cours", Recap
-          // "CYCLE ACTUEL" — same eyebrow, two cases.
-          Text(label.toUpperCase(),
+          // mid-sentence (PlanSummaryBar).
+          Text(S.cycleEnCours.toUpperCase(),
               style: AppText.sectionTitle.copyWith(color: onPrimary.withValues(alpha: 0.65))),
           const SizedBox(height: 8),
           if (newRound)

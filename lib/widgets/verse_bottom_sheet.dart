@@ -16,7 +16,7 @@ import 'guide_step.dart';
 import 'verse_audio_bar.dart';
 import 'verse_row.dart';
 
-/// Vue Coran partagée entre Plan du jour, Récap et Apprendre — un seul
+/// Vue Coran partagée entre Plan du jour, Quiz et feuille du carreau — un seul
 /// mécanisme pour "afficher le Coran entre ayah_start et ayah_end", plutôt
 /// que la logique quasi identique dupliquée dans 3 écrans (feuille de
 /// versets d'une rakaa, écran de lecture d'une sourate, bloc de mémorisation).

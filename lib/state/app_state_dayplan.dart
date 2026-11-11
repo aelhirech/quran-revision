@@ -67,9 +67,9 @@ extension AppStateDayPlan on AppState {
   Future<bool> isDaySealed(String date) =>
       AyahFactsRitual.isDaySealed(date, _riwaya);
 
-  /// Current cycle position/total, for display (HomeScreen banner, RecapScreen
-  /// cycle card) — derived from the same [_selection] as the day plan
-  /// (`DailySession`, PlanScreen), so the 3 screens stop each recomputing
+  /// Current cycle position/total, for display (HomeScreen banner) — derived
+  /// from the same [_selection] as the day plan (`DailySession`,
+  /// PlanScreen), so the screens stop each recomputing
   /// their own `RevisionEngine.buildDayUnits(...)` (a silent divergence
   /// source — see the 2026-09-01 TestFlight report on wrong récap numbers).
   ///
@@ -82,8 +82,8 @@ extension AppStateDayPlan on AppState {
       : _selection;
 
   /// Cycle progress in TRUE mushaf pages, for display — use this wherever a
-  /// screen promises a page count to the user (`CycleProgressCard`, the
-  /// Récap stat chip, PlanScreen's summary bar). `daySelection.cyclePosition`
+  /// screen promises a page count to the user (`CycleProgressCard`,
+  /// PlanScreen's summary bar). `daySelection.cyclePosition`
   /// / `cycleTotal` count cycle ENTRIES, not always real pages (see
   /// `DaySelection.realPages`).
   ({int pos, int total}) get pagesProgress => pagesProgressOf(daySelection);

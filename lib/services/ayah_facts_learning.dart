@@ -134,7 +134,7 @@ class AyahFactsLearning {
   /// Reconstruit les `LearningProgress` du profil principal à partir des
   /// faits `ayah_facts` (type='learn') — une seule requête groupée par
   /// donnée nécessaire, pas un aller-retour SQL par sourate en cours.
-  /// Utilisé par `LearnScreen`/`RecapScreen`/`ProfileScreen`. Itère sur
+  /// Used by `AppState.learningProgressList`. Itère sur
   /// `startDates` (pas `versesBySourate`) pour inclure aussi les sourates
   /// juste démarrées via [startLearning], dont aucun verset n'a encore
   /// `reach = 1`.

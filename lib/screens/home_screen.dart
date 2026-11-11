@@ -133,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   pos: pagesProgress.pos,
                   total: pagesProgress.total,
                   streak: _streak,
-                  label: S.cycleEnCours,
                   // Hidden at rest before engagement, visible once the day
                   // is closed (US-1 crit. 4 — 2026-09-20 decision: the rule
                   // is by state, not by screen).

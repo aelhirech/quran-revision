@@ -58,12 +58,18 @@ extension AppStateLearning on AppState {
     return ayahIds.isEmpty ? null : (progress: progress, ayahIds: ayahIds);
   }
 
+  /// Drops a surah being learned (US-12), from the Récap.
+  Future<void> abandonLearning(int surahId) async {
+    await AyahFactsLearning.deleteLearnFacts(surahId, _riwaya);
+    _notify();
+  }
+
   /// Portion to learn today (day plan's last rakaa), or `null` if the user
   /// isn't learning anything right now. **Derived on demand**, never cached
   /// in a field: that's exactly the state parallel to `ayah_facts` CLAUDE.md
   /// forbids (the `_checkedRakaas` precedent) — a cache would need
   /// refreshing by all 4 writers of `learn` rows, including
-  /// `deleteLearnFacts` called from the Récap screen.
+  /// [abandonLearning] called from the Récap screen.
   Future<RevisionUnit?> todayLearningUnit() async {
     final plan = await learningPlanFor(todayStr);
     if (plan == null) return null;

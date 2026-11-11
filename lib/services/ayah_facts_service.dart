@@ -98,11 +98,8 @@ class AyahFactsService {
     // lignes dupliquées pour le même verset/jour et fausserait les comptages.
     await db.execute(
         'CREATE UNIQUE INDEX idx_ayah_facts_unique ON ayah_facts(date, riwaya, surah_id, ayah_id, type)');
-    // Couvre le filtre de currentStreak/totalActiveDays (riwaya + type +
-    // reach), `date` en dernière colonne pour que leur DISTINCT/COUNT le
-    // trouve dans l'index. recentDayVerseStats, elle, ne filtre plus sur
-    // `reach` (elle l'agrège) : l'index reste couvrant sur ses colonnes, mais
-    // son GROUP BY date paie un tri.
+    // Covers currentStreak's filter (riwaya + type + reach), with `date`
+    // last so its DISTINCT reads it from the index.
     await db.execute(
         'CREATE INDEX idx_ayah_facts_active ON ayah_facts(riwaya, type, reach, date)');
   }
@@ -141,68 +138,5 @@ class AyahFactsService {
     final activeDates = rows.map((r) => r['date'] as String).toSet();
     return StreakEngine.compute(
         activeDates: activeDates, pauseDates: pauseDates, today: DateTime.now());
-  }
-
-  static Future<int> totalActiveDays({required Riwaya riwaya}) async {
-    final db = await _open();
-    final result = await db.rawQuery(
-      'SELECT COUNT(DISTINCT date) as c FROM ayah_facts WHERE riwaya = ? AND type = ? AND reach = 1',
-      [riwaya.name, AyahFactType.revise.name],
-    );
-    return result.first['c'] as int? ?? 0;
-  }
-
-  /// Par jour actif (date ISO), les [limit] plus récents : combien de versets
-  /// ont été *faits* (`done`) et combien avaient été *proposés* ce jour-là
-  /// (`total`, faits ou non). `total` est le dénominateur correct d'un
-  /// pourcentage "journée" (`HistoryCard`/`RecapScreen`), à ne pas confondre
-  /// avec `config.totalSelectedVerses` (tout le cycle, pas le jour) — bug
-  /// identifié en retour TestFlight (2026-09-01) : le récap affichait
-  /// `versets faits ce jour / total du cycle`, un pourcentage toujours proche
-  /// de 0. Jours actifs uniquement : un jour où rien n'a été fait est absent
-  /// du résultat plutôt que rendu à 0/N.
-  static Future<Map<String, ({int done, int total})>> recentDayVerseStats(
-      {int limit = 14, required Riwaya riwaya}) async {
-    // Conditional aggregation gives both numbers in one pass.
-    final db = await _open();
-    final rows = await db.rawQuery(
-      'SELECT date, COUNT(*) as total, SUM(reach) as done FROM ayah_facts '
-      'WHERE riwaya = ? AND type = ? '
-      'GROUP BY date HAVING done > 0 ORDER BY date DESC LIMIT ?',
-      [riwaya.name, AyahFactType.revise.name, limit],
-    );
-    return {
-      for (final row in rows)
-        row['date'] as String: (
-          done: (row['done'] as int?) ?? 0,
-          total: (row['total'] as int?) ?? 0,
-        ),
-    };
-  }
-
-  /// Revision volume (US-15 Recap): verses revised over the sliding last 7
-  /// days, and the weekly average over the last 8 weeks. A verse revised on
-  /// two days counts twice, as in [recentDayVerseStats].
-  static Future<({int last7Days, int weeklyAverage})> revisionPace(
-      DateTime today, Riwaya riwaya) async {
-    String daysBefore(int offset) =>
-        dayKey(DateTime(today.year, today.month, today.day - offset));
-    final db = await _open();
-    final rows = await db.rawQuery(
-      'SELECT SUM(CASE WHEN date >= ? THEN 1 ELSE 0 END) as last7, '
-      'COUNT(*) as last56, MIN(date) as first_date FROM ayah_facts '
-      'WHERE riwaya = ? AND type = ? AND reach = 1 AND date >= ? AND date <= ?',
-      [daysBefore(6), riwaya.name, AyahFactType.revise.name, daysBefore(55), daysBefore(0)],
-    );
-    final row = rows.first;
-    final firstDate = row['first_date'] as String?;
-    if (firstDate == null) return (last7Days: 0, weeklyAverage: 0);
-    // Divide by the weeks actually covered, not always 8: someone who
-    // started 10 days ago would otherwise look slow, against the app's thesis.
-    final weeks = ((daysAgo(firstDate, now: today) + 1) / 7).ceil().clamp(1, 8);
-    return (
-      last7Days: row['last7'] as int,
-      weeklyAverage: ((row['last56'] as int) / weeks).round(),
-    );
   }
 }

@@ -72,3 +72,9 @@ class Mosaic {
     return tiles;
   }
 }
+
+/// The tiles at risk, longest without revision first (US-23 crit. 2).
+List<MosaicTile> atRiskOldestFirst(List<MosaicTile> tiles) =>
+    tiles.where((tile) => tile.atRisk).toList()
+      // Never null at risk: a tile is at risk only once revised.
+      ..sort((a, b) => b.daysSinceRevision!.compareTo(a.daysSinceRevision!));
