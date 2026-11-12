@@ -1,3 +1,5 @@
+import 'dart:math' show Random;
+
 import 'package:flutter/foundation.dart';
 import '../core/cycle_anchor.dart';
 import '../core/day_dates.dart';
@@ -9,6 +11,7 @@ import '../core/rakaa_distributor.dart';
 import '../core/reinforcement_engine.dart';
 import '../core/revision_engine.dart';
 import '../core/strings.dart';
+import '../core/tour_order.dart';
 import '../models/ayah_fact.dart';
 import '../models/check_in_draft.dart';
 import '../models/daily_session.dart';
@@ -32,6 +35,7 @@ part 'app_state_dayplan.dart';
 part 'app_state_checkout.dart';
 part 'app_state_learning.dart';
 part 'app_state_reinforcement.dart';
+part 'app_state_tour.dart';
 
 class AppState extends ChangeNotifier {
   UserConfig? _config;
@@ -69,6 +73,8 @@ class AppState extends ChangeNotifier {
   // questions to ask again waits for them (US-21). In the class body, since
   // an extension cannot carry a field.
   Future<void> _quizWrites = Future.value();
+  // Injected by tests to draw a known round order (US-26).
+  final Random _random;
 
   AppState(
     this._config, {
@@ -79,6 +85,7 @@ class AppState extends ChangeNotifier {
     Set<String> initialGuideDone = const {},
     int initialCyclePosition = 0,
     Set<String> initialPauseDates = const {},
+    Random? random,
   })  : _locale = locale,
         // `riwaya` must stay a public named arg for callers — `this._riwaya`
         // would make the constructor arg private.
@@ -88,7 +95,8 @@ class AppState extends ChangeNotifier {
         _guideDone = Set.from(initialGuideDone),
         _sourates = _souratesFor(riwaya),
         _cyclePosition = initialCyclePosition,
-        _pauseDates = Set.from(initialPauseDates) {
+        _pauseDates = Set.from(initialPauseDates),
+        _random = random ?? Random() {
     S.locale = locale;
   }
 
@@ -274,6 +282,10 @@ class AppState extends ChangeNotifier {
     final selectionsChanged =
         _config == null || !_sameSelections(_config!.selections, config.selections);
     if (selectionsChanged && _pendingDate != null) return false;
+    // New surahs start a new round; a pace change keeps order and cursor.
+    if (selectionsChanged && !TourOrder.covers(config.tourOrder, config.selections)) {
+      config = await _withNewTourOrder(config);
+    }
     _config = config;
     await StorageService.saveConfig(config, _riwaya);
     if (selectionsChanged) {
@@ -310,26 +322,6 @@ class AppState extends ChangeNotifier {
   Future<void> refreshFreshness({bool notify = true}) async {
     _lastRevisionByAyah = await AyahFactsService.lastRevisionDatesPerVerse(riwaya: _riwaya);
     if (notify) _notify();
-  }
-
-  /// Toggling the shuffle rebuilds the cycle in a completely different order,
-  /// so the cursor no longer designates the page it used to — it restarts,
-  /// exactly like [saveConfig] does when the selection changes.
-  ///
-  /// Returns `false` (config left untouched) under the same [pendingDate]
-  /// guard as [saveConfig]: `buildCycle` reorders on `shuffleEnabled` just as
-  /// it does on `selections`, so flipping this mid-pending-day would corrupt
-  /// that day's seal the same way an unguarded selection change would.
-  Future<bool> setShuffleEnabled(bool enabled) async {
-    if (_config == null || _config!.shuffleEnabled == enabled) return true;
-    if (_pendingDate != null) return false;
-    _config = _config!.copyWith(shuffleEnabled: enabled);
-    _cyclePosition = 0;
-    _todaySession = null;
-    await StorageService.saveConfig(_config!, _riwaya);
-    await StorageService.saveCyclePosition(0, _riwaya);
-    _notify();
-    return true;
   }
 
   Future<void> clearConfig() async {

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../models/revision_unit.dart';
 import '../models/sourate_selection.dart';
 import '../models/user_config.dart';
+import 'tour_order.dart';
 
 /// One day of the cycle, before any rakaa layout.
 ///
@@ -131,11 +132,6 @@ class RevisionEngine {
     return pages.length;
   }
 
-  /// Deterministic per-surah shuffle rank — same seed and same surah give the
-  /// same rank whatever else the selection holds.
-  static int _shuffleKey(int seed, int surahId) =>
-      math.Random(seed + surahId).nextInt(1 << 31);
-
   /// The whole cycle, as an ordered list of mushaf pages — each entry holding
   /// every selected fragment sitting on that page.
   ///
@@ -161,19 +157,7 @@ class RevisionEngine {
     required UserConfig config,
     required Map<int, Map<int, int>> pageMetadata,
   }) {
-    final order = List<SourateSelection>.from(config.selections);
-    if (config.shuffleEnabled) {
-      // Sorted on a per-surah key rather than shuffled as a list: a
-      // Fisher-Yates pass over n+1 elements shares nothing with the pass over
-      // n, so adding one surah (`handOffLearnedSurahs`) reordered every other
-      // one while `cyclePosition` stayed put — pages skipped, pages repeated.
-      final seed = config.startDate.millisecondsSinceEpoch;
-      order.sort((a, b) {
-        final byKey = _shuffleKey(seed, a.sourate.id)
-            .compareTo(_shuffleKey(seed, b.sourate.id));
-        return byKey != 0 ? byKey : a.sourate.id.compareTo(b.sourate.id);
-      });
-    }
+    final order = TourOrder.arrange(config);
 
     // Keyed by real page number when a fragment fills its page entirely, or
     // by `_privatePageKey` otherwise — an "entry" is not always a real page,

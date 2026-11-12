@@ -1,3 +1,5 @@
+import 'dart:math' show Random;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -41,6 +43,7 @@ part 'widgets/sourate_list.dart';
 part 'widgets/recap_card.dart';
 part 'widgets/day_story.dart';
 part 'widgets/fill_or_scroll.dart';
+part 'selection_helpers.dart';
 
 /// Nombre d'étapes comptées dans le stepper (`_StepHeader`) — Intro/Méthode/
 /// Riwaya n'y figurent pas (pages d'accueil et de pédagogie, pas de config),
@@ -71,11 +74,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   late Riwaya _riwaya = widget.presetRiwaya ?? Riwaya.hafs;
 
   /// Fixed for the whole wizard, and reused by [_confirm] — NOT a fresh
-  /// `DateTime.now()` per build. `shuffleEnabled` defaults to true and seeds
-  /// the cycle shuffle from `startDate`, so a date regenerated on every
-  /// rebuild made the day-1 preview show a surah order the app would then
-  /// never serve (bug shipped 2026-09-13, fixed with US-1 criterion 3:
-  /// the preview must be the plan actually received).
+  /// `DateTime.now()` per build. It seeds the round order drawn in [_config],
+  /// so a date regenerated on every rebuild would make the day-1 preview show
+  /// a surah order the app would then never serve (bug shipped 2026-09-13,
+  /// fixed with US-1 criterion 3: the preview must be the plan actually
+  /// received).
   final DateTime _startDate = DateTime.now();
 
   @override
@@ -89,12 +92,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   /// The config exactly as [_confirm] will persist it — the pace step and the
   /// day-1 step both describe this one, never a look-alike rebuilt on the side.
-  UserConfig get _config => UserConfig(
-        selections: _selections.values.toList(),
-        pagesPerDay: _pagesPerDay,
-        startDate: _startDate,
-        riwaya: _riwaya,
-      );
+  /// The round order is seeded by [_startDate], so every read draws the same.
+  UserConfig get _config {
+    final selections = _selections.values.toList();
+    return UserConfig(
+      selections: selections,
+      pagesPerDay: _pagesPerDay,
+      startDate: _startDate,
+      shuffleEnabled: true,
+      riwaya: _riwaya,
+      tourOrder: context.read<AppState>().computeTourOrder(
+          selections, true, Random(_startDate.millisecondsSinceEpoch)),
+    );
+  }
 
   /// Day 1 of [_config], computed fresh on every read: a cached copy would
   /// freeze on the first (empty) selection. Read only inside the `Builder`s
@@ -125,23 +135,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return null;
   }
 
-  /// Ids des sourates que sélectionnerait `_quickSelect(fraction)`, sans
-  /// muter l'état — sert à la fois à l'appliquer et à détecter si la
-  /// sélection actuelle y correspond déjà.
-  Set<int> _quickSelectionIds(double fraction, List<Sourate> allSourates) {
-    if (fraction >= 1.0) return allSourates.map((s) => s.id).toSet();
-    final total = allSourates.fold(0, (sum, s) => sum + s.verses);
-    final target = (total * fraction).round();
-    final ids = <int>{};
-    int count = 0;
-    for (final s in allSourates.reversed) {
-      if (count >= target) break;
-      ids.add(s.id);
-      count += s.verses;
-    }
-    return ids;
-  }
-
   List<Object> get _listItems {
     final allSourates = context.read<AppState>().sourates;
     final sourates = allSourates
@@ -150,20 +143,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_search.isNotEmpty || !_groupByHizb) return sourates;
     return _groupedBy(
         sourates, (s) => HizbMetadataService.surahStartHizb[s.id] ?? 1);
-  }
-
-  List<Object> _groupedBy(List<Sourate> sourates, int Function(Sourate) key) {
-    final result = <Object>[];
-    int? currentGroup;
-    for (final s in sourates) {
-      final group = key(s);
-      if (group != currentGroup) {
-        currentGroup = group;
-        result.add(group);
-      }
-      result.add(s);
-    }
-    return result;
   }
 
   void _toggleSourate(Sourate s) {

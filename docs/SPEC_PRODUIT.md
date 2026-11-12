@@ -131,8 +131,8 @@ signifie au moment où il compte.
    complet de sa sélection, aussi formulée comme une garantie (« aucune de tes sourates ne restera
    plus de N jours sans être revue »). Calculée en vraies pages du mushaf, comme le plan
    (invariant E.7).
-3. **Dernier écran = le vrai plan du jour 1**, identique à celui du premier check-in (même graine
-   de mélange). Il est précédé du **récit d'une journée en quatre moments** : le matin (bouton
+3. **Dernier écran = le vrai plan du jour 1**, identique à celui du premier check-in (même ordre
+   du tour, tiré une seule fois pour l'aperçu et l'enregistrement). Il est précédé du **récit d'une journée en quatre moments** : le matin (bouton
    « Illuminer ma journée avec le Coran »), dans les prières (l'icône livre de chaque ligne du
    plan), avant de prier ou à un moment choisi (le bouton lecture de la vue Coran), le soir
    (« Terminer ma journée » : ce qu'on a réussi est confirmé, le reste revient demain). Chaque moment montre le
@@ -216,12 +216,23 @@ l'engagement ; aucun effet ni jalon ; aucun geste de téléchargement audio.
 ### A. Construire le cycle — fonction pure et déterministe
 
 ```text
-CONSTRUIRE_LE_CYCLE(sélection, pagination, mélange, graine) -> [entrées]
+CONSTRUIRE_LE_CYCLE(sélection, pagination, ORDRE_DU_TOUR) -> [entrées]
 
-1. ordre := sélection
-   si mélange : ordre := mélanger(ordre, graine)
-   # Le mélange s'applique au niveau SOURATE uniquement.
-   # Une sourate n'est jamais éclatée ni réordonnée par le mélange.
+1. ordre := sélection triée selon ORDRE_DU_TOUR (au niveau SOURATE)
+   # Une sourate absente de ORDRE_DU_TOUR (apprise en cours de tour) passe
+   # en fin de tour. Deux plages d'une même sourate : par verset de début.
+   # Une sourate n'est jamais éclatée ni réordonnée à l'intérieur.
+
+   ORDRE_DU_TOUR est tiré UNE fois, au départ du tour, puis figé (E.8) :
+   âge(sourate) := jours depuis la révision la plus récente d'un verset de sa
+                   plage choisie ; jamais révisée = plus ancienne que toutes
+   si mélange : tirage au hasard pondéré — plus une sourate n'a pas été
+                révisée depuis longtemps, plus elle a de chances de passer tôt
+                (sans historique : tirage uniforme)
+   sinon      : tri strict, la plus ancienne d'abord, jamais révisée en tête,
+                à égalité ordre du mushaf (sans historique : ordre du mushaf)
+   # Seule la récitation validée en fin de journée compte, jamais le Quiz.
+   # Chaque riwaya tire avec son propre historique.
 
 2. fragments := []
    pour chaque portion de `ordre`, dans l'ordre :
@@ -252,8 +263,9 @@ CONSTRUIRE_LE_CYCLE(sélection, pagination, mélange, graine) -> [entrées]
    # entière et une sourate qui déborde coûte alors 2 entrées au lieu d'1.
 
 4. trier les entrées par (plus petit `rang` de leurs fragments, puis n° de page croissant)
-   # Le mélange ordonne les sourates ; à l'intérieur d'une sourate,
-   # les pages restent toujours dans l'ordre du mushaf.
+   # L'ordre du tour ordonne les sourates ; à l'intérieur d'une sourate,
+   # les pages restent toujours dans l'ordre du mushaf. Une page partagée par
+   # plusieurs sourates entières prend le rang de la mieux classée.
 
 5. cycleTotal := nombre d'entrées   # = nombre de pages réelles à réviser
 ```
@@ -305,6 +317,12 @@ pour i de 0 en avant :
 
 curseur := (curseur + faites) mod cycleTotal
 # Une même journée ne fait avancer le curseur qu'UNE fois (garde `isDaySealed`).
+
+si curseur + faites >= cycleTotal (le tour boucle) :
+    ORDRE_DU_TOUR := nouveau tirage (partie A), révisions du jour comprises
+    curseur := 0
+    # Les pages revues ce jour-là au-delà de la fin comptent pour l'ancien
+    # tour ; le nouveau tour les repropose, avec le poids le plus faible.
 ```
 
 ### D. La répartition en rakaas
@@ -349,11 +367,12 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
 
 1. **Aucune page sautée.** Une sourate de N pages est couverte en N entrées consécutives : page 1
    aujourd'hui, page 2 demain, jusqu'à la fin. C'était le bug principal du 2026-09-08. Seule
-   exception : une sourate apprise qui entre ou s'élargit en révision garde le curseur sur son
-   verset, donc ses pages placées avant lui attendent le tour suivant (reculer répéterait des
-   pages, invariant 2).
+   exception : une sourate apprise qui s'élargit en révision alors qu'elle est déjà dans le tour
+   garde le curseur sur son verset, donc ses pages placées avant lui attendent le tour suivant
+   (reculer répéterait des pages, invariant 2). Une sourate nouvelle dans le tour passe en fin de
+   tour.
 2. **Aucune répétition avant bouclage.** Tant que `cycleTotal` entrées n'ont pas été parcourues,
-   aucune page n'est reproposée.
+   aucune page n'est reproposée, même quand les dates de révision changent pendant le tour.
 3. **Jamais hors de la plage choisie.** Si l'utilisateur ne sélectionne que les versets 255–260
    d'Al-Baqara, aucun autre verset n'est jamais proposé. C'était le second bug du 2026-09-08.
 4. **Le curseur progresse à l'intérieur d'une sourate**, y compris quand elle est seule sélectionnée.
@@ -362,6 +381,9 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
 7. **Le budget quotidien (`pagesParJour`) compte des vraies pages, jamais des entrées** (décision
    2026-09-26) : `DaySelection.cycleDays` et `PLAN_DU_JOUR` (partie B) doivent utiliser le même
    calcul par pages réelles distinctes, jamais une simple division de `cycleTotal`.
+8. **L'ordre du tour est figé** jusqu'au bouclage, ou à un changement des sourates choisies ou du
+   mélange : jamais recalculé depuis les dates en cours de tour. Une sourate retirée au check-in
+   attend la fin du tour.
 
 ### F. Cas limites — la réponse est ici, pas dans le code
 
@@ -373,7 +395,9 @@ les rakaas au-delà de `suratRakaas` restent « Al-Fatiha seule » — seul cas 
 | Page partagée dont une seule sourate est sélectionnée | Entrée normale ; la sourate non sélectionnée n'y entre jamais. |
 | Portion retirée au check-in | Ni comptée ni bloquante à la clôture. |
 | Changement de rythme en cours de sourate | Le curseur ne bouge pas : seul le nombre d'entrées prises par jour change. |
-| Changement de sélection | Le cycle est reconstruit ; la progression repart de 0 (`saveConfig` le fait déjà). Exception : une sourate apprise en entier qui entre ou s'élargit en révision ne remet pas à 0, le curseur reste sur le verset qu'il pointait. |
+| Changement de sélection | Le cycle est reconstruit ; la progression repart de 0. Si les sourates choisies changent, un nouvel ordre du tour est tiré ; une plage resserrée ou élargie sur les mêmes sourates garde l'ordre. Exception : une sourate apprise en entier qui entre ou s'élargit en révision ne remet pas à 0 — déjà dans le tour, elle garde sa place et le curseur reste sur le verset qu'il pointait ; nouvelle dans le tour, elle passe en fin de tour. |
+| Changement du mélange | Nouvel ordre du tour, tiré dans le nouveau mode ; la progression repart de 0. |
+| Configuration enregistrée avant l'ordre du tour | L'ancien ordre (mélange par date de démarrage, ou ordre des sélections) est gardé jusqu'à la fin du tour en cours ; le premier bouclage tire l'ordre du tour. |
 | Changement de riwaya | Cycle et curseur sont scopés par riwaya, indépendants. |
 | Journée sautée | Le curseur n'avance pas ; rien n'est perdu, le contenu revient le lendemain. |
 | Bouton « Illuminer ma journée avec le Coran » jamais pressé (ou check-in quitté sans valider) | Aucune ligne n'est écrite dans `ayah_facts` pour ce jour : pas de jour en attente, pas de rattrapage le lendemain. Le plan du jour n'est écrit que par `AppState.commitCheckIn`. |
@@ -623,8 +647,8 @@ reviennent dans les séries de l'onglet Quiz) ; pas de série lancée depuis le 
 
 - **Réglages** : langue, riwaya active, sélection de sourates (et plages), rythme, nombre de
   versets à apprendre, ordre mélangé ou non, heures de rappel, jour de pause, téléchargements
-  audio. Changer la sélection ou le mélange **reconstruit le tour et repart de 0** ; changer le
-  rythme ne bouge pas le curseur. Changer de langue ou de riwaya ne perd rien.
+  audio. Changer les sourates choisies ou le mélange **tire un nouvel ordre du tour et repart de
+  0** ; changer le rythme ne bouge ni l'ordre ni le curseur. Changer de langue ou de riwaya ne perd rien.
 - **Une sélection qui grandit allonge le tour** : présenté comme une capacité (« tu portes
   maintenant plus »), jamais comme une régression.
 - **Série de régularité** : nombre de jours consécutifs actifs, mis à jour à chaque journée
@@ -634,7 +658,8 @@ reviennent dans les séries de l'onglet Quiz) ; pas de série lancée depuis le 
   pas. Heures communes aux deux riwayas.
 
 **Ne fait pas** : pas de nouvelle statistique là où la série existe déjà — ce qui manquait, c'est
-une phrase qui l'explique au moment où elle compte.
+une phrase qui l'explique au moment où elle compte. Pas de réglage de la pondération de l'ordre du
+tour, ni de sa durée : l'app décide.
 
 ## Registre visuel
 

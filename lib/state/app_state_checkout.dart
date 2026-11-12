@@ -195,6 +195,9 @@ extension AppStateCheckOut on AppState {
       clearTodaySession(notify: false),
       advanceCycle(pagesCompleted, selection.cycleTotal, notify: false),
     ]);
+    // After the seal, so today's revisions weigh in the next draw; before the
+    // hand-off, so a surah just learned goes to the round's end.
+    if (cycleWraps) await _startNewTour(_config!);
     // Only after sealing: a surah whose last verse was just confirmed
     // learned joins revision (see [handOffLearnedSurahs]).
     final memorized = await handOffLearnedSurahs(date: date, notify: false);

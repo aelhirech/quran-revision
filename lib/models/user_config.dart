@@ -28,6 +28,10 @@ class UserConfig {
   final bool shuffleEnabled;
   final Riwaya riwaya;
 
+  /// Surah ids in the order of the current round, drawn when the round
+  /// starts (`TourOrder`). Null for a config saved before US-26.
+  final List<int>? tourOrder;
+
   const UserConfig({
     required this.selections,
     required this.pagesPerDay,
@@ -35,6 +39,7 @@ class UserConfig {
     required this.startDate,
     this.shuffleEnabled = true,
     this.riwaya = Riwaya.hafs,
+    this.tourOrder,
   });
 
   int get totalSelectedVerses =>
@@ -47,6 +52,7 @@ class UserConfig {
     DateTime? startDate,
     bool? shuffleEnabled,
     Riwaya? riwaya,
+    List<int>? tourOrder,
   }) =>
       UserConfig(
         selections: selections ?? this.selections,
@@ -55,6 +61,7 @@ class UserConfig {
         startDate: startDate ?? this.startDate,
         shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
         riwaya: riwaya ?? this.riwaya,
+        tourOrder: tourOrder ?? this.tourOrder,
       );
 
   Map<String, dynamic> toJson() => {
@@ -64,6 +71,7 @@ class UserConfig {
         'startDate': startDate.toIso8601String(),
         'shuffleEnabled': shuffleEnabled,
         'riwaya': riwaya.name,
+        if (tourOrder != null) 'tourOrder': tourOrder,
       };
 
   factory UserConfig.fromJson(Map<String, dynamic> j) {
@@ -90,6 +98,10 @@ class UserConfig {
         riwaya: Riwaya.values.firstWhere(
             (r) => r.name == j['riwaya'],
             orElse: () => Riwaya.hafs),
+        // Eager copy: a malformed list fails here, inside this catch.
+        tourOrder: j['tourOrder'] == null
+            ? null
+            : List<int>.from(j['tourOrder'] as List),
       );
     } catch (e) {
       assert(() {

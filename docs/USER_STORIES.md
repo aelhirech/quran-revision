@@ -23,7 +23,7 @@ Autour de cette boucle, l'app entretient la motivation (streak de régularité, 
 
 ## Stories actives
 
-### Cadre commun du blueprint Zellige (2026-10-17) : US-26 (US-21, US-23, US-24 et US-25 livrées)
+### Cadre commun du blueprint Zellige (2026-10-17) : toutes livrées (US-21, US-23, US-24, US-25, US-26)
 
 Ces stories sortent d'une phase de design sans code (2026-10-13 et 14), partie d'un constat de
 l'utilisateur : Renforcement et Récap n'avaient « ni DA, ni vraiment jeu, ni objectif, ni avancée
@@ -53,48 +53,7 @@ l'exploration). Les maquettes sont antérieures à ce blueprint : là où elles 
 - **Ordre conseillé** : US-25 d'abord (police, styles, couleurs ; livrée, voir
   `docs/SPEC_PRODUIT.md` § Registre visuel), puis US-21 (livrée, voir `docs/SPEC_PRODUIT.md` § Quiz), puis US-23 (livrée,
   voir `docs/SPEC_PRODUIT.md` § Récap), puis US-24 (livrée, voir `docs/SPEC_PRODUIT.md` § Les mots de
-  l'app). US-26 est indépendante.
-
-### US-26 — Le plan fait passer plus tôt ce que je n'ai pas révisé depuis longtemps (extension d'US-2)
-**État** : à scoper — blueprint du 2026-10-17. Prolonge US-2 (livrée, voir `docs/SPEC_PRODUIT.md` § Règle du plan quotidien). Touche la
-« Règle du plan quotidien » du `docs/SPEC_PRODUIT.md` (partie A, l'ordre du tour), pas ses invariants.
-
-**Statement** : En tant qu'utilisateur, je veux que l'ordre de mes sourates dans le tour favorise
-celles que je n'ai pas révisées depuis longtemps, afin de rattraper d'abord ce que je risque
-d'oublier, sans rien avoir à décider.
-
-**Diagnostic (état actuel)** : l'ordre du tour est fixé au départ, au hasard ou dans l'ordre du
-mushaf, sans regarder la date de dernière révision. Dans l'usage normal, la sourate révisée il y a
-le plus longtemps est déjà la prochaine du plan. Mais une sourate retirée au check-in, ou laissée
-de côté par un changement de sélection, peut attendre un tour entier de plus.
-
-**Critères d'acceptation** (haut niveau) :
-1. Given un nouveau tour avec l'ordre aléatoire activé, Then l'ordre des sourates est tiré au
-   hasard, et une sourate a d'autant plus de chances de passer tôt qu'elle n'a pas été révisée
-   depuis longtemps (choix utilisateur du 2026-10-17). Une sourate jamais révisée compte comme la
-   plus ancienne.
-2. Given un tour en cours, Then l'ordre ne bouge plus jusqu'à la fin du tour (choix utilisateur du
-   2026-10-17, contre un nouveau tirage chaque jour) : aucune page sautée, aucune page proposée
-   deux fois avant la fin du tour, rythme quotidien inchangé.
-3. Given une sourate sur plusieurs pages, Then ses pages restent dans l'ordre du mushaf. Given des
-   sourates entières sur une même page, Then elles restent une seule journée (règle du plan,
-   partie A).
-4. Given l'ordre aléatoire désactivé, Then l'ordre du mushaf est gardé tel quel, sans pondération.
-5. Given deux riwayas, Then chaque tour est tiré avec l'historique de sa propre riwaya.
-
-**Exclusions explicites** :
-- Le plan ne lit jamais les questions de l'onglet Quiz : seule la récitation validée en fin
-  de journée compte.
-- Pas de nouveau tirage en cours de tour : une sourate retirée au check-in attend la fin du tour.
-- Pas de réglage de la pondération.
-- La durée d'un tour ne change pas, ni la garantie « chaque sourate revue au moins une fois par
-  tour ».
-
-**Défaut posé sans demander, à confirmer** : le crit. 4 (l'ordre du mushaf reste sans pondération).
-
-**Point de vigilance** : la « Règle du plan quotidien » du `docs/SPEC_PRODUIT.md` fait foi sur le code. Ce
-changement demande de réécrire sa partie A et de verrouiller le nouveau comportement par test,
-invariants de la partie E compris.
+  l'app), et US-26 (livrée, voir `docs/SPEC_PRODUIT.md` § Règle du plan quotidien).
 
 ### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
 **État** : en cours — Sprints A, B et C livrés (fondus dans `docs/SPEC_PRODUIT.md` § Registre
