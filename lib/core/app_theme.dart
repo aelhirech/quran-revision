@@ -81,6 +81,11 @@ ThemeData buildAppTheme(Brightness brightness) {
     scaffoldBackgroundColor: palette.cream,
     textTheme: roleText,
     extensions: [palette],
+    // Material's default dialog title (24 px) broke long French words mid-word
+    // with enlarged text (US-31).
+    dialogTheme: DialogThemeData(
+      titleTextStyle: AppText.cardTitle.copyWith(color: palette.textPrimary),
+    ),
     cardTheme: CardThemeData(
       elevation: 0,
       // Cards sit in padded lists like the Container-based cards around them;

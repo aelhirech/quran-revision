@@ -681,6 +681,10 @@ tour, ni de sa durée : l'app décide.
   check-in, le libellé passe à la ligne et la valeur ou le badge rétrécit : « Rythme » reste entier.
   Le nom d'une sourate et sa plage partielle se placent l'un sous l'autre quand ils ne tiennent pas.
   Une plage de versets (« v.1–10 ») ne se coupe jamais au tiret.
+  Un texte qui ne tient pas sur une ligne passe à la ligne entre deux mots, jamais au milieu d'un
+  mot. Les titres des fenêtres de confirmation ont le style de titre de carte, pour que leurs
+  mots longs tiennent. Dans la barre d'onglets, un libellé trop long passe sur deux lignes, entre
+  deux mots (« Plan du jour » sur un petit écran avec un texte agrandi).
   Dans la vue Coran, le nombre de versets de la portion passe au-dessus des bornes du curseur, et
   une borne à trois chiffres rétrécit pour tenir. Resserrer la portion après avoir défilé laisse
   la barre de réglage sous le doigt : une zone vide reste en bas jusqu'au glissé suivant, qui
@@ -706,4 +710,5 @@ tour, ni de sa durée : l'app décide.
   récitation ni le tajwid.
 
 **Ne fait pas** : pas de sélecteur de thème (l'app suit le réglage de l'appareil), pas de couleurs
-de tajwid.
+de tajwid. Pas de réglage de taille de texte : l'app suit celui de l'appareil sans plafonner
+l'agrandissement, et ne raccourcit pas un texte pour le faire tenir.

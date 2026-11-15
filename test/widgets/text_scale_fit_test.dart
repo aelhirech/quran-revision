@@ -34,7 +34,8 @@ void main() {
     await outfit.load();
   });
 
-  Future<void> pumpSmall(WidgetTester tester, Widget child) async {
+  Future<void> pumpSmall(WidgetTester tester, Widget child,
+      {Widget? bottomBar}) async {
     tester.view.physicalSize = const Size(320, 568);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -47,6 +48,7 @@ void main() {
       ),
       home: Scaffold(
         body: Padding(padding: const EdgeInsets.all(16), child: child),
+        bottomNavigationBar: bottomBar,
       ),
     ));
     await tester.pump();
@@ -59,6 +61,64 @@ void main() {
     expect(paragraph.size.width,
         greaterThanOrEqualTo(paragraph.getMaxIntrinsicWidth(double.infinity) - 0.01),
         reason: '"$text" is broken over several lines');
+  }
+
+  // A text may wrap, but only at a space: a word wider than its paragraph
+  // gets cut mid-word without any error.
+  void expectNoWordCut(WidgetTester tester, String text) {
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(text));
+    for (final word in text.split(' ')) {
+      final painter = TextPainter(
+        text: TextSpan(text: word, style: paragraph.text.style),
+        textDirection: TextDirection.ltr,
+        textScaler: paragraph.textScaler,
+      )..layout();
+      expect(painter.width, lessThanOrEqualTo(paragraph.size.width),
+          reason: '"$word" is cut in "$text"');
+      painter.dispose();
+    }
+  }
+
+  for (final locale in ['fr', 'en']) {
+    testWidgets('dialog titles never cut a word ($locale)', (tester) async {
+      S.locale = locale;
+      addTearDown(() => S.locale = 'fr');
+      final titles = [
+        S.supprimerApprentissage,
+        S.reinitDialog,
+        S.refairePlan,
+        S.telechargerToutLeCoran,
+        S.switchRiwayaTitle,
+        S.modifierDuree,
+        S.pagesExplTitle,
+        S.supprimerAudioTitre('Mishary Alafasy'),
+      ];
+      await pumpSmall(tester, const SizedBox());
+      final context = tester.element(find.byType(Scaffold));
+      for (final title in titles) {
+        showDialog<void>(
+            context: context, builder: (_) => AlertDialog(title: Text(title)));
+        await tester.pumpAndSettle();
+        expectNoWordCut(tester, title);
+        Navigator.of(context).pop();
+        await tester.pumpAndSettle();
+      }
+    });
+
+    // Two lines are accepted for « Plan du jour » at this size (US-31, 2026-11-15).
+    testWidgets('tab labels never cut a word ($locale)', (tester) async {
+      S.locale = locale;
+      addTearDown(() => S.locale = 'fr');
+      final labels = [S.planDuJour, SReinforcement.onglet, S.recap, S.reglages];
+      await pumpSmall(tester, const SizedBox(),
+          bottomBar: NavigationBar(selectedIndex: 0, destinations: [
+            for (final label in labels)
+              NavigationDestination(icon: const Icon(Icons.circle), label: label),
+          ]));
+      for (final label in labels) {
+        expectNoWordCut(tester, label);
+      }
+    });
   }
 
   testWidgets('PrimaryCtaButton', (tester) async {

@@ -55,43 +55,6 @@ l'exploration). Les maquettes sont antérieures à ce blueprint : là où elles 
   voir `docs/SPEC_PRODUIT.md` § Récap), puis US-24 (livrée, voir `docs/SPEC_PRODUIT.md` § Les mots de
   l'app), et US-26 (livrée, voir `docs/SPEC_PRODUIT.md` § Règle du plan quotidien).
 
-### US-31 — L'app reste lisible avec un texte agrandi (extension du Registre visuel)
-**État** : en cours — Sprints A, B et C livrés (fondus dans `docs/SPEC_PRODUIT.md` § Registre
-visuel). Reste le Récap et la
-barre d'onglets, à scoper (US-23 et US-24 livrées) — blueprint du 2026-10-23, scoping du 2026-10-28.
-
-**Moment de l'histoire** : tous. Ce que la story y prouve : rien de nouveau. Elle garantit qu'un
-utilisateur qui lit en grand voit la même app que les autres, et non une app cassée.
-
-**Statement** : En tant qu'utilisateur qui agrandit le texte de son téléphone, je veux que chaque
-écran reste entier et lisible, afin de ne jamais deviner un mot coupé ni chercher un bouton qui
-saute.
-
-**Critères d'acceptation restants** (Récap et barre d'onglets) :
-1. Given 375×667 avec texte ×1,5, et 320×568 avec texte ×1,5 en marge, Then au Récap et dans la
-   barre d'onglets, un texte ne déborde pas, n'est pas coupé et ne s'écrit pas lettre par lettre.
-2. Given un texte qui ne tient pas sur une ligne, Then il passe à la ligne entre deux mots, jamais
-   au milieu d'un mot. Given un libellé qui doit rester sur une ligne, Then il rétrécit pour tenir ;
-   des libellés côte à côte rétrécissent ensemble (choix utilisateur du 2026-10-23).
-
-**Exclusions explicites** :
-- L'app ne plafonne pas l'agrandissement choisi par l'utilisateur (la barre d'onglets du système
-  garde le sien).
-- Pas de réglage de taille dans l'app : elle suit celui du téléphone, comme le thème.
-- Pas de textes raccourcis pour tenir : les mots relèvent de `CLAUDE.md` § « Les mots de l'app ».
-
-**Reste ouvert, hors Backlog** (choix utilisateur du 2026-10-23) :
-- **Barre d'onglets** : à 320 px avec texte ×1,5, « Plan du jour » ne tient pas sur une ligne, et la
-  barre système n'offre aucun moyen de rétrécir un libellé. Remesuré le 2026-11-11 après le
-  renommage « Quiz » d'US-24 : « Quiz », « Récap » et « Réglages » tiennent, « Plan du jour » passe
-  sur deux lignes, entre deux mots, sans déborder. On tranchera : accepter deux lignes, ou
-  raccourcir.
-- **Récap** : reconstruit par US-23 (« Aucune session enregistrée » et la liste des sourates ont
-  disparu). Mesuré le 2026-11-11 à 320 px avec texte ×1,5 : rien ne déborde ni ne se coupe au
-  milieu d'un mot, sauf le titre de la fenêtre de confirmation d'abandon d'un apprentissage
-  (Idée produit dans `docs/CHANGELOG.md`).
-Ces deux points restent à scoper, et US-31 ne passe à « terminée » qu'à ce moment.
-
 ## Écartées
 
 - **Calendrier d'activité au Récap** (Idée produit « Calendrier d'activité (heatmap) », alias
