@@ -68,12 +68,6 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   de rakaa), passent à la ligne après « Al- ». Rien ne déborde. Reste à choisir : accepter (le trait
   d'union est un point de coupure normal), ou interdire la coupure (trait d'union insécable U+2011,
   à vérifier dans Outfit), au risque de rétrécir ou de pousser la ligne.
-- **Titre de la fenêtre de confirmation coupé au milieu d'un mot** (vérification Windows d'US-23,
-  2026-11-11) : à 320 px avec texte ×1,5, « Supprimer l'apprentissage » (glisser une ligne
-  d'apprentissage au Récap) s'écrit « Supprimer l' / apprentissa / ge ». `confirmDialog` est
-  partagé, le défaut existait avant US-23. À 375 px et ×1, il tient. Reste à choisir : un style de
-  titre plus petit pour toutes les confirmations, ou faire rétrécir le titre (US-31 crit. 2).
-
 - **Onboarding, étapes Rythme et Rappels qui débordent avec un texte agrandi** (vérification Windows
   d'US-24, 2026-11-11) : à 320 px avec texte ×1,5, l'étape Rythme écrit son libellé lettre par
   lettre à côté du menu « 1 page / jour » et déborde (412 px avant US-24, 124 px après en
