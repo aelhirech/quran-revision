@@ -552,8 +552,11 @@ KSU.
   l'ordre du mushaf ; une plage partielle a un seul carreau. Au-dessus de la grille, le nombre de
   sourates à risque d'oublier passe avant tout le reste, ou une phrase calme s'il n'y en a aucune.
   La forme et la couleur du carreau disent son niveau ; un carreau à risque devient une étoile
-  orange dans un anneau, quel que soit son niveau. Les carreaux font de 20 à 44 px : la grille tient
-  dans 240 px de haut quand c'est possible, sinon elle s'allonge plutôt que de rapetisser encore.
+  orange dans un anneau, quel que soit son niveau. Sous chaque carreau, le nom arabe de la sourate,
+  en entier, sur une ligne, dans la police coranique, en vert ; toute la cellule (forme et nom) se
+  touche. Les carreaux font de 20 à 44 px : la grille, noms compris, tient dans 240 px de haut quand
+  c'est possible, sinon elle s'allonge plutôt que de rapetisser encore ou de couper un nom, y
+  compris avec un texte agrandi.
   Sans sourate en révision, pas de mosaïque. Elle se met à jour au retour d'une série.
 - **Toucher un carreau** ouvre sa feuille : nom en français et en arabe, plage si elle est
   partielle, niveau (avec sa forme, même pour un carreau à risque), « Risque d'oublier » s'il y a
@@ -694,9 +697,10 @@ tour, ni de sa durée : l'app décide.
 - **Une couleur, un sens.** Les badges de date de révision du plan du jour sont
   neutres (texte secondaire, sans couleur) quel que soit le niveau. Seuls les carreaux de la
   mosaïque portent un sens par la couleur : les niveaux (quatre teintes froides du vert au bleu
-  nuit, un gris pour « pas encore jouée ») et le risque d'oublier (orange, qui lui est réservé),
-  définis une fois, en clair et en sombre.
-- **Formes de carreau** : pas encore jouée, petit losange ; niveau 1, losange ; 2, étoile à huit
+  nuit) et le risque d'oublier (orange, qui lui est réservé), définis une fois, en clair et en
+  sombre. « Pas encore jouée » est un contour doré, sans remplissage ni gris.
+- **Formes de carreau** : pas encore jouée, contour d'étoile à huit pointes, vide (une case qui
+  attend d'être remplie) ; niveau 1, losange ; 2, étoile à huit
   pointes ; 3, étoile évidée au centre ; 4, étoile à cœur doré ; risque d'oublier, étoile orange
   dans un anneau. La forme double la couleur : un niveau se lit sans distinguer les teintes.
 - **Lisibilité** : en clair comme en sombre, le texte atteint un contraste de 4,5:1 sur le fond et

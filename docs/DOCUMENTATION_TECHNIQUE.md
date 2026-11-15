@@ -948,16 +948,26 @@ extension sur son `State`, pour garder `series_screen.dart` sous le plafond de t
   (`withoutHizbSign`, §5.6).
 
 **Widgets de la mosaïque** (`lib/widgets/`, partagés avec le Récap, §8.4) :
-- **`MosaicTileShape({level, atRisk, size})`** : `CustomPainter`. Niveau 0 petit losange, 1 losange,
+- **`MosaicTileShape({level, atRisk, size})`** : `CustomPainter`. Niveau 0 contour d'étoile
+  (rayon `0.9·R`, trait `0.14·R`, `palette.goldDark`, sans remplissage, US-32), 1 losange,
   2 étoile à 8 pointes (rayon intérieur `R·cos(π/4)/cos(π/8)`), 3 étoile évidée (`evenOdd`),
-  4 étoile à cœur `palette.gold` ; couleur `palette.levelTints[level]`. À risque : anneau et
+  4 étoile à cœur `palette.gold` ; couleur `palette.levelTints[level]` pour 1 à 4
+  (`levelTints[0]` n'est plus dessinée, gardée pour la longueur que vérifie le test de contraste). À risque : anneau et
   étoile `palette.risk`, quel que soit le niveau.
 - **`Mosaic({tiles, onTap})`** : une `Card`, en tête la forme à risque et
-  `SReinforcement.aRisque(n)` (ou `aucuneARisque`), puis un `Wrap` de carreaux. Chaque carreau est
-  un `Semantics(button, label: « nom, niveau[, risque d'oublier] »)` autour d'un `InkWell`
-  circulaire. `mosaicTileSide({count, width})`, fonction pure : le plus grand côté de 44 à 21 px
-  tel que `mosaicGridHeight` tienne dans 240 px, sinon 20 px et la grille s'allonge (testée par
-  `test/widgets/mosaic_tile_side_test.dart`).
+  `SReinforcement.aRisque(n)` (ou `aucuneARisque`), puis un `Wrap` de cellules. Chaque cellule est
+  un `Semantics(button, label: « nom français, niveau[, risque d'oublier] »)` autour d'un `InkWell`
+  à bord arrondi, qui contient la forme puis `Sourate.nameAr` (Amiri 12, hauteur 1,4,
+  `palette.primary`, une ligne, `softWrap: false`). Toutes les cellules ont la même largeur :
+  max(côté, nom affiché le plus large + 4 px), mesurée par `TextPainter` sur les noms de la grille
+  avec `MediaQuery.textScalerOf`. `mosaicLayout({count, width, nameSize})`, fonction pure, renvoie
+  `(side, cellWidth)` : le plus grand côté de 44 à 21 px tel que `mosaicGridHeight` (rangée = côté
+  + 2 + hauteur du nom, colonnes = ⌊(largeur + 6)/(cellule + 6)⌋) tienne dans 240 px, sinon 20 px
+  et la grille s'allonge (113 sourates : 849 px à 375 px, 2008 px à 320 px ×1,5). Piège : Amiri se
+  charge en asynchrone au premier affichage (`main.dart` ne la précharge pas) ; la grille écoute
+  `PaintingBinding.instance.systemFonts` pour remesurer les noms une fois la police arrivée, sinon
+  les cellules restent calculées sur la police de repli. Testé par
+  `test/widgets/mosaic_tile_side_test.dart` et `mosaic_font_load_test.dart`.
 - **`MosaicTileSheet.show(context, tile, sourate, {onStartSeries})`** : feuille modale avec
   `DraggableHandle`. Nom FR et AR, `S.blocRange` si la plage est partielle, la forme du niveau
   (toujours `atRisk: false` : le carreau orange la cache, c'est ici qu'elle se lit),
@@ -1031,7 +1041,8 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 - **US-21 Sprint A** : `test/core/quiz_levels_test.dart` (repli des niveaux, `changes`), `test/core/mosaic_test.dart` (seuil de 90 jours, tour plus long, jamais révisée, plage partielle, plages fusionnées), `test/services/quiz_answers_test.dart` (ordre, dernière réponse qui décide, riwayas et types séparés, aucune requête de révision touchée), `ayah_facts_migration_v5_test.dart` ; tests 19 à 25 de `reinforcement_engine_test.dart` (mauvais choix par niveau, retours, sourates à risque) et 10 bis de `reinforcement_words_test.dart`.
 - **`test/core/reinforcement_words_test.dart`** (US-22 Sprint C, 14 tests, vrai texte Hafs et vrais sens, `Random` à graine fixe) : mot posé d'au moins 3 lettres, 2 à 4 choix, mots arabes et sens tous différents, aucun sens voisin du bon, mot retrouvé à sa place dans le passage, verset sans un sens par mot jamais interrogé (37:130), les deux sens de question, mots non reposés d'une série à l'autre, part du plan du jour, série sur une sourate (mauvais choix de la sourate d'abord, d'ailleurs ensuite, plan du jour ignoré), série mêlée à 5 et 5 et ses deux replis. Ses règles sur les sens sont réécrites dans le test, pas empruntées au moteur. Depuis le sprint 19 (15 tests) : le mot du passage est le mot posé, ou ce mot précédé de « ۞ » et de l'espace insécable, rien d'autre ; et sur la sourate 100 seule, aucun choix ne contient « ۞ » alors que le premier mot de 100:9 est bien proposé.
 - **`test/core/app_palette_contrast_test.dart`** (US-25 Sprint A, 15 tests, Dart pur sur les deux palettes) : contraste WCAG écrit en clair dans le test (pas `computeLuminance`), un jeton translucide composé sur son fond d'abord. Texte (`textPrimary`, `textMuted`, `primary`, `danger`, `goldDark`, `onSurfaceVariant`) à 4,5:1, `risk` et les 5 `levelTints` à 3:1, chacun sur le fond **et** sur la carte (`surfaceCard` composée sur `cream` par `Color.alphaBlend`), clair et sombre ; plus `buildAppTheme` qui porte Outfit sur les sept rôles du `textTheme`.
-- **`test/widgets/mosaic_tile_side_test.dart`** (US-21 Sprint B) : Dart pur, `mosaicTileSide` : 1 carreau → 44 px ; 20 carreaux tiennent dans 240 px ; 114 carreaux sur un téléphone → 20 px et la grille s'allonge ; propriété sur 1 à 114 carreaux × trois largeurs : côté entre 20 et 44, la grille tient au-dessus de 20, et un pixel de plus ne tiendrait pas sous 44. Les formes, la feuille et l'onglet sont vérifiés sous Windows, sans test automatisé.
+- **`test/widgets/mosaic_tile_side_test.dart`** (US-21 Sprint B, US-32 Sprint A) : `mosaicLayout` en Dart pur, avec un nom de 40 px (le plus large mesuré à ×1) : 1 carreau → 44 px ; 20 carreaux tiennent dans 240 px ; 113 carreaux sur un téléphone → 20 px et la grille s'allonge ; la cellule prend la largeur du nom qui dépasse le carreau ; un nom plus large fait une grille plus haute ; propriété sur 1 à 113 carreaux × trois largeurs. Puis sur la vraie police Amiri, à 320 px, ×1 et ×1,5 : les trois noms les plus longs tiennent sur une ligne (`expectOneLine`, partagé avec `text_scale_fit_test`), 113 sourates sans débordement. Une cellule réduite au carreau fait échouer le cas ×1,5.
+- **`test/widgets/mosaic_font_load_test.dart`** (US-32 Sprint A) : piège de cycle de vie, seul dans son fichier (Amiri doit être absente au premier affichage) : la largeur des cellules se recalcule quand la police finit de charger. Retirer l'écoute de `systemFonts` fait échouer le test.
 - **`test/widgets/text_scale_fit_test.dart`** (US-31 Sprint A) : invariant de mise en page à 320×568, texte ×1,5, vraies polices Outfit (`FontLoader`) : aucun débordement, et les libellés des boutons et de la pastille à trois chiffres tiennent sur une ligne (largeur après mise en page ≥ largeur naturelle). Plus `S.blocRange` en Dart pur. Depuis le Sprint C : `VerseRangeSlider` aux bornes 282-283 et le `VerseRangePicker` entier sur une sourate de 286 versets. Depuis le Sprint D, en français et en anglais : aucun mot coupé (largeur de chaque mot, séparé aux espaces ordinaires, ≤ largeur du paragraphe) dans les 8 titres de fenêtre ouverts par `showDialog` sous `buildAppTheme`, ni dans les 4 libellés d'une `NavigationBar`. La liste des titres est tenue à la main : un nouveau titre de fenêtre s'y ajoute.
 - **`test/widgets/bundled_fonts_test.dart`** (sprint 34) : avec `allowRuntimeFetching = false`, `GoogleFonts.pendingFonts([amiri(), scheherazadeNew()])` se termine. Échoue si un fichier de `assets/fonts/` manque, est renommé ou n'est plus déclaré sous `assets:` (vérifié en retirant la ligne Scheherazade du `pubspec.yaml`).
 - **`test/widgets/verse_list_offset_test.dart`** (US-31 Sprint C, 1 test sur Android et iOS) : un `CustomScrollView` de 300 éléments avec `keepOffsetPhysics()`, défilé à 2000 px puis reconstruit à 10 éléments, garde 2000 après `pumpAndSettle` ; un glissé le ramène à `maxScrollExtent`. Chaque surcharge, retirée seule, fait échouer le test. `verse_bottom_sheet_test.dart` vérifie que la feuille porte bien cette physique.

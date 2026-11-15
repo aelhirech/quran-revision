@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
 
-/// A mosaic tile: its shape and tint say the Quiz level (0 = not played yet,
-/// up to 4). A tile at risk of being forgotten shows the orange star in a
+/// A mosaic tile: its shape and tint say the Quiz level, from 0 (not played
+/// yet, an empty star outline) to 4. A tile at risk of being forgotten shows the orange star in a
 /// ring instead, whatever its level (choice of 2026-11-08).
 class MosaicTileShape extends StatelessWidget {
   final int level;
@@ -49,22 +49,19 @@ class _TilePainter extends CustomPainter {
 
     if (atRisk) {
       fill.color = palette.risk;
-      canvas.drawCircle(
-        center,
-        radius * 0.92,
-        Paint()
-          ..color = palette.risk
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = radius * 0.14,
-      );
+      canvas.drawCircle(center, radius * 0.92, _stroke(palette.risk, radius));
       canvas.drawPath(_star(center, radius * 0.62), fill);
       return;
     }
 
     fill.color = palette.levelTints[level];
     switch (level) {
+      // An empty star waiting to be filled (US-32): levelTints[0] is unused.
       case 0:
-        canvas.drawPath(_diamond(center, radius * 0.5), fill);
+        canvas.drawPath(
+          _star(center, radius * 0.9),
+          _stroke(palette.goldDark, radius),
+        );
       case 1:
         canvas.drawPath(_diamond(center, radius), fill);
       case 2:
@@ -79,6 +76,11 @@ class _TilePainter extends CustomPainter {
         canvas.drawCircle(center, radius * 0.34, Paint()..color = palette.gold);
     }
   }
+
+  Paint _stroke(Color color, double radius) => Paint()
+    ..color = color
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = radius * 0.14;
 
   Path _diamond(Offset center, double radius) => Path()
     ..moveTo(center.dx, center.dy - radius)

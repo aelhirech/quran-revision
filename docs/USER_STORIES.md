@@ -55,6 +55,108 @@ l'exploration). Les maquettes sont antérieures à ce blueprint : là où elles 
   voir `docs/SPEC_PRODUIT.md` § Récap), puis US-24 (livrée, voir `docs/SPEC_PRODUIT.md` § Les mots de
   l'app), et US-26 (livrée, voir `docs/SPEC_PRODUIT.md` § Règle du plan quotidien).
 
+### US-32 — Une mosaïque qui donne envie : toutes mes sourates, nommées, celle que j'apprends comprise (extension d'US-21/US-23)
+
+**État** : Sprint A livré (crit. 3 et 4, fondus dans `docs/SPEC_PRODUIT.md` § Quiz et § Registre
+visuel) ; reste le Sprint B (crit. 1, 2 et 5) — blueprint et scoping du 2026-11-15. Rattachée à l'epic Zellige (mosaïque du Quiz et du
+Récap).
+
+**Statement** : En tant qu'utilisateur qui ouvre le Récap ou le Quiz, je veux voir dans une seule
+mosaïque belle et nommée toutes les sourates qui m'occupent, y compris celle que j'apprends, afin
+de reconnaître chaque carreau d'un coup d'œil et d'avoir envie de remplir ceux qui restent vides.
+
+**Diagnostic (état actuel)** : la sourate en cours d'apprentissage vit au Récap dans une liste à
+part, sous la grille, comme si elle n'appartenait pas au même ensemble. Les carreaux n'ont pas de
+nom : il faut toucher un carreau pour savoir de quelle sourate il s'agit. La forme d'une sourate
+« pas encore jouée » (petit losange gris) est terne et n'invite pas à jouer.
+
+**Décisions de l'utilisateur (2026-11-15)** :
+- Le nom et la nouvelle forme de base s'appliquent **aux deux onglets** (une seule mosaïque). La
+  sourate en cours n'entre **qu'au Récap** : le Quiz montre ce que l'utilisateur connaît déjà.
+- Le carreau d'une sourate en cours **se construit** : il se remplit à mesure des versets appris
+  (contre une forme dédiée avec badge, ou la même forme avec une marque).
+- Le nom est le **nom arabe calligraphié**, dans la police coranique (contre le nom français seul,
+  ou les deux).
+- La forme de base devient un **contour d'étoile à remplir**, une case qui attend (contre une
+  rosace pâle ou un losange recoloré).
+
+**Critères d'acceptation** :
+1. Given une sourate en cours d'apprentissage, When j'ouvre le Récap, Then elle a son carreau dans
+   la mosaïque, à sa place dans l'ordre du mushaf, et aucune liste « En cours d'apprentissage »
+   n'apparaît plus à part. Son carreau est rempli à proportion des versets appris (rien appris =
+   presque vide, presque tout appris = presque plein) et ne passe jamais en orange. Au Quiz, la
+   mosaïque reste sans sourate en cours.
+2. Given ce carreau, When je le touche, Then sa feuille montre le nom, les versets appris sur le
+   total et un moyen d'abandonner l'apprentissage, après confirmation. C'est ce qui remplace le
+   glissé de l'ancienne ligne. Rien d'autre ne permet plus d'abandonner depuis le Récap.
+5. Given beaucoup de sourates, When j'ouvre le Récap, Then le nombre de sourates à risque
+   d'oublier (ou la phrase calme) reste au-dessus de la grille. Le test des 3 secondes tient
+   toujours : l'orange reste le seul signal chaud, et les noms et le carreau qui se construit
+   restent au calme.
+
+**Exclusions explicites** :
+- Pas de nom français sous les carreaux. Il reste dans la feuille du carreau.
+- Pas de carreau de sourate en cours au Quiz, et aucune question nouvelle sur une sourate en
+  cours.
+- Pas de « Voir le texte » ajouté pour une sourate en cours. Son texte s'ouvre toujours depuis la
+  carte d'apprentissage du plan du jour (règle actuelle, non rediscutée ici).
+- Les formes des niveaux 1 à 4 et du risque d'oublier ne changent pas. Seule la forme « pas encore
+  jouée » est remplacée.
+- La question ouverte au Backlog « Mosaïque d'une grande sélection sur un petit écran » (replier
+  la grille au-delà d'un seuil ?) n'est pas tranchée ici, mais les noms l'aggravent. Le scoping
+  doit mesurer la nouvelle hauteur de la grille avec 113 sourates et le dire.
+- **À confirmer au scoping** : une sourate à la fois en révision (plage partielle) et en cours
+  d'élargissement garde **un seul carreau**, montré en construction au Récap. Sa feuille montre
+  alors le niveau et les versets appris.
+
+**Scoping technique** (2026-11-15) :
+- **Fichiers UI** : `lib/widgets/mosaic.dart` (124 lignes), `lib/widgets/mosaic_tile_shape.dart`
+  (109), `lib/widgets/mosaic_tile_sheet.dart` (154), `lib/screens/recap_screen.dart` (215, perd la
+  liste). `lib/screens/reinforcement/reinforcement_tab.dart` (324) n'est pas touché : l'API de
+  `Mosaic` ne change pas. `lib/widgets/learning_progress_card.dart` est supprimé (Sprint B).
+- **Variables / champs** : `MosaicTile` gagne `learnedCount`, `learnedTotal`, `learningFraction`,
+  `isLearningOnly`. `AppState.mosaicTiles({bool withLearning = false})`. `S.enCoursDApprentissage`
+  est supprimé. Aucune clé `SharedPreferences`.
+- **`ayah_facts`** : aucune requête nouvelle. Réutilise `AppState.learningProgressList()`
+  (`AyahFactsLearning.loadMainLearningProgress`, deux requêtes groupées, sourates démarrées à
+  `reach=0` comprises) et `abandonLearning` (`deleteLearnFacts`).
+- **Décision data model** : tout se calcule à partir d'`ayah_facts` par une requête qui existe
+  déjà, sans nouvelle table ni nouvelle config.
+- **Réutilisation** : `Sourate.nameAr` (`lib/core/quran_data.dart`), Amiri déjà embarquée, `_star`
+  du painter, `AppPalette` sans nouveau champ (`primary` pour les noms, `goldDark` pour le
+  contour, `gold` pour le remplissage). La feuille réutilise `MosaicTileSheet`. La confirmation
+  réutilise `confirmDialog` et `S.supprimerApprentissage(De)`. Le décompte réutilise `S.versetsAppris`.
+- **Risques / dépendances** : Quiz et Récap partagent le widget, donc une régression se voit dans
+  les deux. Avec les noms, 113 sourates donnent une grille d'environ 1030 px à 375 px (×1), contre
+  254 px aujourd'hui. À ×1,5, elle fait environ 2010 px. Ces hauteurs viennent d'une largeur
+  d'Amiri estimée et sont à confirmer sous Windows. Choix de l'utilisateur du 2026-11-15 : on
+  accepte, et l'idée « Mosaïque d'une grande sélection sur un petit écran » reste ouverte. Le
+  Sprint B dépend du Sprint A, car il réutilise le contour d'étoile.
+- **Tests** : Dart pur pour `Mosaic.build` avec la liste des sourates en cours, la fraction de
+  remplissage et la largeur des cellules. Test de largeur sur les vraies polices pour les noms
+  longs. Les formes, la feuille, le clair, le sombre et le ×1,5 se vérifient à l'œil sous Windows.
+- **Item Backlog** : « US-32 Sprint A — Noms arabes sous les carreaux et contour d'étoile pour
+  « pas encore jouée » » et « US-32 Sprint B — La sourate en cours dans la mosaïque du Récap ».
+
+**Ajustement au scoping** (2026-11-15). Crit. 1 précisé, sens inchangé :
+- Une sourate en cours hors de la sélection prend sa place dans l'ordre du mushaf.
+- Une sourate à la fois révisée en partie et en cours garde un seul carreau, en construction. Ce
+  carreau ne passe jamais en orange, même si sa partie révisée est à risque d'oublier. Ce risque
+  reste visible au Quiz et revient au Récap une fois la sourate apprise en entier.
+- Le remplissage est borné entre 12 % et 88 %. Une sourate démarrée sans verset appris se
+  distingue ainsi d'une sourate « pas encore jouée ».
+
+Validé par l'utilisateur : oui pour le risque caché, le 2026-11-15. Le plancher et le plafond
+traduisent « presque vide » et « presque plein ».
+
+**Ajustement au scoping** (2026-11-15). Crit. 2 précisé, sens inchangé :
+- Sourate à la fois révisée et en cours : la feuille garde aussi le niveau, la dernière révision
+  et « Voir le texte » de la plage révisée.
+- Sourate seulement en cours : la feuille n'affiche aucun de ces trois éléments.
+- Abandonner ne supprime que les lignes `learn`, jamais la sélection.
+
+Validé par l'utilisateur : non, c'est une conséquence directe du crit. 1 et des exclusions.
+
 ## Écartées
 
 - **Calendrier d'activité au Récap** (Idée produit « Calendrier d'activité (heatmap) », alias
