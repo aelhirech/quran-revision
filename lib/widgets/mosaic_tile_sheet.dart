@@ -15,14 +15,16 @@ import 'outlined_action_button.dart';
 import 'primary_cta_button.dart';
 import 'verse_bottom_sheet.dart';
 
-/// What a tile holds: name, level, last revision, and the way to its text
-/// or to a series on it (US-21 crit. 6).
+/// What a tile holds: name, level, last revision, verses learned, and the
+/// way to its text, to a series on it or to abandoning its learning (US-21
+/// crit. 6, US-32 crit. 2).
 class MosaicTileSheet extends StatelessWidget {
   final MosaicTile tile;
   final Sourate sourate;
   final String lastRevision;
   final VoidCallback onSeeText;
   final VoidCallback? onStartSeries;
+  final VoidCallback? onAbandon;
 
   const MosaicTileSheet({
     super.key,
@@ -31,15 +33,17 @@ class MosaicTileSheet extends StatelessWidget {
     required this.lastRevision,
     required this.onSeeText,
     this.onStartSeries,
+    this.onAbandon,
   });
 
-  /// [onStartSeries] is shown only when given: a surah that offers no
-  /// question gets no button that would lead nowhere.
+  /// [onStartSeries] and [onAbandon] are shown only when given: a surah that
+  /// offers no question gets no button that would lead nowhere.
   static Future<void> show(
     BuildContext context,
     MosaicTile tile,
     Sourate sourate, {
     VoidCallback? onStartSeries,
+    VoidCallback? onAbandon,
   }) {
     final freshness = context.read<AppState>().freshnessFor(
       tile.surahId,
@@ -68,6 +72,12 @@ class MosaicTileSheet extends StatelessWidget {
             : () {
                 Navigator.pop(sheetContext);
                 onStartSeries();
+              },
+        onAbandon: onAbandon == null
+            ? null
+            : () {
+                Navigator.pop(sheetContext);
+                onAbandon();
               },
       ),
     );
@@ -99,56 +109,87 @@ class MosaicTileSheet extends StatelessWidget {
               const SizedBox(height: 2),
               Text(S.blocRange(tile.verseStart, tile.verseEnd), style: muted),
             ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                // The level's own shape, even at risk: the tile's orange
-                // star hides it, the sheet is where it is read.
-                MosaicTileShape(level: tile.level, atRisk: false, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    SReinforcement.niveau(tile.level),
-                    style: AppText.body,
-                  ),
-                ),
-              ],
-            ),
-            if (tile.atRisk) ...[
-              const SizedBox(height: 10),
+            if (tile.learning case final learning?) ...[
+              const SizedBox(height: 16),
               Row(
                 children: [
-                  const MosaicTileShape(level: 0, atRisk: true, size: 28),
+                  MosaicTileShape(
+                    level: tile.level,
+                    atRisk: false,
+                    size: 28,
+                    learningFraction: tile.learningFraction,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      SReinforcement.risqueOublier,
+                      S.versetsAppris(
+                        learning.learnedCount,
+                        learning.totalVerses,
+                      ),
                       style: AppText.body,
                     ),
                   ),
                 ],
               ),
             ],
-            const SizedBox(height: 14),
-            Text(SReinforcement.derniereRevision, style: muted),
-            const SizedBox(height: 2),
-            Text(lastRevision, style: AppText.body),
-            const SizedBox(height: 20),
-            if (onStartSeries != null) ...[
-              PrimaryCtaButton(
-                label: SReinforcement.lancerSerieSur,
-                onPressed: onStartSeries,
-              ),
+            if (!tile.isLearningOnly) ..._revised(muted),
+            if (onAbandon != null) ...[
               const SizedBox(height: 10),
+              TextButton.icon(
+                onPressed: onAbandon,
+                icon: const Icon(Icons.delete_outline),
+                label: Text(S.supprimerApprentissage),
+                style: TextButton.styleFrom(foregroundColor: palette.danger),
+              ),
             ],
-            OutlinedActionButton(
-              icon: Icons.menu_book_outlined,
-              label: S.voirLeTexte,
-              onTap: onSeeText,
-            ),
           ],
         ),
       ),
     );
   }
+
+  // What the revised range holds: level, risk, last revision, text, series.
+  List<Widget> _revised(TextStyle muted) => [
+    const SizedBox(height: 16),
+    Row(
+      children: [
+        // The level's own shape, even at risk: the tile's orange
+        // star hides it, the sheet is where it is read.
+        MosaicTileShape(level: tile.level, atRisk: false, size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(SReinforcement.niveau(tile.level), style: AppText.body),
+        ),
+      ],
+    ),
+    if (tile.atRisk) ...[
+      const SizedBox(height: 10),
+      Row(
+        children: [
+          const MosaicTileShape(level: 0, atRisk: true, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(SReinforcement.risqueOublier, style: AppText.body),
+          ),
+        ],
+      ),
+    ],
+    const SizedBox(height: 14),
+    Text(SReinforcement.derniereRevision, style: muted),
+    const SizedBox(height: 2),
+    Text(lastRevision, style: AppText.body),
+    const SizedBox(height: 20),
+    if (onStartSeries != null) ...[
+      PrimaryCtaButton(
+        label: SReinforcement.lancerSerieSur,
+        onPressed: onStartSeries,
+      ),
+      const SizedBox(height: 10),
+    ],
+    OutlinedActionButton(
+      icon: Icons.menu_book_outlined,
+      label: S.voirLeTexte,
+      onTap: onSeeText,
+    ),
+  ];
 }

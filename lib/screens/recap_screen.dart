@@ -4,19 +4,18 @@ import '../core/app_colors.dart';
 import '../core/app_theme.dart';
 import '../core/mosaic.dart' show MosaicTile, atRiskOldestFirst;
 import '../core/strings.dart';
-import '../models/learning_progress.dart';
+import '../models/sourate.dart';
 import '../state/app_state.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/freshness_badge.dart';
 import '../widgets/guide_step.dart';
-import '../widgets/learning_progress_card.dart';
 import '../widgets/mosaic.dart';
 import '../widgets/mosaic_tile_sheet.dart';
 import '../widgets/mosaic_tile_shape.dart';
 import '../widgets/ornamental_divider.dart';
 
-/// What holds and what risks being forgotten (US-23): the mosaic, the surahs
-/// at risk, the surahs being learned. Nothing else.
+/// What holds and what risks being forgotten (US-23): the mosaic, surahs
+/// being learned included (US-32), and the surahs at risk. Nothing else.
 class RecapScreen extends StatefulWidget {
   /// The shell keeps every tab mounted: reloads wait until this one shows.
   final bool shown;
@@ -29,7 +28,6 @@ class RecapScreen extends StatefulWidget {
 
 class _RecapScreenState extends State<RecapScreen> {
   List<MosaicTile>? _tiles;
-  List<LearningProgress> _learning = const [];
   // A newer load makes an older one's result stale.
   int _generation = 0;
   late final AppState _state;
@@ -60,35 +58,39 @@ class _RecapScreenState extends State<RecapScreen> {
 
   Future<void> _load() async {
     final generation = ++_generation;
-    final (tiles, learning) =
-        await (_state.mosaicTiles(), _state.learningProgressList()).wait;
+    final tiles = await _state.mosaicTiles(withLearning: true);
     if (!mounted || generation != _generation) return;
-    setState(() {
-      _tiles = tiles;
-      _learning = learning.where((p) => !p.isComplete).toList();
-    });
+    setState(() => _tiles = tiles);
   }
 
   Future<void> _openTile(MosaicTile tile) async {
     // A riwaya switch can drop the surah before the tiles reload.
     final sourate = _state.sourateById(tile.surahId);
     if (sourate == null) return;
-    // No series from here: the Recap looks back, the Quiz tab plays.
-    await MosaicTileSheet.show(context, tile, sourate);
+    // No series from here: the Recap looks back, the Quiz tab plays. The
+    // sheet is the only way to abandon a learning from here (US-32 crit. 2).
+    await MosaicTileSheet.show(
+      context,
+      tile,
+      sourate,
+      onAbandon: tile.learning == null
+          ? null
+          : () => _deleteLearning(sourate),
+    );
   }
 
   // Tracking only (US-12): verses are credited or withdrawn at check-out,
   // never from here.
-  Future<void> _deleteLearning(LearningProgress p) async {
+  Future<void> _deleteLearning(Sourate sourate) async {
     final confirmed = await confirmDialog(
       context,
       title: S.supprimerApprentissage,
-      message: S.supprimerApprentissageDe(p.sourate.nameFr),
+      message: S.supprimerApprentissageDe(sourate.nameFr),
       confirmLabel: S.supprimer,
       danger: true,
     );
     if (!mounted || !confirmed) return;
-    await _state.abandonLearning(p.sourate.id);
+    await _state.abandonLearning(sourate.id);
   }
 
   @override
@@ -142,17 +144,15 @@ class _RecapScreenState extends State<RecapScreen> {
 
   List<Widget> _sections(List<MosaicTile> tiles) {
     final atRisk = atRiskOldestFirst(tiles);
-    if (tiles.isEmpty && _learning.isEmpty) {
+    if (tiles.isEmpty) {
       return [
         Text(S.recapVide,
             style: AppText.body.copyWith(color: context.palette.textMuted)),
       ];
     }
     return [
-      if (tiles.isNotEmpty) ...[
-        Mosaic(tiles: tiles, onTap: _openTile),
-        const SizedBox(height: 24),
-      ],
+      Mosaic(tiles: tiles, onTap: _openTile),
+      const SizedBox(height: 24),
       if (atRisk.isNotEmpty) ...[
         _sectionTitle(SReinforcement.risqueOublier),
         Card(
@@ -161,14 +161,6 @@ class _RecapScreenState extends State<RecapScreen> {
           ),
         ),
         const SizedBox(height: 24),
-      ],
-      if (_learning.isNotEmpty) ...[
-        _sectionTitle(S.enCoursDApprentissage),
-        for (final p in _learning)
-          LearningProgressCard(
-            progress: p,
-            onDismiss: () => _deleteLearning(p),
-          ),
       ],
     ];
   }

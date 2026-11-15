@@ -6,17 +6,21 @@ import '../core/app_colors.dart';
 
 /// A mosaic tile: its shape and tint say the Quiz level, from 0 (not played
 /// yet, an empty star outline) to 4. A tile at risk of being forgotten shows the orange star in a
-/// ring instead, whatever its level (choice of 2026-11-08).
+/// ring instead, whatever its level (choice of 2026-11-08). A surah being
+/// learned shows a gold star outline filled from the bottom up to
+/// [learningFraction] (US-32), never the orange star.
 class MosaicTileShape extends StatelessWidget {
   final int level;
   final bool atRisk;
   final double size;
+  final double? learningFraction;
 
   const MosaicTileShape({
     super.key,
     required this.level,
     required this.atRisk,
     required this.size,
+    this.learningFraction,
   });
 
   @override
@@ -25,6 +29,7 @@ class MosaicTileShape extends StatelessWidget {
     painter: _TilePainter(
       level: level,
       atRisk: atRisk,
+      learningFraction: learningFraction,
       palette: context.palette,
     ),
   );
@@ -33,11 +38,13 @@ class MosaicTileShape extends StatelessWidget {
 class _TilePainter extends CustomPainter {
   final int level;
   final bool atRisk;
+  final double? learningFraction;
   final AppPalette palette;
 
   const _TilePainter({
     required this.level,
     required this.atRisk,
+    required this.learningFraction,
     required this.palette,
   });
 
@@ -46,6 +53,28 @@ class _TilePainter extends CustomPainter {
     final center = size.center(Offset.zero);
     final radius = size.shortestSide / 2 * 0.95;
     final fill = Paint();
+
+    final fraction = learningFraction;
+    if (fraction != null) {
+      final starRadius = radius * 0.9;
+      final star = _star(center, starRadius);
+      // The fraction runs over the star's own height, not the canvas: the
+      // bounds would otherwise fall outside the star and both ends look alike.
+      final bottom = center.dy + starRadius;
+      canvas.save();
+      canvas.clipRect(
+        Rect.fromLTRB(
+          0,
+          bottom - 2 * starRadius * fraction,
+          size.width,
+          size.height,
+        ),
+      );
+      canvas.drawPath(star, fill..color = palette.gold);
+      canvas.restore();
+      canvas.drawPath(star, _stroke(palette.gold, radius));
+      return;
+    }
 
     if (atRisk) {
       fill.color = palette.risk;
@@ -107,5 +136,8 @@ class _TilePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_TilePainter old) =>
-      old.level != level || old.atRisk != atRisk || old.palette != palette;
+      old.level != level ||
+      old.atRisk != atRisk ||
+      old.learningFraction != learningFraction ||
+      old.palette != palette;
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quran_revision/core/mosaic.dart';
+import 'package:quran_revision/models/learning_progress.dart';
 import 'package:quran_revision/models/sourate_selection.dart';
 
 import '../services/test_helpers.dart';
@@ -16,6 +17,7 @@ void main() {
     Map<int, Map<int, DateTime>> revisions = const {},
     Map<int, int> levels = const {},
     int? tourDays,
+    List<LearningProgress> learning = const [],
   }) =>
       Mosaic.build(
         selections: selections,
@@ -23,6 +25,14 @@ void main() {
         lastRevisionByAyah: revisions,
         today: today,
         tourDays: tourDays,
+        learning: learning,
+      );
+
+  LearningProgress learning(int id, int learned, {int verses = 10}) =>
+      LearningProgress(
+        sourate: testSourate(id, verses: verses),
+        learnedVerses: {for (var v = 1; v <= learned; v++) v},
+        startDate: today,
       );
 
   test('un carreau par sourate sélectionnée, dans l\'ordre du mushaf', () {
@@ -95,5 +105,67 @@ void main() {
     expect(tiles, hasLength(1));
     expect((tiles.single.verseStart, tiles.single.verseEnd), (2, 15));
     expect(tiles.single.daysSinceRevision, 10);
+  });
+
+  group('US-32 : sourate en cours', () {
+    test('seulement en cours : à sa place, plage entière, niveau 0, sans risque',
+        () {
+      final tiles = build([whole(2), whole(67)],
+          learning: [learning(36, 3, verses: 83)]);
+      expect(tiles.map((t) => t.surahId), [2, 36, 67]);
+      final tile = tiles[1];
+      expect((tile.verseStart, tile.verseEnd), (1, 83));
+      expect(tile.level, 0);
+      expect(tile.atRisk, isFalse);
+      expect(tile.daysSinceRevision, isNull);
+      expect(tile.isLearningOnly, isTrue);
+      expect((tile.learning!.learnedCount, tile.learning!.totalVerses), (3, 83));
+    });
+
+    test('sélectionnée et en cours : un seul carreau, niveau et plage gardés, '
+        'sans risque', () {
+      final partial = SourateSelection(
+          sourate: testSourate(1, verses: 10), verseStart: 1, verseEnd: 4);
+      final tile = build([partial],
+          levels: {1: 2},
+          revisions: {
+            1: {1: daysAgo(200)},
+          },
+          learning: [learning(1, 4)]).single;
+      expect((tile.verseStart, tile.verseEnd), (1, 4));
+      expect(tile.level, 2);
+      expect(tile.daysSinceRevision, 200);
+      expect(tile.atRisk, isFalse);
+      expect(tile.isLearningOnly, isFalse);
+      expect(tile.learning!.learnedCount, 4);
+    });
+
+    test('une sourate complète est ignorée', () {
+      final tiles = build([whole(2)], learning: [learning(36, 10)]);
+      expect(tiles.map((t) => t.surahId), [2]);
+      expect(tiles.single.learning, isNull);
+    });
+
+    test('remplissage borné entre 12 % et 88 %, proportionnel entre les deux',
+        () {
+      double fraction(int learned) =>
+          build([], learning: [learning(1, learned)]).single.learningFraction!;
+      expect(fraction(0), 0.12);
+      expect(fraction(9), 0.88);
+      expect(fraction(5), 0.5);
+      expect(build([whole(1)]).single.learningFraction, isNull);
+    });
+
+    test('sans apprentissage, le résultat est identique', () {
+      final revisions = {
+        1: {1: daysAgo(100)},
+      };
+      final tile = build([whole(1)], revisions: revisions, levels: {1: 3}).single;
+      expect(
+        (tile.level, tile.atRisk, tile.daysSinceRevision, tile.learning,
+            tile.isLearningOnly),
+        (3, true, 100, null, false),
+      );
+    });
   });
 }

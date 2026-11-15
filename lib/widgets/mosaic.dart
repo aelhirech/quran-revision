@@ -181,8 +181,10 @@ class Mosaic extends StatelessWidget {
       button: true,
       label: [
         sourate?.nameFr ?? '',
-        level,
+        if (!tile.isLearningOnly) level,
         if (tile.atRisk) SReinforcement.risqueOublier,
+        if (tile.learning case final learning?)
+          S.versetsAppris(learning.learnedCount, learning.totalVerses),
       ].join(', '),
       excludeSemantics: true,
       child: InkWell(
@@ -199,6 +201,7 @@ class Mosaic extends StatelessWidget {
                 level: tile.level,
                 atRisk: tile.atRisk,
                 size: side,
+                learningFraction: tile.learningFraction,
               ),
               const SizedBox(height: _nameGap),
               Text(
