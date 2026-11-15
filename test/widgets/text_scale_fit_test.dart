@@ -54,15 +54,6 @@ void main() {
     await tester.pump();
   }
 
-  // A label squeezed into a fixed box wraps or clips without any overflow
-  // error: laid out narrower than its natural width means it broke a line.
-  void expectOneLine(WidgetTester tester, String text) {
-    final paragraph = tester.renderObject<RenderParagraph>(find.text(text));
-    expect(paragraph.size.width,
-        greaterThanOrEqualTo(paragraph.getMaxIntrinsicWidth(double.infinity) - 0.01),
-        reason: '"$text" is broken over several lines');
-  }
-
   // A text may wrap, but only at a space: a word wider than its paragraph
   // gets cut mid-word without any error.
   void expectNoWordCut(WidgetTester tester, String text) {

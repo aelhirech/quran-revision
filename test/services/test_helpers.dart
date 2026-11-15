@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/rendering.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:quran_revision/models/revision_unit.dart';
@@ -64,3 +66,16 @@ Map<int, Set<int>> wholeSurahs(int from, int to, Map<int, int> verseCounts) => {
       for (var id = from; id <= to; id++)
         id: {for (var v = 1; v <= verseCounts[id]!; v++) v},
     };
+
+/// A label squeezed into a fixed box wraps or clips without any overflow
+/// error: laid out narrower than its natural width means it broke a line.
+void expectOneLine(WidgetTester tester, String text) {
+  final paragraph = tester.renderObject<RenderParagraph>(find.text(text));
+  expect(
+    paragraph.size.width,
+    greaterThanOrEqualTo(
+      paragraph.getMaxIntrinsicWidth(double.infinity) - 0.01,
+    ),
+    reason: '"$text" is broken over several lines or cut',
+  );
+}

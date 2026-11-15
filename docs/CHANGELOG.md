@@ -8,6 +8,62 @@
 
 Dette réelle et gaps prêts à l'implémentation — priorité qui reflète le risque/l'effort, pas l'enthousiasme produit. P1 = risque de correction (données/comportement), P2 = gap concret ou nettoyage rapide, P3 = différé délibérément (aucun bug connu) ou pure polish. Les idées produit non scopées vivent dans la section « Idées produit » plus bas, pas ici.
 
+### [P2] US-32 Sprint B — La sourate en cours dans la mosaïque du Récap
+Le Sprint A est livré (noms arabes sous les carreaux, contour d'étoile du niveau 0, déjà dans
+`docs/SPEC_PRODUIT.md`). Ce sprint réutilise le contour d'étoile et les cellules nommées. Le Récap
+n'a plus de liste « En cours d'apprentissage ».
+- **`lib/core/mosaic.dart`** :
+  - `MosaicTile` gagne `learnedCount` (int?) et `learnedTotal` (int?), nuls hors apprentissage.
+  - Getter `learningFraction` : `clamp(learnedCount/learnedTotal, 0.12, 0.88)`, nul hors apprentissage.
+  - Getter `isLearningOnly` : vrai si la sourate est en cours sans être dans la sélection.
+  - `Mosaic.build` reçoit `List<LearningProgress> learning = const []` et ignore les entrées `isComplete`. Il réunit les id des sélections et des sourates en cours, triés dans l'ordre du mushaf.
+  - Sourate seulement en cours : plage 1..verses, `level 0`, `daysSinceRevision null`, `atRisk false`.
+  - Sourate à la fois sélectionnée et en cours : on garde le carreau de la sélection, on y ajoute les champs d'apprentissage et on force `atRisk` à `false`.
+- **`lib/state/app_state_reinforcement.dart`** :
+  - `mosaicTiles({bool withLearning = false})` n'appelle `learningProgressList()` que si `withLearning` est vrai.
+  - `reinforcementSeriesInputs` reste sans apprentissage : le Quiz garde le vrai `atRisk`.
+- **`lib/widgets/mosaic_tile_shape.dart`** :
+  - Nouveau paramètre `learningFraction` (double?).
+  - S'il n'est pas nul : le contour d'étoile doré, plus un remplissage `palette.gold` par `clipRect`, du bas vers le haut, sur la fraction.
+  - Jamais de rond orange.
+  - `shouldRepaint` compare ce paramètre.
+- **`lib/widgets/mosaic.dart`** :
+  - Transmet `learningFraction` à la forme.
+  - Ajoute `S.versetsAppris(n, total)` à l'étiquette `Semantics`.
+  - Le compte « à risque » exclut les carreaux en construction, puisqu'ils ont `atRisk=false`.
+- **`lib/widgets/mosaic_tile_sheet.dart`** :
+  - `show(...)` gagne `VoidCallback? onAbandon`.
+  - Carreau en construction : ligne `S.versetsAppris(learnedCount, learnedTotal)`, et la forme utilise `learningFraction`.
+  - Carreau `isLearningOnly` : ni niveau, ni dernière révision, ni « Voir le texte ».
+  - Carreau à la fois sélectionné et en cours : niveau, dernière révision et « Voir le texte » restent.
+  - Si `onAbandon` est donné : bouton `S.supprimerApprentissage` (danger), qui ferme la feuille puis appelle `onAbandon`.
+- **`lib/screens/recap_screen.dart`** :
+  - `_load` appelle `mosaicTiles(withLearning: true)` et ne lit plus `learningProgressList` séparément.
+  - Retirer `_learning`, `LearningProgressCard`, `enCoursDApprentissage` et l'état vide basé sur `_learning`.
+  - `_openTile` passe `onAbandon` quand le carreau a un `learnedCount`.
+  - `_deleteLearning` reste : `confirmDialog(S.supprimerApprentissageDe(nameFr), danger: true)` puis `abandonLearning`.
+  - Rien d'autre ne permet d'abandonner depuis le Récap.
+- **Supprimé** : `lib/widgets/learning_progress_card.dart` (plus aucun appelant) et `S.enCoursDApprentissage` (`lib/core/strings.dart`).
+- **Réutilisé tel quel** : `AppState.learningProgressList()`, `LearningProgress`, `abandonLearning`, `confirmDialog`, `S.versetsAppris` et `S.supprimerApprentissage(De)`.
+- **Tests** :
+  - `test/core/mosaic_test.dart` :
+    - Une sourate seulement en cours prend sa place dans l'ordre du mushaf, avec la plage entière, `level 0` et `atRisk false`.
+    - Une sourate à la fois sélectionnée et en cours garde un seul carreau, avec son niveau, sa plage et sans risque.
+    - Une sourate complète est ignorée.
+    - La fraction vaut 0,12 à 0 verset appris, plafonne à 0,88 et suit la proportion entre les deux.
+    - Sans `learning`, le résultat est identique à aujourd'hui.
+  - `test/state/app_state_reinforcement_test.dart` : avec `withLearning`, une sourate démarrée à 0 verset appris est présente ; sans, elle n'y est pas.
+  - À l'œil, sous Windows : remplissage à environ 12 %, 50 % et 88 %, contour distinct du niveau 0, feuille avec abandon et confirmation, en clair et en sombre.
+- **Exclus** :
+  - Carreau de sourate en cours au Quiz.
+  - Nouvelles questions sur une sourate en cours.
+  - « Voir le texte » pour une sourate seulement en cours.
+  - Nom français sous le carreau.
+  - Repli de la grille.
+- **Doc** :
+  - `docs/DOCUMENTATION_TECHNIQUE.md` : §5.6bis (`Mosaic.build`, `MosaicTile`), §8.7, la section Récap du §8 (la liste disparaît) et `test/CLAUDE.md` (`mosaic_test`).
+  - Fondre US-32 dans `docs/SPEC_PRODUIT.md` (§ Récap, § Quiz, § Registre visuel), puis la retirer de `docs/USER_STORIES.md`.
+
 ### [P3] Hook de reprise d'arrière-plan logé dans `ShellScreen`, pas `AppState`
 Relevé en `/code-review high` du sprint US-3 (2026-09-21, altitude). Le `WidgetsBindingObserver`
 qui rejoue `ensureDayPlan()` au retour d'arrière-plan (US-3 crit. 5) — et depuis US-10 Sprint B
@@ -106,8 +162,13 @@ Besoins réels mais pas encore cadrés : chacun contient une décision ouverte. 
   un court défilement. À 320 px avec texte ×1,5, la grille fait 12 rangées et pousse « Commencer »
   à environ un écran et demi. Un carreau de 20 px est aussi une petite zone à toucher (48 px
   conseillés). Rien ne déborde. Le Récap reprend la même mosaïque (US-23) : la grille y repousse
-  la liste « Risque d'oublier », sans bouton à atteindre. À choisir : accepter, replier la grille au-delà d'un seuil (lequel ?),
-  ou relever le côté minimal.
+  la liste « Risque d'oublier », sans bouton à atteindre. US-32 (scoping du 2026-11-15) aggrave le
+  problème : avec les noms arabes sous les carreaux, 113 sourates font environ 1030 px à 375 px,
+  et environ 2010 px à ×1,5, au lieu de 254 px. Mesure du Sprint A (vraie police Amiri, 113
+  sourates) : 849 px à 375 px, 1531 px à 375 px ×1,5, 1029 px à 320 px et 2008 px à 320 px ×1,5
+  (3 colonnes). Le nom le plus large fait 40,4 px à ×1. En contrepartie, la cellule entière devient tactile, environ 52 px de large. Choix de
+  l'utilisateur : livrer US-32 sans trancher cette question. À choisir : accepter, replier la grille
+  au-delà d'un seuil (lequel ?), ou relever le côté minimal.
 - **« Choisir une sourate » quand aucune sourate n'offre de question** (US-30 Sprint A,
   2026-11-07) : le bouton reste affiché sous le message « sélection trop petite » et ouvre une
   feuille vide. À choisir : masquer le bouton, le désactiver, ou garder la feuille vide.
