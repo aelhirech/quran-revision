@@ -53,10 +53,21 @@ extension AppStateReinforcement on AppState {
     return QuizLevels.fold(await QuizAnswers.passageAnswers(_riwaya));
   }
 
-  Future<List<MosaicTile>> mosaicTiles() async =>
-      _mosaicTilesOf(await quizLevels());
+  /// [withLearning] adds the surahs being learned: the Recap only.
+  Future<List<MosaicTile>> mosaicTiles({bool withLearning = false}) async {
+    final (levels, learning) = await (
+      quizLevels(),
+      withLearning
+          ? learningProgressList()
+          : Future.value(const <LearningProgress>[]),
+    ).wait;
+    return _mosaicTilesOf(levels, learning: learning);
+  }
 
-  List<MosaicTile> _mosaicTilesOf(Map<int, int> levels) => _config == null
+  List<MosaicTile> _mosaicTilesOf(
+    Map<int, int> levels, {
+    List<LearningProgress> learning = const [],
+  }) => _config == null
       ? const []
       : Mosaic.build(
           selections: _config!.selections,
@@ -64,6 +75,7 @@ extension AppStateReinforcement on AppState {
           lastRevisionByAyah: _lastRevisionByAyah,
           today: DateTime.now(),
           tourDays: roundDaysOf(daySelection),
+          learning: learning,
         );
 
   /// Nothing watches the answers live: no notification. A failed write is

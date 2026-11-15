@@ -548,7 +548,8 @@ KSU.
   « Choisir une sourate » ne liste que les sourates qui offrent au moins une question dans le
   mode choisi : une sourate listée mène toujours à une série.
 - **Mosaïque**, en tête de l'onglet, avant les « Questions du jour » puis « Choisir une sourate » : un
-  carreau par sourate de la sélection en révision (jamais une sourate en apprentissage), dans
+  carreau par sourate de la sélection en révision (jamais une sourate en apprentissage : le Quiz
+  montre ce que l'utilisateur connaît déjà ; seul le Récap les ajoute), dans
   l'ordre du mushaf ; une plage partielle a un seul carreau. Au-dessus de la grille, le nombre de
   sourates à risque d'oublier passe avant tout le reste, ou une phrase calme s'il n'y en a aucune.
   La forme et la couleur du carreau disent son niveau ; un carreau à risque devient une étoile
@@ -627,14 +628,23 @@ il voit ce qui tient et ce qui demande de l'attention. Il regarde en arrière, a
 
 - **La mosaïque** de l'onglet Quiz en tête : mêmes carreaux, mêmes couleurs, même règle, et
   au-dessus le nombre de sourates à risque d'oublier, ou une phrase calme s'il n'y en a aucune.
+  Elle compte en plus les sourates en cours d'apprentissage, chacune à sa place dans l'ordre du
+  mushaf. Ce carreau se construit : un contour d'étoile doré rempli du bas vers le haut à
+  proportion des versets appris, jamais tout à fait vide ni tout à fait plein, pour qu'une
+  sourate démarrée se distingue d'une sourate pas encore jouée. Il ne passe jamais en orange,
+  même si une partie déjà révisée de la sourate est à risque : ce risque reste visible au Quiz et
+  revient au Récap une fois la sourate apprise en entier. Une sourate à la fois révisée et en
+  cours n'a qu'un carreau.
 - **« Risque d'oublier »** : les sourates à risque, de la révision la plus ancienne à la plus
   récente, chacune avec sa dernière révision (« Il y a plus de 3 mois », « de 6 mois »,
   « d'un an »).
-- **En cours d'apprentissage** : une ligne par sourate, son nom et ses versets appris, avec une
-  barre. Glisser la ligne propose d'abandonner l'apprentissage, après confirmation. La toucher
-  n'ouvre rien.
 - Un carreau ou une ligne « Risque d'oublier » ouvre la feuille de la sourate (niveau, risque,
   dernière révision, « Voir le texte »), sans bouton pour lancer une série.
+- **La feuille d'une sourate en cours** montre aussi les versets appris sur le total, et
+  « Supprimer l'apprentissage », qui demande confirmation. C'est le seul moyen d'abandonner un
+  apprentissage depuis le Récap ; seul l'apprentissage est supprimé, jamais la sourate de la
+  sélection. Si la sourate n'est qu'en cours, la feuille n'affiche ni niveau, ni dernière
+  révision, ni « Voir le texte » (son texte s'ouvre depuis le plan du jour).
 - Sans sourate en révision ni apprentissage, une phrase invite à ajouter des sourates dans les
   Réglages.
 - L'écran se met à jour après une fin de journée, un abandon d'apprentissage ou un changement de
@@ -644,7 +654,9 @@ il voit ce qui tient et ce qui demande de l'attention. Il regarde en arrière, a
 jour au repos), ni durée du tour (fin de journée), ni rythme, ni historique jour par jour, ni
 répartition, ni liste de toutes les sourates ; pas de date d'apprentissage prévue ; pas de
 nouvel indicateur ni de calendrier d'activité ; pas de liste des questions ratées (elles
-reviennent dans les séries de l'onglet Quiz) ; pas de série lancée depuis le Récap.
+reviennent dans les séries de l'onglet Quiz) ; pas de série lancée depuis le Récap ; pas de
+liste à part des sourates en cours ; pas de nom français sous les carreaux (il est dans la
+feuille) ; la grille ne se replie pas, même avec beaucoup de sourates.
 
 ## Réglages, régularité et rappels
 
@@ -698,7 +710,9 @@ tour, ni de sa durée : l'app décide.
   neutres (texte secondaire, sans couleur) quel que soit le niveau. Seuls les carreaux de la
   mosaïque portent un sens par la couleur : les niveaux (quatre teintes froides du vert au bleu
   nuit) et le risque d'oublier (orange, qui lui est réservé), définis une fois, en clair et en
-  sombre. « Pas encore jouée » est un contour doré, sans remplissage ni gris.
+  sombre. « Pas encore jouée » est un contour doré, sans remplissage ni gris. Un carreau en
+  construction (Récap) est un contour d'étoile doré qui se remplit d'or ; il reste calme, jamais
+  orange.
 - **Formes de carreau** : pas encore jouée, contour d'étoile à huit pointes, vide (une case qui
   attend d'être remplie) ; niveau 1, losange ; 2, étoile à huit
   pointes ; 3, étoile évidée au centre ; 4, étoile à cœur doré ; risque d'oublier, étoile orange

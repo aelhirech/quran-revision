@@ -123,4 +123,17 @@ void main() {
     }
     expect(await state.quizLevels(), {65: 2});
   });
+
+  test('US-32 : une sourate démarrée sans verset appris entre au Récap seulement',
+      () async {
+    final state = newState();
+    final surah = state.sourates.firstWhere((s) => s.id == 67);
+    await state.setLearningForToday(surah, 3);
+
+    final recap = await state.mosaicTiles(withLearning: true);
+    expect(recap.map((t) => t.surahId), [60, 65, 67]);
+    expect(recap.last.learning!.learnedCount, 0);
+    final quiz = await state.mosaicTiles();
+    expect(quiz.map((t) => t.surahId), [60, 65]);
+  });
 }

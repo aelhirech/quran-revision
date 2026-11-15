@@ -293,12 +293,23 @@ dernière révision par verset d'`ayah_facts`.
 - **`QuizLevels.changes(before, after)`** : les sourates dont le niveau a bougé, pour la fin de
   série. Une sourate absente de `before` part du niveau 1 sans annonce ; la dépasser dans la même
   série s'annonce.
-- **`Mosaic.build({selections, levels, lastRevisionByAyah, today, tourDays})`** → `MosaicTile`
-  (sourate, plage, niveau 0 à 4, jours depuis la dernière révision, `atRisk`) : un carreau par
-  sourate de `UserConfig.selections`, dans l'ordre du mushaf ; une sourate en apprentissage n'en a
-  pas. Plusieurs plages d'une sourate font un carreau de min à max. `atRisk` : plus de
-  max(90 jours, durée du tour) depuis la révision la plus récente de la plage. Jamais révisée
-  n'est jamais à risque. Seul lieu de cette règle : le tirage lit l'ensemble `atRisk` qui en sort.
+- **`Mosaic.build({selections, levels, lastRevisionByAyah, today, tourDays, learning = const []})`**
+  → `MosaicTile` (sourate, plage, niveau 0 à 4, jours depuis la dernière révision, `atRisk`,
+  `learning` (`LearningProgress?`), `isLearningOnly`, getter `learningFraction`) : un carreau par
+  sourate de `UserConfig.selections` **et** par sourate de `learning` non terminée (`isComplete`
+  ignoré), réunies dans l'ordre du mushaf. Plusieurs plages d'une sourate font un carreau de min à
+  max. `atRisk` : plus de max(90 jours, durée du tour) depuis la révision la plus récente de la
+  plage. Jamais révisée n'est jamais à risque. Seul lieu de cette règle : le tirage lit l'ensemble
+  `atRisk` qui en sort.
+  - **Sourate seulement en cours** (`isLearningOnly`) : plage 1..versets, niveau 0 même si un
+    niveau Quiz existe (ses versets appris sont portés, donc interrogeables), `daysSinceRevision`
+    nul, jamais à risque.
+  - **Sourate sélectionnée et en cours** : le carreau de la sélection (plage, niveau, jours) gagne
+    `learning` et `atRisk` est forcé à faux. Un carreau en construction ne passe jamais en orange ;
+    le risque de sa partie révisée reste visible au Quiz, qui n'appelle pas `build` avec
+    `learning`.
+  - `learningFraction` = `learning.progress` borné entre 0,12 et 0,88 (versets appris sur le total
+    de la **sourate**, pas de la plage) : « presque vide » se distingue de « pas encore jouée ».
 - **`atRiskOldestFirst(tiles)`** (fonction libre du même fichier, US-23) : les carreaux à risque, le
   plus longtemps sans révision d'abord. Fonction libre et pas méthode de `Mosaic` : le widget
   `Mosaic` porte le même nom et le Récap importe les deux.
@@ -649,13 +660,13 @@ Widgets réutilisables transverses : `PillChip` (chip sélectionnable, `dashed: 
 - **démarrer/choisir une sourate + combien de versets aujourd'hui** → `CheckInScreen` (§8.1bis), juste après la liste de révision ;
 - **réciter les versets du jour** → la dernière rakaa du plan (`RakaaAssignment.isLearning`, §5.1) ;
 - **créditer ou retirer des versets** → **uniquement le check-out** (§8.1bis) : portion du jour (décocher = reste à apprendre) et, depuis US-12, le **dernier bloc appris** un jour précédent (décocher = retiré, voir ci-dessous) ;
-- **suivre la progression** → section « En cours d'apprentissage » de `RecapScreen` (une `LearningProgressCard` compacte par sourate : nom, `S.versetsAppris`, barre). **Suivi seulement (US-12)** : la ligne n'est pas tapable et n'a plus d'icône livre (US-23) ; seul reste le glisser pour abandonner l'apprentissage (confirmation, `AppState.abandonLearning`).
+- **suivre la progression** → le carreau de la sourate dans la mosaïque de `RecapScreen` (US-32), rempli à proportion des versets appris (§8.4, §8.7). **Suivi seulement (US-12)** : sa feuille montre `S.versetsAppris` et le seul moyen d'abandonner l'apprentissage depuis le Récap (« Supprimer l'apprentissage », confirmation, `AppState.abandonLearning`).
 
 **`LearnSurahScreen` supprimé (US-12)** : c'était une seconde porte d'entrée pour créditer des versets hors du check-out (taille de bloc 1/3/5, validation/désapprentissage verset par verset, dôme, hadith). Partis avec lui : `VerseDisplayCard`, `AyahFactsLearning.learnVerses`, `LearningProgress.withVerseLearned`/`withVerseUnlearned`, et les strings propres à l'écran. Les lignes `learn` qu'il écrivait (`checked_out = 1`) restent dans l'historique des appareils existants : c'est pour elles que `learnPlanFor` garde son filtre `checked_out = 0`.
 
 **Retrait du dernier bloc au check-out (US-12)** : `AyahFactsLearning.lastLearnedBlock(surahId, beforeDate, riwaya)` renvoie les versets `type='learn', reach=1` à la date `MAX(date) < beforeDate`, pour la sourate de la portion du jour (`_learnPlan`) uniquement. La date de référence est celle de la journée clôturée, pas aujourd'hui : un check-out en retard reste correct. `CheckOutScreen._lastBlock`/`_retiredFromLastBlock` suivent la convention de `_notLearned` (coché = tient). À la clôture, `AppState.unlearnVerses` → `AyahFactsLearning.unlearnVerses` (un seul `UPDATE ... IN`, jamais un retrait à moitié appliqué) repasse **toutes** les lignes datées du verset à `reach=0`, sans jamais supprimer : le verset redevient le prochain à apprendre, et le « dernier bloc » suivant devient le lot d'avant. **Invariant** : ces retraits s'écrivent **avant** `AppState.checkOut`, sinon `handOffLearnedSurahs` bascule en révision une sourate dont un verset vient d'être retiré. Verrouillé par `test/state/app_state_learning_test.dart`.
 
-**`LearningProgress` du profil principal n'est plus persisté comme blob depuis Phase 6 Sprint 1** : `RecapScreen._load()` et `reinforcementInputs()` (via `AppState.learningProgressList()`) appelle `AyahFactsService.loadMainLearningProgress(riwaya, sourates)`, qui reconstruit un `LearningProgress` par sourate en cours en itérant sur `learnStartDatesBySourate` (toutes les sourates ayant au moins une ligne `type='learn'`, quel que soit `reach`) et en résolvant `learnedVerses` via `learnedVersesBySourate` (filtre `reach=1`) — pas un aller-retour SQL par sourate en boucle.
+**`LearningProgress` du profil principal n'est plus persisté comme blob depuis Phase 6 Sprint 1** : `AppState.mosaicTiles(withLearning: true)` (Récap) et `reinforcementInputs()` (via `AppState.learningProgressList()`) appelle `AyahFactsService.loadMainLearningProgress(riwaya, sourates)`, qui reconstruit un `LearningProgress` par sourate en cours en itérant sur `learnStartDatesBySourate` (toutes les sourates ayant au moins une ligne `type='learn'`, quel que soit `reach`) et en résolvant `learnedVerses` via `learnedVersesBySourate` (filtre `reach=1`) — pas un aller-retour SQL par sourate en boucle.
 
 **Démarrage d'une sourate = même sémantique propose/reach que `revise`** (voir CLAUDE.md « Modèle de données `ayah_facts` ») : démarrer écrit une ligne `type='learn', ayah_id=1, reach=0` — "verset 1 visé" —, jamais un fait sentinelle hors plage. Désapprendre repasse `reach` à 0 plutôt que de supprimer la ligne, sinon la sourate disparaîtrait de "en cours".
 
@@ -669,23 +680,25 @@ Widgets réutilisables transverses : `PillChip` (chip sélectionnable, `dashed: 
 
 **`OfflineAudioCard`** (`widgets/offline_audio_card.dart`, US-10 Sprint B, 2026-10-05), sous `SettingsCard` : interrupteur « autoriser les données mobiles » (`AudioPrefs`, relance la file s'il passe à vrai), « Télécharger tout le Coran » pour le récitateur choisi dans la riwaya active (`AudioPrefs.chosenReciter`, confirmation ~1 à 2 Go), puis une ligne par récitateur ayant des fichiers sur disque **ou** une demande en file (poids, état prêt/en cours/en attente du Wi-Fi/espace insuffisant/en attente, suppression confirmée). Les poids ne se recalculent que pour le récitateur dont une sourate vient de finir : la carte reste montée (`IndexedStack`) pendant un téléchargement complet de 114 sourates.
 
-**`RecapScreen`** (US-23) ne montre que trois blocs, sous la `GuideStep` et l'`OrnamentalDivider` :
-- **la mosaïque** : le widget `Mosaic` d'US-21 (§8.7), avec son en-tête « N à risque / aucune ».
+**`RecapScreen`** (US-23, US-32) ne montre que deux blocs, sous la `GuideStep` et l'`OrnamentalDivider` :
+- **la mosaïque** : le widget `Mosaic` d'US-21 (§8.7), avec son en-tête « N à risque / aucune »,
+  sourates en cours comprises (`mosaicTiles(withLearning: true)`, §5.6bis).
   `_openTile` ouvre `MosaicTileSheet.show` **sans `onStartSeries`** : pas de série depuis le Récap.
-  Une sourate que `sourateById` ne trouve plus (riwaya changée) n'ouvre rien. Pas de mosaïque
-  sans carreau.
+  Il passe `onAbandon` quand le carreau a un `learning` : `_deleteLearning` appelle
+  `confirmDialog(danger: true)`, puis `AppState.abandonLearning` (§7), qui notifie ; le
+  rechargement passe par l'écouteur, comme pour une fin de journée. C'est le seul moyen
+  d'abandonner depuis le Récap. Une sourate que `sourateById` ne trouve plus (riwaya changée)
+  n'ouvre rien.
 - **« Risque d'oublier »** : `atRiskOldestFirst(tiles)` (`core/mosaic.dart`, §5.6bis), une ligne
   par carreau (forme à risque, nom, `freshnessDiscreetLabel(freshnessFor(plage du carreau))`) qui
   ouvre la même feuille. Deux plages d'une sourate font un seul carreau, donc une seule ligne.
-- **« En cours d'apprentissage »** : une `LearningProgressCard` compacte par sourate non terminée.
-  Le glisser appelle `confirmDialog`, puis `AppState.abandonLearning` (§7), qui notifie : le
-  rechargement passe par l'écouteur, comme pour une fin de journée.
 - Rien à montrer : `S.recapVide`. Rien n'est affiché avant le premier chargement (`_tiles` nul),
   pour que cette phrase ne clignote pas.
 
 Chargement : même patron que `ReinforcementTab` — écouteur sur `AppState` posé en `initState`,
 `_refresh` ignoré tant que `!shown`, rattrapage dans `didUpdateWidget`, compteur `_generation`, un
-seul `setState` après `(mosaicTiles(), learningProgressList()).wait`. Le Récap n'appelle plus
+seul `setState` après `mosaicTiles(withLearning: true)` (qui lit niveaux et apprentissage en
+parallèle). Le Récap n'appelle plus
 `refreshFreshness` : `ShellScreen` le fait au démarrage, `checkOut` et le changement de riwaya
 aussi. Chaque notification d'`AppState` pendant que le Récap est affiché relit tout le journal du
 Quiz (`quizLevels()`, limite déjà connue, §8.7). Supprimés avec US-23 : `StreakCard`,
@@ -708,7 +721,7 @@ Cette liste consolide ce que l'analyse fichier-par-fichier a fait remonter — u
 
 ### 8.6 Vue Coran unifiée (`VerseBottomSheet`/`VerseRow`, 2026-09-02)
 
-Trois écrans avaient chacun leur propre implémentation quasi identique du besoin "afficher le Coran entre `ayah_start` et `ayah_end`" : `VerseBottomSheet` (versets d'une rakaa, Plan du jour), `SurahReaderScreen` (lecture pleine page, Récap), `VerseDisplayCard` (bloc de mémorisation, Apprendre). Chacun rendait le texte via `VerseService.getVerse`, qui ajoutait un chiffre arabe-indic (`_arabicIndicNumeral`) en fin de texte. Retour utilisateur (relayé, pas TestFlight direct) : ce chiffre est redondant dès lors qu'un badge numéroté existe déjà à côté (c'était le cas côté Plan du jour, `IndexBadge` pour le numéro de rakaa) — préférence exprimée pour un seul indicateur visuel (le badge) plutôt que le chiffre arabe-indic en fin de texte. Décision : remplacer le chiffre par un badge numéroté par verset partout, pas seulement là où un badge voisin existait déjà. Unifié : `VerseBottomSheet` prend désormais directement `(Sourate sourate, int ayahStart, int ayahEnd)` (plus de couplage à `RevisionUnit`/`rakaaNumber`, ce dernier n'était de toute façon jamais affiché), et `VerseRow` (`widgets/verse_row.dart` — badge `IndexBadge` + `ArabicVerseText`) est le seul point de rendu d'un verset numéroté, réutilisé par `VerseBottomSheet` et `VerseDisplayCard`. `VerseService.getVerse` ne retourne plus que le texte brut (numéral supprimé, `versesForUnit` et `_arabicIndicNumeral` supprimés — plus aucun appelant). `SurahReaderScreen` supprimé : le Récap utilise désormais la même icône livre (`Icons.menu_book_outlined`) + `VerseBottomSheet` que Plan du jour (la ligne entière n'est plus tapable, seule l'icône ouvre la vue) ; `LearningProgressCard` (Apprendre) porte la même icône, en plus du tap existant sur la ligne (qui ouvre toujours `LearnSurahScreen`), sur la plage complète de la sourate (`1`–`s.verses`). Toute nouvelle surface qui a besoin d'afficher le Coran pour une plage de versets doit réutiliser `VerseBottomSheet`/`VerseRow` plutôt que réimplémenter une boucle `VerseService.getVerse` — c'est désormais le seul chemin. *(Mise à jour US-12, 2026-09-29 : `VerseDisplayCard` et `LearnSurahScreen` ont été supprimés ; `LearningProgressCard` n'est plus tapable, seule son icône livre ouvre la vue.)*
+Trois écrans avaient chacun leur propre implémentation quasi identique du besoin "afficher le Coran entre `ayah_start` et `ayah_end`" : `VerseBottomSheet` (versets d'une rakaa, Plan du jour), `SurahReaderScreen` (lecture pleine page, Récap), `VerseDisplayCard` (bloc de mémorisation, Apprendre). Chacun rendait le texte via `VerseService.getVerse`, qui ajoutait un chiffre arabe-indic (`_arabicIndicNumeral`) en fin de texte. Retour utilisateur (relayé, pas TestFlight direct) : ce chiffre est redondant dès lors qu'un badge numéroté existe déjà à côté (c'était le cas côté Plan du jour, `IndexBadge` pour le numéro de rakaa) — préférence exprimée pour un seul indicateur visuel (le badge) plutôt que le chiffre arabe-indic en fin de texte. Décision : remplacer le chiffre par un badge numéroté par verset partout, pas seulement là où un badge voisin existait déjà. Unifié : `VerseBottomSheet` prend désormais directement `(Sourate sourate, int ayahStart, int ayahEnd)` (plus de couplage à `RevisionUnit`/`rakaaNumber`, ce dernier n'était de toute façon jamais affiché), et `VerseRow` (`widgets/verse_row.dart` — badge `IndexBadge` + `ArabicVerseText`) est le seul point de rendu d'un verset numéroté, réutilisé par `VerseBottomSheet` et `VerseDisplayCard`. `VerseService.getVerse` ne retourne plus que le texte brut (numéral supprimé, `versesForUnit` et `_arabicIndicNumeral` supprimés — plus aucun appelant). `SurahReaderScreen` supprimé : le Récap utilise désormais la même icône livre (`Icons.menu_book_outlined`) + `VerseBottomSheet` que Plan du jour (la ligne entière n'est plus tapable, seule l'icône ouvre la vue) ; `LearningProgressCard` (Apprendre) porte la même icône, en plus du tap existant sur la ligne (qui ouvre toujours `LearnSurahScreen`), sur la plage complète de la sourate (`1`–`s.verses`). Toute nouvelle surface qui a besoin d'afficher le Coran pour une plage de versets doit réutiliser `VerseBottomSheet`/`VerseRow` plutôt que réimplémenter une boucle `VerseService.getVerse` — c'est désormais le seul chemin. *(Mise à jour US-12, 2026-09-29 : `VerseDisplayCard` et `LearnSurahScreen` ont été supprimés ; `LearningProgressCard` n'est plus tapable, seule son icône livre ouvre la vue. Mise à jour US-32 : `LearningProgressCard` supprimée, le suivi passe par la mosaïque du Récap.)*
 
 **Flaguer "à retravailler" depuis le Récap — mécanisme supprimé (US-3, 2026-09-21)** : le bookmark "à retravailler" que `VerseBottomSheet` portait depuis 2026-09-14 (toggle par verset, `AppState.setVerseNeedsWork`/`lastRevisionFlagsFor` → `AyahFactsRitual.setNeedsWork`/`lastRevisionFlags`) est retiré en entier avec `needs_work` — voir § « Modèle de données central » de `CLAUDE.md`. `VerseBottomSheet` redevient `StatelessWidget` (plus de `_flags`/`_loadFlags`/`_toggle`), affichage seul. `VerseRow.trailing` (le slot qui portait l'icône bookmark) est retiré du modèle — plus aucun appelant n'en avait besoin (`VerseDisplayCard` ne le passait déjà pas).
 
@@ -948,7 +961,11 @@ extension sur son `State`, pour garder `series_screen.dart` sous le plafond de t
   (`withoutHizbSign`, §5.6).
 
 **Widgets de la mosaïque** (`lib/widgets/`, partagés avec le Récap, §8.4) :
-- **`MosaicTileShape({level, atRisk, size})`** : `CustomPainter`. Niveau 0 contour d'étoile
+- **`MosaicTileShape({level, atRisk, size, learningFraction})`** : `CustomPainter`. Avec
+  `learningFraction` (carreau en construction, US-32) : contour d'étoile `palette.gold` (même
+  rayon et trait que le niveau 0) et remplissage `palette.gold` par `clipRect`, du bas vers le
+  haut, sur la fraction **de la hauteur de l'étoile** (pas du canevas : les bornes 12 %/88 %
+  tomberaient hors de l'étoile). Jamais l'orange. Sinon : niveau 0 contour d'étoile
   (rayon `0.9·R`, trait `0.14·R`, `palette.goldDark`, sans remplissage, US-32), 1 losange,
   2 étoile à 8 pointes (rayon intérieur `R·cos(π/4)/cos(π/8)`), 3 étoile évidée (`evenOdd`),
   4 étoile à cœur `palette.gold` ; couleur `palette.levelTints[level]` pour 1 à 4
@@ -956,7 +973,8 @@ extension sur son `State`, pour garder `series_screen.dart` sous le plafond de t
   étoile `palette.risk`, quel que soit le niveau.
 - **`Mosaic({tiles, onTap})`** : une `Card`, en tête la forme à risque et
   `SReinforcement.aRisque(n)` (ou `aucuneARisque`), puis un `Wrap` de cellules. Chaque cellule est
-  un `Semantics(button, label: « nom français, niveau[, risque d'oublier] »)` autour d'un `InkWell`
+  un `Semantics(button, label: « nom français[, niveau][, risque d'oublier][, versets appris] »)`
+  (pas de niveau pour une sourate seulement en cours) autour d'un `InkWell`
   à bord arrondi, qui contient la forme puis `Sourate.nameAr` (Amiri 12, hauteur 1,4,
   `palette.primary`, une ligne, `softWrap: false`). Toutes les cellules ont la même largeur :
   max(côté, nom affiché le plus large + 4 px), mesurée par `TextPainter` sur les noms de la grille
@@ -968,12 +986,15 @@ extension sur son `State`, pour garder `series_screen.dart` sous le plafond de t
   `PaintingBinding.instance.systemFonts` pour remesurer les noms une fois la police arrivée, sinon
   les cellules restent calculées sur la police de repli. Testé par
   `test/widgets/mosaic_tile_side_test.dart` et `mosaic_font_load_test.dart`.
-- **`MosaicTileSheet.show(context, tile, sourate, {onStartSeries})`** : feuille modale avec
-  `DraggableHandle`. Nom FR et AR, `S.blocRange` si la plage est partielle, la forme du niveau
-  (toujours `atRisk: false` : le carreau orange la cache, c'est ici qu'elle se lit),
-  « Risque d'oublier », `freshnessDiscreetLabel(state.freshnessFor(…))`, puis « Lancer une série
-  sur cette sourate » (si `onStartSeries`) et « Voir le texte » (`VerseBottomSheet.show` sur la
-  plage). Chaque action ferme la feuille puis agit depuis le contexte de l'appelant.
+- **`MosaicTileSheet.show(context, tile, sourate, {onStartSeries, onAbandon})`** : feuille modale
+  avec `DraggableHandle`. Nom FR et AR, `S.blocRange` si la plage est partielle ; si le carreau a
+  un `learning`, la forme en construction et `S.versetsAppris`. Puis `_revised` (absent si
+  `isLearningOnly`) : la forme du niveau (toujours `atRisk: false` : le carreau orange la cache,
+  c'est ici qu'elle se lit), « Risque d'oublier », `freshnessDiscreetLabel(state.freshnessFor(…))`,
+  « Lancer une série sur cette sourate » (si `onStartSeries`) et « Voir le texte »
+  (`VerseBottomSheet.show` sur la plage). Enfin « Supprimer l'apprentissage » (`TextButton`
+  `palette.danger`, si `onAbandon`). Chaque action ferme la feuille puis agit depuis le contexte
+  de l'appelant. Testé par `test/widgets/mosaic_tile_sheet_test.dart`.
 
 **`SeriesMarks`** : un losange par question. Plein or : tenue. Bordure or : ratée. Bordure
 `cardBorder` : à venir. Cerclé : en cours. `PassageChoice` le réutilise avec `total: 1` pour sa
@@ -1038,7 +1059,7 @@ Deux thèmes : **Mus'haf** (clair — papier crème, vert profond, or) et **Taha
 - **`test/state/app_state_checkin_test.dart`** (Phase 6 Sprint 2, 3 tests initiaux ; **8 tests après Phase 9 Sprint 2**, dont « clôturer deux fois la même journée ne fait avancer le cycle qu'une fois ») — première suite sur `AppState` (nécessite `TestWidgetsFlutterBinding.ensureInitialized()` + `HafsService.initialize()`/`PageMetadataService.initialize()` réels via `rootBundle`, `AppState` construit `_sourates` dès son constructeur). Couvre le gating du moteur quotidien de bout en bout, `checkOut` (avancée du cycle par **groupe** depuis Sprint 3, unité retirée au check-in ignorée plutôt que bloquante, groupe entièrement retiré ignoré) et le regroupement par page partagée (`cyclePosition` avance par groupe complété, pas par unité — sourates réelles 106/107/108, page 602, l'exemple même du cadrage). Les sourates de test sont choisies avec de vrais ids (`PageMetadataService` charge la vraie pagination, pas de mock) délibérément isolées les unes des autres — sauf pour le test de regroupement, qui choisit délibérément des voisines.
 - **`test/core/reinforcement_engine_test.dart`** (US-20 Sprint A, 15 tests, vrais textes Hafs et Warsh, `Random` à graine fixe) : découpe sans perte sur tous les versets des deux riwayas, questions répétées écartées, plage partielle jamais dépassée, passage similaire proposé, part du plan du jour, questions non reposées, sélection trop petite, `carriedVerses`. Sa normalisation du texte est réécrite dans le test, pas empruntée au moteur.
 - **`test/state/app_state_reinforcement_test.dart`** (5 tests) : `reinforcementInputs` sans configuration, avec un plan du jour, et avec un verset proposé à l'apprentissage mais pas encore appris ; US-21 : niveaux, questions à reprendre et carreaux depuis les réponses, et lecture des niveaux qui attend les réponses encore en écriture.
-- **US-21 Sprint A** : `test/core/quiz_levels_test.dart` (repli des niveaux, `changes`), `test/core/mosaic_test.dart` (seuil de 90 jours, tour plus long, jamais révisée, plage partielle, plages fusionnées), `test/services/quiz_answers_test.dart` (ordre, dernière réponse qui décide, riwayas et types séparés, aucune requête de révision touchée), `ayah_facts_migration_v5_test.dart` ; tests 19 à 25 de `reinforcement_engine_test.dart` (mauvais choix par niveau, retours, sourates à risque) et 10 bis de `reinforcement_words_test.dart`.
+- **US-21 Sprint A** : `test/core/quiz_levels_test.dart` (repli des niveaux, `changes`), `test/core/mosaic_test.dart` (seuil de 90 jours, tour plus long, jamais révisée, plage partielle, plages fusionnées ; US-32 : sourate en cours, bornes du remplissage), `test/services/quiz_answers_test.dart` (ordre, dernière réponse qui décide, riwayas et types séparés, aucune requête de révision touchée), `ayah_facts_migration_v5_test.dart` ; tests 19 à 25 de `reinforcement_engine_test.dart` (mauvais choix par niveau, retours, sourates à risque) et 10 bis de `reinforcement_words_test.dart`.
 - **`test/core/reinforcement_words_test.dart`** (US-22 Sprint C, 14 tests, vrai texte Hafs et vrais sens, `Random` à graine fixe) : mot posé d'au moins 3 lettres, 2 à 4 choix, mots arabes et sens tous différents, aucun sens voisin du bon, mot retrouvé à sa place dans le passage, verset sans un sens par mot jamais interrogé (37:130), les deux sens de question, mots non reposés d'une série à l'autre, part du plan du jour, série sur une sourate (mauvais choix de la sourate d'abord, d'ailleurs ensuite, plan du jour ignoré), série mêlée à 5 et 5 et ses deux replis. Ses règles sur les sens sont réécrites dans le test, pas empruntées au moteur. Depuis le sprint 19 (15 tests) : le mot du passage est le mot posé, ou ce mot précédé de « ۞ » et de l'espace insécable, rien d'autre ; et sur la sourate 100 seule, aucun choix ne contient « ۞ » alors que le premier mot de 100:9 est bien proposé.
 - **`test/core/app_palette_contrast_test.dart`** (US-25 Sprint A, 15 tests, Dart pur sur les deux palettes) : contraste WCAG écrit en clair dans le test (pas `computeLuminance`), un jeton translucide composé sur son fond d'abord. Texte (`textPrimary`, `textMuted`, `primary`, `danger`, `goldDark`, `onSurfaceVariant`) à 4,5:1, `risk` et les 5 `levelTints` à 3:1, chacun sur le fond **et** sur la carte (`surfaceCard` composée sur `cream` par `Color.alphaBlend`), clair et sombre ; plus `buildAppTheme` qui porte Outfit sur les sept rôles du `textTheme`.
 - **`test/widgets/mosaic_tile_side_test.dart`** (US-21 Sprint B, US-32 Sprint A) : `mosaicLayout` en Dart pur, avec un nom de 40 px (le plus large mesuré à ×1) : 1 carreau → 44 px ; 20 carreaux tiennent dans 240 px ; 113 carreaux sur un téléphone → 20 px et la grille s'allonge ; la cellule prend la largeur du nom qui dépasse le carreau ; un nom plus large fait une grille plus haute ; propriété sur 1 à 113 carreaux × trois largeurs. Puis sur la vraie police Amiri, à 320 px, ×1 et ×1,5 : les trois noms les plus longs tiennent sur une ligne (`expectOneLine`, partagé avec `text_scale_fit_test`), 113 sourates sans débordement. Une cellule réduite au carreau fait échouer le cas ×1,5.
@@ -1089,7 +1110,7 @@ Ces règles viennent de `CLAUDE.md` (racine et projet) ; ce document les documen
 | `AppState` : un seul `notifyListeners()` par opération logique | Déjà respecté dans le code actuel (`app_state.dart`) — vérifier en review qu'un nouveau setter ne notifie pas deux fois. |
 | Modèles : mise à jour uniquement via `copyWith()` | `UserConfig.copyWith()` est le point d'entrée utilisé partout (onboarding excepté, qui construit un `UserConfig` neuf faute de config existante) — préserver ce pattern. |
 | `if (!mounted) return;` après chaque `await` dans un `State` | Respecté quasi partout dans le code actuel (voir notes par écran en §8) — certains écrans utilisent `if (mounted) setState(...)` (équivalent, style différent). `profile_screen.dart._showDurationDialog` avait un `setState` sans re-check `mounted` après un `await state.saveConfig(...)` — corrigé au Sprint 7. |
-| Texte utilisateur → `lib/core/strings.dart` ; texte arabe → `VerseService` | `'✓ Complet'` en dur dans `learning_progress_card.dart` (texte, non traité). `verse_bottom_sheet.dart` appelait `package:quran` directement (`getSurahNameArabic`) au lieu de passer par `VerseService` — corrigé au Sprint 7 (`VerseService.surahNameArabic()` ajouté) ; plus aucun appel direct à `package:quran` hors `VerseService`/`WarshService`. |
+| Texte utilisateur → `lib/core/strings.dart` ; texte arabe → `VerseService` | `'✓ Complet'` en dur dans `learning_progress_card.dart` (disparu avec le fichier, US-32). `verse_bottom_sheet.dart` appelait `package:quran` directement (`getSurahNameArabic`) au lieu de passer par `VerseService` — corrigé au Sprint 7 (`VerseService.surahNameArabic()` ajouté) ; plus aucun appel direct à `package:quran` hors `VerseService`/`WarshService`. |
 | Couleurs → toujours `AppPalette` | Écarts connus listés en §8.5 point 3 — à ne pas reproduire. |
 
 ---
@@ -1298,7 +1319,9 @@ Ne garde que ce qui reste réellement à respecter en touchant ce code. Un choix
     (`lib/widgets/mosaic.dart`). Les widgets importent le cœur avec `show MosaicTile` ; un fichier
     qui a besoin des deux doit préfixer l'un des imports.
   - L'orange (`atRisk`) se calcule dans `Mosaic.build` seulement ; le widget et la feuille le
-    lisent, ne le recalculent jamais.
+    lisent, ne le recalculent jamais. Le Récap passe `learning` (US-32), qui force `atRisk` à
+    faux sur un carreau en construction ; le Quiz ne le passe pas et garde le vrai risque. Ne pas
+    passer `learning` côté Quiz.
   - Les carreaux se rechargent à chaque notification d'`AppState` quand l'onglet est affiché :
     ils dépendent aussi de la sélection et de la dernière révision, pas seulement des réponses.
     Ne pas réduire au seul retour de série.

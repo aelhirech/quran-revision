@@ -137,7 +137,6 @@ class S {
       locale == 'fr' ? '$n jours' : '$n days';
 
   // Apprentissage
-  static String get enCoursDApprentissage => _t("En cours d'apprentissage", 'In progress');
   static String get commencerSourate => _t('Commencer une sourate', 'Start a surah');
   static String supprimerApprentissageDe(String nom) =>
       _t("Supprimer l'apprentissage de $nom ?",
