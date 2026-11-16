@@ -991,8 +991,11 @@ extension sur son `State`, pour garder `series_screen.dart` sous le plafond de t
   un `learning`, la forme en construction et `S.versetsAppris`. Puis `_revised` (absent si
   `isLearningOnly`) : la forme du niveau (toujours `atRisk: false` : le carreau orange la cache,
   c'est ici qu'elle se lit), « Risque d'oublier », `freshnessDiscreetLabel(state.freshnessFor(…))`,
-  « Lancer une série sur cette sourate » (si `onStartSeries`) et « Voir le texte »
-  (`VerseBottomSheet.show` sur la plage). Enfin « Supprimer l'apprentissage » (`TextButton`
+  « Lancer une série sur cette sourate » (si `onStartSeries`). Puis « Voir le texte », pour tout
+  carreau : `VerseBottomSheet.show` sur `MosaicTileSheet.textRange`, la sourate entière
+  (`1..sourate.verses`) si le carreau a un `learning`, sinon la plage du carreau (US-33 ; seul le
+  Récap remplit `learning`, le Quiz n'est donc pas touché). Le libellé `S.blocRange` en tête
+  reste celui de la partie révisée. Enfin « Supprimer l'apprentissage » (`TextButton`
   `palette.danger`, si `onAbandon`). Chaque action ferme la feuille puis agit depuis le contexte
   de l'appelant. Testé par `test/widgets/mosaic_tile_sheet_test.dart`.
 

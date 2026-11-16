@@ -52,13 +52,13 @@ void main() {
     ),
   );
 
-  testWidgets('US-32 : sourate seulement en cours, versets appris et abandon, '
-      'sans niveau ni « Voir le texte »', (tester) async {
+  testWidgets('US-32/US-33 : sourate seulement en cours, versets appris, '
+      '« Voir le texte » et abandon, sans niveau', (tester) async {
     var abandoned = false;
     await pump(tester, tile(learningOnly: true), () => abandoned = true);
 
     expect(find.text(S.versetsAppris(1, 4)), findsOneWidget);
-    expect(find.text(S.voirLeTexte), findsNothing);
+    expect(find.text(S.voirLeTexte), findsOneWidget);
     expect(find.text(SReinforcement.niveau(0)), findsNothing);
     await tester.tap(find.text(S.supprimerApprentissage));
     expect(abandoned, isTrue);
@@ -75,6 +75,37 @@ void main() {
       expect(find.text(S.supprimerApprentissage), findsOneWidget);
     },
   );
+
+  group('US-33 : plage ouverte par « Voir le texte »', () {
+    MosaicTile revised(int start, int end, {LearningProgress? learning}) =>
+        MosaicTile(
+          surahId: 112,
+          verseStart: start,
+          verseEnd: end,
+          level: 1,
+          daysSinceRevision: 3,
+          atRisk: false,
+          learning: learning,
+        );
+
+    test('seulement en cours : la sourate entière', () {
+      expect(
+        MosaicTileSheet.textRange(tile(learningOnly: true), surah),
+        (1, 4),
+      );
+    });
+
+    test('révisée en partie et en cours : la sourate entière', () {
+      expect(
+        MosaicTileSheet.textRange(revised(1, 2, learning: learning), surah),
+        (1, 4),
+      );
+    });
+
+    test('révisée seulement : la plage révisée', () {
+      expect(MosaicTileSheet.textRange(revised(2, 3), surah), (2, 3));
+    });
+  });
 
   testWidgets('sans onAbandon, aucun bouton de suppression', (tester) async {
     await pump(

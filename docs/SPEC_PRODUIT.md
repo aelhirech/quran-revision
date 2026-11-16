@@ -489,9 +489,8 @@ pression) ; pas de son, pas de trophées ni de collection de jalons ; pas de mod
   sourate est en cours.
 - **L'échéance d'apprentissage est toujours conditionnelle** (« si tu tiens ce rythme »),
   recalculée en silence après une absence, jamais opposée à l'utilisateur.
-- Au Récap, une sourate en cours est un **suivi** : nom et versets appris, glisser pour
-  l'abandonner. La toucher n'ouvre rien ; son texte s'ouvre depuis la carte d'apprentissage du
-  plan du jour.
+- Au Récap, une sourate en cours est un carreau en construction : le toucher ouvre sa feuille
+  (versets appris, « Voir le texte » sur la sourate entière, « Supprimer l'apprentissage »).
 
 **Ne fait pas** : aucun second écran d'apprentissage ni de feuille équivalente ; aucun crédit
 de verset en dehors du check-out ; aucun verset de contexte grisé en tête de la plage apprise ;
@@ -643,8 +642,11 @@ il voit ce qui tient et ce qui demande de l'attention. Il regarde en arrière, a
 - **La feuille d'une sourate en cours** montre aussi les versets appris sur le total, et
   « Supprimer l'apprentissage », qui demande confirmation. C'est le seul moyen d'abandonner un
   apprentissage depuis le Récap ; seul l'apprentissage est supprimé, jamais la sourate de la
-  sélection. Si la sourate n'est qu'en cours, la feuille n'affiche ni niveau, ni dernière
-  révision, ni « Voir le texte » (son texte s'ouvre depuis le plan du jour).
+  sélection. Si la sourate n'est qu'en cours, la feuille n'affiche ni niveau ni dernière
+  révision.
+- **« Voir le texte » d'une sourate en cours** ouvre la sourate entière, même si une partie
+  seulement est révisée : le carreau représente toute la sourate. La plage en tête de feuille
+  reste celle de la partie révisée.
 - Sans sourate en révision ni apprentissage, une phrase invite à ajouter des sourates dans les
   Réglages.
 - L'écran se met à jour après une fin de journée, un abandon d'apprentissage ou un changement de
@@ -655,7 +657,8 @@ jour au repos), ni durée du tour (fin de journée), ni rythme, ni historique jo
 répartition, ni liste de toutes les sourates ; pas de date d'apprentissage prévue ; pas de
 nouvel indicateur ni de calendrier d'activité ; pas de liste des questions ratées (elles
 reviennent dans les séries de l'onglet Quiz) ; pas de série lancée depuis le Récap ; pas de
-liste à part des sourates en cours ; pas de nom français sous les carreaux (il est dans la
+liste à part des sourates en cours ; aucun marquage des versets appris dans le texte ouvert
+depuis la feuille ; pas de nom français sous les carreaux (il est dans la
 feuille) ; la grille ne se replie pas, même avec beaucoup de sourates.
 
 ## Réglages, régularité et rappels
