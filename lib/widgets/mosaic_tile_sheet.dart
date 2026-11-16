@@ -17,7 +17,7 @@ import 'verse_bottom_sheet.dart';
 
 /// What a tile holds: name, level, last revision, verses learned, and the
 /// way to its text, to a series on it or to abandoning its learning (US-21
-/// crit. 6, US-32 crit. 2).
+/// crit. 6, US-32 crit. 2, US-33).
 class MosaicTileSheet extends StatelessWidget {
   final MosaicTile tile;
   final Sourate sourate;
@@ -35,6 +35,13 @@ class MosaicTileSheet extends StatelessWidget {
     this.onStartSeries,
     this.onAbandon,
   });
+
+  /// A surah being learned opens whole: the tile stands for the whole surah,
+  /// while its own range is only the revised part of the selection (US-33).
+  static (int, int) textRange(MosaicTile tile, Sourate sourate) =>
+      tile.learning != null
+      ? (1, sourate.verses)
+      : (tile.verseStart, tile.verseEnd);
 
   /// [onStartSeries] and [onAbandon] are shown only when given: a surah that
   /// offers no question gets no button that would lead nowhere.
@@ -60,12 +67,8 @@ class MosaicTileSheet extends StatelessWidget {
         lastRevision: freshnessDiscreetLabel(freshness),
         onSeeText: () {
           Navigator.pop(sheetContext);
-          VerseBottomSheet.show(
-            context,
-            sourate,
-            tile.verseStart,
-            tile.verseEnd,
-          );
+          final (start, end) = textRange(tile, sourate);
+          VerseBottomSheet.show(context, sourate, start, end);
         },
         onStartSeries: onStartSeries == null
             ? null
@@ -132,7 +135,15 @@ class MosaicTileSheet extends StatelessWidget {
                 ],
               ),
             ],
-            if (!tile.isLearningOnly) ..._revised(muted),
+            if (tile.isLearningOnly)
+              const SizedBox(height: 20)
+            else
+              ..._revised(muted),
+            OutlinedActionButton(
+              icon: Icons.menu_book_outlined,
+              label: S.voirLeTexte,
+              onTap: onSeeText,
+            ),
             if (onAbandon != null) ...[
               const SizedBox(height: 10),
               TextButton.icon(
@@ -148,7 +159,7 @@ class MosaicTileSheet extends StatelessWidget {
     );
   }
 
-  // What the revised range holds: level, risk, last revision, text, series.
+  // What the revised range holds: level, risk, last revision, series.
   List<Widget> _revised(TextStyle muted) => [
     const SizedBox(height: 16),
     Row(
@@ -186,10 +197,5 @@ class MosaicTileSheet extends StatelessWidget {
       ),
       const SizedBox(height: 10),
     ],
-    OutlinedActionButton(
-      icon: Icons.menu_book_outlined,
-      label: S.voirLeTexte,
-      onTap: onSeeText,
-    ),
   ];
 }
